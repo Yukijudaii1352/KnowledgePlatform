@@ -1,0 +1,38 @@
+# ============ Python ============
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.venv/
+venv/
+env/
+
+# ============ OS / Editor ============
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ============ Logs / Temp ============
+*.log
+*.tmp
+.cache/
+/tmp/
+
+# ============ 项目私有 ============
+# 本地构建校验产物（pipeline 临时输出）
+pipeline/.cache/
+pipeline/__pycache__/
+
+# 本地预览服务日志
+/tmp/kp_server.log
+
+# 部署脚本可能写入的临时文件
+.deploy_tmp/

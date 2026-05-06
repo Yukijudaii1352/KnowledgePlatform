@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI4SCI · AI Knowledge Hub</title>
+<link rel="stylesheet" href="../../assets/css/common.css">
+<style>
+.topic-card { position: relative; transition: all 0.28s ease; }
+.topic-card.ready { border-left: 3px solid var(--accent); }
+.topic-card.coming { opacity: 0.55; }
+.topic-card.card-clickable:hover { transform: translateY(-3px); }
+.topic-name { font-size: 1.08rem; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+.topic-desc { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.65; }
+.topic-meta {
+  display: flex; gap: 14px; margin-top: 14px;
+  font-size: 0.82rem; color: var(--text-dim);
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="shell">
+    <div class="topbar-inner">
+      <a class="brand" href="../../index.html">
+        <div class="brand-icon">AI</div>
+        <div>
+          <div class="brand-text">AI Knowledge Hub</div>
+          <div class="brand-sub">AI知识学习平台</div>
+        </div>
+      </a>
+    </div>
+  </div>
+</header>
+
+<div class="shell-narrow">
+  <div class="breadcrumb">
+    <a href="../../index.html">首页</a> <span class="sep">/</span> <span class="current">AI4SCI</span>
+  </div>
+</div>
+
+<div class="shell-narrow">
+  <div class="page-header">
+    <h1>🔬 AI4SCI</h1>
+    <p>AI 驱动的科学研究：药学、生命科学、化学、材料、医学、物理与地球科学。</p>
+  </div>
+</div>
+
+<section class="section">
+  <div class="shell-narrow">
+    <div class="grid-auto">
+
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">科学基础模型</div><div class="topic-desc">面向科学数据的通用基础模型与跨学科统一架构。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">科学机器学习</div><div class="topic-desc">PINN、神经算子、可微分仿真与科学计算加速。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">药学AI</div><div class="topic-desc">分子生成、虚拟筛选、ADMET 预测与药物设计。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">生命科学AI</div><div class="topic-desc">AlphaFold、蛋白质设计、基因组学与单细胞分析。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">化学AI</div><div class="topic-desc">反应预测、逆合成分析、催化剂与化学空间探索。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">材料学AI</div><div class="topic-desc">晶体结构预测、性质预测与新材料发现。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">医学AI</div><div class="topic-desc">医学影像、临床决策、疾病预测与智能诊疗。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">物理AI</div><div class="topic-desc">偏微分方程求解、流体/固体仿真与理论物理发现。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">地球科学AI</div><div class="topic-desc">气象预报、气候建模、遥感地物分析与灾害预测。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">科学数据</div><div class="topic-desc">科学数据集、基准评测与开放科学生态。</div><div class="topic-meta"><span>建设中</span></div></div>
+
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="shell">
+    <p>AI Knowledge Hub  © 2026 · AI知识学习平台</p>
+  </div>
+</footer>
+
+</body>
+</html>

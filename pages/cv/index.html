@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>计算机视觉 · AI Knowledge Hub</title>
+<link rel="stylesheet" href="../../assets/css/common.css">
+<style>
+.topic-card { position: relative; transition: all 0.28s ease; }
+.topic-card.ready { border-left: 3px solid var(--accent); }
+.topic-card.coming { opacity: 0.55; }
+.topic-card.card-clickable:hover { transform: translateY(-3px); }
+.topic-name { font-size: 1.08rem; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+.topic-desc { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.65; }
+.topic-meta {
+  display: flex; gap: 14px; margin-top: 14px;
+  font-size: 0.82rem; color: var(--text-dim);
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="shell">
+    <div class="topbar-inner">
+      <a class="brand" href="../../index.html">
+        <div class="brand-icon">AI</div>
+        <div>
+          <div class="brand-text">AI Knowledge Hub</div>
+          <div class="brand-sub">AI知识学习平台</div>
+        </div>
+      </a>
+    </div>
+  </div>
+</header>
+
+<div class="shell-narrow">
+  <div class="breadcrumb">
+    <a href="../../index.html">首页</a> <span class="sep">/</span> <span class="current">计算机视觉</span>
+  </div>
+</div>
+
+<div class="shell-narrow">
+  <div class="page-header">
+    <h1>👁️ 计算机视觉</h1>
+    <p>从目标检测到图像生成，涵盖 2D/3D 视觉理解、视觉基础模型、视频理解等方向。</p>
+  </div>
+</div>
+
+<section class="section">
+  <div class="shell-narrow">
+    <div class="grid-auto">
+
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">视觉基础模型</div><div class="topic-desc">ViT、SAM、DINO 等通用视觉表征学习与基础模型。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">图像分类</div><div class="topic-desc">从 AlexNet、ResNet 到 ConvNeXt 的分类范式演进。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">目标检测</div><div class="topic-desc">Faster R-CNN、YOLO、DETR 等检测框架与最新进展。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">OCR</div><div class="topic-desc">文本检测、识别、版面分析与文档理解。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">语义分割</div><div class="topic-desc">FCN、U-Net、Mask2Former 等分割模型与全景分割。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">3D视觉</div><div class="topic-desc">NeRF、3D Gaussian Splatting、点云理解与三维重建。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">视频视觉</div><div class="topic-desc">视频理解、动作识别、时序建模与视频基础模型。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">人体视觉</div><div class="topic-desc">姿态估计、人体 Mesh 重建、动作生成与人脸分析。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">医学影像</div><div class="topic-desc">CT/MRI 分析、病理图像识别、医学分割与诊断辅助。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">遥感与卫星视觉</div><div class="topic-desc">遥感图像理解、地物分类、目标变化检测与地球观测。</div><div class="topic-meta"><span>建设中</span></div></div>
+
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="shell">
+    <p>AI Knowledge Hub  © 2026 · AI知识学习平台</p>
+  </div>
+</footer>
+
+</body>
+</html>

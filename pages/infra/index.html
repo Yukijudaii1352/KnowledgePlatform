@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Infra · AI Knowledge Hub</title>
+<link rel="stylesheet" href="../../assets/css/common.css">
+<style>
+.topic-card { position: relative; transition: all 0.28s ease; }
+.topic-card.ready { border-left: 3px solid var(--accent); }
+.topic-card.coming { opacity: 0.55; }
+.topic-card.card-clickable:hover { transform: translateY(-3px); }
+.topic-name { font-size: 1.08rem; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+.topic-desc { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.65; }
+.topic-meta {
+  display: flex; gap: 14px; margin-top: 14px;
+  font-size: 0.82rem; color: var(--text-dim);
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="shell">
+    <div class="topbar-inner">
+      <a class="brand" href="../../index.html">
+        <div class="brand-icon">AI</div>
+        <div>
+          <div class="brand-text">AI Knowledge Hub</div>
+          <div class="brand-sub">AI知识学习平台</div>
+        </div>
+      </a>
+    </div>
+  </div>
+</header>
+
+<div class="shell-narrow">
+  <div class="breadcrumb">
+    <a href="../../index.html">首页</a> <span class="sep">/</span> <span class="current">AI Infra</span>
+  </div>
+</div>
+
+<div class="shell-narrow">
+  <div class="page-header">
+    <h1>⚙️ AI Infra</h1>
+    <p>训练框架、推理引擎、分布式系统、MLOps、模型压缩与部署。</p>
+  </div>
+</div>
+
+<section class="section">
+  <div class="shell-narrow">
+    <div class="grid-auto">
+
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">AI硬件</div><div class="topic-desc">GPU、NPU、TPU 等加速器架构与硬件生态。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">AI编译器</div><div class="topic-desc">XLA、TVM、Triton、MLIR 等深度学习编译技术。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">AI存储系统</div><div class="topic-desc">大规模训练数据存储、高速缓存与分布式文件系统。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">分布式训练</div><div class="topic-desc">数据并行、张量并行、流水并行与通信优化。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">推理加速</div><div class="topic-desc">KV Cache、投机解码、vLLM/TensorRT-LLM 等推理引擎。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">模型压缩</div><div class="topic-desc">量化、剪枝、蒸馏与稀疏化部署。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">机器学习平台</div><div class="topic-desc">训练平台、实验管理、MLOps 与全生命周期治理。</div><div class="topic-meta"><span>建设中</span></div></div>
+
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="shell">
+    <p>AI Knowledge Hub  © 2026 · AI知识学习平台</p>
+  </div>
+</footer>
+
+</body>
+</html>

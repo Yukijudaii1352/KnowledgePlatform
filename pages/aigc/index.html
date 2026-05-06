@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIGC · AI Knowledge Hub</title>
+<link rel="stylesheet" href="../../assets/css/common.css">
+<style>
+.topic-card { position: relative; transition: all 0.28s ease; }
+.topic-card.ready { border-left: 3px solid var(--accent); }
+.topic-card.coming { opacity: 0.55; }
+.topic-card.card-clickable:hover { transform: translateY(-3px); }
+.topic-name { font-size: 1.08rem; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+.topic-desc { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.65; }
+.topic-meta {
+  display: flex; gap: 14px; margin-top: 14px;
+  font-size: 0.82rem; color: var(--text-dim);
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="shell">
+    <div class="topbar-inner">
+      <a class="brand" href="../../index.html">
+        <div class="brand-icon">AI</div>
+        <div>
+          <div class="brand-text">AI Knowledge Hub</div>
+          <div class="brand-sub">AI知识学习平台</div>
+        </div>
+      </a>
+    </div>
+  </div>
+</header>
+
+<div class="shell-narrow">
+  <div class="breadcrumb">
+    <a href="../../index.html">首页</a> <span class="sep">/</span> <span class="current">AIGC</span>
+  </div>
+</div>
+
+<div class="shell-narrow">
+  <div class="page-header">
+    <h1>🎨 AIGC</h1>
+    <p>AI 生成内容：文本、图像、视频、音频、3D 内容生成。</p>
+  </div>
+</div>
+
+<section class="section">
+  <div class="shell-narrow">
+    <div class="grid-auto">
+
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">生成基础模型</div><div class="topic-desc">Diffusion、Flow Matching、自回归生成等基础方法。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">文生图</div><div class="topic-desc">Stable Diffusion、SDXL、FLUX 等文生图模型演进。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">图像编辑</div><div class="topic-desc">局部编辑、风格迁移、可控生成与保真度控制。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">视频生成</div><div class="topic-desc">Sora、Kling、可灵等视频生成模型与时序一致性。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">音频生成</div><div class="topic-desc">TTS、语音克隆、音效生成与高保真音频合成。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">音乐生成</div><div class="topic-desc">旋律、和声、人声与伴奏的端到端音乐创作。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">3D内容生成</div><div class="topic-desc">文生 3D、图生 3D、纹理生成与 3D 资产生产。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">数字人</div><div class="topic-desc">数字形象驱动、口型同步、表情合成与全身动作。</div><div class="topic-meta"><span>建设中</span></div></div>
+
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="shell">
+    <p>AI Knowledge Hub  © 2026 · AI知识学习平台</p>
+  </div>
+</footer>
+
+</body>
+</html>

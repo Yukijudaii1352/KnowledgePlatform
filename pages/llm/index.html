@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>大语言模型 (LLM) · AI Knowledge Hub</title>
+<link rel="stylesheet" href="../../assets/css/common.css">
+<style>
+.topic-card { position: relative; transition: all 0.28s ease; }
+.topic-card.ready { border-left: 3px solid var(--accent); }
+.topic-card.coming { opacity: 0.55; }
+.topic-card.card-clickable:hover { transform: translateY(-3px); }
+.topic-name { font-size: 1.08rem; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+.topic-desc { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.65; }
+.topic-meta {
+  display: flex; gap: 14px; margin-top: 14px;
+  font-size: 0.82rem; color: var(--text-dim);
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="shell">
+    <div class="topbar-inner">
+      <a class="brand" href="../../index.html">
+        <div class="brand-icon">AI</div>
+        <div>
+          <div class="brand-text">AI Knowledge Hub</div>
+          <div class="brand-sub">AI知识学习平台</div>
+        </div>
+      </a>
+    </div>
+  </div>
+</header>
+
+<div class="shell-narrow">
+  <div class="breadcrumb">
+    <a href="../../index.html">首页</a> <span class="sep">/</span> <span class="current">大语言模型 (LLM)</span>
+  </div>
+</div>
+
+<div class="shell-narrow">
+  <div class="page-header">
+    <h1>💬 大语言模型 (LLM)</h1>
+    <p>从预训练到对齐、从推理优化到 Agent 应用，系统化梳理大语言模型的关键技术与最新研究进展。</p>
+  </div>
+</div>
+
+<section class="section">
+  <div class="shell-narrow">
+    <div class="grid-auto">
+
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">语言基础模型</div><div class="topic-desc">Transformer 架构、GPT/LLaMA 系列、MoE 等基础模型演进。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">预训练</div><div class="topic-desc">Scaling Laws、数据工程、训练稳定性与分布式训练。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">LLM监督微调</div><div class="topic-desc">指令微调、参数高效微调（LoRA/QLoRA）与多任务 SFT。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">人类偏好对齐</div><div class="topic-desc">RLHF、DPO、Constitutional AI 等对齐方法的原理与实践。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card card-clickable topic-card ready" onclick="window.location.href='rl_demo.html'"><span class="badge badge-live">✦ 已上线</span><div class="topic-name" style="margin-top:10px">LLM强化学习</div><div class="topic-desc">从 PPO 到 GRPO、DAPO 等算法，系统总结大模型 RL 训练的演化路径。</div><div class="topic-meta"><span>📄 4 个算法示例</span><span>🕐 2026-05-06 版</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">LLM Agent</div><div class="topic-desc">工具使用、规划与推理、多智能体协作与 Agent 基准。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">提示词工程</div><div class="topic-desc">Prompt 设计、Chain-of-Thought、自洽性与提示优化。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">RAG</div><div class="topic-desc">检索增强生成的架构设计、检索策略与评测方法。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">LLM安全</div><div class="topic-desc">越狱攻防、幻觉控制、价值观对齐与内容安全。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">LLM评测</div><div class="topic-desc">通用能力、专业能力、对齐质量与可信度的评测体系。</div><div class="topic-meta"><span>建设中</span></div></div>
+
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="shell">
+    <p>AI Knowledge Hub  © 2026 · AI知识学习平台</p>
+  </div>
+</footer>
+
+</body>
+</html>

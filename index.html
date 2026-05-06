@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Knowledge Hub · AI 知识学习平台</title>
+<link rel="stylesheet" href="assets/css/common.css">
+<style>
+.hero {
+  padding: 72px 0 56px;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(102,126,234,0.04) 0%, transparent 100%);
+}
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 7px 16px; border-radius: 999px;
+  background: var(--accent-soft); border: 1px solid var(--accent-border);
+  font-size: 0.84rem; color: var(--accent); font-weight: 500;
+  margin-bottom: 22px;
+}
+.hero-eyebrow::before {
+  content: ''; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.3 } }
+.hero h1 {
+  font-size: clamp(2rem, 4.5vw, 3.2rem);
+  font-weight: 800; letter-spacing: -0.03em; line-height: 1.2;
+  color: var(--text);
+}
+.hero h1 em {
+  font-style: normal;
+  background: var(--gradient-1);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero-desc {
+  max-width: 640px; margin: 18px auto 0;
+  font-size: 1.08rem; color: var(--text-secondary); line-height: 1.75;
+}
+.hero-stats {
+  display: flex; justify-content: center; gap: 48px;
+  margin-top: 36px; flex-wrap: wrap;
+}
+.hero-stat-num {
+  font-size: 2rem; font-weight: 800;
+  background: var(--gradient-2);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero-stat-label { font-size: 0.84rem; color: var(--text-dim); margin-top: 2px; }
+
+.domains-section { padding: 32px 0 80px; }
+.domain-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  cursor: pointer;
+  transition: all 0.28s ease;
+  position: relative; overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.domain-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  opacity: 0; transition: opacity 0.28s;
+}
+.domain-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); border-color: var(--border-strong); }
+.domain-card:hover::before { opacity: 1; }
+.domain-card:nth-child(1)::before { background: var(--gradient-1); }
+.domain-card:nth-child(2)::before { background: var(--gradient-2); }
+.domain-card:nth-child(3)::before { background: var(--gradient-5); }
+.domain-card:nth-child(4)::before { background: var(--gradient-3); }
+.domain-card:nth-child(5)::before { background: var(--gradient-6); }
+.domain-card:nth-child(6)::before { background: var(--gradient-7); }
+.domain-card:nth-child(7)::before { background: var(--gradient-4); }
+.domain-card:nth-child(8)::before { background: var(--gradient-8); }
+.domain-icon { width: 48px; height: 48px; border-radius: 12px; display: grid; place-items: center; font-size: 22px; margin-bottom: 16px; }
+.d1 .domain-icon { background: rgba(102,126,234,0.1); }
+.d2 .domain-icon { background: rgba(6,182,212,0.1); }
+.d3 .domain-icon { background: rgba(236,72,153,0.1); }
+.d4 .domain-icon { background: rgba(245,158,11,0.1); }
+.d5 .domain-icon { background: rgba(249,115,22,0.1); }
+.d6 .domain-icon { background: rgba(20,184,166,0.1); }
+.d7 .domain-icon { background: rgba(16,185,129,0.1); }
+.d8 .domain-icon { background: rgba(139,92,246,0.1); }
+.domain-name { font-size: 1.12rem; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+.domain-desc { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 14px; line-height: 1.65; }
+.domain-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.domain-count { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--text-dim); }
+.domain-count::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); opacity: 0.5; }
+.domain-arrow {
+  position: absolute; right: 22px; bottom: 22px;
+  width: 30px; height: 30px; border-radius: 8px;
+  background: var(--bg-surface);
+  display: grid; place-items: center;
+  color: var(--text-dim); font-size: 15px;
+  transition: all 0.28s;
+}
+.domain-card:hover .domain-arrow { background: var(--accent-soft); color: var(--accent); transform: translateX(3px); }
+
+/* GitHub 图标链接 */
+.nav-github {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 8px;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+}
+.nav-github:hover { background: var(--bg-surface); color: var(--text); }
+.nav-github svg { width: 22px; height: 22px; display: block; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="shell">
+    <div class="topbar-inner">
+      <a class="brand" href="index.html">
+        <div class="brand-icon">AI</div>
+        <div>
+          <div class="brand-text">AI Knowledge Hub</div>
+          <div class="brand-sub">AI知识学习平台</div>
+        </div>
+      </a>
+      <nav class="nav-links">
+        <a class="nav-github"
+           href="https://github.com/Yukijudaii1352/KnowledgePlatform"
+           target="_blank" rel="noopener noreferrer"
+           title="在 GitHub 查看源码" aria-label="GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 .5C5.73.5.73 5.5.73 11.77c0 4.99 3.24 9.22 7.74 10.72.57.1.78-.25.78-.55 0-.27-.01-1.17-.02-2.12-3.15.68-3.82-1.34-3.82-1.34-.52-1.31-1.27-1.66-1.27-1.66-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.75 2.68 1.25 3.34.96.1-.74.4-1.25.72-1.54-2.52-.29-5.17-1.26-5.17-5.62 0-1.24.44-2.26 1.17-3.06-.12-.29-.51-1.45.11-3.02 0 0 .96-.31 3.15 1.17.91-.25 1.88-.38 2.85-.38.97 0 1.94.13 2.85.38 2.19-1.48 3.15-1.17 3.15-1.17.62 1.57.23 2.73.11 3.02.73.8 1.17 1.82 1.17 3.06 0 4.37-2.66 5.33-5.2 5.61.41.35.77 1.05.77 2.12 0 1.53-.01 2.77-.01 3.15 0 .3.2.66.79.55 4.49-1.5 7.73-5.73 7.73-10.72C23.27 5.5 18.27.5 12 .5z"/>
+          </svg>
+        </a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="shell">
+    <span class="hero-eyebrow"><span data-ph="BUILD_DATE">2026-05-06</span>更新</span>
+    <h1>连接 AI 各领域<br>构建<em>高效学习体系</em></h1>
+    <p class="hero-desc">
+      汇聚机器学习、计算机视觉、大语言模型、具身智能、AI Infra等多领域前沿知识，
+      帮助 AI 从业者系统化学习、跨领域交流、追踪最新进展。
+    </p>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="hero-stat-num"><span data-ph="STAT_TOPICS_LIVE">1</span></div><div class="hero-stat-label">已上线专题</div></div>
+      <div class="hero-stat"><div class="hero-stat-num"><span data-ph="STAT_DOMAINS">8</span></div><div class="hero-stat-label">核心领域</div></div>
+      <div class="hero-stat"><div class="hero-stat-num"><span data-ph="STAT_TOPICS_TOTAL">72</span></div><div class="hero-stat-label">知识专题</div></div>
+      <div class="hero-stat"><div class="hero-stat-num">MIT</div><div class="hero-stat-label">开源</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="domains-section" id="domains">
+  <div class="shell">
+    <h2 class="section-title">🗂️ 知识领域</h2>
+    <div class="grid-auto">
+
+      <div class="domain-card d1" onclick="window.location.href='pages/ml/index.html'">
+        <div class="domain-icon">🧠</div>
+        <div class="domain-name">机器学习</div>
+        <div class="domain-desc">经典机器学习理论、优化方法、统计学习，以及 AutoML、联邦学习等前沿。</div>
+        <div class="domain-tags"><span class="tag">机器学习范式</span><span class="tag">表示学习</span><span class="tag">概率模型</span><span class="tag">优化理论</span><span class="tag">核方法</span><span class="tag">迁移学习</span><span class="tag">元学习</span><span class="tag">AutoML</span><span class="tag">分布式学习</span><span class="tag">因果学习与不确定性建模</span><span class="tag">可信机器学习</span></div>
+        <div class="domain-count">规划中</div>
+        <div class="domain-arrow">→</div>
+      </div>
+
+      <div class="domain-card d2" onclick="window.location.href='pages/cv/index.html'">
+        <div class="domain-icon">👁️</div>
+        <div class="domain-name">计算机视觉</div>
+        <div class="domain-desc">从目标检测到图像生成，涵盖 2D/3D 视觉理解、视觉基础模型、视频理解等方向。</div>
+        <div class="domain-tags"><span class="tag">视觉基础模型</span><span class="tag">图像分类</span><span class="tag">目标检测</span><span class="tag">OCR</span><span class="tag">语义分割</span><span class="tag">3D视觉</span><span class="tag">视频视觉</span><span class="tag">人体视觉</span><span class="tag">医学影像</span><span class="tag">遥感与卫星视觉</span></div>
+        <div class="domain-count">规划中</div>
+        <div class="domain-arrow">→</div>
+      </div>
+
+      <div class="domain-card d3" onclick="window.location.href='pages/llm/index.html'">
+        <div class="domain-icon">💬</div>
+        <div class="domain-name">大语言模型 (LLM)</div>
+        <div class="domain-desc">预训练、对齐、推理优化与 Agent 应用。</div>
+        <div class="domain-tags"><span class="tag">语言基础模型</span><span class="tag">预训练</span><span class="tag">LLM监督微调</span><span class="tag">人类偏好对齐</span><span class="tag active">LLM强化学习</span><span class="tag">LLM Agent</span><span class="tag">提示词工程</span><span class="tag">RAG</span><span class="tag">LLM安全</span><span class="tag">LLM评测</span></div>
+        <div class="domain-count">1 个专题已上线</div>
+        <div class="domain-arrow">→</div>
+      </div>
+
+      <div class="domain-card d4" onclick="window.location.href='pages/multimodal/index.html'">
+        <div class="domain-icon">🔗</div>
+        <div class="domain-name">多模态</div>
+        <div class="domain-desc">视觉-语言模型、跨模态对齐、多模态推理、多模态 Agent 等研究方向。</div>
+        <div class="domain-tags"><span class="tag">视觉-语言基础模型</span><span class="tag">多模态检索</span><span class="tag">多模态推理</span><span class="tag">多模态Agent</span><span class="tag">视频理解</span><span class="tag">音频理解</span><span class="tag">Omni模型</span></div>
+        <div class="domain-count">规划中</div>
+        <div class="domain-arrow">→</div>
+      </div>
+
+      <div class="domain-card d5" onclick="window.location.href='pages/aigc/index.html'">
+        <div class="domain-icon">🎨</div>
+        <div class="domain-name">AIGC</div>
+        <div class="domain-desc">AI 生成内容：文本、图像、视频、音频、3D 内容生成。</div>
+        <div class="domain-tags"><span class="tag">生成基础模型</span><span class="tag">文生图</span><span class="tag">图像编辑</span><span class="tag">视频生成</span><span class="tag">音频生成</span><span class="tag">音乐生成</span><span class="tag">3D内容生成</span><span class="tag">数字人</span></div>
+        <div class="domain-count">规划中</div>
+        <div class="domain-arrow">→</div>
+      </div>
+
+      <div class="domain-card d6" onclick="window.location.href='pages/embodied/index.html'">
+        <div class="domain-icon">🤖</div>
+        <div class="domain-name">具身智能</div>
+        <div class="domain-desc">机器人学习、Sim2Real、VLA 模型、导航规划与具身推理。</div>
+        <div class="domain-tags"><span class="tag">视觉-语言-动作基础模型</span><span class="tag">具身感知</span><span class="tag">具身强化学习</span><span class="tag">世界模型</span><span class="tag">灵巧操作</span><span class="tag">导航与移动智能</span><span class="tag">运动控制</span><span class="tag">人机交互</span><span class="tag">仿真</span></div>
+        <div class="domain-count">规划中</div>
+        <div class="domain-arrow">→</div>
+      </div>
+
+      <div class="domain-card d7" onclick="window.location.href='pages/infra/index.html'">
+        <div class="domain-icon">⚙️</div>
+        <div class="domain-name">AI Infra</div>
+        <div class="domain-desc">训练框架、推理引擎、分布式系统、MLOps、模型压缩与部署。</div>
+        <div class="domain-tags"><span class="tag">AI硬件</span><span class="tag">AI编译器</span><span class="tag">AI存储系统</span><span class="tag">分布式训练</span><span class="tag">推理加速</span><span class="tag">模型压缩</span><span class="tag">机器学习平台</span></div>
+        <div class="domain-count">规划中</div>
+        <div class="domain-arrow">→</div>
+      </div>
+
+      <div class="domain-card d8" onclick="window.location.href='pages/ai4sci/index.html'">
+        <div class="domain-icon">🔬</div>
+        <div class="domain-name">AI4SCI</div>
+        <div class="domain-desc">AI 驱动的科学研究：药学、生命科学、化学、材料、医学、物理与地球科学。</div>
+        <div class="domain-tags"><span class="tag">科学基础模型</span><span class="tag">科学机器学习</span><span class="tag">药学AI</span><span class="tag">生命科学AI</span><span class="tag">化学AI</span><span class="tag">材料学AI</span><span class="tag">医学AI</span><span class="tag">物理AI</span><span class="tag">地球科学AI</span><span class="tag">科学数据</span></div>
+        <div class="domain-count">规划中</div>
+        <div class="domain-arrow">→</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="shell">
+    <p>AI Knowledge Hub  © 2026 · AI知识学习平台</p>
+  </div>
+</footer>
+
+</body>
+</html>
