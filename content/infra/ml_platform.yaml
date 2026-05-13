@@ -1,0 +1,544 @@
+domain: infra
+topic_id: ml_platform
+topic_name: 机器学习平台
+page_icon: ⚙️
+page_title: 机器学习平台技术演进
+page_subtitle: '{build_date} 版'
+page_desc: 回顾从Parameter Server到万卡训练、从TFX到智能MLOps的技术演进，系统梳理机器学习平台从分布式训练到全生命周期治理的发展历程。
+hero_pills:
+- 🏷️ 训练平台 · 实验管理 · MLOps · 推理优化
+count_pill: '{count} 个系统'
+categories:
+  training_platform:
+    label: 训练平台
+    color: '#22a06b'
+  experiment_mgmt:
+    label: 实验管理
+    color: '#5b63d3'
+  mlops_lifecycle:
+    label: MLOps治理
+    color: '#e8820c'
+  inference_system:
+    label: 推理系统
+    color: '#9c5ec6'
+algorithms:
+- id: ps
+  name: Parameter Server
+  full_name: 参数服务器 (Parameter Server)
+  year: '2014'
+  org: CMU/Baidu
+  paper_url: https://proceedings.neurips.cc/paper/2014/hash/d5cfead94f5350c12c322b5b664544c1-Abstract.html
+  category: training_platform
+  parent: —
+  motivation: 提出异步分布式参数更新框架，奠定分布式ML基础
+- id: tensorflow
+  name: TensorFlow
+  full_name: TensorFlow
+  year: '2016'
+  org: Google Brain
+  paper_url: https://www.usenix.org/conference/osdi16/technical-sessions/presentation/abadi
+  category: training_platform
+  parent: ps
+  motivation: 基于数据流图的异构分布式系统，继承DistBelief
+- id: horovod
+  name: Horovod
+  full_name: Horovod
+  year: '2018'
+  org: Uber
+  paper_url: https://arxiv.org/abs/1802.05799
+  category: training_platform
+  parent: tensorflow
+  motivation: 引入Ring All-Reduce提升带宽利用率
+- id: ray
+  name: Ray
+  full_name: Ray分布式框架 (Ray)
+  year: '2018'
+  org: UC Berkeley
+  paper_url: https://www.usenix.org/conference/osdi18/presentation/moritz
+  category: training_platform
+  parent: —
+  motivation: 统一的分布式执行引擎，支持动态任务调度
+- id: pytorch
+  name: PyTorch
+  full_name: PyTorch
+  year: '2019'
+  org: Meta FAIR
+  paper_url: https://arxiv.org/abs/1912.01703
+  category: training_platform
+  parent: —
+  motivation: 命令式编程与动态图，提升科研灵活性
+- id: gpipe
+  name: GPipe
+  full_name: 流水线并行 (GPipe)
+  year: '2019'
+  org: Google Brain
+  paper_url: https://arxiv.org/abs/1811.06965
+  category: training_platform
+  parent: tensorflow
+  motivation: 通过微批次实现流水线并行，开创性工作
+- id: megatron_lm
+  name: Megatron-LM
+  full_name: Megatron-LM
+  year: '2019'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/1909.08053
+  category: training_platform
+  parent: pytorch
+  motivation: 高效张量并行支持千亿参数训练
+- id: pipedream
+  name: PipeDream
+  full_name: PipeDream
+  year: '2019'
+  org: Microsoft/CMU
+  paper_url: https://dl.acm.org/doi/10.1145/3341301.3359646
+  category: training_platform
+  parent: gpipe
+  motivation: 异步流水线减少bubble开销
+- id: deepspeed
+  name: DeepSpeed ZeRO
+  full_name: DeepSpeed ZeRO
+  year: '2020'
+  org: Microsoft
+  paper_url: https://arxiv.org/abs/1910.02054
+  category: training_platform
+  parent: megatron_lm
+  motivation: 消除冗余状态突破显存限制
+- id: alpa
+  name: Alpa
+  full_name: Alpa自动并行 (Alpa)
+  year: '2022'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/2201.12023
+  category: training_platform
+  parent: ray
+  motivation: 自动生成算子间与算子内并行策略
+- id: colossal_ai
+  name: Colossal-AI
+  full_name: Colossal-AI
+  year: '2023'
+  org: HPC-AI Tech
+  paper_url: https://arxiv.org/abs/2110.14883
+  category: training_platform
+  parent: alpa
+  motivation: 统一的大规模并行训练系统
+- id: megascale
+  name: MegaScale
+  full_name: MegaScale万卡训练 (MegaScale)
+  year: '2024'
+  org: ByteDance
+  paper_url: https://arxiv.org/abs/2402.15627
+  category: training_platform
+  parent: deepspeed
+  motivation: 万卡规模训练的容错与通信优化
+- id: nnscaler
+  name: nnScaler
+  full_name: nnScaler
+  year: '2024'
+  org: Microsoft
+  paper_url: https://arxiv.org/abs/2312.05009
+  category: training_platform
+  parent: alpa
+  motivation: 约束引导的并行策略生成
+- id: axlearn
+  name: AXLearn
+  full_name: AXLearn
+  year: '2026'
+  org: Apple
+  paper_url: https://mlsys.org/Conferences/2026/Schedule?type=Poster
+  category: training_platform
+  parent: pytorch
+  motivation: 模块化、硬件无关训练平台
+- id: protrain
+  name: ProTrain
+  full_name: ProTrain
+  year: '2026'
+  org: MLSys Community
+  paper_url: https://mlsys.org/Conferences/2026/Schedule?type=Poster
+  category: training_platform
+  parent: deepspeed
+  motivation: 自动内存管理机制，动态张量生命周期分析
+- id: boost
+  name: BOOST
+  full_name: BOOST
+  year: '2026'
+  org: MLSys Community
+  paper_url: https://mlsys.org/Conferences/2026/Schedule?type=Poster
+  category: training_platform
+  parent: megatron_lm
+  motivation: 针对低秩大模型训练的瓶颈优化框架
+- id: tessera
+  name: Tessera
+  full_name: Tessera
+  year: '2026'
+  org: OSDI Community
+  paper_url: https://www.usenix.org/conference/osdi26/technical-sessions
+  category: training_platform
+  parent: megascale
+  motivation: 整体流水线并行框架，解决万亿参数MoE训练
+- id: mlflow
+  name: MLflow
+  full_name: MLflow
+  year: '2018'
+  org: Databricks
+  paper_url: https://www.mlflow.org/
+  category: experiment_mgmt
+  parent: —
+  motivation: 定义实验追踪、项目打包与模型注册标准接口
+- id: optuna
+  name: Optuna
+  full_name: Optuna
+  year: '2019'
+  org: Preferred Networks
+  paper_url: https://arxiv.org/abs/1907.10902
+  category: experiment_mgmt
+  parent: mlflow
+  motivation: Define-by-run接口，支持高效剪枝与超参搜索
+- id: dvc
+  name: DVC
+  full_name: DVC数据版本控制 (DVC)
+  year: '2020'
+  org: Iterative.ai
+  paper_url: https://dvc.org/
+  category: experiment_mgmt
+  parent: mlflow
+  motivation: 将Git版本控制引入数据集与模型文件管理
+- id: wandb
+  name: W&B
+  full_name: Weights & Biases
+  year: '2020'
+  org: W&B Inc.
+  paper_url: https://wandb.ai/
+  category: experiment_mgmt
+  parent: mlflow
+  motivation: 云端协作式实验看板，强化团队开发效率
+- id: flashinfer_bench
+  name: FlashInfer-Bench
+  full_name: FlashInfer-Bench
+  year: '2026'
+  org: MLSys Community
+  paper_url: https://mlsys.org/Conferences/2026/Schedule?type=Poster
+  category: experiment_mgmt
+  parent: mlflow
+  motivation: AI驱动的LLM系统基准测试平台
+- id: sagemaker_agent
+  name: SageMaker AI Agent
+  full_name: SageMaker AI Agent
+  year: '2026'
+  org: AWS
+  paper_url: https://aws.amazon.com/sagemaker/
+  category: experiment_mgmt
+  parent: wandb
+  motivation: 智能代理自动完成数据准备到微调策略选择
+- id: tfx
+  name: TFX
+  full_name: TensorFlow Extended (TFX)
+  year: '2017'
+  org: Google
+  paper_url: https://www.tensorflow.org/tfx
+  category: mlops_lifecycle
+  parent: —
+  motivation: 端到端生产级ML平台，涵盖数据校验到模型评估
+- id: kubeflow
+  name: Kubeflow
+  full_name: Kubeflow
+  year: '2018'
+  org: Google/Cisco
+  paper_url: https://www.kubeflow.org/
+  category: mlops_lifecycle
+  parent: tfx
+  motivation: 基于Kubernetes的云原生ML工作流编排平台
+- id: feast
+  name: Feast
+  full_name: Feast特征存储 (Feast)
+  year: '2019'
+  org: Gojek/Google
+  paper_url: https://feast.dev/
+  category: mlops_lifecycle
+  parent: kubeflow
+  motivation: 首个开源特征存储，解决训练与推理数据一致性
+- id: tf_serving
+  name: TF Serving
+  full_name: TensorFlow Serving
+  year: '2017'
+  org: Google
+  paper_url: https://www.tensorflow.org/tfx/guide/serving
+  category: inference_system
+  parent: —
+  motivation: 高性能模型推理系统，支持模型版本热切换
+- id: kserve
+  name: KServe
+  full_name: KServe
+  year: '2021'
+  org: KubeFlow Community
+  paper_url: https://kserve.github.io/website/
+  category: inference_system
+  parent: tf_serving
+  motivation: 基于Serverless架构的标准化模型推理协议
+- id: vllm
+  name: vLLM
+  full_name: vLLM
+  year: '2023'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/2309.06180
+  category: inference_system
+  parent: kserve
+  motivation: 提出PagedAttention，极大提升LLM推理吞吐量
+- id: raidserve
+  name: RaidServe
+  full_name: RaidServe
+  year: '2026'
+  org: MLSys Community
+  paper_url: https://mlsys.org/Conferences/2026/Schedule?type=Poster
+  category: inference_system
+  parent: vllm
+  motivation: 高可靠弹性推理平台，冗余计算与快速恢复
+- id: superinfer
+  name: SuperInfer
+  full_name: SuperInfer
+  year: '2026'
+  org: MLSys Community
+  paper_url: https://mlsys.org/Conferences/2026/Schedule?type=Poster
+  category: inference_system
+  parent: vllm
+  motivation: 针对超级芯片的SLO感知调度系统
+- id: opentela
+  name: OpenTela
+  full_name: OpenTela
+  year: '2026'
+  org: OSDI Community
+  paper_url: https://www.usenix.org/conference/osdi26/technical-sessions
+  category: inference_system
+  parent: vllm
+  motivation: 统一去中心化HPC集群的异构LLM推理系统
+- id: djinn
+  name: Djinn
+  full_name: Djinn
+  year: '2026'
+  org: OSDI Community
+  paper_url: https://www.usenix.org/conference/osdi26/technical-sessions
+  category: inference_system
+  parent: kserve
+  motivation: 语义感知的透明GPU解耦系统
+graph:
+  nodes:
+  - id: ps
+    x: 50
+    y: 80
+    category: training_platform
+  - id: tensorflow
+    x: 150
+    y: 80
+    category: training_platform
+  - id: horovod
+    x: 250
+    y: 60
+    category: training_platform
+  - id: ray
+    x: 250
+    y: 120
+    category: training_platform
+  - id: pytorch
+    x: 280
+    y: 90
+    category: training_platform
+  - id: gpipe
+    x: 280
+    y: 50
+    category: training_platform
+  - id: megatron_lm
+    x: 350
+    y: 90
+    category: training_platform
+  - id: pipedream
+    x: 350
+    y: 50
+    category: training_platform
+  - id: deepspeed
+    x: 450
+    y: 90
+    category: training_platform
+  - id: alpa
+    x: 420
+    y: 130
+    category: training_platform
+  - id: colossal_ai
+    x: 520
+    y: 130
+    category: training_platform
+  - id: megascale
+    x: 550
+    y: 90
+    category: training_platform
+  - id: nnscaler
+    x: 550
+    y: 130
+    category: training_platform
+  - id: axlearn
+    x: 650
+    y: 100
+    category: training_platform
+  - id: protrain
+    x: 650
+    y: 80
+    category: training_platform
+  - id: boost
+    x: 650
+    y: 60
+    category: training_platform
+  - id: tessera
+    x: 700
+    y: 90
+    category: training_platform
+  - id: mlflow
+    x: 250
+    y: 220
+    category: experiment_mgmt
+  - id: optuna
+    x: 350
+    y: 210
+    category: experiment_mgmt
+  - id: dvc
+    x: 450
+    y: 210
+    category: experiment_mgmt
+  - id: wandb
+    x: 450
+    y: 230
+    category: experiment_mgmt
+  - id: flashinfer_bench
+    x: 650
+    y: 210
+    category: experiment_mgmt
+  - id: sagemaker_agent
+    x: 650
+    y: 230
+    category: experiment_mgmt
+  - id: tfx
+    x: 120
+    y: 310
+    category: mlops_lifecycle
+  - id: kubeflow
+    x: 250
+    y: 310
+    category: mlops_lifecycle
+  - id: feast
+    x: 350
+    y: 310
+    category: mlops_lifecycle
+  - id: tf_serving
+    x: 120
+    y: 400
+    category: inference_system
+  - id: kserve
+    x: 380
+    y: 400
+    category: inference_system
+  - id: vllm
+    x: 520
+    y: 400
+    category: inference_system
+  - id: raidserve
+    x: 650
+    y: 380
+    category: inference_system
+  - id: superinfer
+    x: 650
+    y: 400
+    category: inference_system
+  - id: opentela
+    x: 650
+    y: 420
+    category: inference_system
+  - id: djinn
+    x: 700
+    y: 400
+    category: inference_system
+  edges:
+  - from: ps
+    to: tensorflow
+    label: 数据流图抽象
+  - from: tensorflow
+    to: horovod
+    label: Ring AllReduce
+  - from: tensorflow
+    to: ray
+    label: 通用计算引擎
+  - from: tensorflow
+    to: gpipe
+    label: 流水线并行
+  - from: pytorch
+    to: megatron_lm
+    label: 张量并行
+  - from: gpipe
+    to: pipedream
+    label: 异步流水线
+  - from: megatron_lm
+    to: deepspeed
+    label: 显存优化
+  - from: ray
+    to: alpa
+    label: 自动并行
+  - from: alpa
+    to: colossal_ai
+    label: 统一系统
+  - from: alpa
+    to: nnscaler
+    label: 约束引导
+  - from: deepspeed
+    to: megascale
+    label: 万卡扩展
+  - from: deepspeed
+    to: protrain
+    label: 内存管理
+  - from: pytorch
+    to: axlearn
+    label: 硬件无关
+  - from: megatron_lm
+    to: boost
+    label: 低秩优化
+  - from: megascale
+    to: tessera
+    label: MoE优化
+  - from: mlflow
+    to: optuna
+    label: 超参搜索
+  - from: mlflow
+    to: dvc
+    label: 数据版本
+  - from: mlflow
+    to: wandb
+    label: 云端协作
+  - from: mlflow
+    to: flashinfer_bench
+    label: LLM基准
+  - from: wandb
+    to: sagemaker_agent
+    label: 智能代理
+  - from: tfx
+    to: kubeflow
+    label: 云原生
+  - from: kubeflow
+    to: feast
+    label: 特征存储
+  - from: tf_serving
+    to: kserve
+    label: Serverless
+  - from: kserve
+    to: vllm
+    label: PagedAttention
+  - from: vllm
+    to: raidserve
+    label: 高可用
+  - from: vllm
+    to: superinfer
+    label: SLO感知
+  - from: vllm
+    to: opentela
+    label: 去中心化
+  - from: kserve
+    to: djinn
+    label: GPU解耦
+  milestones:
+  - ps
+  - deepspeed
+  - vllm

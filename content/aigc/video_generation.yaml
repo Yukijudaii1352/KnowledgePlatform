@@ -1,0 +1,512 @@
+page_meta:
+  page_icon: 🎬
+  page_title: 视频生成 算法总结
+  page_subtitle: '{build_date} 版'
+  page_desc: 从GAN到扩散模型再到世界模型的视频生成技术演进，涵盖Sora、Kling等里程碑模型与时序一致性核心技术
+  hero_pills: Sora · Kling · 时序一致性
+  count_pill: '{count} 个算法'
+categories:
+  gan_based:
+    label: GAN生成模型
+    color: '#E74C3C'
+  vae_based:
+    label: VAE变分编码
+    color: '#9B59B6'
+  autoregressive:
+    label: 自回归模型
+    color: '#3498DB'
+  diffusion_based:
+    label: 扩散模型
+    color: '#2ECC71'
+  world_model:
+    label: 世界模型
+    color: '#F39C12'
+algorithms:
+- id: videogan
+  name: VideoGAN
+  full_name: 视频生成对抗网络 (Video Generative Adversarial Network)
+  year: '2016'
+  org: MIT
+  paper_url: https://arxiv.org/abs/1609.02612
+  category: gan_based
+  parent: —
+  motivation: 首次将GAN应用于视频生成，分解静态背景与动态前景
+- id: mocogan
+  name: MoCoGAN
+  full_name: 运动内容解耦GAN (Motion-Content Decomposed GAN)
+  year: '2018'
+  org: NEC Labs
+  paper_url: https://arxiv.org/abs/1707.04993
+  category: gan_based
+  parent: videogan
+  motivation: 将潜在空间分解为内容和运动部分，实现解耦控制
+- id: tgan
+  name: TGAN
+  full_name: 时序生成对抗网络 (Temporal GAN)
+  year: '2017'
+  org: Preferred Networks
+  paper_url: https://arxiv.org/abs/1611.06624
+  category: gan_based
+  parent: videogan
+  motivation: 引入时序判别器增强视频时序连贯性
+- id: svg
+  name: SVG
+  full_name: 随机视频生成 (Stochastic Video Generation)
+  year: '2018'
+  org: DeepMind
+  paper_url: https://arxiv.org/abs/1802.07687
+  category: vae_based
+  parent: —
+  motivation: 引入随机隐变量建模视频生成的不确定性
+- id: videogpt
+  name: VideoGPT
+  full_name: 视频生成预训练Transformer (Video Generative Pre-trained Transformer)
+  year: '2021'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/2104.10157
+  category: autoregressive
+  parent: svg
+  motivation: 将视频视为离散Token序列进行自回归预测
+- id: nuwa
+  name: NUWA
+  full_name: 女娲多模态生成模型 (NUWA)
+  year: '2021.11'
+  org: Microsoft Research Asia
+  paper_url: https://arxiv.org/abs/2111.12417
+  category: autoregressive
+  parent: videogpt
+  motivation: 统一文本、图像、视频生成的多任务框架
+- id: nuwa_infinity
+  name: NUWA-Infinity
+  full_name: 女娲无限生成模型 (NUWA-Infinity)
+  year: '2022.07'
+  org: Microsoft Research Asia
+  paper_url: https://arxiv.org/abs/2207.09814
+  category: autoregressive
+  parent: nuwa
+  motivation: 自回归之上的自回归，突破固定分辨率和长度限制
+- id: cogvideo
+  name: CogVideo
+  full_name: 认知视频生成模型 (CogVideo)
+  year: '2022.05'
+  org: 清华大学/智谱AI
+  paper_url: https://arxiv.org/abs/2205.15868
+  category: autoregressive
+  parent: nuwa
+  motivation: 多帧速率层级训练，实现高质量文本到视频生成
+- id: svd
+  name: SVD
+  full_name: 稳定视频扩散 (Stable Video Diffusion)
+  year: '2023.11'
+  org: Stability AI
+  paper_url: https://arxiv.org/abs/2311.15127
+  category: diffusion_based
+  parent: —
+  motivation: 开源基线，三阶段训练，时序感知去闪烁解码器
+- id: sora
+  name: Sora
+  full_name: Sora视频生成模型 (Sora)
+  year: '2024.02'
+  org: OpenAI
+  paper_url: https://openai.com/index/video-generation-models-as-world-simulators/
+  category: diffusion_based
+  parent: svd
+  motivation: 时空补丁DiT架构，初步物理模拟能力
+- id: sora2
+  name: Sora 2
+  full_name: Sora第二代 (Sora 2)
+  year: '2024.12'
+  org: OpenAI
+  paper_url: https://openai.com/sora
+  category: diffusion_based
+  parent: sora
+  motivation: 1080p/60s生成，API转型，物理模拟增强
+- id: gen1
+  name: Gen-1
+  full_name: Runway Gen-1 (Runway Gen-1)
+  year: '2023.02'
+  org: Runway
+  paper_url: https://research.runwayml.com/gen1
+  category: diffusion_based
+  parent: svd
+  motivation: 视频到视频转换，风格迁移保持结构
+- id: gen2
+  name: Gen-2
+  full_name: Runway Gen-2 (Runway Gen-2)
+  year: '2023.06'
+  org: Runway
+  paper_url: https://research.runwayml.com/gen2
+  category: diffusion_based
+  parent: gen1
+  motivation: 首次文本到视频和图像到视频能力
+- id: gen3
+  name: Gen-3 Alpha
+  full_name: Runway Gen-3 Alpha (Runway Gen-3 Alpha)
+  year: '2024.06'
+  org: Runway
+  paper_url: https://runwayml.com/research/introducing-gen-3-alpha
+  category: diffusion_based
+  parent: gen2
+  motivation: 时空世界模型，全局物理一致性建模
+- id: gen4
+  name: Gen-4
+  full_name: Runway Gen-4 (Runway Gen-4)
+  year: '2026.01'
+  org: Runway
+  paper_url: https://runwayml.com/gen-4
+  category: diffusion_based
+  parent: gen3
+  motivation: 世界一致性，角色身份跨场景持久性
+- id: pika
+  name: Pika
+  full_name: Pika视频生成 (Pika)
+  year: '2023.04'
+  org: Pika Labs
+  paper_url: https://pika.art
+  category: diffusion_based
+  parent: svd
+  motivation: Pikaffects物理特效，电影级镜头控制
+- id: pika25
+  name: Pika 2.5
+  full_name: Pika 2.5 (Pika 2.5)
+  year: '2025.11'
+  org: Pika Labs
+  paper_url: https://pika.art/blog/pika-2-5
+  category: diffusion_based
+  parent: pika
+  motivation: 实时唇形同步，自动音效生成
+- id: lumiere
+  name: Lumiere
+  full_name: 光影视频生成 (Lumiere)
+  year: '2024.01'
+  org: Google Research
+  paper_url: https://arxiv.org/abs/2401.12945
+  category: diffusion_based
+  parent: svd
+  motivation: 时空U-Net单次生成完整时长，全局运动一致性
+- id: cogvideox
+  name: CogVideoX
+  full_name: 认知视频X (CogVideoX)
+  year: '2024.08'
+  org: 智谱AI
+  paper_url: https://arxiv.org/abs/2408.06072
+  category: diffusion_based
+  parent: cogvideo
+  motivation: 3D因果VAE，Expert Transformer架构
+- id: veo
+  name: Veo
+  full_name: Veo视频生成 (Veo)
+  year: '2024.05'
+  org: Google DeepMind
+  paper_url: https://deepmind.google/technologies/veo/
+  category: diffusion_based
+  parent: lumiere
+  motivation: 高分辨率生成，增强可控性
+- id: veo3
+  name: Veo 3.1
+  full_name: Veo 3.1 (Veo 3.1)
+  year: '2026.01'
+  org: Google DeepMind
+  paper_url: https://blog.google/technology/ai/google-veo-3-update/
+  category: diffusion_based
+  parent: veo
+  motivation: 原生4K/60fps音视频同步，Cinematic Anchor
+- id: hunyuanvideo
+  name: HunyuanVideo
+  full_name: 混元视频 (HunyuanVideo)
+  year: '2024.12'
+  org: 腾讯
+  paper_url: https://github.com/Tencent/HunyuanVideo
+  category: diffusion_based
+  parent: svd
+  motivation: 开源SSTA-DiT架构，8.3B参数
+- id: hunyuanvideo15
+  name: HunyuanVideo 1.5
+  full_name: 混元视频1.5 (HunyuanVideo 1.5)
+  year: '2026.04'
+  org: 腾讯
+  paper_url: https://github.com/Tencent/HunyuanVideo
+  category: diffusion_based
+  parent: hunyuanvideo
+  motivation: 消费级GPU优化，14GB VRAM可运行
+- id: wan
+  name: Wan
+  full_name: 万象视频生成 (Wan)
+  year: '2025.02'
+  org: 阿里巴巴
+  paper_url: https://wavespeed.ai
+  category: diffusion_based
+  parent: svd
+  motivation: MoE架构，首末帧引导技术
+- id: wan27
+  name: Wan 2.7
+  full_name: 万象2.7 (Wan 2.7)
+  year: '2026.03'
+  org: 阿里巴巴
+  paper_url: https://wavespeed.ai/blog/wan-2-7-launch
+  category: diffusion_based
+  parent: wan
+  motivation: 2.7B参数开源，混合专家扩展
+- id: seedance
+  name: Seedance
+  full_name: 即梦视频生成 (Seedance)
+  year: '2025.08'
+  org: 字节跳动
+  paper_url: https://dreamina.com
+  category: diffusion_based
+  parent: svd
+  motivation: 时间线提示，精确时间窗口动作控制
+- id: seedance2
+  name: Seedance 2.0
+  full_name: 即梦2.0 (Seedance 2.0)
+  year: '2026.02'
+  org: 字节跳动
+  paper_url: https://dreamina.com/seedance
+  category: diffusion_based
+  parent: seedance
+  motivation: 原生音视频同步，C2PA加密水印
+- id: kling
+  name: Kling
+  full_name: 可灵视频生成 (Kling)
+  year: '2024.06'
+  org: 快手
+  paper_url: https://kling.kuaishou.com
+  category: diffusion_based
+  parent: svd
+  motivation: 3D时空联合注意力，2分钟1080p生成
+- id: kling3
+  name: Kling 3.0
+  full_name: 可灵3.0 (Kling 3.0)
+  year: '2026.01'
+  org: 快手
+  paper_url: https://arxiv.org/abs/2512.16776
+  category: diffusion_based
+  parent: kling
+  motivation: 4K/60fps生成，Kling-Foley原生音频
+- id: gwm1
+  name: GWM-1
+  full_name: 通用世界模型1 (General World Model 1)
+  year: '2026.02'
+  org: Runway
+  paper_url: https://runwayml.com/research/introducing-general-world-models
+  category: world_model
+  parent: gen4
+  motivation: 学习世界动力学，理解因果关系和物理规律
+- id: vjepa2
+  name: V-JEPA 2
+  full_name: 视频联合嵌入预测架构2 (Video Joint Embedding Predictive Architecture 2)
+  year: '2026.03'
+  org: Meta
+  paper_url: https://ai.meta.com/research/publications/
+  category: world_model
+  parent: —
+  motivation: 自监督学习世界模型，机器人训练与仿真
+graph:
+  nodes:
+  - id: videogan
+    x: 2016
+    y: 1
+    category: gan_based
+  - id: tgan
+    x: 2017
+    y: 1
+    category: gan_based
+  - id: mocogan
+    x: 2018
+    y: 1
+    category: gan_based
+  - id: svg
+    x: 2018
+    y: 2
+    category: vae_based
+  - id: videogpt
+    x: 2021
+    y: 3
+    category: autoregressive
+  - id: nuwa
+    x: 2021.9
+    y: 3
+    category: autoregressive
+  - id: cogvideo
+    x: 2022.4
+    y: 3
+    category: autoregressive
+  - id: nuwa_infinity
+    x: 2022.6
+    y: 3
+    category: autoregressive
+  - id: svd
+    x: 2023.9
+    y: 4
+    category: diffusion_based
+  - id: gen1
+    x: 2023.2
+    y: 4
+    category: diffusion_based
+  - id: pika
+    x: 2023.3
+    y: 4
+    category: diffusion_based
+  - id: gen2
+    x: 2023.5
+    y: 4
+    category: diffusion_based
+  - id: lumiere
+    x: 2024.1
+    y: 4
+    category: diffusion_based
+  - id: sora
+    x: 2024.2
+    y: 4
+    category: diffusion_based
+  - id: veo
+    x: 2024.4
+    y: 4
+    category: diffusion_based
+  - id: gen3
+    x: 2024.5
+    y: 4
+    category: diffusion_based
+  - id: kling
+    x: 2024.5
+    y: 4
+    category: diffusion_based
+  - id: cogvideox
+    x: 2024.7
+    y: 4
+    category: diffusion_based
+  - id: hunyuanvideo
+    x: 2024.12
+    y: 4
+    category: diffusion_based
+  - id: sora2
+    x: 2024.12
+    y: 4
+    category: diffusion_based
+  - id: wan
+    x: 2025.2
+    y: 4
+    category: diffusion_based
+  - id: seedance
+    x: 2025.7
+    y: 4
+    category: diffusion_based
+  - id: pika25
+    x: 2025.9
+    y: 4
+    category: diffusion_based
+  - id: gen4
+    x: 2026.1
+    y: 4
+    category: diffusion_based
+  - id: kling3
+    x: 2026.1
+    y: 4
+    category: diffusion_based
+  - id: veo3
+    x: 2026.1
+    y: 4
+    category: diffusion_based
+  - id: seedance2
+    x: 2026.2
+    y: 4
+    category: diffusion_based
+  - id: wan27
+    x: 2026.3
+    y: 4
+    category: diffusion_based
+  - id: hunyuanvideo15
+    x: 2026.3
+    y: 4
+    category: diffusion_based
+  - id: gwm1
+    x: 2026.2
+    y: 5
+    category: world_model
+  - id: vjepa2
+    x: 2026.3
+    y: 5
+    category: world_model
+  edges:
+  - from: videogan
+    to: tgan
+    label: 时序判别
+  - from: videogan
+    to: mocogan
+    label: 运动解耦
+  - from: svg
+    to: videogpt
+    label: 离散Token化
+  - from: videogpt
+    to: nuwa
+    label: 多任务统一
+  - from: nuwa
+    to: nuwa_infinity
+    label: 无限扩展
+  - from: nuwa
+    to: cogvideo
+    label: 中文理解
+  - from: svd
+    to: sora
+    label: DiT架构
+  - from: sora
+    to: sora2
+    label: 物理增强
+  - from: svd
+    to: lumiere
+    label: STUNet
+  - from: lumiere
+    to: veo
+    label: 高分辨率
+  - from: veo
+    to: veo3
+    label: 原生音视频
+  - from: gen1
+    to: gen2
+    label: T2V能力
+  - from: gen2
+    to: gen3
+    label: 世界模型
+  - from: gen3
+    to: gen4
+    label: 世界一致性
+  - from: cogvideo
+    to: cogvideox
+    label: 3D VAE
+  - from: svd
+    to: hunyuanvideo
+    label: 开源优化
+  - from: hunyuanvideo
+    to: hunyuanvideo15
+    label: GPU优化
+  - from: svd
+    to: wan
+    label: MoE架构
+  - from: wan
+    to: wan27
+    label: 参数扩展
+  - from: svd
+    to: kling
+    label: 3D注意力
+  - from: kling
+    to: kling3
+    label: 4K音频
+  - from: svd
+    to: seedance
+    label: 时间线提示
+  - from: seedance
+    to: seedance2
+    label: 音视频同步
+  - from: svd
+    to: pika
+    label: 物理特效
+  - from: pika
+    to: pika25
+    label: 唇形同步
+  - from: gen4
+    to: gwm1
+    label: 物理仿真
+  milestones:
+  - svd
+  - sora
+  - veo3

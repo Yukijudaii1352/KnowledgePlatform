@@ -1,0 +1,402 @@
+domain: infra
+topic_id: model_compression
+topic_name: 模型压缩
+page_icon: 🗜️
+page_title: 模型压缩算法总结
+page_subtitle: '{build_date} 版'
+page_desc: 综述量化、剪枝、蒸馏与稀疏化部署的技术演进，涵盖从经典压缩范式到2026年最新前沿进展。
+hero_pills: 🏷️ Quantization · Pruning · Distillation · Sparse Inference
+count_pill: '{count} 个算法'
+categories:
+  quantization:
+    label: 量化技术
+    color: '#22a06b'
+  pruning:
+    label: 剪枝技术
+    color: '#5b63d3'
+  distillation:
+    label: 知识蒸馏
+    color: '#e8820c'
+  sparsity_deploy:
+    label: 稀疏化与部署
+    color: '#d32f2f'
+algorithms:
+- id: qat
+  name: QAT
+  full_name: 量化感知训练 (Quantization-Aware Training)
+  year: 2018
+  org: Google
+  paper_url: https://arxiv.org/abs/1712.05877
+  category: quantization
+  parent: —
+  motivation: 引入伪量化节点模拟训练中量化误差
+- id: gptq
+  name: GPTQ
+  full_name: 生成式预训练量化 (GPTQ)
+  year: 2023
+  org: ISTA
+  paper_url: https://arxiv.org/abs/2210.17323
+  category: quantization
+  parent: —
+  motivation: 基于Hessian的二阶近似实现极速PTQ
+- id: awq
+  name: AWQ
+  full_name: 激活感知权重量化 (AWQ)
+  year: 2024
+  org: MIT
+  paper_url: https://arxiv.org/abs/2306.00978
+  category: quantization
+  parent: gptq
+  motivation: 保护1%显著权重通过激活感知缩放
+- id: smoothquant
+  name: SmoothQuant
+  full_name: 平滑量化 (SmoothQuant)
+  year: 2023
+  org: MIT/NVIDIA
+  paper_url: http://proceedings.mlr.press/v202/xiao23c.html
+  category: quantization
+  parent: qat
+  motivation: 将激活量化难度平滑转移至权重
+- id: abq_llm
+  name: ABQ-LLM
+  full_name: 任意比特量化 (Arbitrary-Bit Quantization)
+  year: 2025
+  org: 中科大
+  paper_url: https://ojs.aaai.org/index.php/AAAI/article/view/34385
+  category: quantization
+  parent: awq
+  motivation: 实现任意比特量化推理加速
+- id: spinquant
+  name: SpinQuant
+  full_name: 旋转量化 (SpinQuant)
+  year: 2025
+  org: Meta
+  paper_url: https://proceedings.iclr.cc/paper_files/paper/2025/hash/e5b1c0d4866f72393c522c8a00eed4eb-Abstract-Conference.html
+  category: quantization
+  parent: gptq
+  motivation: 学习旋转矩阵减少量化误差
+- id: efficientqat
+  name: EfficientQAT
+  full_name: 高效量化感知训练 (EfficientQAT)
+  year: 2025
+  org: 北大
+  paper_url: https://aclanthology.org/2025.acl-long.498/
+  category: quantization
+  parent: qat
+  motivation: 显著降低大模型量化训练资源消耗
+- id: lottery_ticket
+  name: Lottery Ticket
+  full_name: 彩票假设 (Lottery Ticket Hypothesis)
+  year: 2019
+  org: MIT
+  paper_url: https://arxiv.org/abs/1803.03635
+  category: pruning
+  parent: —
+  motivation: 发现网络中存在可训练稀疏子网络
+- id: movement_pruning
+  name: Movement Pruning
+  full_name: 运动剪枝 (Movement Pruning)
+  year: 2020
+  org: HuggingFace
+  paper_url: https://proceedings.neurips.cc/paper/2020/hash/eae15aabaa768ae4a5993a8a4f4fa6e4-Abstract.html
+  category: pruning
+  parent: lottery_ticket
+  motivation: 微调中根据权重趋势动态剪枝
+- id: sparsegpt
+  name: SparseGPT
+  full_name: 稀疏GPT (SparseGPT)
+  year: 2023
+  org: ISTA
+  paper_url: https://arxiv.org/abs/2301.00774
+  category: pruning
+  parent: gptq
+  motivation: 首个支持千亿参数模型一键剪枝
+- id: saap
+  name: SAAP
+  full_name: 结构感知自适应剪枝 (SAAP)
+  year: 2026
+  org: IEEE
+  paper_url: https://ieeexplore.ieee.org/abstract/document/11360603/
+  category: pruning
+  parent: sparsegpt
+  motivation: 维持LLM理解能力的结构感知剪枝
+- id: replaceme
+  name: ReplaceMe
+  full_name: 深度剪枝替换 (ReplaceMe)
+  year: 2026
+  org: NeurIPS
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/1c10d0c087c14689628124bbc8fa69f6-Abstract-Conference.html
+  category: pruning
+  parent: movement_pruning
+  motivation: 深度剪枝与Transformer块线性化
+- id: vitcop
+  name: ViTCoP
+  full_name: 视觉文本协同剪枝 (ViTCoP)
+  year: 2026
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2601.17818
+  category: pruning
+  parent: saap
+  motivation: 视觉与文本语义协同加速多模态
+- id: hinton_kd
+  name: Hinton KD
+  full_name: 知识蒸馏 (Knowledge Distillation)
+  year: 2015
+  org: Google
+  paper_url: https://arxiv.org/abs/1503.02531
+  category: distillation
+  parent: —
+  motivation: 引入Soft Targets和温度系数T
+- id: distilbert
+  name: DistilBERT
+  full_name: 蒸馏BERT (DistilBERT)
+  year: 2019
+  org: HuggingFace
+  paper_url: https://arxiv.org/abs/1910.01108
+  category: distillation
+  parent: hinton_kd
+  motivation: 预训练阶段三重损失蒸馏保留97%性能
+- id: tinybert
+  name: TinyBERT
+  full_name: 微型BERT (TinyBERT)
+  year: 2020
+  org: 华为
+  paper_url: https://aclanthology.org/2020.findings-emnlp.372/
+  category: distillation
+  parent: distilbert
+  motivation: 两阶段蒸馏涵盖嵌入中间预测层
+- id: minillm
+  name: MiniLLM
+  full_name: 最小化LLM (MiniLLM)
+  year: 2024
+  org: 微软
+  paper_url: https://arxiv.org/abs/2306.08543
+  category: distillation
+  parent: tinybert
+  motivation: 反向KL散度蒸馏大语言模型
+- id: activeprune
+  name: ActivePrune
+  full_name: 主动剪枝蒸馏 (ActivePrune)
+  year: 2026
+  org: EACL
+  paper_url: https://aclanthology.org/2026.findings-eacl.229/
+  category: distillation
+  parent: minillm
+  motivation: 结合数据剪枝与蒸馏的主动学习
+- id: longformer
+  name: Longformer
+  full_name: 长文档Transformer (Longformer)
+  year: 2020
+  org: Allen AI
+  paper_url: https://arxiv.org/abs/2004.05150
+  category: sparsity_deploy
+  parent: —
+  motivation: 局部窗口+全局注意力实现线性复杂度
+- id: bigbird
+  name: BigBird
+  full_name: 大鸟 (BigBird)
+  year: 2020
+  org: Google
+  paper_url: https://proceedings.neurips.cc/paper/2020/hash/c8512d142a2d849725f31a9a7a361ab9-Abstract.html
+  category: sparsity_deploy
+  parent: longformer
+  motivation: 引入随机注意力块保持全图连通
+- id: nm_sparsity
+  name: N:M Sparsity
+  full_name: N:M细粒度稀疏 (N:M Sparsity)
+  year: 2021
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/2102.04010
+  category: sparsity_deploy
+  parent: —
+  motivation: 硬件原生2:4稀疏兼顾精度与加速
+- id: permllm
+  name: PermLLM
+  full_name: 可学习排列LLM (PermLLM)
+  year: 2026
+  org: NeurIPS
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/1d3fe3adb016edebc4fa615c25d22cb0-Abstract-Conference.html
+  category: sparsity_deploy
+  parent: nm_sparsity
+  motivation: 可学习通道排列优化N:M稀疏精度
+- id: gigamoe
+  name: GigaMoE
+  full_name: 十亿像素MoE (GigaMoE)
+  year: 2026
+  org: AAAI
+  paper_url: https://ojs.aaai.org/index.php/AAAI/article/view/38810
+  category: sparsity_deploy
+  parent: nm_sparsity
+  motivation: 稀疏引导MoE高效十亿像素检测
+- id: hierasparse
+  name: HieraSparse
+  full_name: 分层稀疏注意力 (HieraSparse)
+  year: 2026
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2604.16864
+  category: sparsity_deploy
+  parent: bigbird
+  motivation: 分层半结构化稀疏KV注意力
+graph:
+  nodes:
+  - id: qat
+    x: 2018
+    y: 100
+    category: quantization
+  - id: gptq
+    x: 2023
+    y: 100
+    category: quantization
+  - id: smoothquant
+    x: 2023
+    y: 130
+    category: quantization
+  - id: awq
+    x: 2024
+    y: 100
+    category: quantization
+  - id: abq_llm
+    x: 2025
+    y: 100
+    category: quantization
+  - id: spinquant
+    x: 2025
+    y: 130
+    category: quantization
+  - id: efficientqat
+    x: 2025
+    y: 160
+    category: quantization
+  - id: lottery_ticket
+    x: 2019
+    y: 250
+    category: pruning
+  - id: movement_pruning
+    x: 2020
+    y: 250
+    category: pruning
+  - id: sparsegpt
+    x: 2023
+    y: 250
+    category: pruning
+  - id: saap
+    x: 2026
+    y: 250
+    category: pruning
+  - id: replaceme
+    x: 2026
+    y: 280
+    category: pruning
+  - id: vitcop
+    x: 2026
+    y: 220
+    category: pruning
+  - id: hinton_kd
+    x: 2015
+    y: 400
+    category: distillation
+  - id: distilbert
+    x: 2019
+    y: 400
+    category: distillation
+  - id: tinybert
+    x: 2020
+    y: 400
+    category: distillation
+  - id: minillm
+    x: 2024
+    y: 400
+    category: distillation
+  - id: activeprune
+    x: 2026
+    y: 400
+    category: distillation
+  - id: longformer
+    x: 2020
+    y: 550
+    category: sparsity_deploy
+  - id: bigbird
+    x: 2020
+    y: 580
+    category: sparsity_deploy
+  - id: nm_sparsity
+    x: 2021
+    y: 550
+    category: sparsity_deploy
+  - id: permllm
+    x: 2026
+    y: 550
+    category: sparsity_deploy
+  - id: gigamoe
+    x: 2026
+    y: 520
+    category: sparsity_deploy
+  - id: hierasparse
+    x: 2026
+    y: 580
+    category: sparsity_deploy
+  edges:
+  - from: qat
+    to: smoothquant
+    label: 离群值优化
+  - from: qat
+    to: efficientqat
+    label: 效率提升
+  - from: gptq
+    to: awq
+    label: 激活感知
+  - from: gptq
+    to: spinquant
+    label: 旋转变换
+  - from: gptq
+    to: sparsegpt
+    label: 跨域迁移
+  - from: awq
+    to: abq_llm
+    label: 任意比特
+  - from: lottery_ticket
+    to: movement_pruning
+    label: 动态剪枝
+  - from: movement_pruning
+    to: replaceme
+    label: 深度剪枝
+  - from: sparsegpt
+    to: saap
+    label: 结构感知
+  - from: saap
+    to: vitcop
+    label: 多模态协同
+  - from: hinton_kd
+    to: distilbert
+    label: 预训练蒸馏
+  - from: distilbert
+    to: tinybert
+    label: 多层蒸馏
+  - from: tinybert
+    to: minillm
+    label: LLM蒸馏
+  - from: minillm
+    to: activeprune
+    label: 主动学习
+  - from: longformer
+    to: bigbird
+    label: 随机注意力
+  - from: bigbird
+    to: hierasparse
+    label: 分层稀疏
+  - from: nm_sparsity
+    to: permllm
+    label: 通道排列
+  - from: nm_sparsity
+    to: gigamoe
+    label: MoE结合
+  milestones:
+  - id: hinton_kd
+    year: 2015
+    description: 奠定知识蒸馏理论基础，开创模型压缩新范式
+  - id: gptq
+    year: 2023
+    description: 首个支持LLM的高效后训练量化，推动大模型压缩普及
+  - id: permllm
+    year: 2026
+    description: 可学习稀疏模式，标志N:M稀疏进入软件定义时代

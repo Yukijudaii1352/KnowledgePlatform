@@ -1,0 +1,501 @@
+page_icon: 🎨
+page_title: 文生图技术演进
+page_subtitle: '{build_date} 版'
+page_desc: 从GAN到扩散模型，从Stable Diffusion到FLUX.1的文生图技术全景演进
+hero_pills: 🏷️ Diffusion Models · GAN · Transformer · Flow Matching · AIGC
+count_pill: '{count} 个算法'
+categories:
+  gan_era:
+    label: 对抗生成时代
+    color: '#8B5CF6'
+  vae_discrete:
+    label: 离散化与VAE
+    color: '#F59E0B'
+  diffusion_foundation:
+    label: 扩散模型奠基
+    color: '#10B981'
+  sd_evolution:
+    label: SD系列演进
+    color: '#3B82F6'
+  frontier_2026:
+    label: 2026前沿探索
+    color: '#EF4444'
+algorithms:
+- id: stackgan
+  name: StackGAN
+  full_name: 条件增强文生图 (StackGAN)
+  year: '2017'
+  org: 百度/Rutgers
+  paper_url: https://arxiv.org/abs/1612.03242
+  category: gan_era
+  parent: —
+  motivation: 两阶段生成与条件增强
+- id: attngan
+  name: AttnGAN
+  full_name: 注意力文生图 (AttnGAN)
+  year: '2018'
+  org: 微软
+  paper_url: https://arxiv.org/abs/1711.10485
+  category: gan_era
+  parent: stackgan
+  motivation: 单词级注意力与DAMSM
+- id: stylegan
+  name: StyleGAN
+  full_name: 风格生成网络 (StyleGAN)
+  year: '2019'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/1812.04948
+  category: gan_era
+  parent: attngan
+  motivation: 映射网络与AdaIN风格注入
+- id: vqvae
+  name: VQ-VAE
+  full_name: 矢量量化变分自编码器 (VQ-VAE)
+  year: '2017'
+  org: DeepMind
+  paper_url: https://arxiv.org/abs/1711.00937
+  category: vae_discrete
+  parent: —
+  motivation: 可学习码本将图像离散化
+- id: vqgan
+  name: VQ-GAN
+  full_name: 矢量量化生成网络 (VQ-GAN)
+  year: '2020'
+  org: 海德堡大学
+  paper_url: https://arxiv.org/abs/2012.09841
+  category: vae_discrete
+  parent: vqvae
+  motivation: CNN归纳偏置与Transformer建模
+- id: ddpm
+  name: DDPM
+  full_name: 去噪扩散概率模型 (DDPM)
+  year: '2020'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/2006.11239
+  category: diffusion_foundation
+  parent: —
+  motivation: 确立去噪扩散范式
+- id: ddim
+  name: DDIM
+  full_name: 去噪扩散隐式模型 (DDIM)
+  year: '2020'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/2010.02502
+  category: diffusion_foundation
+  parent: ddpm
+  motivation: 非马尔可夫加速采样
+- id: score_sde
+  name: Score SDE
+  full_name: 基于分数的SDE (Score SDE)
+  year: '2020'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/2011.13456
+  category: diffusion_foundation
+  parent: ddpm
+  motivation: 统一SDE理论框架
+- id: clip
+  name: CLIP
+  full_name: 对比语言图像预训练 (CLIP)
+  year: '2021'
+  org: OpenAI
+  paper_url: https://arxiv.org/abs/2103.00020
+  category: diffusion_foundation
+  parent: —
+  motivation: 大规模跨模态语义对齐
+- id: ldm
+  name: LDM/SD v1.5
+  full_name: 潜在扩散模型 (Latent Diffusion)
+  year: '2022'
+  org: CompVis/Stability AI
+  paper_url: https://arxiv.org/abs/2112.10752
+  category: sd_evolution
+  parent: ddpm
+  motivation: 潜空间扩散降低计算成本
+- id: sd_v2
+  name: SD v2.0
+  full_name: Stable Diffusion v2.0
+  year: '2022.11'
+  org: Stability AI
+  paper_url: —
+  category: sd_evolution
+  parent: ldm
+  motivation: OpenCLIP编码器升级
+- id: sdxl
+  name: SDXL
+  full_name: Stable Diffusion XL
+  year: '2023'
+  org: Stability AI
+  paper_url: https://arxiv.org/abs/2307.01952
+  category: sd_evolution
+  parent: sd_v2
+  motivation: Base+Refiner级联架构
+- id: sd3
+  name: SD3
+  full_name: Stable Diffusion 3
+  year: '2024.02'
+  org: Stability AI
+  paper_url: —
+  category: sd_evolution
+  parent: sdxl
+  motivation: MMDiT架构与整流流
+- id: flux_1
+  name: FLUX.1
+  full_name: FLUX.1流匹配模型 (FLUX.1)
+  year: '2024.08'
+  org: Black Forest Labs
+  paper_url: —
+  category: sd_evolution
+  parent: sd3
+  motivation: 12B流匹配Transformer
+- id: controlnet
+  name: ControlNet
+  full_name: 可控条件网络 (ControlNet)
+  year: '2023'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/2302.05543
+  category: sd_evolution
+  parent: ldm
+  motivation: 零卷积引入空间控制
+- id: ip_adapter
+  name: IP-Adapter
+  full_name: 图像提示适配器 (IP-Adapter)
+  year: '2023'
+  org: 腾讯
+  paper_url: https://arxiv.org/abs/2308.06721
+  category: sd_evolution
+  parent: ldm
+  motivation: 解耦图像提示控制
+- id: llamagen
+  name: LlamaGen
+  full_name: 自回归图像生成 (LlamaGen)
+  year: '2024'
+  org: 北大/港大
+  paper_url: https://arxiv.org/abs/2406.06525
+  category: vae_discrete
+  parent: vqgan
+  motivation: 纯Llama架构图像生成
+- id: lumina_mgpt
+  name: Lumina-mGPT
+  full_name: 多模态自回归生成 (Lumina-mGPT)
+  year: '2026.03'
+  org: 上海AI Lab
+  paper_url: IJCV 2026
+  category: frontier_2026
+  parent: llamagen
+  motivation: 灵活多模态自回归
+- id: npp
+  name: Next Patch Prediction
+  full_name: 下一块预测 (NPP)
+  year: '2026.02'
+  org: 北大
+  paper_url: AAAI 2026
+  category: frontier_2026
+  parent: llamagen
+  motivation: 扩展自回归预测策略
+- id: infinitystar
+  name: InfinityStar
+  full_name: 统一时空自回归 (InfinityStar)
+  year: '2026.01'
+  org: 上海AI Lab
+  paper_url: NeurIPS 2025
+  category: frontier_2026
+  parent: lumina_mgpt
+  motivation: 统一时空自回归建模
+- id: argen_dexion
+  name: ARGen-Dexion
+  full_name: 增强视觉解码器 (ARGen-Dexion)
+  year: '2026'
+  org: 字节跳动
+  paper_url: —
+  category: frontier_2026
+  parent: llamagen
+  motivation: 视觉解码器架构增强
+- id: nextstep_1
+  name: NextStep-1
+  full_name: 连续Token自回归 (NextStep-1)
+  year: '2026'
+  org: 阿里巴巴
+  paper_url: —
+  category: frontier_2026
+  parent: llamagen
+  motivation: 大规模连续Token生成
+- id: tlcm
+  name: TLCM
+  full_name: 训练高效一致性模型 (TLCM)
+  year: '2024.06'
+  org: 清华
+  paper_url: https://arxiv.org/abs/2406.05768
+  category: frontier_2026
+  parent: ldm
+  motivation: 训练高效潜一致性
+- id: dit_air
+  name: DiT-AIR
+  full_name: 高效扩散Transformer (DiT-AIR)
+  year: '2025.03'
+  org: 腾讯
+  paper_url: https://arxiv.org/abs/2503.10618
+  category: frontier_2026
+  parent: sd3
+  motivation: 重审DiT架构效率
+- id: pixart_alpha
+  name: PixArt-α
+  full_name: 高效文生图 (PixArt-α)
+  year: '2024'
+  org: 华为
+  paper_url: https://arxiv.org/abs/2310.00426
+  category: frontier_2026
+  parent: sd3
+  motivation: 高效DiT训练策略
+- id: sana
+  name: SANA
+  full_name: 高分辨率线性注意力 (SANA)
+  year: '2024'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/2410.10629
+  category: frontier_2026
+  parent: pixart_alpha
+  motivation: 线性注意力高分辨率
+- id: mm_r1
+  name: MM-R1
+  full_name: 统一多模态生成 (MM-R1)
+  year: '2026.02'
+  org: 北大
+  paper_url: AAAI 2026
+  category: frontier_2026
+  parent: flux_1
+  motivation: GRPO偏好对齐减少畸变
+- id: vinci
+  name: Vinci
+  full_name: 深度思考文生图 (Vinci)
+  year: '2026.01'
+  org: 浙大
+  paper_url: NeurIPS 2025
+  category: frontier_2026
+  parent: mm_r1
+  motivation: QA奖励增强逻辑推理
+- id: lmfusion
+  name: LMFusion
+  full_name: 语言模型融合生成 (LMFusion)
+  year: '2026'
+  org: Meta
+  paper_url: —
+  category: frontier_2026
+  parent: flux_1
+  motivation: 理解与生成统一骨干
+- id: unigen
+  name: UniGen
+  full_name: 统一生成框架 (UniGen)
+  year: '2026'
+  org: Google
+  paper_url: —
+  category: frontier_2026
+  parent: lmfusion
+  motivation: 多任务统一生成
+graph:
+  nodes:
+  - id: stackgan
+    x: 100
+    y: 100
+    category: gan_era
+  - id: attngan
+    x: 200
+    y: 100
+    category: gan_era
+  - id: stylegan
+    x: 300
+    y: 100
+    category: gan_era
+  - id: vqvae
+    x: 100
+    y: 200
+    category: vae_discrete
+  - id: vqgan
+    x: 400
+    y: 200
+    category: vae_discrete
+  - id: llamagen
+    x: 800
+    y: 200
+    category: vae_discrete
+  - id: ddpm
+    x: 400
+    y: 300
+    category: diffusion_foundation
+  - id: ddim
+    x: 450
+    y: 280
+    category: diffusion_foundation
+  - id: score_sde
+    x: 450
+    y: 320
+    category: diffusion_foundation
+  - id: clip
+    x: 500
+    y: 300
+    category: diffusion_foundation
+  - id: ldm
+    x: 600
+    y: 400
+    category: sd_evolution
+  - id: sd_v2
+    x: 650
+    y: 400
+    category: sd_evolution
+  - id: controlnet
+    x: 700
+    y: 380
+    category: sd_evolution
+  - id: ip_adapter
+    x: 700
+    y: 420
+    category: sd_evolution
+  - id: sdxl
+    x: 750
+    y: 400
+    category: sd_evolution
+  - id: sd3
+    x: 850
+    y: 400
+    category: sd_evolution
+  - id: flux_1
+    x: 900
+    y: 400
+    category: sd_evolution
+  - id: lumina_mgpt
+    x: 950
+    y: 200
+    category: frontier_2026
+  - id: npp
+    x: 950
+    y: 220
+    category: frontier_2026
+  - id: infinitystar
+    x: 1000
+    y: 200
+    category: frontier_2026
+  - id: argen_dexion
+    x: 1000
+    y: 220
+    category: frontier_2026
+  - id: nextstep_1
+    x: 1000
+    y: 240
+    category: frontier_2026
+  - id: tlcm
+    x: 850
+    y: 500
+    category: frontier_2026
+  - id: dit_air
+    x: 920
+    y: 480
+    category: frontier_2026
+  - id: pixart_alpha
+    x: 900
+    y: 500
+    category: frontier_2026
+  - id: sana
+    x: 950
+    y: 500
+    category: frontier_2026
+  - id: mm_r1
+    x: 980
+    y: 440
+    category: frontier_2026
+  - id: vinci
+    x: 1020
+    y: 440
+    category: frontier_2026
+  - id: lmfusion
+    x: 1000
+    y: 460
+    category: frontier_2026
+  - id: unigen
+    x: 1040
+    y: 460
+    category: frontier_2026
+  edges:
+  - from: stackgan
+    to: attngan
+    label: 注意力增强
+  - from: attngan
+    to: stylegan
+    label: 风格控制
+  - from: vqvae
+    to: vqgan
+    label: 感知增强
+  - from: vqgan
+    to: llamagen
+    label: 自回归统一
+  - from: ddpm
+    to: ddim
+    label: 加速采样
+  - from: ddpm
+    to: score_sde
+    label: 理论统一
+  - from: ddpm
+    to: ldm
+    label: 潜空间迁移
+  - from: ldm
+    to: sd_v2
+    label: 编码器升级
+  - from: sd_v2
+    to: sdxl
+    label: 级联增强
+  - from: sdxl
+    to: sd3
+    label: MMDiT引入
+  - from: sd3
+    to: flux_1
+    label: 流匹配巅峰
+  - from: ldm
+    to: controlnet
+    label: 空间控制
+  - from: ldm
+    to: ip_adapter
+    label: 图像提示
+  - from: llamagen
+    to: lumina_mgpt
+    label: 多模态扩展
+  - from: llamagen
+    to: npp
+    label: 预测策略
+  - from: lumina_mgpt
+    to: infinitystar
+    label: 时空统一
+  - from: llamagen
+    to: argen_dexion
+    label: 解码器增强
+  - from: llamagen
+    to: nextstep_1
+    label: 连续Token
+  - from: ldm
+    to: tlcm
+    label: 一致性加速
+  - from: sd3
+    to: dit_air
+    label: 架构优化
+  - from: sd3
+    to: pixart_alpha
+    label: 训练高效
+  - from: pixart_alpha
+    to: sana
+    label: 线性注意力
+  - from: flux_1
+    to: mm_r1
+    label: 偏好对齐
+  - from: mm_r1
+    to: vinci
+    label: 推理增强
+  - from: flux_1
+    to: lmfusion
+    label: 理解生成统一
+  - from: lmfusion
+    to: unigen
+    label: 多任务统一
+  milestones:
+  - id: clip
+    label: 跨模态语义对齐基石
+  - id: ldm
+    label: 潜空间扩散开创开源生态
+  - id: flux_1
+    label: 流匹配与大规模Transformer成熟

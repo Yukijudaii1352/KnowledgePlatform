@@ -1,0 +1,491 @@
+domain: embodied
+topic_id: simulation
+topic_name: 具身智能仿真
+page_icon: 🎮
+page_title: 具身智能仿真技术演进图谱
+page_subtitle: '{build_date} 版'
+page_desc: 从早期物理引擎到GPU大规模并行仿真，再到生成式数字孪生的技术演进历程，涵盖Isaac Sim、MuJoCo、Genesis等核心平台与基准测试体系。
+hero_pills:
+- 🏷️ Physics Engine · Sim2Real · Parallel Simulation
+count_pill: '{count} 个算法'
+categories:
+  foundation:
+    label: 基础物理引擎
+    color: '#22a06b'
+  interactive:
+    label: 交互式视觉仿真
+    color: '#5b63d3'
+  benchmark:
+    label: 基准测试平台
+    color: '#e8820c'
+  parallel:
+    label: 大规模并行仿真
+    color: '#c9302c'
+  generative:
+    label: 生成式仿真
+    color: '#9c27b0'
+algorithms:
+- id: gazebo
+  name: Gazebo
+  full_name: Gazebo机器人仿真器 (Gazebo Robot Simulator)
+  year: '2004'
+  org: OSF
+  paper_url: https://robotics.usc.edu/publications/394/
+  category: foundation
+  parent: —
+  motivation: 开启开源3D多机器人仿真时代，ROS深度集成
+- id: mujoco
+  name: MuJoCo
+  full_name: 多关节接触动力学引擎 (Multi-Joint dynamics with Contact)
+  year: '2012'
+  org: UW/DeepMind
+  paper_url: https://mujoco.org/
+  category: foundation
+  parent: —
+  motivation: 奠定模型预测控制与接触动力学仿真基础
+- id: vrep
+  name: CoppeliaSim
+  full_name: CoppeliaSim仿真平台 (CoppeliaSim)
+  year: '2013'
+  org: Coppelia
+  paper_url: https://www.coppeliarobotics.com/
+  category: foundation
+  parent: —
+  motivation: 分布式控制架构，支持多种物理引擎集成
+- id: pybullet
+  name: PyBullet
+  full_name: PyBullet物理引擎 (PyBullet Physics Engine)
+  year: '2016'
+  org: Bullet
+  paper_url: https://pybullet.org/
+  category: foundation
+  parent: —
+  motivation: 开源轻量级物理引擎，广泛用于Sim2Real
+- id: dm_control
+  name: DM Control
+  full_name: DeepMind控制套件 (DeepMind Control Suite)
+  year: '2018'
+  org: DeepMind
+  paper_url: https://arxiv.org/abs/1801.00690
+  category: foundation
+  parent: mujoco
+  motivation: 标准化连续控制基准，统一奖励结构
+- id: brax
+  name: Brax
+  full_name: Brax可微分引擎 (Brax Differentiable Engine)
+  year: '2021'
+  org: Google
+  paper_url: https://arxiv.org/abs/2106.13281
+  category: foundation
+  parent: mujoco
+  motivation: JAX原生可微分引擎，支持梯度优化策略
+- id: ai2thor
+  name: AI2-THOR
+  full_name: AI2交互式3D环境 (AI2-THOR Interactive 3D Environment)
+  year: '2017'
+  org: Allen AI
+  paper_url: https://arxiv.org/abs/1712.05474
+  category: interactive
+  parent: —
+  motivation: 具身智能从静态数据转向交互式环境
+- id: virtualhome
+  name: VirtualHome
+  full_name: 虚拟家庭活动仿真 (VirtualHome)
+  year: '2018'
+  org: MIT
+  paper_url: https://arxiv.org/abs/1806.07011
+  category: interactive
+  parent: —
+  motivation: 将家庭活动表示为可执行程序，训练逻辑理解
+- id: habitat
+  name: Habitat 1.0
+  full_name: Habitat具身AI平台 (Habitat Platform)
+  year: '2019'
+  org: Meta AI
+  paper_url: https://arxiv.org/abs/1904.01201
+  category: interactive
+  parent: —
+  motivation: 实现万帧级超高速渲染，加速大规模RL
+- id: sapien
+  name: SAPIEN
+  full_name: SAPIEN关节物体交互环境 (SAPIEN)
+  year: '2020'
+  org: UCSD
+  paper_url: https://sapien.ucsd.edu/
+  category: interactive
+  parent: —
+  motivation: 专注关节物体交互，提供精细部件数据集
+- id: igibson
+  name: iGibson
+  full_name: iGibson物体中心仿真 (iGibson)
+  year: '2021'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/2108.03272
+  category: interactive
+  parent: —
+  motivation: 以物体为中心的仿真，支持大规模家务任务
+- id: tdw
+  name: ThreeDWorld
+  full_name: 三维世界多模态平台 (ThreeDWorld)
+  year: '2021'
+  org: MIT-IBM
+  paper_url: https://arxiv.org/abs/2007.04954
+  category: interactive
+  parent: —
+  motivation: 多模态平台，支持视觉与物理音频同步模拟
+- id: procthor
+  name: ProcTHOR
+  full_name: ProcTHOR程序化场景生成 (ProcTHOR)
+  year: '2022'
+  org: Allen AI
+  paper_url: https://arxiv.org/abs/2206.06994
+  category: interactive
+  parent: ai2thor
+  motivation: 实现一万个室内房屋场景的程序化自动生成
+- id: omnigibson
+  name: OmniGibson
+  full_name: OmniGibson全能仿真平台 (OmniGibson)
+  year: '2023'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/2311.01014
+  category: interactive
+  parent: igibson
+  motivation: 结合Omniverse光追渲染，支持千种家务活动
+- id: habitat_3
+  name: Habitat 3.0
+  full_name: Habitat 3.0社交协作平台 (Habitat 3.0)
+  year: '2024'
+  org: Meta AI
+  paper_url: https://arxiv.org/abs/2310.13724
+  category: interactive
+  parent: habitat
+  motivation: 从静态导航演进至社交人机协作
+- id: robosuite
+  name: robosuite
+  full_name: robosuite模块化机器人学习框架 (robosuite)
+  year: '2020'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/2009.12293
+  category: benchmark
+  parent: mujoco
+  motivation: 模块化机器人学习框架，支持多种控制器
+- id: rlbench
+  name: RLBench
+  full_name: RLBench机器人学习基准 (RLBench)
+  year: '2020'
+  org: Imperial
+  paper_url: https://arxiv.org/abs/1909.12271
+  category: benchmark
+  parent: vrep
+  motivation: 提供100个手工任务，支持少样本学习测试
+- id: metaworld
+  name: MetaWorld
+  full_name: MetaWorld元学习基准 (MetaWorld)
+  year: '2020'
+  org: Berkeley
+  paper_url: https://arxiv.org/abs/1910.10897
+  category: benchmark
+  parent: mujoco
+  motivation: 50个操作任务，评估元学习与多任务泛化
+- id: calvin
+  name: CALVIN
+  full_name: CALVIN语言条件长程操作基准 (CALVIN)
+  year: '2022'
+  org: Freiburg
+  paper_url: https://arxiv.org/abs/2112.03227
+  category: benchmark
+  parent: —
+  motivation: 语言条件长程操作，评估零样本指令泛化
+- id: maniskill3
+  name: ManiSkill3
+  full_name: ManiSkill3 GPU并行操作基准 (ManiSkill3)
+  year: '2024'
+  org: UCSD
+  paper_url: https://arxiv.org/abs/2410.00425
+  category: benchmark
+  parent: sapien
+  motivation: 关节物体引擎支撑大规模并行操作基准
+- id: robocasa
+  name: RoboCasa
+  full_name: RoboCasa大规模家庭任务仿真 (RoboCasa)
+  year: '2024'
+  org: UT Austin
+  paper_url: https://arxiv.org/abs/2406.02523
+  category: benchmark
+  parent: robosuite
+  motivation: 构建大规模家庭任务仿真，扩展环境多样性
+- id: embodied_arena
+  name: Embodied Arena
+  full_name: 具身智能统一评估平台 (Embodied Arena)
+  year: '2026.03'
+  org: Community
+  paper_url: https://embodied-arena.com/
+  category: benchmark
+  parent: —
+  motivation: 统一评估平台，覆盖30+模型在22个基准
+- id: rbench
+  name: RBench
+  full_name: RBench视频生成物理评估基准 (RBench)
+  year: '2026.01'
+  org: THU
+  paper_url: https://arxiv.org/abs/2601.15282
+  category: benchmark
+  parent: —
+  motivation: 针对视频生成模型的物理真实性评估基准
+- id: isaac_gym
+  name: Isaac Gym
+  full_name: Isaac Gym GPU并行仿真 (Isaac Gym)
+  year: '2021'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/2108.10470
+  category: parallel
+  parent: —
+  motivation: 开创GPU全并行仿真范式，效率提升数千倍
+- id: isaac_sim
+  name: Isaac Sim
+  full_name: Isaac Sim高保真工业仿真 (Isaac Sim)
+  year: '2023'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/2301.04195
+  category: parallel
+  parent: isaac_gym
+  motivation: 从纯并行训练演进至高保真工业仿真
+- id: mujoco_playground
+  name: MuJoCo Playground
+  full_name: MuJoCo Playground高速Sim2Real框架 (MuJoCo Playground)
+  year: '2025.02'
+  org: DeepMind
+  paper_url: https://arxiv.org/abs/2502.08844
+  category: parallel
+  parent: mujoco
+  motivation: 高速Sim2Real框架，分钟级完成策略训练
+- id: newton
+  name: Newton 1.0
+  full_name: Newton 1.0新一代物理引擎 (Newton 1.0)
+  year: '2026.03'
+  org: NVIDIA
+  paper_url: https://nvidianews.nvidia.com/news/nvidia-cosmos-world-foundation-model-platform-physical-ai
+  category: parallel
+  parent: isaac_sim
+  motivation: 大幅提升接触密集型任务的仿真稳定性
+- id: mo_playground
+  name: MO-Playground
+  full_name: MO-Playground多目标强化学习平台 (MO-Playground)
+  year: '2026.03'
+  org: PKU
+  paper_url: https://arxiv.org/abs/2603.09237
+  category: parallel
+  parent: isaac_gym
+  motivation: 针对多目标强化学习的大规模并行化平台
+- id: genesis
+  name: Genesis
+  full_name: Genesis通用生成式物理引擎 (Genesis)
+  year: '2024.12'
+  org: CMU/MIT
+  paper_url: https://arxiv.org/abs/2412.17492
+  category: generative
+  parent: —
+  motivation: 统一物理求解+生成式场景构建，43M FPS
+- id: embodied_gen
+  name: EmbodiedGen
+  full_name: EmbodiedGen生成式3D世界引擎 (EmbodiedGen)
+  year: '2025.06'
+  org: ByteDance
+  paper_url: https://arxiv.org/abs/2506.10600
+  category: generative
+  parent: genesis
+  motivation: 从单张图片或文本生成交互式3D世界
+- id: gs_playground
+  name: GS-Playground
+  full_name: GS-Playground高通量光真实仿真器 (GS-Playground)
+  year: '2026.04'
+  org: THU
+  paper_url: https://arxiv.org/abs/2604.25459
+  category: generative
+  parent: genesis
+  motivation: 引入3DGS技术，10k+ FPS超高性能渲染
+graph:
+  nodes:
+  - id: gazebo
+    x: 50
+    y: 50
+    category: foundation
+  - id: mujoco
+    x: 150
+    y: 60
+    category: foundation
+  - id: vrep
+    x: 180
+    y: 50
+    category: foundation
+  - id: pybullet
+    x: 250
+    y: 50
+    category: foundation
+  - id: dm_control
+    x: 300
+    y: 60
+    category: foundation
+  - id: brax
+    x: 450
+    y: 70
+    category: foundation
+  - id: ai2thor
+    x: 270
+    y: 150
+    category: interactive
+  - id: virtualhome
+    x: 310
+    y: 180
+    category: interactive
+  - id: habitat
+    x: 360
+    y: 160
+    category: interactive
+  - id: sapien
+    x: 400
+    y: 190
+    category: interactive
+  - id: igibson
+    x: 450
+    y: 170
+    category: interactive
+  - id: tdw
+    x: 450
+    y: 200
+    category: interactive
+  - id: procthor
+    x: 520
+    y: 150
+    category: interactive
+  - id: omnigibson
+    x: 600
+    y: 180
+    category: interactive
+  - id: habitat_3
+    x: 650
+    y: 160
+    category: interactive
+  - id: robosuite
+    x: 400
+    y: 280
+    category: benchmark
+  - id: rlbench
+    x: 400
+    y: 310
+    category: benchmark
+  - id: metaworld
+    x: 400
+    y: 330
+    category: benchmark
+  - id: calvin
+    x: 520
+    y: 300
+    category: benchmark
+  - id: maniskill3
+    x: 650
+    y: 290
+    category: benchmark
+  - id: robocasa
+    x: 650
+    y: 320
+    category: benchmark
+  - id: embodied_arena
+    x: 800
+    y: 300
+    category: benchmark
+  - id: rbench
+    x: 780
+    y: 330
+    category: benchmark
+  - id: isaac_gym
+    x: 450
+    y: 420
+    category: parallel
+  - id: isaac_sim
+    x: 600
+    y: 420
+    category: parallel
+  - id: mujoco_playground
+    x: 730
+    y: 450
+    category: parallel
+  - id: newton
+    x: 800
+    y: 420
+    category: parallel
+  - id: mo_playground
+    x: 800
+    y: 460
+    category: parallel
+  - id: genesis
+    x: 670
+    y: 550
+    category: generative
+  - id: embodied_gen
+    x: 750
+    y: 560
+    category: generative
+  - id: gs_playground
+    x: 820
+    y: 570
+    category: generative
+  edges:
+  - from: mujoco
+    to: dm_control
+    label: 标准化控制
+  - from: mujoco
+    to: brax
+    label: 可微分优化
+  - from: mujoco
+    to: robosuite
+    label: 模块化封装
+  - from: mujoco
+    to: metaworld
+    label: 多任务基准
+  - from: mujoco
+    to: mujoco_playground
+    label: 高速训练
+  - from: vrep
+    to: rlbench
+    label: 基准测试
+  - from: ai2thor
+    to: procthor
+    label: 程序化生成
+  - from: habitat
+    to: habitat_3
+    label: 社交协作
+  - from: igibson
+    to: omnigibson
+    label: 光追渲染
+  - from: sapien
+    to: maniskill3
+    label: GPU并行
+  - from: robosuite
+    to: robocasa
+    label: 家庭场景
+  - from: isaac_gym
+    to: isaac_sim
+    label: 高保真化
+  - from: isaac_gym
+    to: mo_playground
+    label: 多目标优化
+  - from: isaac_sim
+    to: newton
+    label: 物理稳定性
+  - from: genesis
+    to: embodied_gen
+    label: 生成式构建
+  - from: genesis
+    to: gs_playground
+    label: 3DGS渲染
+  - from: mujoco
+    to: isaac_gym
+    label: GPU加速
+  - from: isaac_gym
+    to: genesis
+    label: 统一求解器
+  milestones:
+  - mujoco
+  - isaac_gym
+  - genesis

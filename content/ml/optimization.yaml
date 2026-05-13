@@ -1,0 +1,342 @@
+domain: ml
+topic_id: optimization
+topic_name: 优化理论
+page_icon: 📐
+page_title: 优化理论 算法总结
+page_subtitle: '{build_date} 版'
+page_desc: 从1847年梯度下降法到2026年Muon矩阵优化器，系统梳理凸优化、非凸优化、随机梯度方法与收敛性分析的技术演化。
+hero_pills:
+- 🏷️ 凸优化 · 非凸优化 · 随机梯度 · 收敛性分析
+count_pill: '{count} 个算法'
+categories:
+  convex:
+    label: 凸优化基础
+    color: '#22a06b'
+  stochastic:
+    label: 随机梯度方法
+    color: '#5b63d3'
+  adaptive:
+    label: 自适应优化器
+    color: '#e8820c'
+  accelerated:
+    label: 加速与几何方法
+    color: '#0065ff'
+  frontier:
+    label: 2026前沿
+    color: '#d32d9a'
+algorithms:
+- id: gd
+  name: GD
+  full_name: 梯度下降法 (Gradient Descent)
+  year: '1847'
+  org: Cauchy
+  paper_url: https://arxiv.org/abs/1609.04747
+  category: convex
+  parent: —
+  motivation: 沿负梯度方向迭代搜索，一阶优化鼻祖
+- id: newton
+  name: Newton's Method
+  full_name: 牛顿法 (Newton's Method)
+  year: '1740'
+  org: Newton/Simpson
+  paper_url: https://en.wikipedia.org/wiki/Newton%27s_method_in_optimization
+  category: convex
+  parent: —
+  motivation: 利用Hessian矩阵实现局部二次收敛
+- id: interior_point
+  name: Interior Point
+  full_name: 内点法 (Interior Point Method)
+  year: '1984'
+  org: AT&T Bell Labs
+  paper_url: https://en.wikipedia.org/wiki/Karmarkar%27s_algorithm
+  category: convex
+  parent: —
+  motivation: 首个多项式时间线性规划算法
+- id: fista
+  name: FISTA
+  full_name: 快速迭代收缩阈值算法 (FISTA)
+  year: '2009'
+  org: Technion
+  paper_url: https://epubs.siam.org/doi/10.1137/080716542
+  category: convex
+  parent: nag
+  motivation: Nesterov动量加速近端梯度至O(1/k²)
+- id: admm
+  name: ADMM
+  full_name: 交替方向乘子法 (ADMM)
+  year: '1975'
+  org: INRIA
+  paper_url: https://web.stanford.edu/~boyd/papers/pdf/admm_distr_stats.pdf
+  category: convex
+  parent: —
+  motivation: 分裂大问题为子问题，天然支持分布式
+- id: sgd
+  name: SGD
+  full_name: 随机梯度下降 (Stochastic Gradient Descent)
+  year: '1951'
+  org: Columbia Univ.
+  paper_url: https://projecteuclid.org/journals/annals-of-mathematical-statistics/volume-22/issue-3/A-Stochastic-Approximation-Method/10.1214/aoms/1177729586.full
+  category: stochastic
+  parent: gd
+  motivation: 单样本梯度近似全梯度，大规模优化奠基
+- id: svrg
+  name: SVRG
+  full_name: 随机方差缩减梯度 (SVRG)
+  year: '2013'
+  org: Microsoft Research
+  paper_url: http://papers.nips.cc/paper/4937-accelerating-stochastic-gradient-descent-using-predictive-variance-reduction
+  category: stochastic
+  parent: sgd
+  motivation: 周期性全梯度快照修正，消除方差
+- id: saga
+  name: SAGA
+  full_name: 快速增量梯度法 (SAGA)
+  year: '2014'
+  org: INRIA
+  paper_url: https://arxiv.org/abs/1407.0202
+  category: stochastic
+  parent: svrg
+  motivation: 无偏梯度估计，支持近端算子
+- id: adagrad
+  name: AdaGrad
+  full_name: 自适应梯度法 (Adaptive Gradient)
+  year: '2011'
+  org: UC Berkeley
+  paper_url: https://www.jmlr.org/papers/volume12/duchi11a/duchi11a.pdf
+  category: adaptive
+  parent: sgd
+  motivation: 按参数累积梯度平方自适应调节学习率
+- id: rmsprop
+  name: RMSProp
+  full_name: 均方根传播 (RMSProp)
+  year: '2012'
+  org: Univ. of Toronto
+  paper_url: https://d2l.ai/chapter_optimization/rmsprop.html
+  category: adaptive
+  parent: adagrad
+  motivation: 指数衰减移动平均解决学习率消失
+- id: adam
+  name: Adam
+  full_name: 自适应矩估计 (Adam)
+  year: '2014'
+  org: Univ. of Toronto
+  paper_url: https://arxiv.org/abs/1412.6980
+  category: adaptive
+  parent: rmsprop
+  motivation: 融合一阶矩与二阶矩估计加偏差修正
+- id: amsgrad
+  name: AMSGrad
+  full_name: AMSGrad
+  year: '2018'
+  org: Google/CMU
+  paper_url: https://arxiv.org/abs/1904.09237
+  category: adaptive
+  parent: adam
+  motivation: 维护二阶矩最大值修复Adam收敛漏洞
+- id: nag
+  name: NAG
+  full_name: Nesterov加速梯度 (Nesterov Accelerated Gradient)
+  year: '1983'
+  org: USSR Academy
+  paper_url: https://hengshuaiyao.github.io/papers/nesterov83.pdf
+  category: accelerated
+  parent: gd
+  motivation: 展望式动量达到一阶方法理论下界O(1/k²)
+- id: lbfgs
+  name: L-BFGS
+  full_name: 有限内存BFGS (Limited-memory BFGS)
+  year: '1980'
+  org: Northwestern Univ.
+  paper_url: https://www.ams.org/journals/mcom/1980-35-151/S0025-5718-1980-0572855-7/
+  category: accelerated
+  parent: newton
+  motivation: 仅存近m步向量近似Hessian逆，省内存
+- id: mirror_descent
+  name: Mirror Descent
+  full_name: 镜像下降 (Mirror Descent)
+  year: '1983'
+  org: USSR Academy
+  paper_url: https://en.wikipedia.org/wiki/Mirror_descent
+  category: accelerated
+  parent: gd
+  motivation: Bregman散度替代欧氏距离适配非欧几何
+- id: frank_wolfe
+  name: Frank-Wolfe
+  full_name: 条件梯度法 (Frank-Wolfe)
+  year: '1956'
+  org: Princeton
+  paper_url: https://onlinelibrary.wiley.com/doi/abs/10.1002/nav.3800030109
+  category: accelerated
+  parent: —
+  motivation: 线性子问题替代投影，投影无关优化
+- id: natural_gradient
+  name: Natural Gradient
+  full_name: 自然梯度 (Natural Gradient)
+  year: '1998'
+  org: RIKEN
+  paper_url: https://doi.org/10.1162/089976698300017746
+  category: accelerated
+  parent: newton
+  motivation: Fisher信息矩阵度量参数空间黎曼几何
+- id: muon
+  name: Muon
+  full_name: 矩阵正交化动量优化器 (Muon)
+  year: '2025'
+  org: Moonshot AI
+  paper_url: https://arxiv.org/abs/2502.16982
+  category: frontier
+  parent: natural_gradient
+  motivation: Newton-Schulz正交化动量，半数算力达同等性能
+- id: graal
+  name: GRAAL
+  full_name: 最优自适应梯度法 (GRAAL)
+  year: '2026'
+  org: Yandex Research
+  paper_url: https://arxiv.org/abs/2502.04153
+  category: frontier
+  parent: nag
+  motivation: 首个加速无参数梯度法，自适应局部曲率
+- id: alias
+  name: ALIAS
+  full_name: 无参数符号随机梯度 (ALIAS)
+  year: '2026'
+  org: Yandex Research
+  paper_url: https://arxiv.org/abs/2502.12989
+  category: frontier
+  parent: adam
+  motivation: Sign-SGD无参数化，匹配精调AdamW
+graph:
+  nodes:
+  - id: newton
+    x: 60
+    y: 80
+    category: convex
+  - id: gd
+    x: 100
+    y: 80
+    category: convex
+  - id: sgd
+    x: 160
+    y: 200
+    category: stochastic
+  - id: frank_wolfe
+    x: 180
+    y: 440
+    category: accelerated
+  - id: admm
+    x: 240
+    y: 80
+    category: convex
+  - id: lbfgs
+    x: 280
+    y: 440
+    category: accelerated
+  - id: nag
+    x: 320
+    y: 440
+    category: accelerated
+  - id: mirror_descent
+    x: 330
+    y: 540
+    category: accelerated
+  - id: interior_point
+    x: 360
+    y: 80
+    category: convex
+  - id: natural_gradient
+    x: 420
+    y: 440
+    category: accelerated
+  - id: fista
+    x: 480
+    y: 80
+    category: convex
+  - id: adagrad
+    x: 520
+    y: 320
+    category: adaptive
+  - id: rmsprop
+    x: 560
+    y: 320
+    category: adaptive
+  - id: svrg
+    x: 580
+    y: 200
+    category: stochastic
+  - id: adam
+    x: 620
+    y: 320
+    category: adaptive
+  - id: saga
+    x: 640
+    y: 200
+    category: stochastic
+  - id: amsgrad
+    x: 700
+    y: 320
+    category: adaptive
+  - id: muon
+    x: 780
+    y: 560
+    category: frontier
+  - id: graal
+    x: 850
+    y: 440
+    category: frontier
+  - id: alias
+    x: 860
+    y: 320
+    category: frontier
+  edges:
+  - from: gd
+    to: sgd
+    label: 随机采样近似
+  - from: gd
+    to: nag
+    label: 展望式动量加速
+  - from: gd
+    to: adagrad
+    label: 参数自适应
+  - from: gd
+    to: mirror_descent
+    label: 非欧几何推广
+  - from: newton
+    to: lbfgs
+    label: 有限内存近似
+  - from: newton
+    to: natural_gradient
+    label: 信息几何度量
+  - from: nag
+    to: fista
+    label: 近端算子加速
+  - from: nag
+    to: graal
+    label: 无参数自适应
+  - from: sgd
+    to: svrg
+    label: 方差缩减修正
+  - from: svrg
+    to: saga
+    label: 无偏+近端
+  - from: sgd
+    to: adagrad
+    label: 累积梯度
+  - from: adagrad
+    to: rmsprop
+    label: 指数衰减均值
+  - from: rmsprop
+    to: adam
+    label: 融合一二阶矩
+  - from: adam
+    to: amsgrad
+    label: 修复收敛漏洞
+  - from: adam
+    to: alias
+    label: 符号化无参数
+  - from: natural_gradient
+    to: muon
+    label: 正交化动量
+  milestones:
+  - sgd
+  - adam
+  - muon

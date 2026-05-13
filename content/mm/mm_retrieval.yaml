@@ -1,0 +1,295 @@
+page_meta:
+  domain: mm
+  topic_id: mm_retrieval
+  topic_name: 多模态检索
+  page_icon: 🔍
+  page_title: 多模态检索算法总结
+  page_subtitle: '{build_date} 版'
+  page_desc: 从早期跨模态对齐到现代大规模预训练及高效向量检索的发展脉络，涵盖图文检索、向量数据库与ANN检索等核心技术方向。
+  hero_pills:
+  - 跨模态对齐
+  - 图文检索
+  - 向量数据库
+  - ANN检索
+  count_pill: '{count} 个算法'
+categories:
+  foundation:
+    color: '#7A5AF8'
+    desc: 早期经典跨模态对齐与图文检索算法
+  dual_encoder:
+    color: '#22a06b'
+    desc: 双塔结构与对比学习主流算法
+  fusion_model:
+    color: '#0065FF'
+    desc: 深度融合与交互式检索算法
+  vector_ann:
+    color: '#FF8B00'
+    desc: 向量数据库、索引优化与ANN检索技术
+  frontier_2026:
+    color: '#E34935'
+    desc: 2026年及以后的最新前沿进展
+algorithms:
+- id: vse_pp
+  name: VSE++
+  full_name: 视觉语义嵌入改进版 (VSE++)
+  year: '2018'
+  org: U Toronto
+  paper_url: https://arxiv.org/abs/1707.05612
+  category: foundation
+  parent: —
+  motivation: 困难负样本挖掘增强区分能力
+- id: scan
+  name: SCAN
+  full_name: 堆叠交叉注意力 (Stacked Cross Attention)
+  year: '2018'
+  org: Microsoft
+  paper_url: http://openaccess.thecvf.com/content_ECCV_2018/html/Kuang-Huei_Lee_Stacked_Cross_Attention_ECCV_2018_paper.html
+  category: foundation
+  parent: —
+  motivation: 细粒度图像区域与文本对齐
+- id: oscar
+  name: OSCAR
+  full_name: 对象语义对齐预训练 (OSCAR)
+  year: '2020'
+  org: Microsoft
+  paper_url: https://arxiv.org/abs/2004.06165
+  category: foundation
+  parent: scan
+  motivation: 对象标签作为跨模态对齐锚点
+- id: vilt
+  name: ViLT
+  full_name: 视觉语言Transformer (ViLT)
+  year: '2021'
+  org: KAIST
+  paper_url: https://proceedings.mlr.press/v139/kim21k.html
+  category: foundation
+  parent: oscar
+  motivation: 纯Transformer去除目标检测器
+- id: clip
+  name: CLIP
+  full_name: 对比语言图像预训练 (CLIP)
+  year: '2021'
+  org: OpenAI
+  paper_url: https://arxiv.org/abs/2103.00020
+  category: dual_encoder
+  parent: —
+  motivation: 大规模对比学习实现零样本迁移
+- id: align
+  name: ALIGN
+  full_name: 大规模图像噪声文本嵌入 (ALIGN)
+  year: '2021'
+  org: Google
+  paper_url: https://arxiv.org/abs/2102.05918
+  category: dual_encoder
+  parent: clip
+  motivation: 18亿规模噪声数据对比学习
+- id: siglip
+  name: SigLIP
+  full_name: Sigmoid损失语言图像预训练 (SigLIP)
+  year: '2023'
+  org: Google
+  paper_url: http://openaccess.thecvf.com/content/ICCV2023/html/Zhai_Sigmoid_Loss_for_Language_Image_Pre-Training_ICCV_2023_paper.html
+  category: dual_encoder
+  parent: clip
+  motivation: Sigmoid损失提升内存效率
+- id: blip
+  name: BLIP
+  full_name: 自举语言图像预训练 (BLIP)
+  year: '2022'
+  org: Salesforce
+  paper_url: https://proceedings.mlr.press/v162/li22n.html
+  category: fusion_model
+  parent: clip
+  motivation: CapFilt机制提升数据质量
+- id: blip2
+  name: BLIP-2
+  full_name: 自举语言图像预训练v2 (BLIP-2)
+  year: '2023'
+  org: Salesforce
+  paper_url: https://proceedings.mlr.press/v202/li23q
+  category: fusion_model
+  parent: blip
+  motivation: Q-Former连接冻结编码器与LLM
+- id: imagebind
+  name: ImageBind
+  full_name: 统一嵌入空间 (ImageBind)
+  year: '2023'
+  org: Meta
+  paper_url: http://openaccess.thecvf.com/content/CVPR2023/html/Girdhar_ImageBind_One_Embedding_Space_To_Bind_Them_All_CVPR_2023_paper.html
+  category: fusion_model
+  parent: clip
+  motivation: 六种模态统一对齐
+- id: pq
+  name: PQ
+  full_name: 乘积量化 (Product Quantization)
+  year: '2010'
+  org: INRIA
+  paper_url: https://ieeexplore.ieee.org/abstract/document/5432202/
+  category: vector_ann
+  parent: —
+  motivation: 子空间分解实现高压缩比
+- id: hnsw
+  name: HNSW
+  full_name: 分层可导航小世界图 (HNSW)
+  year: '2016'
+  org: —
+  paper_url: https://arxiv.org/abs/1603.09320
+  category: vector_ann
+  parent: —
+  motivation: 多层导航图平衡精度与速度
+- id: ivf
+  name: IVF
+  full_name: 倒排文件索引 (IVF)
+  year: '2003'
+  org: —
+  paper_url: —
+  category: vector_ann
+  parent: pq
+  motivation: 聚类缩小搜索范围
+- id: qwen3_vl_emb
+  name: Qwen3-VL-Embedding
+  full_name: 通义千问多模态嵌入 (Qwen3-VL-Embedding)
+  year: '2026'
+  org: Alibaba
+  paper_url: https://arxiv.org/abs/2601.04720
+  category: frontier_2026
+  parent: blip2
+  motivation: 统一检索与重排序框架
+- id: retrv_r1
+  name: Retrv-R1
+  full_name: 推理驱动多模态检索 (Retrv-R1)
+  year: '2026'
+  org: —
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/fac28e6ecee78ddcaa938d10bc90cf50-Abstract-Conference.html
+  category: frontier_2026
+  parent: clip
+  motivation: 推理链驱动解决语义鸿沟
+- id: urag
+  name: URaG
+  full_name: 统一检索生成 (URaG)
+  year: '2026'
+  org: —
+  paper_url: https://ojs.aaai.org/index.php/AAAI/article/view/39729
+  category: frontier_2026
+  parent: blip2
+  motivation: 检索与生成深度耦合
+- id: unime_v2
+  name: UniME-V2
+  full_name: 通用多模态嵌入v2 (UniME-V2)
+  year: '2026'
+  org: —
+  paper_url: https://ojs.aaai.org/index.php/AAAI/article/view/39284
+  category: frontier_2026
+  parent: imagebind
+  motivation: MLLM-as-a-Judge自动标注
+graph:
+  nodes:
+  - id: vse_pp
+    x: 2018
+    y: 1
+    category: foundation
+  - id: scan
+    x: 2018
+    y: 1.5
+    category: foundation
+  - id: oscar
+    x: 2020
+    y: 1.5
+    category: foundation
+  - id: vilt
+    x: 2021
+    y: 1.5
+    category: foundation
+  - id: clip
+    x: 2021
+    y: 2.5
+    category: dual_encoder
+  - id: align
+    x: 2021
+    y: 2
+    category: dual_encoder
+  - id: siglip
+    x: 2023
+    y: 2
+    category: dual_encoder
+  - id: blip
+    x: 2022
+    y: 3
+    category: fusion_model
+  - id: blip2
+    x: 2023
+    y: 3
+    category: fusion_model
+  - id: imagebind
+    x: 2023
+    y: 3.5
+    category: fusion_model
+  - id: pq
+    x: 2010
+    y: 4
+    category: vector_ann
+  - id: hnsw
+    x: 2016
+    y: 4.5
+    category: vector_ann
+  - id: ivf
+    x: 2003
+    y: 4
+    category: vector_ann
+  - id: qwen3_vl_emb
+    x: 2026
+    y: 5
+    category: frontier_2026
+  - id: retrv_r1
+    x: 2026
+    y: 5.5
+    category: frontier_2026
+  - id: urag
+    x: 2026
+    y: 5.2
+    category: frontier_2026
+  - id: unime_v2
+    x: 2026
+    y: 5.8
+    category: frontier_2026
+  edges:
+  - from: scan
+    to: oscar
+    label: 对象锚点
+  - from: oscar
+    to: vilt
+    label: 纯Transformer
+  - from: clip
+    to: align
+    label: 噪声数据
+  - from: clip
+    to: siglip
+    label: Sigmoid损失
+  - from: clip
+    to: blip
+    label: CapFilt
+  - from: blip
+    to: blip2
+    label: Q-Former
+  - from: clip
+    to: imagebind
+    label: 多模态扩展
+  - from: pq
+    to: ivf
+    label: 倒排索引
+  - from: blip2
+    to: qwen3_vl_emb
+    label: 统一框架
+  - from: clip
+    to: retrv_r1
+    label: 推理驱动
+  - from: blip2
+    to: urag
+    label: 检索生成
+  - from: imagebind
+    to: unime_v2
+    label: MLLM标注
+  milestones:
+  - clip
+  - hnsw
+  - retrv_r1

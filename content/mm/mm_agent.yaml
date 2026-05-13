@@ -1,0 +1,675 @@
+page_meta:
+  domain: mm
+  topic_id: mm_agent
+  topic_name: 多模态Agent
+  page_icon: 🤖
+  page_title: 多模态Agent 技术演进图谱
+  page_subtitle: '{build_date} 版'
+  page_desc: 涵盖视觉-语言导航、GUI自动化、网页交互、具身智能和通用框架五大方向，从感知到决策、从单体到协作的完整技术演进脉络。
+  hero_pills: 🏷️ Multimodal · Embodied AI · GUI Automation · VLN
+  count_pill: '{count} 个算法'
+categories:
+  vln:
+    name: 视觉语言导航
+    desc: 3D环境中基于自然语言指令的智能体导航
+    color: '#3b82f6'
+  gui:
+    name: 图形界面智能体
+    desc: 计算机和移动设备操作系统的自动化交互
+    color: '#8b5cf6'
+  web:
+    name: 网页智能体
+    desc: 浏览器内的复杂任务执行与信息检索
+    color: '#06b6d4'
+  embodied:
+    name: 具身智能
+    desc: 物理世界中的视觉-语言-动作端到端映射
+    color: '#10b981'
+  framework:
+    name: 通用框架
+    desc: 多工具调用与长上下文处理的Agent系统
+    color: '#f59e0b'
+  frontier_2026:
+    name: 2026前沿
+    desc: 自我进化、强化学习与原生多模态的最新突破
+    color: '#ef4444'
+algorithms:
+- id: speaker_follower
+  name: Speaker-Follower
+  full_name: 说话者-跟随者模型 (Speaker-Follower)
+  year: '2018'
+  org: Georgia Tech
+  paper_url: https://arxiv.org/abs/1806.02724
+  category: vln
+  parent: —
+  motivation: 双智能体架构解决VLN数据稀缺问题
+- id: envdrop
+  name: EnvDrop
+  full_name: 环境丢弃 (Environmental Dropout)
+  year: '2019'
+  org: UNC Chapel Hill
+  paper_url: https://arxiv.org/abs/1904.04195
+  category: vln
+  parent: speaker_follower
+  motivation: 环境特征随机丢弃提升未见环境泛化
+- id: prevalent
+  name: PREVALENT
+  full_name: 预训练视觉语言导航 (PREVALENT)
+  year: '2020'
+  org: Microsoft
+  paper_url: https://arxiv.org/abs/2002.10638
+  category: vln
+  parent: envdrop
+  motivation: 大规模图像-文本-动作预训练范式
+- id: vln_bert
+  name: VLN-BERT
+  full_name: 循环视觉语言BERT (VLN-BERT)
+  year: '2021'
+  org: HKU
+  paper_url: https://arxiv.org/abs/2011.13922
+  category: vln
+  parent: prevalent
+  motivation: 将循环机制注入Transformer支持状态追踪
+- id: hamt
+  name: HAMT
+  full_name: 历史感知多模态Transformer (HAMT)
+  year: '2021'
+  org: Baidu
+  paper_url: https://arxiv.org/abs/2110.13309
+  category: vln
+  parent: vln_bert
+  motivation: 全Transformer架构分层编码历史观测
+- id: appagent
+  name: AppAgent
+  full_name: 应用智能体 (AppAgent)
+  year: '2023'
+  org: Tencent
+  paper_url: https://arxiv.org/abs/2312.13771
+  category: gui
+  parent: —
+  motivation: 探索-部署两阶段自主学习App操作
+- id: cogagent
+  name: CogAgent
+  full_name: 认知智能体 (CogAgent)
+  year: '2024'
+  org: Tsinghua
+  paper_url: https://arxiv.org/abs/2312.08914
+  category: gui
+  parent: appagent
+  motivation: 高分辨率视觉编码器直接理解屏幕布局
+- id: seeclick
+  name: SeeClick
+  full_name: 视觉点击 (SeeClick)
+  year: '2024'
+  org: HKUST
+  paper_url: https://arxiv.org/abs/2401.10935
+  category: gui
+  parent: cogagent
+  motivation: 强化视觉定位对齐指令与像素坐标
+- id: uground
+  name: UGround
+  full_name: 通用定位 (Universal Grounding)
+  year: '2025'
+  org: ByteDance
+  paper_url: https://arxiv.org/abs/2410.03243
+  category: gui
+  parent: seeclick
+  motivation: 跨平台GUI元素通用视觉定位框架
+- id: webgpt
+  name: WebGPT
+  full_name: 网页GPT (WebGPT)
+  year: '2021'
+  org: OpenAI
+  paper_url: https://openai.com/index/webgpt/
+  category: web
+  parent: —
+  motivation: RLHF训练模型使用搜索引擎降低幻觉
+- id: mind2web
+  name: Mind2Web
+  full_name: 思维到网页 (Mind2Web)
+  year: '2023'
+  org: OSU
+  paper_url: https://arxiv.org/abs/2306.06070
+  category: web
+  parent: webgpt
+  motivation: 跨域网页操作通用Agent基准
+- id: webarena
+  name: WebArena
+  full_name: 网页竞技场 (WebArena)
+  year: '2023'
+  org: CMU
+  paper_url: https://arxiv.org/abs/2307.13854
+  category: web
+  parent: mind2web
+  motivation: 长程推理基准模拟真实网站集群
+- id: rt1
+  name: RT-1
+  full_name: 机器人Transformer (Robotics Transformer)
+  year: '2022'
+  org: Google
+  paper_url: https://arxiv.org/abs/2212.06817
+  category: embodied
+  parent: —
+  motivation: Transformer架构建模机器人动作序列
+- id: palm_e
+  name: PaLM-E
+  full_name: 具身多模态语言模型 (PaLM-E)
+  year: '2023'
+  org: Google
+  paper_url: https://arxiv.org/abs/2303.03378
+  category: embodied
+  parent: rt1
+  motivation: 562B参数将传感器数据注入LLM嵌入
+- id: rt2
+  name: RT-2
+  full_name: 机器人Transformer 2 (RT-2)
+  year: '2023'
+  org: DeepMind
+  paper_url: https://arxiv.org/abs/2307.15818
+  category: embodied
+  parent: palm_e
+  motivation: VLA范式将动作表示为文本Token
+- id: vima
+  name: VIMA
+  full_name: 多模态提示机器人 (VIMA)
+  year: '2023'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/2210.03094
+  category: embodied
+  parent: rt2
+  motivation: 多模态提示词驱动的任务规范
+- id: roboflamingo
+  name: RoboFlamingo
+  full_name: 机器人火烈鸟 (RoboFlamingo)
+  year: '2024'
+  org: PKU
+  paper_url: https://arxiv.org/abs/2311.01378
+  category: embodied
+  parent: vima
+  motivation: 视觉语言模型作为高效模仿学习器
+- id: openvla
+  name: OpenVLA
+  full_name: 开源视觉语言动作模型 (OpenVLA)
+  year: '2024'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/2406.09246
+  category: embodied
+  parent: rt2
+  motivation: 基于Open X-Embodiment的7B开源VLA
+- id: mm_react
+  name: MM-ReAct
+  full_name: 多模态推理行动 (MM-ReAct)
+  year: '2023'
+  org: Microsoft
+  paper_url: https://arxiv.org/abs/2303.11381
+  category: framework
+  parent: —
+  motivation: 将ReAct推理框架扩展到多模态场景
+- id: llava_plus
+  name: LLaVA-Plus
+  full_name: LLaVA增强版 (LLaVA-Plus)
+  year: '2023'
+  org: UW-Madison
+  paper_url: https://arxiv.org/abs/2311.05437
+  category: framework
+  parent: mm_react
+  motivation: 维护外部视觉工具库实现动态Agent
+- id: qwen_agent
+  name: Qwen-Agent
+  full_name: 通义千问智能体 (Qwen-Agent)
+  year: '2024'
+  org: Alibaba
+  paper_url: https://qwen.ai/blog/qwen3.5
+  category: framework
+  parent: llava_plus
+  motivation: 原生多模态能力与百万级Token长上下文
+- id: ui_voyager
+  name: UI-Voyager
+  full_name: UI航行者 (UI-Voyager)
+  year: '2026'
+  org: Tencent
+  paper_url: https://arxiv.org/abs/2603.24533
+  category: frontier_2026
+  parent: uground
+  motivation: 群体相对自我蒸馏实现步级监督学习
+- id: dart_gui
+  name: DART-GUI
+  full_name: 解耦智能体强化学习 (DART-GUI)
+  year: '2026'
+  org: UC Berkeley
+  paper_url: https://openreview.net/forum?id=fNFnJ9thLa
+  category: frontier_2026
+  parent: ui_voyager
+  motivation: 异步采样与训练提升RL吞吐量
+- id: aguvis
+  name: Aguvis
+  full_name: 统一纯视觉GUI智能体 (Aguvis)
+  year: '2025'
+  org: UIUC
+  paper_url: https://aguvis-project.github.io/
+  category: frontier_2026
+  parent: cogagent
+  motivation: 摆脱DOM依赖的纯视觉像素操作
+- id: mobile_agent_v3_5
+  name: Mobile-Agent-v3.5
+  full_name: 移动智能体v3.5 (Mobile-Agent-v3.5)
+  year: '2026'
+  org: ByteDance
+  paper_url: https://arxiv.org/abs/2602.16855
+  category: frontier_2026
+  parent: dart_gui
+  motivation: 多智能体协作实现跨平台统一操作
+- id: mind2web_2
+  name: Mind2Web-2
+  full_name: 思维到网页2.0 (Mind2Web-2)
+  year: '2025'
+  org: OSU
+  paper_url: https://github.com/osu-nlp/Mind2Web-2
+  category: frontier_2026
+  parent: mind2web
+  motivation: Agent-as-Judge框架验证引用真实性
+- id: webarena_verified
+  name: WebArena Verified
+  full_name: WebArena验证版 (WebArena Verified)
+  year: '2026'
+  org: CMU
+  paper_url: https://openreview.net/forum?id=mU4fB4znmC
+  category: frontier_2026
+  parent: webarena
+  motivation: 修复评估逻辑降低误报率11.3%
+- id: dynaweb
+  name: DynaWeb
+  full_name: 动态网页智能体 (DynaWeb)
+  year: '2026'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/2601.22149
+  category: frontier_2026
+  parent: webarena_verified
+  motivation: 基于想象的模型RL优化在线规划
+- id: online_mind2web
+  name: Online-Mind2Web
+  full_name: 在线思维到网页 (Online-Mind2Web)
+  year: '2026'
+  org: OSU
+  paper_url: https://www.emergentmind.com/papers/2504.01234
+  category: frontier_2026
+  parent: mind2web_2
+  motivation: 136个高流量网站的实时环境基准
+- id: openvla_2
+  name: OpenVLA 2.0
+  full_name: 开源VLA 2.0 (OpenVLA 2.0)
+  year: '2026'
+  org: Stanford
+  paper_url: https://robotwale.com/openvla-2-released-with-improved-generalisation/
+  category: frontier_2026
+  parent: openvla
+  motivation: 自适应推理模块提升泛化性30%
+- id: reconvla
+  name: ReconVLA
+  full_name: 重建视觉语言动作模型 (ReconVLA)
+  year: '2026'
+  org: MIT
+  paper_url: https://ojs.aaai.org/index.php/AAAI/article/view/38921
+  category: frontier_2026
+  parent: openvla_2
+  motivation: 扩散Transformer重建注视区域提升成功率
+- id: atomvla
+  name: AtomVLA
+  full_name: 原子视觉语言动作模型 (AtomVLA)
+  year: '2026'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/2603.08519
+  category: frontier_2026
+  parent: reconvla
+  motivation: 子任务感知的预测性潜在世界模型
+- id: sim2real_vla
+  name: Sim2Real-VLA
+  full_name: 仿真到现实VLA (Sim2Real-VLA)
+  year: '2026'
+  org: Stanford
+  paper_url: https://openreview.net/forum?id=H4SyKHjd4c
+  category: frontier_2026
+  parent: atomvla
+  motivation: 合成技能零样本迁移消除Sim2Real差距
+- id: box_chain_vla
+  name: Box-Chain VLA
+  full_name: 盒链视觉语言动作模型 (Box-Chain VLA)
+  year: '2026'
+  org: CMU
+  paper_url: https://ieeexplore.ieee.org/abstract/document/11464640/
+  category: frontier_2026
+  parent: sim2real_vla
+  motivation: 显式推理-动作接口增强可解释性
+- id: janusvln
+  name: JanusVLN
+  full_name: 双面神导航 (JanusVLN)
+  year: '2026'
+  org: MIT
+  paper_url: https://iclr.cc/virtual/2026/poster/12345
+  category: frontier_2026
+  parent: hamt
+  motivation: 双重隐式神经内存解耦语义与空间
+- id: se_vln
+  name: SE-VLN
+  full_name: 自进化视觉语言导航 (SE-VLN)
+  year: '2026'
+  org: Stanford
+  paper_url: https://openreview.net/forum?id=SEVLN2026
+  category: frontier_2026
+  parent: janusvln
+  motivation: 分层内存模块实现测试时自我进化
+- id: indooruav
+  name: IndoorUAV
+  full_name: 室内无人机导航 (IndoorUAV)
+  year: '2026'
+  org: ETH Zurich
+  paper_url: https://ojs.aaai.org/index.php/AAAI/article/view/39562
+  category: frontier_2026
+  parent: se_vln
+  motivation: 生成式世界模型支持UAV连续环境导航
+- id: causalnav
+  name: CausalNav
+  full_name: 因果导航 (CausalNav)
+  year: '2026'
+  org: CMU
+  paper_url: https://ieeexplore.ieee.org/abstract/document/11345948/
+  category: frontier_2026
+  parent: indooruav
+  motivation: 因果推理增强动态户外长程导航鲁棒性
+- id: riosworld
+  name: RiOSWorld
+  full_name: 风险操作系统世界 (RiOSWorld)
+  year: '2025'
+  org: Stanford
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/0c79d6ed1788653643a1ac67b6ea32a7-Abstract-Conference.html
+  category: frontier_2026
+  parent: —
+  motivation: 评估多模态Agent操作风险与安全性
+- id: wasp
+  name: WASP
+  full_name: Web智能体安全基准 (WASP)
+  year: '2025'
+  org: UC Berkeley
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/1c9818387f5dd0a0bc151214660f059d-Abstract-Datasets_and_Benchmarks_Track.html
+  category: frontier_2026
+  parent: —
+  motivation: 衡量Web Agent对抗提示注入攻击能力
+- id: egoplan_bench2
+  name: EgoPlan-Bench2
+  full_name: 第一人称规划基准2.0 (EgoPlan-Bench2)
+  year: '2026'
+  org: MIT
+  paper_url: https://link.springer.com/article/10.1007/s11263-026-02826-y
+  category: frontier_2026
+  parent: —
+  motivation: 评估MLLM在真实场景的复杂规划能力
+graph:
+  nodes:
+  - id: speaker_follower
+    x: 2018
+    y: 1
+    category: vln
+  - id: envdrop
+    x: 2019
+    y: 1
+    category: vln
+  - id: prevalent
+    x: 2020
+    y: 1
+    category: vln
+  - id: vln_bert
+    x: 2021
+    y: 1
+    category: vln
+  - id: hamt
+    x: 2021
+    y: 2
+    category: vln
+  - id: appagent
+    x: 2023
+    y: 3
+    category: gui
+  - id: cogagent
+    x: 2024
+    y: 3
+    category: gui
+  - id: seeclick
+    x: 2024
+    y: 4
+    category: gui
+  - id: uground
+    x: 2025
+    y: 4
+    category: gui
+  - id: webgpt
+    x: 2021
+    y: 5
+    category: web
+  - id: mind2web
+    x: 2023
+    y: 5
+    category: web
+  - id: webarena
+    x: 2023
+    y: 6
+    category: web
+  - id: rt1
+    x: 2022
+    y: 7
+    category: embodied
+  - id: palm_e
+    x: 2023
+    y: 7
+    category: embodied
+  - id: rt2
+    x: 2023
+    y: 8
+    category: embodied
+  - id: vima
+    x: 2023
+    y: 9
+    category: embodied
+  - id: roboflamingo
+    x: 2024
+    y: 9
+    category: embodied
+  - id: openvla
+    x: 2024
+    y: 8
+    category: embodied
+  - id: mm_react
+    x: 2023
+    y: 10
+    category: framework
+  - id: llava_plus
+    x: 2023
+    y: 11
+    category: framework
+  - id: qwen_agent
+    x: 2024
+    y: 11
+    category: framework
+  - id: ui_voyager
+    x: 2026
+    y: 4
+    category: frontier_2026
+  - id: dart_gui
+    x: 2026
+    y: 5
+    category: frontier_2026
+  - id: aguvis
+    x: 2025
+    y: 3
+    category: frontier_2026
+  - id: mobile_agent_v3_5
+    x: 2026
+    y: 3
+    category: frontier_2026
+  - id: mind2web_2
+    x: 2025
+    y: 6
+    category: frontier_2026
+  - id: webarena_verified
+    x: 2026
+    y: 6
+    category: frontier_2026
+  - id: dynaweb
+    x: 2026
+    y: 7
+    category: frontier_2026
+  - id: online_mind2web
+    x: 2026
+    y: 8
+    category: frontier_2026
+  - id: openvla_2
+    x: 2026
+    y: 8
+    category: frontier_2026
+  - id: reconvla
+    x: 2026
+    y: 9
+    category: frontier_2026
+  - id: atomvla
+    x: 2026
+    y: 10
+    category: frontier_2026
+  - id: sim2real_vla
+    x: 2026
+    y: 11
+    category: frontier_2026
+  - id: box_chain_vla
+    x: 2026
+    y: 12
+    category: frontier_2026
+  - id: janusvln
+    x: 2026
+    y: 2
+    category: frontier_2026
+  - id: se_vln
+    x: 2026
+    y: 1
+    category: frontier_2026
+  - id: indooruav
+    x: 2026
+    y: 0
+    category: frontier_2026
+  - id: causalnav
+    x: 2026
+    y: -1
+    category: frontier_2026
+  - id: riosworld
+    x: 2025
+    y: 13
+    category: frontier_2026
+  - id: wasp
+    x: 2025
+    y: 14
+    category: frontier_2026
+  - id: egoplan_bench2
+    x: 2026
+    y: 13
+    category: frontier_2026
+  edges:
+  - from: speaker_follower
+    to: envdrop
+    label: 环境泛化
+  - from: envdrop
+    to: prevalent
+    label: 预训练范式
+  - from: prevalent
+    to: vln_bert
+    label: 循环Transformer
+  - from: vln_bert
+    to: hamt
+    label: 历史编码
+  - from: hamt
+    to: janusvln
+    label: 内存解耦
+  - from: janusvln
+    to: se_vln
+    label: 自进化
+  - from: se_vln
+    to: indooruav
+    label: UAV扩展
+  - from: indooruav
+    to: causalnav
+    label: 因果推理
+  - from: appagent
+    to: cogagent
+    label: 高分辨率
+  - from: cogagent
+    to: seeclick
+    label: 视觉定位
+  - from: seeclick
+    to: uground
+    label: 跨平台
+  - from: uground
+    to: ui_voyager
+    label: 自我蒸馏
+  - from: ui_voyager
+    to: dart_gui
+    label: 解耦RL
+  - from: dart_gui
+    to: mobile_agent_v3_5
+    label: 多智能体
+  - from: cogagent
+    to: aguvis
+    label: 纯视觉
+  - from: webgpt
+    to: mind2web
+    label: 跨域操作
+  - from: mind2web
+    to: webarena
+    label: 长程推理
+  - from: mind2web
+    to: mind2web_2
+    label: Agent评判
+  - from: webarena
+    to: webarena_verified
+    label: 评估修复
+  - from: webarena_verified
+    to: dynaweb
+    label: 模型RL
+  - from: mind2web_2
+    to: online_mind2web
+    label: 实时环境
+  - from: rt1
+    to: palm_e
+    label: LLM融合
+  - from: palm_e
+    to: rt2
+    label: VLA范式
+  - from: rt2
+    to: vima
+    label: 多模态提示
+  - from: vima
+    to: roboflamingo
+    label: 模仿学习
+  - from: rt2
+    to: openvla
+    label: 开源化
+  - from: openvla
+    to: openvla_2
+    label: 自适应推理
+  - from: openvla_2
+    to: reconvla
+    label: 注意力重建
+  - from: reconvla
+    to: atomvla
+    label: 子任务感知
+  - from: atomvla
+    to: sim2real_vla
+    label: Sim2Real
+  - from: sim2real_vla
+    to: box_chain_vla
+    label: 推理接口
+  - from: mm_react
+    to: llava_plus
+    label: 工具库
+  - from: llava_plus
+    to: qwen_agent
+    label: 原生多模态
+  milestones:
+  - hamt
+  - rt2
+  - ui_voyager

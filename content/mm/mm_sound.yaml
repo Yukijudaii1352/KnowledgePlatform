@@ -1,0 +1,504 @@
+domain: mm
+topic_id: mm_sound
+topic_name: 音频理解
+page_icon: 🎧
+page_title: 音频理解 算法总结
+page_subtitle: '{build_date} 版'
+page_desc: 从传统语音识别到端到端架构，再到多模态音频大模型的演进历程
+hero_pills: ASR · Audio-LLM
+count_pill: '{count} 个算法'
+categories:
+  foundation:
+    name: 奠基算法
+    description: 端到端ASR基础架构如CTC、RNN-T
+    color: '#607D8B'
+  ssl_representation:
+    name: 自监督表征
+    description: 大规模无标注预训练语音表征
+    color: '#4CAF50'
+  asr:
+    name: 语音识别
+    description: 端到端ASR模型如Conformer、Whisper
+    color: '#2196F3'
+  speaker:
+    name: 说话人识别
+    description: 说话人嵌入与验证技术
+    color: '#9C27B0'
+  audio_llm:
+    name: 音频大语言模型
+    description: Audio-LLM与多模态理解
+    color: '#FF9800'
+  frontier_2026:
+    name: 2026前沿
+    description: 2026年以来的最新研究进展
+    color: '#E91E63'
+algorithms:
+- id: ctc
+  name: CTC
+  full_name: 连接时序分类 (Connectionist Temporal Classification)
+  year: '2006'
+  org: 多伦多大学
+  paper_url: https://dl.acm.org/doi/10.1145/1143844.1143891
+  category: foundation
+  parent: —
+  motivation: 引入blank标签解决序列对齐
+- id: rnn_t
+  name: RNN-T
+  full_name: 循环神经网络转录器 (RNN-Transducer)
+  year: '2012'
+  org: Google
+  paper_url: https://arxiv.org/abs/1211.3711
+  category: foundation
+  parent: ctc
+  motivation: 支持流式输出的序列转录
+- id: i_vector
+  name: i-vector
+  full_name: 身份向量 (i-vector)
+  year: '2011'
+  org: 蒙特利尔大学
+  paper_url: https://ieeexplore.ieee.org/document/5545402
+  category: speaker
+  parent: —
+  motivation: 全变分空间因子分析
+- id: d_vector
+  name: d-vector
+  full_name: 深度向量 (d-vector)
+  year: '2014'
+  org: Google
+  paper_url: https://ieeexplore.ieee.org/document/6854363
+  category: speaker
+  parent: i_vector
+  motivation: DNN隐藏层说话人表征
+- id: x_vector
+  name: x-vector
+  full_name: 扩展向量 (x-vector)
+  year: '2018'
+  org: JHU
+  paper_url: https://ieeexplore.ieee.org/document/8461375
+  category: speaker
+  parent: d_vector
+  motivation: TDNN+统计池化嵌入
+- id: ecapa_tdnn
+  name: ECAPA-TDNN
+  full_name: 通道注意力TDNN (ECAPA-TDNN)
+  year: '2020'
+  org: 根特大学
+  paper_url: https://arxiv.org/abs/2005.07143
+  category: speaker
+  parent: x_vector
+  motivation: 通道注意力与多尺度聚合
+- id: wav2vec2
+  name: wav2vec 2.0
+  full_name: 自监督语音表征学习 (wav2vec 2.0)
+  year: '2020'
+  org: Facebook AI
+  paper_url: https://arxiv.org/abs/2006.11477
+  category: ssl_representation
+  parent: —
+  motivation: 对比学习+掩码预测预训练
+- id: conformer
+  name: Conformer
+  full_name: 卷积增强Transformer (Conformer)
+  year: '2020'
+  org: Google
+  paper_url: https://arxiv.org/abs/2005.08100
+  category: asr
+  parent: rnn_t
+  motivation: CNN+Transformer混合架构
+- id: hubert
+  name: HuBERT
+  full_name: 隐藏单元BERT (Hidden-Unit BERT)
+  year: '2021'
+  org: Facebook AI
+  paper_url: https://arxiv.org/abs/2106.07447
+  category: ssl_representation
+  parent: wav2vec2
+  motivation: 离线聚类伪标签迭代训练
+- id: wavlm
+  name: WavLM
+  full_name: 语音语言模型 (WavLM)
+  year: '2022'
+  org: Microsoft
+  paper_url: https://ieeexplore.ieee.org/document/9814838/
+  category: ssl_representation
+  parent: hubert
+  motivation: 掩码语音去噪与预测框架
+- id: whisper
+  name: Whisper
+  full_name: 大规模弱监督语音识别 (Whisper)
+  year: '2023'
+  org: OpenAI
+  paper_url: http://proceedings.mlr.press/v202/radford23a.html
+  category: asr
+  parent: conformer
+  motivation: 68万小时弱监督多任务训练
+- id: audiogpt
+  name: AudioGPT
+  full_name: 音频GPT (AudioGPT)
+  year: '2023'
+  org: 清华大学
+  paper_url: https://arxiv.org/abs/2304.12995
+  category: audio_llm
+  parent: —
+  motivation: 任务编排器连接音频专家
+- id: speechgpt
+  name: SpeechGPT
+  full_name: 语音GPT (SpeechGPT)
+  year: '2023'
+  org: 复旦大学
+  paper_url: https://aclanthology.org/2023.findings-emnlp.1055/
+  category: audio_llm
+  parent: —
+  motivation: 离散语音token原生对话
+- id: qwen_audio
+  name: Qwen-Audio
+  full_name: 通义千问音频 (Qwen-Audio)
+  year: '2023'
+  org: 阿里巴巴
+  paper_url: https://arxiv.org/abs/2311.07919
+  category: audio_llm
+  parent: audiogpt
+  motivation: 统一音频-语言预训练
+- id: salmonn
+  name: SALMONN
+  full_name: 通用听觉大模型 (SALMONN)
+  year: '2024'
+  org: 清华大学
+  paper_url: https://proceedings.iclr.cc/paper_files/paper/2024/hash/476ab8f369e489c04187ba84f68cfa68-Abstract-Conference.html
+  category: audio_llm
+  parent: qwen_audio
+  motivation: 双编码器(Whisper+BEATs)
+- id: ltu
+  name: LTU
+  full_name: 听思理解 (Listen Think Understand)
+  year: '2024'
+  org: MIT
+  paper_url: https://proceedings.iclr.cc/paper_files/paper/2024/hash/510d0935b543a29d686f93fa52d1c288-Abstract-Conference.html
+  category: audio_llm
+  parent: salmonn
+  motivation: 通用音频语义理解
+- id: qwen2_audio
+  name: Qwen2-Audio
+  full_name: 通义千问音频2 (Qwen2-Audio)
+  year: '2024'
+  org: 阿里巴巴
+  paper_url: https://arxiv.org/abs/2407.10759
+  category: audio_llm
+  parent: qwen_audio
+  motivation: 升级版多任务音频理解
+- id: gpt4o
+  name: GPT-4o
+  full_name: GPT-4全能版 (GPT-4o)
+  year: '2024'
+  org: OpenAI
+  paper_url: https://openai.com/index/hello-gpt-4o
+  category: audio_llm
+  parent: —
+  motivation: 原生多模态端到端语音
+- id: tagspeech
+  name: TagSpeech
+  full_name: 标签语音 (TagSpeech)
+  year: '2026.01'
+  org: —
+  paper_url: https://arxiv.org/abs/2601.06896
+  category: frontier_2026
+  parent: whisper
+  motivation: 端到端多说话人ASR与日志
+- id: streaming_sp_asr
+  name: Streaming SP-ASR
+  full_name: 流式目标说话人ASR (Streaming SP-ASR)
+  year: '2026.03'
+  org: —
+  paper_url: https://www.sciencedirect.com/science/article/pii/S1051200426000862
+  category: frontier_2026
+  parent: tagspeech
+  motivation: VAD融合流式说话人识别
+- id: speakerlm
+  name: SpeakerLM
+  full_name: 说话人语言模型 (SpeakerLM)
+  year: '2026'
+  org: —
+  paper_url: https://ojs.aaai.org/index.php/AAAI/article/view/40745
+  category: frontier_2026
+  parent: ecapa_tdnn
+  motivation: MLLM端到端说话人识别
+- id: wavbench
+  name: Wavbench
+  full_name: 语音基准 (Wavbench)
+  year: '2026.02'
+  org: —
+  paper_url: https://arxiv.org/abs/2602.12135
+  category: frontier_2026
+  parent: wavlm
+  motivation: 端到端口语对话推理评测
+- id: audita
+  name: AUDITA
+  full_name: 音频技能审计 (AUDITA)
+  year: '2026.04'
+  org: —
+  paper_url: https://arxiv.org/abs/2604.21766
+  category: frontier_2026
+  parent: ltu
+  motivation: 非言语音频QA审计数据集
+- id: visqa
+  name: ViSQA
+  full_name: 越南语音频问答 (ViSQA)
+  year: '2026'
+  org: —
+  paper_url: https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0340771
+  category: frontier_2026
+  parent: ltu
+  motivation: 低资源语言音频QA基准
+- id: audio_thinker
+  name: Audio-Thinker
+  full_name: 音频思考者 (Audio-Thinker)
+  year: '2026'
+  org: —
+  paper_url: https://ojs.aaai.org/index.php/AAAI/article/view/40689
+  category: frontier_2026
+  parent: salmonn
+  motivation: RL引导音频思维链推理
+- id: audio_flamingo3
+  name: Audio Flamingo 3
+  full_name: 音频火烈鸟3 (Audio Flamingo 3)
+  year: '2026'
+  org: —
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/3babb6b453cb59d87cb58a1219ef914b-Abstract-Conference.html
+  category: frontier_2026
+  parent: qwen2_audio
+  motivation: 按需推理统一音频编码
+- id: uniaudio2
+  name: UniAudio 2.0
+  full_name: 统一音频2.0 (UniAudio 2.0)
+  year: '2026.02'
+  org: —
+  paper_url: https://arxiv.org/abs/2602.04683
+  category: frontier_2026
+  parent: qwen2_audio
+  motivation: ReasoningCodec推理编码
+- id: gemini_audio
+  name: Gemini 3.1 Audio
+  full_name: Gemini音频理解 (Gemini 3.1 Audio)
+  year: '2026.03'
+  org: Google
+  paper_url: https://ai.google.dev/
+  category: frontier_2026
+  parent: gpt4o
+  motivation: 原生音频理解sub-200ms
+- id: wavslm
+  name: WavSLM
+  full_name: 单流语音语言模型 (WavSLM)
+  year: '2026.03'
+  org: —
+  paper_url: https://arxiv.org/abs/2603.05299
+  category: frontier_2026
+  parent: wavlm
+  motivation: WavLM蒸馏单流语音建模
+- id: desta_audio
+  name: Desta2.5-Audio
+  full_name: 通用音频大模型 (Desta2.5-Audio)
+  year: '2026'
+  org: —
+  paper_url: https://ieeexplore.ieee.org/abstract/document/11447408/
+  category: frontier_2026
+  parent: qwen2_audio
+  motivation: 自生成跨模态对齐
+graph:
+  nodes:
+  - id: ctc
+    x: 100
+    y: 100
+    category: foundation
+  - id: rnn_t
+    x: 200
+    y: 100
+    category: foundation
+  - id: conformer
+    x: 450
+    y: 200
+    category: asr
+  - id: whisper
+    x: 650
+    y: 200
+    category: asr
+  - id: wav2vec2
+    x: 450
+    y: 300
+    category: ssl_representation
+  - id: hubert
+    x: 500
+    y: 300
+    category: ssl_representation
+  - id: wavlm
+    x: 550
+    y: 300
+    category: ssl_representation
+  - id: i_vector
+    x: 200
+    y: 400
+    category: speaker
+  - id: d_vector
+    x: 250
+    y: 400
+    category: speaker
+  - id: x_vector
+    x: 350
+    y: 400
+    category: speaker
+  - id: ecapa_tdnn
+    x: 450
+    y: 400
+    category: speaker
+  - id: audiogpt
+    x: 650
+    y: 500
+    category: audio_llm
+  - id: speechgpt
+    x: 650
+    y: 520
+    category: audio_llm
+  - id: qwen_audio
+    x: 700
+    y: 500
+    category: audio_llm
+  - id: salmonn
+    x: 750
+    y: 480
+    category: audio_llm
+  - id: ltu
+    x: 800
+    y: 480
+    category: audio_llm
+  - id: qwen2_audio
+    x: 750
+    y: 520
+    category: audio_llm
+  - id: gpt4o
+    x: 750
+    y: 540
+    category: audio_llm
+  - id: tagspeech
+    x: 880
+    y: 200
+    category: frontier_2026
+  - id: streaming_sp_asr
+    x: 920
+    y: 200
+    category: frontier_2026
+  - id: speakerlm
+    x: 900
+    y: 400
+    category: frontier_2026
+  - id: wavbench
+    x: 900
+    y: 300
+    category: frontier_2026
+  - id: wavslm
+    x: 920
+    y: 320
+    category: frontier_2026
+  - id: audita
+    x: 920
+    y: 460
+    category: frontier_2026
+  - id: visqa
+    x: 920
+    y: 480
+    category: frontier_2026
+  - id: audio_thinker
+    x: 900
+    y: 600
+    category: frontier_2026
+  - id: audio_flamingo3
+    x: 900
+    y: 640
+    category: frontier_2026
+  - id: uniaudio2
+    x: 920
+    y: 620
+    category: frontier_2026
+  - id: gemini_audio
+    x: 900
+    y: 680
+    category: frontier_2026
+  - id: desta_audio
+    x: 920
+    y: 660
+    category: frontier_2026
+  edges:
+  - from: ctc
+    to: rnn_t
+    label: 流式输出
+  - from: rnn_t
+    to: conformer
+    label: 混合架构
+  - from: conformer
+    to: whisper
+    label: 大规模训练
+  - from: whisper
+    to: tagspeech
+    label: 多说话人
+  - from: tagspeech
+    to: streaming_sp_asr
+    label: 流式
+  - from: wav2vec2
+    to: hubert
+    label: 聚类伪标签
+  - from: hubert
+    to: wavlm
+    label: 去噪增强
+  - from: wavlm
+    to: wavbench
+    label: 评测
+  - from: wavlm
+    to: wavslm
+    label: 蒸馏
+  - from: i_vector
+    to: d_vector
+    label: 深度学习
+  - from: d_vector
+    to: x_vector
+    label: TDNN架构
+  - from: x_vector
+    to: ecapa_tdnn
+    label: 注意力
+  - from: ecapa_tdnn
+    to: speakerlm
+    label: LLM融合
+  - from: audiogpt
+    to: qwen_audio
+    label: 统一训练
+  - from: qwen_audio
+    to: salmonn
+    label: 双编码器
+  - from: salmonn
+    to: ltu
+    label: 语义理解
+  - from: salmonn
+    to: audio_thinker
+    label: 思维链
+  - from: qwen_audio
+    to: qwen2_audio
+    label: 升级版
+  - from: qwen2_audio
+    to: audio_flamingo3
+    label: 按需推理
+  - from: qwen2_audio
+    to: uniaudio2
+    label: 推理编码
+  - from: qwen2_audio
+    to: desta_audio
+    label: 跨模态
+  - from: gpt4o
+    to: gemini_audio
+    label: 低延迟
+  - from: ltu
+    to: audita
+    label: 审计
+  - from: ltu
+    to: visqa
+    label: 低资源
+  milestones:
+  - wav2vec2
+  - whisper
+  - audio_thinker

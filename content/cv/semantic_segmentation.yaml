@@ -1,0 +1,439 @@
+domain: cv
+topic_id: semantic_segmentation
+topic_name: 语义分割
+page_icon: 🎨
+page_title: 语义分割技术演进图谱
+page_subtitle: '{build_date} 版'
+page_desc: 从 FCN 开启深度学习分割时代，历经 U-Net 医疗影像突破与 Mask2Former 统一架构，迈向 2026 年 Mamba 架构与开放词汇分割的前沿历程。
+hero_pills:
+- 🏷️ Semantic Segmentation · Panoptic Segmentation · Foundation Models
+count_pill: '{count} 个算法'
+categories:
+  foundation:
+    label: 奠基算法
+    color: '#22a06b'
+  core:
+    label: 核心改进
+    color: '#5b63d3'
+  unified:
+    label: 统一架构
+    color: '#e8820c'
+  frontier:
+    label: 前沿进展
+    color: '#d32f2f'
+algorithms:
+- id: fcn
+  name: FCN
+  full_name: 全卷积网络 (Fully Convolutional Networks)
+  year: '2015'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/1411.4038
+  category: foundation
+  parent: —
+  motivation: 全卷积化实现端到端像素预测
+- id: unet
+  name: U-Net
+  full_name: U型网络 (U-Net)
+  year: '2015'
+  org: Freiburg Univ.
+  paper_url: https://arxiv.org/abs/1505.04597
+  category: foundation
+  parent: fcn
+  motivation: U型编码-解码器与跳跃连接
+- id: segnet
+  name: SegNet
+  full_name: 分割网络 (SegNet)
+  year: '2015'
+  org: Cambridge Univ.
+  paper_url: https://arxiv.org/abs/1505.07293
+  category: foundation
+  parent: fcn
+  motivation: 池化索引复用实现高效上采样
+- id: deeplabv1
+  name: DeepLabv1
+  full_name: 深度实验室v1 (DeepLab v1)
+  year: '2015'
+  org: Google
+  paper_url: https://arxiv.org/abs/1412.7062
+  category: core
+  parent: fcn
+  motivation: 引入空洞卷积扩大感受野
+- id: enet
+  name: ENet
+  full_name: 高效网络 (ENet)
+  year: '2016'
+  org: Cambridge Univ.
+  paper_url: https://arxiv.org/abs/1606.02147
+  category: core
+  parent: segnet
+  motivation: 非对称结构实现实时分割
+- id: deeplabv2
+  name: DeepLabv2
+  full_name: 深度实验室v2 (DeepLab v2)
+  year: '2017'
+  org: Google
+  paper_url: https://arxiv.org/abs/1606.00915
+  category: core
+  parent: deeplabv1
+  motivation: 提出ASPP多尺度特征聚合
+- id: pspnet
+  name: PSPNet
+  full_name: 金字塔场景解析网络 (Pyramid Scene Parsing Network)
+  year: '2017'
+  org: 商汤/港中文
+  paper_url: https://arxiv.org/abs/1612.01105
+  category: core
+  parent: fcn
+  motivation: 金字塔池化聚合全局上下文
+- id: deeplabv3
+  name: DeepLabv3
+  full_name: 深度实验室v3 (DeepLab v3)
+  year: '2017'
+  org: Google
+  paper_url: https://arxiv.org/abs/1706.05587
+  category: core
+  parent: deeplabv2
+  motivation: 改进ASPP加入图像级特征
+- id: deeplabv3plus
+  name: DeepLabv3+
+  full_name: 深度实验室v3+ (DeepLab v3+)
+  year: '2018'
+  org: Google
+  paper_url: https://arxiv.org/abs/1802.02611
+  category: core
+  parent: deeplabv3
+  motivation: 编码-解码器+深度可分离空洞卷积
+- id: hrnet
+  name: HRNet
+  full_name: 高分辨率网络 (High-Resolution Network)
+  year: '2019'
+  org: 中科大/MSRA
+  paper_url: https://arxiv.org/abs/1908.07919
+  category: core
+  parent: —
+  motivation: 并行高分辨率子网持续融合
+- id: panoptic_fpn
+  name: Panoptic FPN
+  full_name: 全景特征金字塔网络 (Panoptic FPN)
+  year: '2019'
+  org: FAIR
+  paper_url: https://arxiv.org/abs/1901.02446
+  category: unified
+  parent: fcn
+  motivation: FPN统一语义与实例分割
+- id: panoptic_deeplab
+  name: Panoptic-DeepLab
+  full_name: 全景深度实验室 (Panoptic-DeepLab)
+  year: '2020'
+  org: Google
+  paper_url: https://arxiv.org/abs/1911.10194
+  category: unified
+  parent: deeplabv3plus
+  motivation: 自底向上全景分割基线
+- id: setr
+  name: SETR
+  full_name: 分割Transformer (SEgmentation TRansformer)
+  year: '2021'
+  org: 腾讯/港大
+  paper_url: https://arxiv.org/abs/2012.15840
+  category: unified
+  parent: —
+  motivation: 纯Transformer序列到序列分割
+- id: segformer
+  name: SegFormer
+  full_name: 分割Former (SegFormer)
+  year: '2021'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/2105.15203
+  category: unified
+  parent: setr
+  motivation: 分层Mix Transformer+MLP解码
+- id: maskformer
+  name: MaskFormer
+  full_name: 掩码Former (MaskFormer)
+  year: '2021'
+  org: FAIR
+  paper_url: https://arxiv.org/abs/2107.06278
+  category: unified
+  parent: —
+  motivation: 掩码分类范式统一分割任务
+- id: mask2former
+  name: Mask2Former
+  full_name: 掩码Former2 (Mask2Former)
+  year: '2022'
+  org: FAIR
+  paper_url: https://arxiv.org/abs/2112.01527
+  category: unified
+  parent: maskformer
+  motivation: 掩码注意力机制三任务SOTA
+- id: sam
+  name: SAM
+  full_name: 分割一切模型 (Segment Anything Model)
+  year: '2023'
+  org: Meta AI
+  paper_url: https://arxiv.org/abs/2304.02643
+  category: unified
+  parent: mask2former
+  motivation: 提示式分割与零样本泛化
+- id: oneformer
+  name: OneFormer
+  full_name: 统一Former (OneFormer)
+  year: '2023'
+  org: SHI Lab
+  paper_url: https://arxiv.org/abs/2211.06220
+  category: unified
+  parent: mask2former
+  motivation: 单次训练三任务统一分割
+- id: vim
+  name: Vision Mamba
+  full_name: 视觉Mamba (Vision Mamba)
+  year: '2024'
+  org: 华中科大
+  paper_url: https://arxiv.org/abs/2401.09417
+  category: unified
+  parent: —
+  motivation: 双向SSM线性复杂度视觉建模
+- id: vmamba
+  name: VMamba
+  full_name: 视觉状态空间模型 (VMamba)
+  year: '2024'
+  org: 中科大/华为
+  paper_url: https://arxiv.org/abs/2401.10166
+  category: unified
+  parent: vim
+  motivation: Cross-Scan 2D选择性扫描
+- id: medmamba
+  name: MedMamba
+  full_name: 医疗Mamba (MedMamba)
+  year: '2026'
+  org: 多机构
+  paper_url: https://www.sciencedirect.com/science/article/pii/S1746809425008742
+  category: frontier
+  parent: vmamba
+  motivation: 多尺度可变形注意力医疗分割
+- id: spmamba
+  name: SPMamba
+  full_name: 脊柱Mamba (SPMamba)
+  year: '2026'
+  org: 多机构
+  paper_url: https://www.sciencedirect.com/science/article/pii/S1746809425008754
+  category: frontier
+  parent: vmamba
+  motivation: 层级特征融合脊柱图像分割
+- id: segmaformer
+  name: SegMaFormer
+  full_name: 分割MaFormer (SegMaFormer)
+  year: '2026'
+  org: 多机构
+  paper_url: https://arxiv.org/abs/2603.22002
+  category: frontier
+  parent: vmamba
+  motivation: Mamba+Transformer混合高效分割
+- id: taming_sam3
+  name: Taming SAM3
+  full_name: 驯服SAM3 (Taming SAM3)
+  year: '2026'
+  org: 多机构
+  paper_url: https://arxiv.org/abs/2602.06333
+  category: frontier
+  parent: sam
+  motivation: 概念库增强开放词汇分割
+- id: omniovcd
+  name: OmniOVCD
+  full_name: 全能开放词汇变化检测 (OmniOVCD)
+  year: '2026'
+  org: 多机构
+  paper_url: https://arxiv.org/abs/2601.13895
+  category: frontier
+  parent: sam
+  motivation: SAM3开放词汇变化检测
+- id: rein_plus
+  name: Rein++
+  full_name: 强化++ (Rein++)
+  year: '2026'
+  org: 多机构
+  paper_url: https://ieeexplore.ieee.org/abstract/document/11477127/
+  category: frontier
+  parent: sam
+  motivation: VFM高效微调域泛化框架
+- id: omnisegmentor
+  name: Omnisegmentor
+  full_name: 全能分割器 (Omnisegmentor)
+  year: '2026'
+  org: 多机构
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/d1fa901403156f5d31b1cad964d78006-Abstract-Conference.html
+  category: frontier
+  parent: mask2former
+  motivation: 多模态灵活学习鲁棒分割
+- id: text4seg_plus
+  name: Text4seg++
+  full_name: 文本分割++ (Text4seg++)
+  year: '2026'
+  org: 多机构
+  paper_url: https://ieeexplore.ieee.org/abstract/document/11479916/
+  category: frontier
+  parent: segformer
+  motivation: 生成式语言建模图像分割
+graph:
+  nodes:
+  - id: fcn
+    x: 50
+    y: 100
+  - id: unet
+    x: 150
+    y: 100
+  - id: segnet
+    x: 250
+    y: 100
+  - id: enet
+    x: 350
+    y: 100
+  - id: deeplabv1
+    x: 100
+    y: 200
+  - id: deeplabv2
+    x: 200
+    y: 200
+  - id: pspnet
+    x: 250
+    y: 200
+  - id: deeplabv3
+    x: 300
+    y: 200
+  - id: deeplabv3plus
+    x: 400
+    y: 200
+  - id: hrnet
+    x: 500
+    y: 200
+  - id: panoptic_fpn
+    x: 150
+    y: 300
+  - id: panoptic_deeplab
+    x: 250
+    y: 300
+  - id: setr
+    x: 350
+    y: 300
+  - id: segformer
+    x: 450
+    y: 300
+  - id: maskformer
+    x: 500
+    y: 300
+  - id: mask2former
+    x: 600
+    y: 300
+  - id: sam
+    x: 700
+    y: 300
+  - id: oneformer
+    x: 750
+    y: 300
+  - id: vim
+    x: 400
+    y: 400
+  - id: vmamba
+    x: 500
+    y: 400
+  - id: medmamba
+    x: 600
+    y: 400
+  - id: spmamba
+    x: 650
+    y: 400
+  - id: segmaformer
+    x: 700
+    y: 400
+  - id: taming_sam3
+    x: 800
+    y: 400
+  - id: omniovcd
+    x: 850
+    y: 400
+  - id: rein_plus
+    x: 900
+    y: 400
+  - id: omnisegmentor
+    x: 750
+    y: 350
+  - id: text4seg_plus
+    x: 550
+    y: 350
+  edges:
+  - from: fcn
+    to: unet
+    label: 医疗影像适配
+  - from: fcn
+    to: segnet
+    label: 内存高效上采样
+  - from: fcn
+    to: deeplabv1
+    label: 引入空洞卷积
+  - from: fcn
+    to: pspnet
+    label: 金字塔池化
+  - from: fcn
+    to: panoptic_fpn
+    label: 全景分割扩展
+  - from: segnet
+    to: enet
+    label: 轻量级实时化
+  - from: deeplabv1
+    to: deeplabv2
+    label: 增加ASPP
+  - from: deeplabv2
+    to: deeplabv3
+    label: 改进ASPP
+  - from: deeplabv3
+    to: deeplabv3plus
+    label: 加入解码器
+  - from: deeplabv3plus
+    to: panoptic_deeplab
+    label: 全景分割
+  - from: setr
+    to: segformer
+    label: 分层高效化
+  - from: maskformer
+    to: mask2former
+    label: 掩码注意力
+  - from: mask2former
+    to: sam
+    label: 提示式通用化
+  - from: mask2former
+    to: oneformer
+    label: 三任务统一
+  - from: mask2former
+    to: omnisegmentor
+    label: 多模态扩展
+  - from: sam
+    to: taming_sam3
+    label: 开放词汇增强
+  - from: sam
+    to: omniovcd
+    label: 变化检测扩展
+  - from: sam
+    to: rein_plus
+    label: VFM微调框架
+  - from: vim
+    to: vmamba
+    label: Cross-Scan改进
+  - from: vmamba
+    to: medmamba
+    label: 医疗领域适配
+  - from: vmamba
+    to: spmamba
+    label: 脊柱分割特化
+  - from: vmamba
+    to: segmaformer
+    label: 混合架构融合
+  - from: segformer
+    to: text4seg_plus
+    label: 生成式语言建模
+  milestones:
+  - id: fcn
+    label: 开创深度学习语义分割时代
+  - id: mask2former
+    label: 统一分割范式里程碑
+  - id: sam
+    label: 通用分割基础模型革命

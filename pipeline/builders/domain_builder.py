@@ -18,6 +18,17 @@ from .common import DOMAIN_CATALOG, DOMAIN_MAP, PAGES_DIR, ROOT, ok, warn
 # ============ 已上线信息扫描 ============
 
 PAGE_CONFIG_RE = re.compile(r"window\.PAGE_CONFIG\s*=\s*(\{.*?\});\s*$", re.DOTALL)
+DATA_JS_SOURCE_RE = re.compile(r"源文件：([^\n]+)")
+
+
+def _normalize_topic_key(text: str) -> str:
+    """归一化专题名，便于 catalog 与已上线页面做宽松匹配。"""
+    s = str(text or "").strip().lower()
+    s = s.replace("（", "(").replace("）", ")")
+    s = re.sub(r"\bai\b", "", s)
+    s = s.replace("llm", "").replace("vlm", "").replace("vla", "")
+    s = re.sub(r"[\s\-_()/·,.]+", "", s)
+    return s
 
 
 def _load_page_config(data_js: Path) -> dict | None:
@@ -35,6 +46,18 @@ def _load_page_config(data_js: Path) -> dict | None:
         return None
 
 
+def _read_data_js_source(data_js: Path) -> str:
+    """读取 data.js 注释头中的源文件路径。"""
+    try:
+        text = data_js.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    m = DATA_JS_SOURCE_RE.search(text)
+    if not m:
+        return ""
+    return m.group(1).strip()
+
+
 def _scan_live_topics(domain_id: str) -> dict[str, dict]:
     """扫描 pages/<domain>/ 下所有 <topic_id>-data.js，返回 {topic_id: info}。
 
@@ -43,6 +66,7 @@ def _scan_live_topics(domain_id: str) -> dict[str, dict]:
         subtitle    -> meta.page_subtitle
         algo_count  -> len(algos)
         topic_name  -> meta.topic_name
+        page_desc   -> meta.page_desc
     """
     meta_info: dict = DOMAIN_MAP.get(domain_id, {})
     domain_dir = ROOT / meta_info.get("dir", f"pages/{domain_id}")
@@ -51,6 +75,9 @@ def _scan_live_topics(domain_id: str) -> dict[str, dict]:
 
     result: dict[str, dict] = {}
     for data_js in domain_dir.glob("*-data.js"):
+        source_path = _read_data_js_source(data_js)
+        if source_path.startswith("pipeline/examples/"):
+            continue
         cfg = _load_page_config(data_js)
         if not cfg:
             continue
@@ -61,12 +88,42 @@ def _scan_live_topics(domain_id: str) -> dict[str, dict]:
         meta = cfg.get("meta", {})
         algos = cfg.get("algos", [])
         result[topic_id] = {
+            "topic_id":    topic_id,
             "page":       f"{topic_id}.html",
             "subtitle":   meta.get("page_subtitle", ""),
             "algo_count": len(algos) if isinstance(algos, list) else 0,
             "topic_name": meta.get("topic_name", topic_id),
+            "page_desc":  meta.get("page_desc", ""),
         }
     return result
+
+
+def _resolve_live_topic(topic: dict, live_map: dict[str, dict]) -> dict | None:
+    """优先使用手工 match，其次按专题名自动匹配。"""
+    match_id = topic.get("match")
+    if match_id:
+        live = live_map.get(match_id)
+        if live:
+            return live
+
+    topic_name = topic.get("name", "")
+    target = _normalize_topic_key(topic_name)
+    if target:
+        exact = [
+            live for live in live_map.values()
+            if _normalize_topic_key(live.get("topic_name", "")) == target
+        ]
+        if len(exact) == 1:
+            return exact[0]
+
+        fuzzy = [
+            live for live in live_map.values()
+            if target in _normalize_topic_key(live.get("topic_name", ""))
+            or _normalize_topic_key(live.get("topic_name", "")) in target
+        ]
+        if len(fuzzy) == 1:
+            return fuzzy[0]
+    return None
 
 
 # ============ 卡片渲染 ============
@@ -95,6 +152,15 @@ def _topic_card_html(topic: dict, live: dict | None) -> str:
         f'<div class="topic-meta"><span>建设中</span></div>'
         f'</div>'
     )
+
+
+def _extra_live_topic_card_html(live: dict) -> str:
+    """渲染已编译但尚未进入 DOMAIN_CATALOG 的专题卡片。"""
+    topic = {
+        "name": live.get("topic_name") or live.get("topic_id", ""),
+        "desc": live.get("page_desc") or "已编译专题，等待补充到领域目录配置。",
+    }
+    return _topic_card_html(topic, live)
 
 
 DOMAIN_INDEX_TEMPLATE = """<!DOCTYPE html>
@@ -183,12 +249,22 @@ def render_domain_indexes():
 
         cards = []
         live_hit = 0
+        matched_topic_ids: set[str] = set()
         for topic in catalog["topics"]:
-            match_id = topic.get("match")
-            live = live_map.get(match_id) if match_id else None
+            live = _resolve_live_topic(topic, live_map)
             if live:
                 live_hit += 1
+                matched_topic_ids.add(live["topic_id"])
             cards.append("      " + _topic_card_html(topic, live))
+
+        extra_live_topics = [
+            live_map[topic_id]
+            for topic_id in sorted(live_map.keys())
+            if topic_id not in matched_topic_ids
+        ]
+        for live in extra_live_topics:
+            live_hit += 1
+            cards.append("      " + _extra_live_topic_card_html(live))
 
         html = DOMAIN_INDEX_TEMPLATE.format(
             domain_name=meta["name"],
@@ -198,4 +274,4 @@ def render_domain_indexes():
         )
         out_file.write_text(html, encoding="utf-8")
         ok(f"刷新领域目录页 {out_file.relative_to(ROOT)} · "
-           f"{len(catalog['topics'])} 个专题（{live_hit} 个已上线）")
+           f"{len(catalog['topics']) + len(extra_live_topics)} 个专题（{live_hit} 个已上线）")

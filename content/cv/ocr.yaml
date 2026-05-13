@@ -1,0 +1,480 @@
+page_meta:
+  page_icon: 📜
+  page_title: OCR 技术演进图谱
+  page_subtitle: '{build_date} 版'
+  page_desc: 梳理从传统检测识别到端到端文档理解的技术演进，涵盖文本检测、识别、版面分析与视觉文档理解四大方向。
+  hero_pills: 🏷️ Text Detection · Recognition · Document AI
+  count_pill: '{count} 个算法'
+categories:
+  detection:
+    label: 文本检测
+    color: '#4A90D9'
+  recognition:
+    label: 文本识别
+    color: '#50C878'
+  e2e_spotting:
+    label: 端到端检测识别
+    color: '#FF7F50'
+  document_ai:
+    label: 文档理解与视觉问答
+    color: '#9B59B6'
+algorithms:
+- id: ctpn
+  name: CTPN
+  full_name: 连接文本提议网络 (Connectionist Text Proposal Network)
+  year: '2016'
+  org: Tsinghua University / Megvii
+  paper_url: https://arxiv.org/abs/1609.03605
+  category: detection
+  parent: —
+  motivation: 垂直锚点+BLSTM检测水平文本
+- id: textboxes
+  name: TextBoxes
+  full_name: 文本框检测网络 (TextBoxes)
+  year: '2017'
+  org: Huazhong University of Science and Technology
+  paper_url: https://arxiv.org/abs/1611.06779
+  category: detection
+  parent: ctpn
+  motivation: 长条卷积核适配高宽比文本
+- id: east
+  name: EAST
+  full_name: 高效精准场景文本检测器 (Efficient and Accurate Scene Text Detector)
+  year: '2017'
+  org: Megvii Technology
+  paper_url: https://arxiv.org/abs/1704.03155
+  category: detection
+  parent: ctpn
+  motivation: 单阶段直接回归简化流程
+- id: psenet
+  name: PSENet
+  full_name: 渐进式尺度扩展网络 (Progressive Scale Expansion Network)
+  year: '2019'
+  org: Nanjing University
+  paper_url: https://arxiv.org/abs/1903.12473
+  category: detection
+  parent: east
+  motivation: 渐进扩展分离粘连文本
+- id: pan
+  name: PAN
+  full_name: 像素聚合网络 (Pixel Aggregation Network)
+  year: '2019'
+  org: SenseTime Research
+  paper_url: https://arxiv.org/abs/1908.05900
+  category: detection
+  parent: psenet
+  motivation: 轻量聚合模块实现实时检测
+- id: dbnet
+  name: DBNet
+  full_name: 可微二值化网络 (Differentiable Binarization Network)
+  year: '2020'
+  org: Huazhong University of Science and Technology
+  paper_url: https://arxiv.org/abs/1911.08947
+  category: detection
+  parent: psenet
+  motivation: 可微二值化平衡速度精度
+- id: dptext_detr
+  name: DPText-DETR
+  full_name: 动态点文本检测Transformer (Dynamic Points Text Detection Transformer)
+  year: '2023'
+  org: Alibaba Group
+  paper_url: https://arxiv.org/abs/2207.04491
+  category: detection
+  parent: dbnet
+  motivation: 动态点查询建模任意形状
+- id: srformer
+  name: SRFormer
+  full_name: 分割回归融合检测器 (Segmentation and Regression Transformer)
+  year: '2024'
+  org: ByteDance Inc.
+  paper_url: https://arxiv.org/abs/2308.10531
+  category: detection
+  parent: dptext_detr
+  motivation: 统一分割与回归刷新SOTA
+- id: crnn
+  name: CRNN
+  full_name: 卷积循环神经网络 (Convolutional Recurrent Neural Network)
+  year: '2015'
+  org: Huazhong University of Science and Technology
+  paper_url: https://arxiv.org/abs/1507.05717
+  category: recognition
+  parent: —
+  motivation: CNN+RNN+CTC开创序列识别
+- id: aster
+  name: ASTER
+  full_name: 注意力场景文本识别器 (Attentional Scene Text Recognizer)
+  year: '2018'
+  org: Hikvision Research Institute
+  paper_url: https://arxiv.org/abs/1807.03364
+  category: recognition
+  parent: crnn
+  motivation: TPS校正+注意力解码
+- id: moran
+  name: MORAN
+  full_name: 多对象校正注意力网络 (Multi-Object Rectified Attention Network)
+  year: '2019'
+  org: Shanghai Jiao Tong University
+  paper_url: https://arxiv.org/abs/1901.03003
+  category: recognition
+  parent: aster
+  motivation: 弱监督多对象图像校正
+- id: master
+  name: MASTER
+  full_name: 多视角注意力识别器 (Multi-Aspect Non-local Network)
+  year: '2021'
+  org: Ping An Technology
+  paper_url: https://arxiv.org/abs/1910.02562
+  category: recognition
+  parent: aster
+  motivation: 多视角注意力解决漂移
+- id: abinet
+  name: ABINet
+  full_name: 自治双向迭代网络 (Autonomous Bidirectional Iterative Network)
+  year: '2021'
+  org: University of Science and Technology of China
+  paper_url: https://arxiv.org/abs/2103.06495
+  category: recognition
+  parent: master
+  motivation: 显式语言模型增强识别
+- id: parseq
+  name: PARSeq
+  full_name: 置换自回归序列模型 (Permuted Autoregressive Sequence Models)
+  year: '2022'
+  org: University of Adelaide
+  paper_url: https://arxiv.org/abs/2207.06966
+  category: recognition
+  parent: abinet
+  motivation: 统一多种解码策略
+- id: trocr
+  name: TrOCR
+  full_name: Transformer光学字符识别 (Transformer-based Optical Character Recognition)
+  year: '2023'
+  org: Microsoft Research
+  paper_url: https://arxiv.org/abs/2109.10282
+  category: recognition
+  parent: parseq
+  motivation: 纯Transformer预训练架构
+- id: svtrv2
+  name: SVTRv2
+  full_name: 场景视觉Transformer v2 (Scene Vision Transformer v2)
+  year: '2025'
+  org: Baidu Inc.
+  paper_url: https://arxiv.org/abs/2411.15858
+  category: recognition
+  parent: trocr
+  motivation: CTC架构超越Encoder-Decoder
+- id: fots
+  name: FOTS
+  full_name: 快速定向文本检测识别 (Fast Oriented Text Spotting)
+  year: '2018'
+  org: Megvii Technology
+  paper_url: https://arxiv.org/abs/1801.01671
+  category: e2e_spotting
+  parent: —
+  motivation: RoIRotate实现首个实时端到端
+- id: mask_textspotter
+  name: Mask TextSpotter
+  full_name: 掩码文本检测器 (Mask TextSpotter)
+  year: '2018'
+  org: Huazhong University of Science and Technology
+  paper_url: https://arxiv.org/abs/1807.02242
+  category: e2e_spotting
+  parent: fots
+  motivation: 像素级分割支持任意形状
+- id: mask_textspotter_v3
+  name: Mask TextSpotter v3
+  full_name: 掩码文本检测器v3 (Mask TextSpotter v3)
+  year: '2020'
+  org: Huazhong University of Science and Technology
+  paper_url: https://arxiv.org/abs/2007.09482
+  category: e2e_spotting
+  parent: mask_textspotter
+  motivation: SPN解决极端长宽比文本
+- id: abcnet
+  name: ABCNet
+  full_name: 自适应贝塞尔曲线网络 (Adaptive Bezier-Curve Network)
+  year: '2020'
+  org: University of Adelaide
+  paper_url: https://arxiv.org/abs/2002.10200
+  category: e2e_spotting
+  parent: mask_textspotter
+  motivation: 贝塞尔曲线提速10倍
+- id: abcnet_v2
+  name: ABCNet v2
+  full_name: 自适应贝塞尔曲线网络v2 (ABCNet v2)
+  year: '2021'
+  org: University of Adelaide
+  paper_url: https://arxiv.org/abs/2105.03620
+  category: e2e_spotting
+  parent: abcnet
+  motivation: 自适应端到端增强对齐
+- id: estextspotter
+  name: ESTextSpotter
+  full_name: 显式协同文本检测器 (Explicit Synergy Text Spotter)
+  year: '2023'
+  org: The Chinese University of Hong Kong
+  paper_url: https://arxiv.org/abs/2308.10147
+  category: e2e_spotting
+  parent: abcnet_v2
+  motivation: Transformer显式检测识别协同
+- id: layoutlm
+  name: LayoutLM
+  full_name: 版面语言模型 (Layout Language Model)
+  year: '2020'
+  org: Microsoft Research Asia
+  paper_url: https://arxiv.org/abs/1912.13318
+  category: document_ai
+  parent: —
+  motivation: 融合文本版面图像预训练
+- id: layoutlmv3
+  name: LayoutLMv3
+  full_name: 版面语言模型v3 (LayoutLMv3)
+  year: '2022'
+  org: Microsoft Research Asia
+  paper_url: https://arxiv.org/abs/2204.08387
+  category: document_ai
+  parent: layoutlm
+  motivation: 统一MIM+MLM去除CNN
+- id: dit
+  name: DiT
+  full_name: 文档图像Transformer (Document Image Transformer)
+  year: '2022'
+  org: Microsoft Research Asia
+  paper_url: https://arxiv.org/abs/2203.02378
+  category: document_ai
+  parent: layoutlm
+  motivation: 海量无标注自监督预训练
+- id: donut
+  name: Donut
+  full_name: 文档理解Transformer (Document Understanding Transformer)
+  year: '2022'
+  org: NAVER CLOVA
+  paper_url: https://arxiv.org/abs/2111.15664
+  category: document_ai
+  parent: layoutlmv3
+  motivation: OCR-Free直接生成结构化
+- id: pix2struct
+  name: Pix2Struct
+  full_name: 像素到结构 (Pix2Struct)
+  year: '2023'
+  org: Google Research
+  paper_url: https://arxiv.org/abs/2210.03347
+  category: document_ai
+  parent: donut
+  motivation: 截图解析预训练VLU
+- id: got_ocr
+  name: GOT-OCR2.0
+  full_name: 通用OCR理论2.0 (General OCR Theory 2.0)
+  year: '2024'
+  org: StepFun
+  paper_url: https://arxiv.org/abs/2409.01704
+  category: document_ai
+  parent: donut
+  motivation: 580M统一模型处理全类型
+- id: glm_ocr
+  name: GLM-OCR
+  full_name: 通用语言模型OCR (General Language Model OCR)
+  year: '2026'
+  org: Zhipu AI
+  paper_url: https://arxiv.org/abs/2601.xxxxx
+  category: document_ai
+  parent: got_ocr
+  motivation: 专用VLM文档解析领跑基准
+graph:
+  nodes:
+  - id: ctpn
+    x: 100
+    y: 100
+    category: detection
+  - id: textboxes
+    x: 200
+    y: 80
+    category: detection
+  - id: east
+    x: 200
+    y: 120
+    category: detection
+  - id: psenet
+    x: 300
+    y: 100
+    category: detection
+  - id: pan
+    x: 400
+    y: 80
+    category: detection
+  - id: dbnet
+    x: 400
+    y: 120
+    category: detection
+  - id: dptext_detr
+    x: 500
+    y: 100
+    category: detection
+  - id: srformer
+    x: 600
+    y: 100
+    category: detection
+  - id: crnn
+    x: 50
+    y: 300
+    category: recognition
+  - id: aster
+    x: 150
+    y: 300
+    category: recognition
+  - id: moran
+    x: 250
+    y: 280
+    category: recognition
+  - id: master
+    x: 250
+    y: 320
+    category: recognition
+  - id: abinet
+    x: 350
+    y: 300
+    category: recognition
+  - id: parseq
+    x: 450
+    y: 300
+    category: recognition
+  - id: trocr
+    x: 550
+    y: 300
+    category: recognition
+  - id: svtrv2
+    x: 650
+    y: 300
+    category: recognition
+  - id: fots
+    x: 150
+    y: 500
+    category: e2e_spotting
+  - id: mask_textspotter
+    x: 250
+    y: 500
+    category: e2e_spotting
+  - id: mask_textspotter_v3
+    x: 350
+    y: 480
+    category: e2e_spotting
+  - id: abcnet
+    x: 350
+    y: 520
+    category: e2e_spotting
+  - id: abcnet_v2
+    x: 450
+    y: 500
+    category: e2e_spotting
+  - id: estextspotter
+    x: 550
+    y: 500
+    category: e2e_spotting
+  - id: layoutlm
+    x: 200
+    y: 700
+    category: document_ai
+  - id: layoutlmv3
+    x: 300
+    y: 680
+    category: document_ai
+  - id: dit
+    x: 300
+    y: 720
+    category: document_ai
+  - id: donut
+    x: 400
+    y: 700
+    category: document_ai
+  - id: pix2struct
+    x: 500
+    y: 700
+    category: document_ai
+  - id: got_ocr
+    x: 600
+    y: 700
+    category: document_ai
+  - id: glm_ocr
+    x: 700
+    y: 700
+    category: document_ai
+  edges:
+  - from: ctpn
+    to: textboxes
+    label: 优化宽高比
+  - from: ctpn
+    to: east
+    label: 简化流程
+  - from: east
+    to: psenet
+    label: 处理粘连
+  - from: psenet
+    to: pan
+    label: 轻量化
+  - from: psenet
+    to: dbnet
+    label: 可微二值化
+  - from: dbnet
+    to: dptext_detr
+    label: 引入DETR
+  - from: dptext_detr
+    to: srformer
+    label: 统一范式
+  - from: crnn
+    to: aster
+    label: 加入校正
+  - from: aster
+    to: moran
+    label: 多对象校正
+  - from: aster
+    to: master
+    label: 多视角注意力
+  - from: master
+    to: abinet
+    label: 语言模型增强
+  - from: abinet
+    to: parseq
+    label: 统一解码
+  - from: parseq
+    to: trocr
+    label: 全TF架构
+  - from: trocr
+    to: svtrv2
+    label: CTC复兴
+  - from: fots
+    to: mask_textspotter
+    label: 分割思想
+  - from: mask_textspotter
+    to: mask_textspotter_v3
+    label: 极端比例
+  - from: mask_textspotter
+    to: abcnet
+    label: 参数化曲线
+  - from: abcnet
+    to: abcnet_v2
+    label: 自适应训练
+  - from: abcnet_v2
+    to: estextspotter
+    label: 显式协同
+  - from: layoutlm
+    to: layoutlmv3
+    label: 统一掩码
+  - from: layoutlm
+    to: dit
+    label: 自监督
+  - from: layoutlmv3
+    to: donut
+    label: OCR-Free
+  - from: donut
+    to: pix2struct
+    label: 截图预训练
+  - from: donut
+    to: got_ocr
+    label: 统一全类型
+  - from: got_ocr
+    to: glm_ocr
+    label: 专用优化
+  milestones:
+  - crnn
+  - layoutlm
+  - donut

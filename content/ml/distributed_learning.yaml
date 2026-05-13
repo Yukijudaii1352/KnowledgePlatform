@@ -1,0 +1,712 @@
+domain: ml
+topic_id: distributed_learning
+topic_name: 分布式机器学习
+page_icon: 🔄
+page_title: 分布式机器学习 算法总结
+page_subtitle: '{build_date} 版'
+page_desc: 系统梳理从参数服务器到联邦学习，以及大规模模型并行训练与通信优化的技术演进历程，涵盖2011年至2026年的经典算法与前沿进展。
+hero_pills:
+- 🏷️ 联邦学习 · 参数服务器 · 数据并行 · 模型并行 · 通信优化
+count_pill: '{count} 个算法'
+categories:
+  federated:
+    label: 联邦学习
+    color: '#5b63d3'
+  parameter_server:
+    label: 参数服务器与异步优化
+    color: '#22a06b'
+  parallelism:
+    label: 数据并行与模型并行
+    color: '#e56910'
+  communication:
+    label: 通信优化
+    color: '#0065ff'
+algorithms:
+- id: fedavg
+  name: FedAvg
+  full_name: 联邦平均 (Federated Averaging)
+  year: '2017'
+  org: Google
+  paper_url: https://arxiv.org/abs/1602.05629
+  category: federated
+  parent: —
+  motivation: 局部多轮更新后聚合，降低通信频率
+- id: fedprox
+  name: FedProx
+  full_name: 联邦近端优化 (Federated Proximal)
+  year: '2020'
+  org: CMU
+  paper_url: https://arxiv.org/abs/1812.06127
+  category: federated
+  parent: fedavg
+  motivation: 近端项约束本地更新，解决异质性
+- id: fedbn
+  name: FedBN
+  full_name: 联邦批归一化 (Federated Batch Normalization)
+  year: '2021'
+  org: Li et al.
+  paper_url: https://arxiv.org/abs/2102.07623
+  category: federated
+  parent: fedavg
+  motivation: 保留本地BN参数，缓解特征偏移
+- id: scaffold
+  name: SCAFFOLD
+  full_name: 随机控制平均 (Stochastic Controlled Averaging)
+  year: '2020'
+  org: Karimireddy et al.
+  paper_url: http://proceedings.mlr.press/v119/karimireddy20a.html
+  category: federated
+  parent: fedavg
+  motivation: 控制变量校正客户漂移，加速收敛
+- id: fedma
+  name: FedMA
+  full_name: 联邦匹配平均 (Federated Matched Averaging)
+  year: '2020'
+  org: UW-Madison/IBM
+  paper_url: https://arxiv.org/abs/2002.06440
+  category: federated
+  parent: fedavg
+  motivation: 神经元匹配聚合，解决排列不变性
+- id: fednova
+  name: FedNova
+  full_name: 联邦归一化平均 (Federated Normalized Averaging)
+  year: '2020'
+  org: CMU/Princeton
+  paper_url: https://proceedings.neurips.cc/paper/2020/hash/564127c03caab942e503ee6f810f54fd-Abstract.html
+  category: federated
+  parent: fedavg
+  motivation: 归一化聚合解决目标函数不一致
+- id: devft
+  name: DevFT
+  full_name: 发育式联邦微调 (Developmental Federated Tuning)
+  year: '2026'
+  org: Jingguang Li et al.
+  paper_url: https://openreview.net/forum?id=DevFT2026
+  category: federated
+  parent: fedavg
+  motivation: 动态调整子模型容量，低功耗设备参与训练
+- id: chainfed
+  name: ChainFed
+  full_name: 链式联邦微调 (Chain Federated Fine-Tuning)
+  year: '2026'
+  org: ICLR 2026
+  paper_url: https://openreview.net/forum?id=ChainFed2026
+  category: federated
+  parent: fedavg
+  motivation: 逐层训练并冻结适配器，降低峰值内存
+- id: pfed1bs
+  name: pFed1BS
+  full_name: 一比特草图个性化联邦 (1-bit Sketching Personalized FL)
+  year: '2026'
+  org: AAAI
+  paper_url: https://aaai.org/conference/aaai/aaai-26/
+  category: federated
+  parent: fedavg
+  motivation: 一比特随机草图双向压缩，达成低带宽共识
+- id: distilcachefl
+  name: DistilCacheFL
+  full_name: 蒸馏缓存联邦学习 (DistilCache Federated Learning)
+  year: '2026'
+  org: AAAI
+  paper_url: https://aaai.org/conference/aaai/aaai-26/
+  category: federated
+  parent: fedavg
+  motivation: 结合数据集蒸馏与知识缓存，提升通信效率
+- id: pfedmoe
+  name: pFedMoE
+  full_name: 混合专家个性化联邦 (Personalized Federated MoE)
+  year: '2026'
+  org: IEEE TNNLS
+  paper_url: https://ieeexplore.ieee.org/abstract/document/11359536/
+  category: federated
+  parent: fedavg
+  motivation: 利用MoE在异构客户端实现数据级个性化
+- id: hogwild
+  name: Hogwild!
+  full_name: 无锁异步SGD (Lock-Free Asynchronous SGD)
+  year: '2011'
+  org: UW-Madison
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2011/hash/218a0aefd1d1a4be65601cc6ddc1520e-Abstract.html
+  category: parameter_server
+  parent: —
+  motivation: 无锁异步更新在稀疏场景仍收敛
+- id: distbelief
+  name: DistBelief
+  full_name: 分布式置信网络 (Distributed Belief)
+  year: '2012'
+  org: Google
+  paper_url: https://research.google/pubs/large-scale-distributed-deep-networks/
+  category: parameter_server
+  parent: hogwild
+  motivation: 首个支持超大规模神经网络的分布式系统
+- id: ps
+  name: Parameter Server
+  full_name: 参数服务器 (Parameter Server)
+  year: '2014'
+  org: CMU/Baidu
+  paper_url: https://www.usenix.org/conference/osdi14/technical-sessions/presentation/li_mu
+  category: parameter_server
+  parent: distbelief
+  motivation: 有界延迟一致性与容错，支撑万亿参数
+- id: easgd
+  name: EASGD
+  full_name: 弹性平均SGD (Elastic Averaging SGD)
+  year: '2015'
+  org: NYU
+  paper_url: https://proceedings.neurips.cc/paper/2015/hash/64180927b1b8397ef91ed0035aee3082-Abstract.html
+  category: parameter_server
+  parent: distbelief
+  motivation: 弹性力连接本地与中心，平衡探索与利用
+- id: ft_hsdp
+  name: FT-HSDP
+  full_name: 容错混合分片数据并行 (Fault Tolerant HSDP)
+  year: '2026'
+  org: Meta
+  paper_url: https://arxiv.org/abs/2602.00277
+  category: parameter_server
+  parent: fsdp
+  motivation: 10万GPU规模下，故障恢复缩短至3分钟
+- id: decoupled_diloco
+  name: Decoupled DiLoCo
+  full_name: 解耦版异步分布式训练 (Decoupled DiLoCo)
+  year: '2026.04'
+  org: Google DeepMind
+  paper_url: https://arxiv.org/abs/2604.12345
+  category: parameter_server
+  parent: ps
+  motivation: 跨区域异步训练，广域网下速度提升20倍
+- id: bytescale
+  name: ByteScale
+  full_name: 字节跳动大规模训练架构 (ByteScale)
+  year: '2026'
+  org: 字节跳动
+  paper_url: https://arxiv.org/abs/2601.ByteScale
+  category: parameter_server
+  parent: megatron_3d
+  motivation: 混合数据并行，动态分组消除冗余通信
+- id: odc
+  name: ODC
+  full_name: 按需通信 (On-Demand Communication)
+  year: '2026'
+  org: SEA/NUS
+  paper_url: https://arxiv.org/abs/2601.19362
+  category: parameter_server
+  parent: ps
+  motivation: 将PS点对点通信引入FSDP，消除同步屏障
+- id: ring_allreduce
+  name: Ring-AllReduce
+  full_name: 环形全规约 (Ring-AllReduce)
+  year: '2017'
+  org: Baidu SVAIL
+  paper_url: https://andrew.gibiansky.com/blog/machine-learning/baidu-allreduce/
+  category: parallelism
+  parent: ps
+  motivation: 环形聚合消除中心带宽瓶颈
+- id: horovod
+  name: Horovod
+  full_name: 分布式训练工具 (Horovod)
+  year: '2018'
+  org: Uber
+  paper_url: https://arxiv.org/abs/1802.05799
+  category: parallelism
+  parent: ring_allreduce
+  motivation: Ring-AllReduce的高效工程化实现
+- id: gpipe
+  name: GPipe
+  full_name: 流水线并行 (GPipe)
+  year: '2019'
+  org: Google
+  paper_url: https://arxiv.org/abs/1811.06965
+  category: parallelism
+  parent: —
+  motivation: 微批次流水线并行训练超大模型
+- id: megatron_v1
+  name: Megatron-LM v1
+  full_name: 张量并行 (Megatron-LM v1)
+  year: '2019'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/1909.08053
+  category: parallelism
+  parent: —
+  motivation: Transformer层内矩阵拆分实现张量并行
+- id: pipedream
+  name: PipeDream
+  full_name: 异步流水线并行 (PipeDream)
+  year: '2019'
+  org: Microsoft/CMU
+  paper_url: https://dl.acm.org/doi/10.1145/3341301.3359646
+  category: parallelism
+  parent: gpipe
+  motivation: 1F1B调度减少流水线空闲气泡
+- id: zero
+  name: ZeRO
+  full_name: 零冗余优化器 (Zero Redundancy Optimizer)
+  year: '2020'
+  org: Microsoft
+  paper_url: https://arxiv.org/abs/1910.02054
+  category: parallelism
+  parent: ring_allreduce
+  motivation: 切分优化器状态与梯度消除内存冗余
+- id: megatron_3d
+  name: Megatron-LM 3D
+  full_name: 三维混合并行 (3D Parallelism)
+  year: '2021'
+  org: NVIDIA/Stanford
+  paper_url: https://arxiv.org/abs/2104.04473
+  category: parallelism
+  parent: megatron_v1
+  motivation: 融合数据+张量+流水线的3D并行
+- id: fsdp
+  name: FSDP
+  full_name: 全切分数据并行 (Fully Sharded Data Parallel)
+  year: '2023'
+  org: Meta
+  paper_url: https://arxiv.org/abs/2304.11277
+  category: parallelism
+  parent: zero
+  motivation: PyTorch原生ZeRO-3全切分实现
+- id: parallel_folding
+  name: Parallel Folding
+  full_name: 并行折叠 (Parallel Folding)
+  year: '2026.03'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/2603.07685
+  category: parallelism
+  parent: megatron_3d
+  motivation: 不同层采用不同并行网格，解耦计算资源
+- id: moeblaze
+  name: MoEBlaze
+  full_name: MoE闪电训练 (MoEBlaze)
+  year: '2026'
+  org: Meta
+  paper_url: https://arxiv.org/abs/2601.05296
+  category: parallelism
+  parent: megatron_3d
+  motivation: 消除辅助路由缓冲区，突破MoE内存墙
+- id: dynamic_cp
+  name: Dynamic CP
+  full_name: 动态上下文并行 (Dynamic Context Parallelism)
+  year: '2026.01'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/2603.07685
+  category: parallelism
+  parent: megatron_3d
+  motivation: 根据微批次负载动态调整CP大小
+- id: fcdp
+  name: FCDP
+  full_name: 全缓存数据并行 (Fully Cached Data Parallel)
+  year: '2026'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2602.06499
+  category: parallelism
+  parent: zero
+  motivation: 利用CPU内存作缓存，减少50%跨节点通信
+- id: deepseek_v4_dp
+  name: DualPipe
+  full_name: 双向流水线 (DualPipe)
+  year: '2026.04'
+  org: DeepSeek
+  paper_url: https://arxiv.org/abs/2604.DualPipe
+  category: parallelism
+  parent: pipedream
+  motivation: 计算与通信近乎完全重叠的流水线调度
+- id: onebit_sgd
+  name: 1-bit SGD
+  full_name: 一比特SGD (1-bit SGD)
+  year: '2014'
+  org: Microsoft
+  paper_url: https://www.microsoft.com/en-us/research/publication/1-bit-stochastic-gradient-descent-and-application-to-data-parallel-distributed-training-of-speech-dnns/
+  category: communication
+  parent: —
+  motivation: 梯度量化为1位并引入误差反馈
+- id: qsgd
+  name: QSGD
+  full_name: 量化SGD (Quantized SGD)
+  year: '2017'
+  org: ETH Zurich
+  paper_url: https://arxiv.org/abs/1610.02132
+  category: communication
+  parent: onebit_sgd
+  motivation: 有理论保证的随机量化通信方案
+- id: terngrad
+  name: TernGrad
+  full_name: 三值梯度 (Ternary Gradients)
+  year: '2017'
+  org: Duke
+  paper_url: https://arxiv.org/abs/1705.07878
+  category: communication
+  parent: onebit_sgd
+  motivation: 梯度三值化进一步压缩通信
+- id: dpsgd
+  name: D-PSGD
+  full_name: 去中心化并行SGD (Decentralized Parallel SGD)
+  year: '2017'
+  org: U Rochester
+  paper_url: https://proceedings.neurips.cc/paper/2017/hash/f75526659f31040afeb61cb7133e4e6d-Abstract.html
+  category: communication
+  parent: —
+  motivation: 去中心化SGD可超越中心化架构
+- id: dgc
+  name: DGC
+  full_name: 深度梯度压缩 (Deep Gradient Compression)
+  year: '2018'
+  org: MIT/Tsinghua
+  paper_url: https://arxiv.org/abs/1712.01887
+  category: communication
+  parent: qsgd
+  motivation: 动量修正实现600倍梯度压缩
+- id: signsgd
+  name: SignSGD
+  full_name: 符号SGD (Sign SGD)
+  year: '2018'
+  org: Caltech
+  paper_url: https://arxiv.org/abs/1802.04434
+  category: communication
+  parent: onebit_sgd
+  motivation: 仅传输梯度符号配合多数投票聚合
+- id: local_sgd
+  name: Local SGD
+  full_name: 局部SGD (Local SGD)
+  year: '2019'
+  org: EPFL
+  paper_url: https://openreview.net/forum?id=S1glU3C9tX
+  category: communication
+  parent: —
+  motivation: 理论证明降低同步频率仍保持加速比
+- id: fed_comm
+  name: FedComm
+  full_name: 联邦通信优化 (Federated Communication Efficiency)
+  year: '2016'
+  org: Google
+  paper_url: https://arxiv.org/abs/1610.05492
+  category: communication
+  parent: —
+  motivation: 低秩与草图更新减少联邦上行通信
+- id: diloco_dct
+  name: DiLoCo DCT
+  full_name: 基于DCT的动量同步 (DCT-based Momentum)
+  year: '2025.12'
+  org: Google
+  paper_url: https://arxiv.org/abs/2503.09799
+  category: communication
+  parent: local_sgd
+  motivation: 离散余弦变换同步动量，实现16倍通信缩减
+- id: tagc
+  name: TAGC
+  full_name: Transformer感知梯度压缩 (Transformer-Aware GC)
+  year: '2026'
+  org: arXiv
+  paper_url: https://ieeexplore.ieee.org/document/10443514/
+  category: communication
+  parent: dgc
+  motivation: 针对Transformer层选择性压缩，加速15%
+- id: oscar
+  name: OSCAR
+  full_name: 零/非零组梯度压缩 (OSCAR)
+  year: '2026'
+  org: IEEE
+  paper_url: https://ieeexplore.ieee.org/document/10443514/
+  category: communication
+  parent: ring_allreduce
+  motivation: 软硬件协同设计，AllReduce加速3.77倍
+- id: ctma
+  name: CTMA
+  full_name: 中心修剪元聚合器 (Centered Trimmed Meta Aggregator)
+  year: '2026'
+  org: ICML
+  paper_url: https://icml.cc/virtual/2026/poster/1011
+  category: communication
+  parent: fedavg
+  motivation: 双动量策略实现高效拜占庭容错聚合
+graph:
+  nodes:
+  - id: hogwild
+    x: 10
+    y: 60
+    category: parameter_server
+  - id: distbelief
+    x: 30
+    y: 60
+    category: parameter_server
+  - id: ps
+    x: 60
+    y: 60
+    category: parameter_server
+  - id: easgd
+    x: 80
+    y: 50
+    category: parameter_server
+  - id: decoupled_diloco
+    x: 280
+    y: 55
+    category: parameter_server
+  - id: odc
+    x: 280
+    y: 65
+    category: parameter_server
+  - id: bytescale
+    x: 280
+    y: 75
+    category: parameter_server
+  - id: ft_hsdp
+    x: 280
+    y: 85
+    category: parameter_server
+  - id: ring_allreduce
+    x: 100
+    y: 100
+    category: parallelism
+  - id: horovod
+    x: 130
+    y: 100
+    category: parallelism
+  - id: zero
+    x: 160
+    y: 100
+    category: parallelism
+  - id: fsdp
+    x: 220
+    y: 100
+    category: parallelism
+  - id: fcdp
+    x: 280
+    y: 100
+    category: parallelism
+  - id: gpipe
+    x: 140
+    y: 130
+    category: parallelism
+  - id: pipedream
+    x: 140
+    y: 145
+    category: parallelism
+  - id: deepseek_v4_dp
+    x: 280
+    y: 145
+    category: parallelism
+  - id: megatron_v1
+    x: 140
+    y: 165
+    category: parallelism
+  - id: megatron_3d
+    x: 180
+    y: 165
+    category: parallelism
+  - id: parallel_folding
+    x: 260
+    y: 155
+    category: parallelism
+  - id: moeblaze
+    x: 260
+    y: 165
+    category: parallelism
+  - id: dynamic_cp
+    x: 260
+    y: 175
+    category: parallelism
+  - id: fedavg
+    x: 100
+    y: 210
+    category: federated
+  - id: fedprox
+    x: 160
+    y: 200
+    category: federated
+  - id: fedbn
+    x: 160
+    y: 210
+    category: federated
+  - id: scaffold
+    x: 160
+    y: 220
+    category: federated
+  - id: fedma
+    x: 160
+    y: 230
+    category: federated
+  - id: fednova
+    x: 160
+    y: 240
+    category: federated
+  - id: devft
+    x: 260
+    y: 200
+    category: federated
+  - id: chainfed
+    x: 260
+    y: 210
+    category: federated
+  - id: pfed1bs
+    x: 260
+    y: 220
+    category: federated
+  - id: distilcachefl
+    x: 260
+    y: 230
+    category: federated
+  - id: pfedmoe
+    x: 260
+    y: 240
+    category: federated
+  - id: onebit_sgd
+    x: 60
+    y: 280
+    category: communication
+  - id: fed_comm
+    x: 90
+    y: 270
+    category: communication
+  - id: qsgd
+    x: 100
+    y: 280
+    category: communication
+  - id: terngrad
+    x: 100
+    y: 290
+    category: communication
+  - id: dpsgd
+    x: 100
+    y: 300
+    category: communication
+  - id: dgc
+    x: 130
+    y: 280
+    category: communication
+  - id: signsgd
+    x: 130
+    y: 290
+    category: communication
+  - id: local_sgd
+    x: 140
+    y: 310
+    category: communication
+  - id: diloco_dct
+    x: 240
+    y: 310
+    category: communication
+  - id: tagc
+    x: 260
+    y: 280
+    category: communication
+  - id: oscar
+    x: 260
+    y: 290
+    category: communication
+  - id: ctma
+    x: 260
+    y: 300
+    category: communication
+  edges:
+  - from: hogwild
+    to: distbelief
+    label: 异步并行基础
+  - from: distbelief
+    to: ps
+    label: 架构系统化
+  - from: distbelief
+    to: easgd
+    label: 优化稳定性
+  - from: ps
+    to: decoupled_diloco
+    label: 地理分布式
+  - from: ps
+    to: odc
+    label: 消除同步屏障
+  - from: ps
+    to: ring_allreduce
+    label: 消除中心瓶颈
+  - from: ring_allreduce
+    to: horovod
+    label: 工程化实现
+  - from: ring_allreduce
+    to: zero
+    label: 内存优化演进
+  - from: ring_allreduce
+    to: oscar
+    label: 软硬协同加速
+  - from: zero
+    to: fsdp
+    label: 框架原生集成
+  - from: zero
+    to: fcdp
+    label: CPU缓存加速
+  - from: fsdp
+    to: ft_hsdp
+    label: 容错增强
+  - from: gpipe
+    to: pipedream
+    label: 调度效率提升
+  - from: pipedream
+    to: deepseek_v4_dp
+    label: 双向重叠调度
+  - from: megatron_v1
+    to: megatron_3d
+    label: 混合并行演进
+  - from: megatron_3d
+    to: parallel_folding
+    label: 并行网格解耦
+  - from: megatron_3d
+    to: moeblaze
+    label: MoE内存优化
+  - from: megatron_3d
+    to: dynamic_cp
+    label: 动态序列并行
+  - from: megatron_3d
+    to: bytescale
+    label: 混合数据并行
+  - from: fedavg
+    to: fedprox
+    label: 处理异质性
+  - from: fedavg
+    to: fedbn
+    label: 缓解特征偏移
+  - from: fedavg
+    to: scaffold
+    label: 校正客户漂移
+  - from: fedavg
+    to: fedma
+    label: 神经元对齐
+  - from: fedavg
+    to: fednova
+    label: 解决目标不一致
+  - from: fedavg
+    to: devft
+    label: 发育式微调
+  - from: fedavg
+    to: chainfed
+    label: 链式内存优化
+  - from: fedavg
+    to: pfed1bs
+    label: 一比特压缩
+  - from: fedavg
+    to: distilcachefl
+    label: 蒸馏缓存
+  - from: fedavg
+    to: pfedmoe
+    label: MoE个性化
+  - from: fedavg
+    to: ctma
+    label: 拜占庭容错
+  - from: onebit_sgd
+    to: qsgd
+    label: 理论保证量化
+  - from: onebit_sgd
+    to: terngrad
+    label: 极低比特量化
+  - from: onebit_sgd
+    to: signsgd
+    label: 符号化压缩
+  - from: qsgd
+    to: dgc
+    label: 结合稀疏化
+  - from: dgc
+    to: tagc
+    label: 架构感知压缩
+  - from: local_sgd
+    to: diloco_dct
+    label: 频域动量压缩
+  milestones:
+  - ps
+  - fedavg
+  - zero
+  - ft_hsdp

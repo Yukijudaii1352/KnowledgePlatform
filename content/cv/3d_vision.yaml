@@ -1,0 +1,529 @@
+domain: cv
+topic_id: 3d_vision
+topic_name: 3D视觉
+page_icon: 🧊
+page_title: 3D视觉技术演进图谱
+page_subtitle: '{build_date} 版'
+page_desc: 系统梳理从点云处理、NeRF神经辐射场到3D Gaussian Splatting的技术变革与2026最新前沿，涵盖神经渲染、三维重建的完整演化路径。
+hero_pills:
+- 🏷️ NeRF · 3DGS · Reconstruction
+- 🏷️ Point Cloud · Neural Rendering
+count_pill: '{count} 个算法'
+categories:
+  point_cloud:
+    label: 点云理解
+    color: '#22a06b'
+  nerf:
+    label: 神经辐射场
+    color: '#5b63d3'
+  gaussian_splatting:
+    label: 高斯泼溅
+    color: '#e8820c'
+  reconstruction:
+    label: 三维重建
+    color: '#d32f2f'
+algorithms:
+- id: pointnet
+  name: PointNet
+  full_name: 点云深度学习 (PointNet)
+  year: '2017'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/1612.00593
+  category: point_cloud
+  parent: —
+  motivation: 首次用深度学习直接处理无序点集，最大池化实现置换不变性
+- id: pointnet_pp
+  name: PointNet++
+  full_name: 层级点云网络 (PointNet++)
+  year: '2017'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/1706.02413
+  category: point_cloud
+  parent: pointnet
+  motivation: 引入层级结构捕获局部几何特征，提升细粒度理解能力
+- id: dgcnn
+  name: DGCNN
+  full_name: 动态图卷积网络 (Dynamic Graph CNN)
+  year: '2019'
+  org: MIT
+  paper_url: https://arxiv.org/abs/1801.07829
+  category: point_cloud
+  parent: pointnet_pp
+  motivation: 动态构建k近邻图，EdgeConv捕获局部几何关系
+- id: point_transformer
+  name: Point Transformer
+  full_name: 点云Transformer (Point Transformer)
+  year: '2021'
+  org: Oxford
+  paper_url: https://arxiv.org/abs/2012.09164
+  category: point_cloud
+  parent: dgcnn
+  motivation: 向量自注意力机制建模长程依赖，刷新语义分割记录
+- id: tcs_net
+  name: TCS-Net
+  full_name: 隧道施工安全监测网络 (TCS-Net)
+  year: '2026'
+  org: Springer
+  paper_url: https://link.springer.com/article/10.1007/s10921-025-01293-8
+  category: point_cloud
+  parent: point_transformer
+  motivation: 面向极端环境的鲁棒点云分割，应用于隧道安全监测
+- id: lora_pointnet
+  name: LoRA-PointNet++
+  full_name: LoRA增强点云分割 (LoRA-PointNet++)
+  year: '2026'
+  org: ISPRS
+  paper_url: https://www.sciencedirect.com/science/article/pii/S2667393226000050
+  category: point_cloud
+  parent: pointnet_pp
+  motivation: 引入LoRA微调技术实现高效跨领域点云适配
+- id: nerf
+  name: NeRF
+  full_name: 神经辐射场 (Neural Radiance Fields)
+  year: '2020'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/2003.08934
+  category: nerf
+  parent: —
+  motivation: 5D神经隐式表示+体渲染，开启神经渲染新时代
+- id: mip_nerf
+  name: Mip-NeRF
+  full_name: 多尺度抗锯齿NeRF (Mip-NeRF)
+  year: '2021'
+  org: Google
+  paper_url: https://arxiv.org/abs/2103.13415
+  category: nerf
+  parent: nerf
+  motivation: 圆锥台采样+集成位置编码解决多尺度走样问题
+- id: d_nerf
+  name: D-NeRF
+  full_name: 动态神经辐射场 (Dynamic NeRF)
+  year: '2021'
+  org: UNC
+  paper_url: https://arxiv.org/abs/2011.13961
+  category: nerf
+  parent: nerf
+  motivation: 扩展时间维度建模动态场景的形变与运动
+- id: plenoxels
+  name: Plenoxels
+  full_name: 稀疏体素辐射场 (Plenoxels)
+  year: '2022'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/2112.05131
+  category: nerf
+  parent: nerf
+  motivation: 稀疏体素+球谐函数，无需神经网络实现快速优化
+- id: instant_ngp
+  name: Instant-NGP
+  full_name: 即时神经图形基元 (Instant-NGP)
+  year: '2022'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/2201.05989
+  category: nerf
+  parent: nerf
+  motivation: 多分辨率哈希编码将训练时间从数天缩短至数秒
+- id: mip_nerf_360
+  name: Mip-NeRF 360
+  full_name: 无界场景NeRF (Mip-NeRF 360)
+  year: '2022'
+  org: Google
+  paper_url: https://arxiv.org/abs/2111.12077
+  category: nerf
+  parent: mip_nerf
+  motivation: 场景收缩技术处理无界大规模场景
+- id: tensorf
+  name: TensoRF
+  full_name: 张量分解辐射场 (TensoRF)
+  year: '2022'
+  org: UCSD
+  paper_url: https://arxiv.org/abs/2203.09517
+  category: nerf
+  parent: nerf
+  motivation: 张量分解建模4D场景，平衡质量与效率
+- id: zip_nerf
+  name: Zip-NeRF
+  full_name: 融合抗锯齿与加速NeRF (Zip-NeRF)
+  year: '2023'
+  org: Google
+  paper_url: https://arxiv.org/abs/2304.06706
+  category: nerf
+  parent: mip_nerf_360
+  motivation: 融合Mip-NeRF抗锯齿与网格加速技术
+- id: nerfstudio
+  name: Nerfstudio
+  full_name: NeRF模块化框架 (Nerfstudio)
+  year: '2023'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/2302.04264
+  category: nerf
+  parent: nerf
+  motivation: 模块化开发框架加速NeRF研究与应用落地
+- id: ecc_nerf
+  name: ECC-NeRF
+  full_name: 椭圆锥投射NeRF (ECC-NeRF)
+  year: '2025'
+  org: IEEE
+  paper_url: https://ieeexplore.ieee.org/document/11016927/
+  category: nerf
+  parent: mip_nerf
+  motivation: 椭圆锥投射技术支持多样化相机模型的抗锯齿
+- id: efficient_lvsm
+  name: Efficient-LVSM
+  full_name: 高效大视角合成模型 (Efficient-LVSM)
+  year: '2026'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2602.06478
+  category: nerf
+  parent: nerf
+  motivation: 解耦共精炼注意力机制提升前馈视角合成速度
+- id: 3dgs
+  name: 3DGS
+  full_name: 3D高斯泼溅 (3D Gaussian Splatting)
+  year: '2023'
+  org: Inria
+  paper_url: https://arxiv.org/abs/2308.04079
+  category: gaussian_splatting
+  parent: —
+  motivation: 显式高斯基元+平铺光栅化实现实时高质量渲染
+- id: mip_splatting
+  name: Mip-Splatting
+  full_name: 抗锯齿高斯泼溅 (Mip-Splatting)
+  year: '2024'
+  org: Tsinghua
+  paper_url: https://arxiv.org/abs/2311.16493
+  category: gaussian_splatting
+  parent: 3dgs
+  motivation: 3D平滑滤波器解决缩放时的走样问题
+- id: gaussianpro
+  name: GaussianPro
+  full_name: 渐进式高斯优化 (GaussianPro)
+  year: '2024'
+  org: ICML
+  paper_url: https://openreview.net/forum?id=lQ3SEBH1gF
+  category: gaussian_splatting
+  parent: 3dgs
+  motivation: 渐进式传播策略优化高斯密度分布
+- id: langsplat
+  name: LangSplat
+  full_name: 语言高斯泼溅 (LangSplat)
+  year: '2024'
+  org: NTU
+  paper_url: https://arxiv.org/abs/2312.16084
+  category: gaussian_splatting
+  parent: 3dgs
+  motivation: 语言特征嵌入高斯点云实现语义级3D理解
+- id: thermal3d_gs
+  name: Thermal3D-GS
+  full_name: 热红外3D高斯 (Thermal3D-GS)
+  year: '2026'
+  org: IEEE
+  paper_url: https://ieeexplore.ieee.org/abstract/document/11393601/
+  category: gaussian_splatting
+  parent: 3dgs
+  motivation: 物理驱动的热红外建模扩展至多物理模态
+- id: usgs
+  name: USGS
+  full_name: 稀疏视角高斯泼溅 (USGS)
+  year: '2026'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2601.xxxxx
+  category: gaussian_splatting
+  parent: 3dgs
+  motivation: 正则化技术优化稀疏视角下的重建质量
+- id: colmap
+  name: COLMAP
+  full_name: 增量式运动恢复结构 (COLMAP)
+  year: '2016'
+  org: ETH Zurich
+  paper_url: https://colmap.github.io/
+  category: reconstruction
+  parent: —
+  motivation: 增量式SfM成为三维重建的工业标准工具
+- id: mvsnet
+  name: MVSNet
+  full_name: 多视角立体网络 (MVSNet)
+  year: '2018'
+  org: HKUST
+  paper_url: https://arxiv.org/abs/1804.02505
+  category: reconstruction
+  parent: colmap
+  motivation: 深度学习驱动的多视角立体重建
+- id: deepsdf
+  name: DeepSDF
+  full_name: 深度符号距离场 (DeepSDF)
+  year: '2019'
+  org: UW
+  paper_url: https://arxiv.org/abs/1901.05103
+  category: reconstruction
+  parent: —
+  motivation: 连续SDF+自解码器架构开创神经隐式表示
+- id: occupancy_net
+  name: Occupancy Networks
+  full_name: 占用网络 (Occupancy Networks)
+  year: '2019'
+  org: MPI
+  paper_url: https://arxiv.org/abs/1812.03828
+  category: reconstruction
+  parent: deepsdf
+  motivation: 占用概率场学习连续几何表示
+- id: convonet
+  name: ConvONet
+  full_name: 卷积占用网络 (ConvONet)
+  year: '2020'
+  org: MPI
+  paper_url: https://arxiv.org/abs/2003.04618
+  category: reconstruction
+  parent: occupancy_net
+  motivation: 卷积编码器提升局部特征表达能力
+- id: neus
+  name: NeuS
+  full_name: 神经隐式表面 (NeuS)
+  year: '2021'
+  org: Zhejiang Univ
+  paper_url: https://arxiv.org/abs/2106.10689
+  category: reconstruction
+  parent: deepsdf
+  motivation: 无偏体渲染+SDF实现高精度表面提取
+- id: volsdf
+  name: VolSDF
+  full_name: 体密度SDF (VolSDF)
+  year: '2021'
+  org: Weizmann
+  paper_url: https://arxiv.org/abs/2106.12052
+  category: reconstruction
+  parent: neus
+  motivation: 体密度与SDF几何约束融合提升重建质量
+- id: deocc_1to3
+  name: Deocc-1-to-3
+  full_name: 单图3D去遮挡 (Deocc-1-to-3)
+  year: '2026'
+  org: AAAI
+  paper_url: https://ojs.aaai.org/index.php/AAAI/article/view/37820
+  category: reconstruction
+  parent: neus
+  motivation: 自监督多视角扩散模型11秒完成遮挡图像3D重建
+- id: ilspr
+  name: iLSPR
+  full_name: 学习型场景点云配准 (iLSPR)
+  year: '2026'
+  org: Elsevier
+  paper_url: https://www.sciencedirect.com/science/article/pii/S0736584525002583
+  category: reconstruction
+  parent: colmap
+  motivation: 提升机器人在智能制造环境中的空间感知能力
+graph:
+  nodes:
+  - id: pointnet
+    x: 150
+    y: 80
+    category: point_cloud
+  - id: pointnet_pp
+    x: 150
+    y: 140
+    category: point_cloud
+  - id: dgcnn
+    x: 280
+    y: 80
+    category: point_cloud
+  - id: point_transformer
+    x: 420
+    y: 80
+    category: point_cloud
+  - id: tcs_net
+    x: 650
+    y: 60
+    category: point_cloud
+  - id: lora_pointnet
+    x: 650
+    y: 140
+    category: point_cloud
+  - id: nerf
+    x: 320
+    y: 280
+    category: nerf
+  - id: mip_nerf
+    x: 420
+    y: 220
+    category: nerf
+  - id: d_nerf
+    x: 420
+    y: 340
+    category: nerf
+  - id: plenoxels
+    x: 480
+    y: 380
+    category: nerf
+  - id: instant_ngp
+    x: 480
+    y: 280
+    category: nerf
+  - id: mip_nerf_360
+    x: 480
+    y: 220
+    category: nerf
+  - id: tensorf
+    x: 480
+    y: 340
+    category: nerf
+  - id: zip_nerf
+    x: 560
+    y: 220
+    category: nerf
+  - id: nerfstudio
+    x: 560
+    y: 340
+    category: nerf
+  - id: ecc_nerf
+    x: 620
+    y: 200
+    category: nerf
+  - id: efficient_lvsm
+    x: 650
+    y: 280
+    category: nerf
+  - id: 3dgs
+    x: 560
+    y: 480
+    category: gaussian_splatting
+  - id: mip_splatting
+    x: 630
+    y: 440
+    category: gaussian_splatting
+  - id: gaussianpro
+    x: 630
+    y: 480
+    category: gaussian_splatting
+  - id: langsplat
+    x: 630
+    y: 520
+    category: gaussian_splatting
+  - id: thermal3d_gs
+    x: 700
+    y: 460
+    category: gaussian_splatting
+  - id: usgs
+    x: 700
+    y: 520
+    category: gaussian_splatting
+  - id: colmap
+    x: 100
+    y: 620
+    category: reconstruction
+  - id: mvsnet
+    x: 220
+    y: 620
+    category: reconstruction
+  - id: deepsdf
+    x: 280
+    y: 680
+    category: reconstruction
+  - id: occupancy_net
+    x: 280
+    y: 720
+    category: reconstruction
+  - id: convonet
+    x: 360
+    y: 720
+    category: reconstruction
+  - id: neus
+    x: 420
+    y: 660
+    category: reconstruction
+  - id: volsdf
+    x: 420
+    y: 700
+    category: reconstruction
+  - id: deocc_1to3
+    x: 650
+    y: 660
+    category: reconstruction
+  - id: ilspr
+    x: 650
+    y: 620
+    category: reconstruction
+  edges:
+  - from: pointnet
+    to: pointnet_pp
+    label: 层级化
+  - from: pointnet_pp
+    to: dgcnn
+    label: 动态图
+  - from: dgcnn
+    to: point_transformer
+    label: Transformer
+  - from: point_transformer
+    to: tcs_net
+    label: 行业应用
+  - from: pointnet_pp
+    to: lora_pointnet
+    label: LoRA微调
+  - from: nerf
+    to: mip_nerf
+    label: 抗锯齿
+  - from: nerf
+    to: d_nerf
+    label: 动态化
+  - from: nerf
+    to: plenoxels
+    label: 显式化
+  - from: nerf
+    to: instant_ngp
+    label: 加速
+  - from: nerf
+    to: tensorf
+    label: 张量分解
+  - from: nerf
+    to: nerfstudio
+    label: 框架化
+  - from: mip_nerf
+    to: mip_nerf_360
+    label: 无界场景
+  - from: mip_nerf_360
+    to: zip_nerf
+    label: 融合加速
+  - from: mip_nerf
+    to: ecc_nerf
+    label: 椭圆锥投射
+  - from: nerf
+    to: efficient_lvsm
+    label: 前馈合成
+  - from: 3dgs
+    to: mip_splatting
+    label: 抗锯齿
+  - from: 3dgs
+    to: gaussianpro
+    label: 渐进优化
+  - from: 3dgs
+    to: langsplat
+    label: 语义嵌入
+  - from: 3dgs
+    to: thermal3d_gs
+    label: 多模态
+  - from: 3dgs
+    to: usgs
+    label: 稀疏视角
+  - from: colmap
+    to: mvsnet
+    label: 深度学习
+  - from: deepsdf
+    to: occupancy_net
+    label: 占用场
+  - from: occupancy_net
+    to: convonet
+    label: 卷积编码
+  - from: deepsdf
+    to: neus
+    label: 体渲染
+  - from: neus
+    to: volsdf
+    label: 几何约束
+  - from: neus
+    to: deocc_1to3
+    label: 扩散模型
+  - from: colmap
+    to: ilspr
+    label: 学习配准
+  milestones:
+  - pointnet
+  - nerf
+  - 3dgs

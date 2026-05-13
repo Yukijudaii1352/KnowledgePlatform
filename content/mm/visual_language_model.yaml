@@ -1,0 +1,460 @@
+page:
+  domain: mm
+  topic_id: visual_language_model
+  topic_name: 视觉-语言基础模型
+  page_subtitle: '{build_date} 版'
+  count_pill: '{count} 个算法'
+  icon: 🔗
+  description: 视觉-语言基础模型（VLM）通过跨模态对齐、指令微调和原生多模态训练，实现图像与文本的深度理解与生成，是多模态AI的核心基础设施。
+categories:
+- id: contrastive
+  name: 对比学习
+  color: '#3B82F6'
+  description: 通过大规模图文对对比学习实现跨模态对齐，奠定VLM基础架构
+- id: encoder_decoder
+  name: 编解码器
+  color: '#10B981'
+  description: 采用混合编码器-解码器架构，支持多任务统一建模
+- id: connector
+  name: 连接器架构
+  color: '#F59E0B'
+  description: 通过轻量级连接器桥接冻结的视觉编码器与大语言模型
+- id: native_multimodal
+  name: 原生多模态
+  color: '#8B5CF6'
+  description: 从预训练阶段即进行多模态联合训练，实现模态间深度融合
+- id: frontier_2026
+  name: 2026前沿
+  color: '#EF4444'
+  description: 2026年最新突破，包括思考模式、超长上下文和具身智能
+algorithms:
+- id: clip
+  name: CLIP
+  year: '2021'
+  category: contrastive
+  institution: OpenAI
+  paper: ICML 2021
+  motivation: 利用自然语言监督学习通用视觉表征
+  parent: —
+  description: 在4亿图文对上进行对比学习，通过双塔架构（ViT+Transformer）实现零样本分类，成为多模态AI的视觉基石。
+- id: align
+  name: ALIGN
+  year: '2021'
+  category: contrastive
+  institution: Google
+  paper: ICML 2021
+  motivation: 验证规模胜于质量的假设
+  parent: clip
+  description: 使用18亿对原始噪声Alt-text数据，证明简单架构在大规模数据下的强大生命力。
+- id: vilt
+  name: ViLT
+  year: '2021'
+  category: encoder_decoder
+  institution: KAIST
+  paper: ICML 2021
+  motivation: 首个完全摒弃目标检测器的VLM
+  parent: —
+  description: 直接将图像Patch和文本Token拼接输入统一Transformer，解决推理速度慢的痛点。
+- id: albef
+  name: ALBEF
+  year: '2021'
+  category: encoder_decoder
+  institution: Salesforce
+  paper: NeurIPS 2021
+  motivation: 对齐后融合+动量蒸馏处理噪声
+  parent: clip
+  description: 在跨模态融合前先进行对比学习对齐，引入动量蒸馏处理噪声标签。
+- id: blip
+  name: BLIP
+  year: '2022'
+  category: encoder_decoder
+  institution: Salesforce
+  paper: ICML 2022
+  motivation: CapFilt数据引导提升质量
+  parent: albef
+  description: 通过Captioner生成合成标题并用Filter剔除噪声，联合优化ITC、ITM和LM三个目标。
+- id: flamingo
+  name: Flamingo
+  year: '2022'
+  category: connector
+  institution: DeepMind
+  paper: NeurIPS 2022
+  motivation: 冻结双塔+门控交叉注意力
+  parent: —
+  description: 80B参数，通过Perceiver Resampler和Gated Cross-Attention连接冻结的视觉与语言模型，实现少样本学习。
+- id: pali
+  name: PaLI
+  year: '2022'
+  category: encoder_decoder
+  institution: Google
+  paper: arXiv
+  motivation: 视觉语言联合缩放定律
+  parent: —
+  description: 提出视觉编码器和语言模型规模应同步增长，支持100+语言的多语言多模态理解。
+- id: blip2
+  name: BLIP-2
+  year: '2023'
+  category: connector
+  institution: Salesforce
+  paper: ICML 2023
+  motivation: Q-Former高效模态桥接
+  parent: blip
+  description: 188M参数的Q-Former使用32个可学习查询，两阶段预训练实现极高参数效率，以54倍更少参数超越Flamingo-80B。
+- id: instructblip
+  name: InstructBLIP
+  year: '2023'
+  category: connector
+  institution: Salesforce
+  paper: NeurIPS 2023
+  motivation: 指令感知视觉特征提取
+  parent: blip2
+  description: 将文本指令输入Q-Former，引导查询关注与任务相关的视觉区域，在26个数据集上达到SOTA。
+- id: minigpt4
+  name: MiniGPT-4
+  year: '2023'
+  category: connector
+  institution: KAUST
+  paper: ICLR 2024
+  motivation: 线性投影+高质量对话微调
+  parent: blip2
+  description: 复用BLIP-2视觉前端，通过单层线性投影连接Vicuna，证明小规模高质量数据在第二阶段的关键作用。
+- id: llava
+  name: LLaVA
+  year: '2023'
+  category: connector
+  institution: UW-Microsoft
+  paper: NeurIPS 2023 Oral
+  motivation: 视觉指令微调开创者
+  parent: clip
+  description: 首次将指令微调引入多模态，通过GPT-4生成15万条对话数据，开启开源多模态对话模型浪潮。
+- id: qwen_vl
+  name: Qwen-VL
+  year: '2023.08'
+  category: connector
+  institution: 阿里巴巴
+  paper: arXiv
+  motivation: 位置感知跨注意力适配器
+  parent: llava
+  description: 单层Cross-attention适配器支持细粒度定位和强OCR能力，首个原生支持中文的开源多模态大模型。
+- id: cogvlm
+  name: CogVLM
+  year: '2023'
+  category: connector
+  institution: 智谱AI
+  paper: arXiv
+  motivation: 视觉专家模块深度融合
+  parent: llava
+  description: 17B参数，在LLM每一层引入独立的视觉QKV矩阵和MLP层，实现视觉优先的深度融合。
+- id: gemini
+  name: Gemini
+  year: '2023.12'
+  category: native_multimodal
+  institution: Google
+  paper: Technical Report
+  motivation: 原生多模态联合训练
+  parent: pali
+  description: 从预训练阶段即在跨模态数据上联合训练，支持文本、图像、音频、视频无缝交错，在30/32个基准上刷新SOTA。
+- id: llava_next
+  name: LLaVA-NeXT
+  year: '2024.01'
+  category: connector
+  institution: UW-ByteDance
+  paper: arXiv
+  motivation: AnyRes动态分辨率切片
+  parent: llava
+  description: 将高分辨率图像切分为多个336x336子图并保留全局图，支持4倍像素量，显著提升OCR和文档理解能力。
+- id: internvl_2_5
+  name: InternVL 2.5
+  year: '2024'
+  category: connector
+  institution: 上海AI Lab
+  paper: arXiv
+  motivation: 动态高分辨率+Pixel Unshuffle
+  parent: —
+  description: 采用InternViT-6B视觉端，通过像素逆置减少Token数量，首个在MMMU上突破70分的开源模型。
+- id: internvl_3_5
+  name: InternVL 3.5
+  year: '2025'
+  category: connector
+  institution: 上海AI Lab
+  paper: arXiv
+  motivation: 级联RL逻辑对齐
+  parent: internvl_2_5
+  description: 引入级联式强化学习进行逻辑对齐，采用解耦部署架构（DvD），响应速度提升4倍。
+- id: siglip2
+  name: SigLIP 2
+  year: '2026.02'
+  category: frontier_2026
+  institution: Google
+  paper: arXiv
+  motivation: 统一训练配方增强定位
+  parent: clip
+  description: 整合描述、自蒸馏和掩码预测任务，显著增强定位能力，成为新一代视觉编码器标准。
+- id: llm2clip
+  name: LLM2CLIP
+  year: '2026.01'
+  category: frontier_2026
+  institution: AAAI 2026杰出论文
+  paper: AAAI 2026
+  motivation: 语言模型解锁视觉表示
+  parent: clip
+  description: 展示如何利用强大的语言模型解锁更丰富的视觉表示，获得AAAI 2026杰出论文奖。
+- id: gpt5_4
+  name: GPT-5.4
+  year: '2026.03'
+  category: native_multimodal
+  institution: OpenAI
+  paper: —
+  motivation: 原生统一架构+1M上下文
+  parent: gemini
+  description: 原生统一架构支持1M上下文，强化计算机交互能力，在MMMU Pro上达到75%。
+- id: gemini_3_1
+  name: Gemini 3.1 Pro
+  year: '2026.02'
+  category: native_multimodal
+  institution: Google
+  paper: —
+  motivation: 2M超长上下文多模态
+  parent: gemini
+  description: 支持2M超长上下文，实现音视频图文同步处理，在MMMU Pro上达到79%。
+- id: claude_opus_4_7
+  name: Claude Opus 4.7
+  year: '2026.04'
+  category: frontier_2026
+  institution: Anthropic
+  paper: —
+  motivation: xhigh深度推理模式
+  parent: —
+  description: 支持3.75MP高分辨率输入，引入"xhigh"深度推理模式，在OmniDocBench上达到87.7。
+- id: llama4
+  name: Llama 4
+  year: '2025.04'
+  category: native_multimodal
+  institution: Meta
+  paper: —
+  motivation: 原生MoE+1M上下文
+  parent: —
+  description: 原生多模态MoE架构，17B激活参数，1M上下文，LMArena ELO达到1417。
+- id: qwen3_5_vlm
+  name: Qwen3.5-VLM
+  year: '2026.02'
+  category: frontier_2026
+  institution: 阿里巴巴
+  paper: —
+  motivation: GDN早期融合架构
+  parent: qwen_vl
+  description: Gated Delta Network+MoE，256K原生上下文，早期融合架构，在OmniDocBench上达到90.8。
+- id: doubao_2_0
+  name: 豆包2.0 Pro
+  year: '2026.02'
+  category: frontier_2026
+  institution: 字节跳动
+  paper: —
+  motivation: 万亿MoE视频解析
+  parent: —
+  description: 万亿参数MoE架构，强化复杂文档与视频解析能力，在SuperCLUE-VLM上达到90.66。
+- id: glm_4_5v
+  name: GLM-4.5V
+  year: '2026'
+  category: frontier_2026
+  institution: 智谱AI
+  paper: —
+  motivation: 3D-RoPE思考模式
+  parent: cogvlm
+  description: 3D-RoPE空间感知技术，支持"思考模式"切换，科学推理能力大幅提升。
+- id: deepseek_v4
+  name: DeepSeek-V4
+  year: '2026.04'
+  category: frontier_2026
+  institution: DeepSeek
+  paper: —
+  motivation: Engram条件内存
+  parent: —
+  description: 1.6T参数MoE，Engram条件内存机制，推理成本降低10倍，空间导航胜过GPT-5.4。
+- id: internvl_3_0
+  name: InternVL 3.0
+  year: '2025.04'
+  category: native_multimodal
+  institution: 上海AI Lab
+  paper: —
+  motivation: V2PE原生多模态预训练
+  parent: internvl_3_5
+  description: 原生多模态预训练，V2PE可变位置编码，支持万级token，在MMMU上达到72.2。
+- id: v_jepa2
+  name: V-JEPA 2
+  year: '2026'
+  category: frontier_2026
+  institution: Meta
+  paper: ICLR 2026
+  motivation: 预测编码视频理解
+  parent: —
+  description: 预测编码器家族，通过预测潜在表示而非像素，在视频理解和规划中表现卓越。
+- id: drivepi
+  name: DrivePI
+  year: '2026'
+  category: frontier_2026
+  institution: —
+  paper: CVPR 2026
+  motivation: 4D多模态自动驾驶
+  parent: —
+  description: 空间感知的4D多模态大模型，统一自动驾驶的感知、预测与规划，实现端到端闭环控制。
+graph:
+  nodes:
+  - id: clip
+    x: 100
+    y: 100
+  - id: align
+    x: 150
+    y: 120
+  - id: vilt
+    x: 120
+    y: 250
+  - id: albef
+    x: 140
+    y: 200
+  - id: blip
+    x: 200
+    y: 220
+  - id: flamingo
+    x: 220
+    y: 350
+  - id: pali
+    x: 240
+    y: 450
+  - id: blip2
+    x: 300
+    y: 240
+  - id: instructblip
+    x: 350
+    y: 260
+  - id: minigpt4
+    x: 360
+    y: 300
+  - id: llava
+    x: 320
+    y: 150
+  - id: qwen_vl
+    x: 380
+    y: 170
+  - id: cogvlm
+    x: 390
+    y: 130
+  - id: gemini
+    x: 340
+    y: 480
+  - id: llava_next
+    x: 450
+    y: 160
+  - id: internvl_2_5
+    x: 460
+    y: 320
+  - id: internvl_3_5
+    x: 520
+    y: 340
+  - id: siglip2
+    x: 600
+    y: 80
+  - id: llm2clip
+    x: 610
+    y: 110
+  - id: gpt5_4
+    x: 640
+    y: 500
+  - id: gemini_3_1
+    x: 650
+    y: 520
+  - id: claude_opus_4_7
+    x: 660
+    y: 400
+  - id: llama4
+    x: 620
+    y: 460
+  - id: qwen3_5_vlm
+    x: 630
+    y: 180
+  - id: doubao_2_0
+    x: 640
+    y: 280
+  - id: glm_4_5v
+    x: 650
+    y: 140
+  - id: deepseek_v4
+    x: 670
+    y: 350
+  - id: internvl_3_0
+    x: 580
+    y: 360
+  - id: v_jepa2
+    x: 680
+    y: 220
+  - id: drivepi
+    x: 690
+    y: 250
+  edges:
+  - from: clip
+    to: align
+    label: 规模扩展
+  - from: clip
+    to: albef
+    label: 对齐融合
+  - from: clip
+    to: llava
+    label: 指令微调
+  - from: clip
+    to: siglip2
+    label: 统一配方
+  - from: clip
+    to: llm2clip
+    label: LLM增强
+  - from: albef
+    to: blip
+    label: 数据引导
+  - from: blip
+    to: blip2
+    label: Q-Former
+  - from: blip2
+    to: instructblip
+    label: 指令感知
+  - from: blip2
+    to: minigpt4
+    label: 简化投影
+  - from: llava
+    to: qwen_vl
+    label: 位置感知
+  - from: llava
+    to: cogvlm
+    label: 深度融合
+  - from: llava
+    to: llava_next
+    label: 动态切片
+  - from: qwen_vl
+    to: qwen3_5_vlm
+    label: 早期融合
+  - from: cogvlm
+    to: glm_4_5v
+    label: 思考模式
+  - from: pali
+    to: gemini
+    label: 原生训练
+  - from: gemini
+    to: gpt5_4
+    label: 统一架构
+  - from: gemini
+    to: gemini_3_1
+    label: 超长上下文
+  - from: internvl_2_5
+    to: internvl_3_5
+    label: RL对齐
+  - from: internvl_3_5
+    to: internvl_3_0
+    label: 原生预训练
+  milestones:
+  - id: clip
+    label: 对比学习奠基
+    description: CLIP开创大规模图文对比学习范式，成为VLM视觉编码器标准
+  - id: llava
+    label: 指令微调开创
+    description: LLaVA首次将指令微调引入多模态，开启开源VLM对话模型浪潮
+  - id: gemini
+    label: 原生多模态标杆
+    description: Gemini实现从预训练阶段的原生多模态联合训练，树立新范式标杆

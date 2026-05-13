@@ -1,0 +1,739 @@
+domain: cv
+topic_id: body_vision
+topic_name: 人体视觉
+page_icon: 🧍
+page_title: 人体视觉技术演进图谱
+page_subtitle: '{build_date} 版'
+page_desc: 人体视觉技术从2D姿态感知到3D网格重建，从静态分析到动态生成，从单一身体到全身精细化建模的演进历程。涵盖姿态估计、人体Mesh重建、动作生成与人脸分析四大核心方向，展现从经典算法到2026年前沿进展的完整技术脉络。
+hero_pills:
+- 姿态估计 · Mesh重建 · 动作生成 · 人脸分析
+count_pill: '{count} 个算法'
+categories:
+- key: pose
+  label: 姿态估计
+  color: '#3B82F6'
+- key: mesh
+  label: 人体重建
+  color: '#10B981'
+- key: motion
+  label: 动作生成
+  color: '#F59E0B'
+- key: face
+  label: 人脸分析
+  color: '#EF4444'
+algorithms:
+- id: deeppose
+  name: DeepPose
+  full_name: 深度姿态 (DeepPose)
+  year: '2014'
+  org: Google
+  paper_url: https://openaccess.thecvf.com/content_cvpr_2014/html/Toshev_DeepPose_Human_Pose_2014_CVPR_paper.html
+  category: pose
+  parent: —
+  motivation: 首次将姿态估计建模为DNN回归问题
+- id: cpm
+  name: CPM
+  full_name: 卷积姿态机 (Convolutional Pose Machines)
+  year: '2016'
+  org: CMU
+  paper_url: https://openaccess.thecvf.com/content_cvpr_2016/html/Wei_Convolutional_Pose_Machines_CVPR_2016_paper.html
+  category: pose
+  parent: deeppose
+  motivation: 多阶段架构利用中间监督学习长程空间约束
+- id: hourglass
+  name: Hourglass
+  full_name: 堆叠沙漏网络 (Stacked Hourglass)
+  year: '2016'
+  org: 密歇根大学
+  paper_url: https://link.springer.com/chapter/10.1007/978-3-319-46484-8_29
+  category: pose
+  parent: deeppose
+  motivation: 对称编解码结构反复捕捉多尺度特征
+- id: openpose
+  name: OpenPose
+  full_name: 开放姿态 (OpenPose)
+  year: '2017'
+  org: CMU
+  paper_url: https://arxiv.org/abs/1611.08050
+  category: pose
+  parent: cpm
+  motivation: 提出PAFs实现自底向上多人实时检测
+- id: simplebaseline
+  name: SimpleBaseline
+  full_name: 简单基线 (Simple Baselines)
+  year: '2018'
+  org: Microsoft
+  paper_url: https://openaccess.thecvf.com/content_ECCV_2018/html/Bin_Xiao_Simple_Baselines_for_ECCV_2018_paper.html
+  category: pose
+  parent: hourglass
+  motivation: ResNet加反卷积的极简结构达到SOTA
+- id: hrnet
+  name: HRNet
+  full_name: 高分辨率网络 (High-Resolution Net)
+  year: '2019'
+  org: MSRA
+  paper_url: https://openaccess.thecvf.com/content_CVPR_2019/html/Sun_Deep_High-Resolution_Representation_Learning_for_Human_Pose_Estimation_CVPR_2019_paper.html
+  category: pose
+  parent: hourglass
+  motivation: 全程并行维持高分辨率流保留精确空间信息
+- id: posenet
+  name: PoseNet
+  full_name: 姿态网络 (PoseNet)
+  year: '2018'
+  org: Google
+  paper_url: https://blog.tensorflow.org/2018/05/real-time-human-pose-estimation-in.html
+  category: pose
+  parent: openpose
+  motivation: 基于MobileNet实现浏览器端实时推理
+- id: densepose
+  name: DensePose
+  full_name: 密集姿态 (DensePose)
+  year: '2018'
+  org: FAIR
+  paper_url: https://openaccess.thecvf.com/content_cvpr_2018/html/Guler_DensePose_Dense_Human_CVPR_2018_paper.html
+  category: pose
+  parent: openpose
+  motivation: 建立图像像素到3D人体表面的稠密UV映射
+- id: hmpformer
+  name: HMPFormer
+  full_name: 层级多视角感知Transformer (Hierarchical Multi-perspective Perception Transformer)
+  year: '2026.01'
+  org: ResearchGate
+  paper_url: https://www.researchgate.net/publication/HMPFormer
+  category: pose
+  parent: hrnet
+  motivation: 多级关节上下文聚合器捕捉精细局部姿态
+- id: yolo26pose
+  name: YOLO26 Pose
+  full_name: YOLO26姿态估计 (YOLO26 Pose)
+  year: '2026.02'
+  org: Ultralytics
+  paper_url: https://docs.ultralytics.com/models/yolo26
+  category: pose
+  parent: hrnet
+  motivation: 引入RLE技术消除NMS实现高精度实时推理
+- id: e3dpsm
+  name: E-3DPSM
+  full_name: 事件驱动3D姿态状态机 (Event-Based Egocentric 3D Pose State Machine)
+  year: '2026.06'
+  org: CVPR 2026
+  paper_url: https://cvpr.thecvf.com/2026/E-3DPSM
+  category: pose
+  parent: hrnet
+  motivation: 利用事件相机高时间分辨率解决动态模糊
+- id: drpose
+  name: DRPose
+  full_name: 扩散细化姿态 (Diffusion Refinement Pose)
+  year: '2026.03'
+  org: IEEE TCSVT
+  paper_url: https://ieeexplore.ieee.org/document/DRPose
+  category: pose
+  parent: hrnet
+  motivation: 基于扩散模型的姿态细化框架提升精度
+- id: dsvtformer
+  name: DSVTformer
+  full_name: 双流空间视角时间Transformer (Dual-Stream Spatial-View-Temporal Transformer)
+  year: '2026.01'
+  org: Pattern Recognition
+  paper_url: https://www.sciencedirect.com/science/article/pii/DSVTformer
+  category: pose
+  parent: hmpformer
+  motivation: 双流注意力机制捕捉时空多视角依赖
+- id: smpl
+  name: SMPL
+  full_name: 多人线性模型 (Skinned Multi-Person Linear Model)
+  year: '2015'
+  org: MPI
+  paper_url: https://dl.acm.org/doi/abs/10.1145/3596711.3596800
+  category: mesh
+  parent: —
+  motivation: 基于顶点的线性模型解耦形状与姿态参数
+- id: smplify
+  name: SMPLify
+  full_name: SMPL拟合 (SMPLify)
+  year: '2016'
+  org: MPI
+  paper_url: https://link.springer.com/chapter/10.1007/978-3-319-46454-1_34
+  category: mesh
+  parent: smpl
+  motivation: 首个从单幅图像自动拟合SMPL到2D关键点
+- id: hmr
+  name: HMR
+  full_name: 人体网格恢复 (Human Mesh Recovery)
+  year: '2018'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/1712.06584
+  category: mesh
+  parent: smplify
+  motivation: 端到端回归参数引入对抗训练解决数据缺失
+- id: graphcmr
+  name: GraphCMR
+  full_name: 图卷积网格回归 (Graph Convolutional Mesh Regression)
+  year: '2019'
+  org: 宾夕法尼亚大学
+  paper_url: http://openaccess.thecvf.com/content_CVPR_2019/html/Kolotouros_Convolutional_Mesh_Regression_for_Single-Image_Human_Shape_Reconstruction_CVPR_2019_paper.html
+  category: mesh
+  parent: hmr
+  motivation: 利用图卷积直接在网格顶点上回归
+- id: spin
+  name: SPIN
+  full_name: 自改进网络 (Self-improving Network)
+  year: '2019'
+  org: MPI
+  paper_url: http://openaccess.thecvf.com/content_ICCV_2019/html/Kolotouros_Learning_to_Reconstruct_3D_Human_Pose_and_Shape_via_Model-Fitting_ICCV_2019_paper.html
+  category: mesh
+  parent: hmr
+  motivation: 将模型拟合嵌入训练循环结合回归与优化
+- id: vibe
+  name: VIBE
+  full_name: 视频推理重建 (Video Inference for Body Pose and Shape Estimation)
+  year: '2020'
+  org: MPI
+  paper_url: http://openaccess.thecvf.com/content_CVPR_2020/html/Kocabas_VIBE_Video_Inference_for_Human_Body_Pose_and_Shape_Estimation_CVPR_2020_paper.html
+  category: mesh
+  parent: spin
+  motivation: 引入时间序列判别器确保视频动作平滑性
+- id: smplx
+  name: SMPL-X
+  full_name: 全身模型 (SMPL-eXpressive)
+  year: '2019'
+  org: MPI
+  paper_url: http://openaccess.thecvf.com/content_CVPR_2019/html/Pavlakos_Expressive_Body_Capture_3D_Hands_Face_and_Body_From_a_CVPR_2019_paper.html
+  category: mesh
+  parent: smpl
+  motivation: 统一建模身体手部面部提供更丰富表达力
+- id: pear
+  name: PEAR
+  full_name: 像素对齐表达式重建 (Pixel-aligned Expressive humAn mesh Recovery)
+  year: '2026.01'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2601.22693
+  category: mesh
+  parent: smplx
+  motivation: 像素级监督实现100+FPS的SMPL-X回归
+- id: hsmr
+  name: HSMR
+  full_name: 人体骨骼与网格恢复 (Human Skeleton and Mesh Recovery)
+  year: '2026.03'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2503.07162
+  category: mesh
+  parent: vibe
+  motivation: 集成生物力学骨骼模型杜绝解剖学错误
+- id: sam3dbody
+  name: Sam 3D Body
+  full_name: 动量人体骨架 (Sam 3D Body with Momentum Human Rig)
+  year: '2026.02'
+  org: Holographica
+  paper_url: https://holographica.space/news/sam-3d-body/
+  category: mesh
+  parent: smplx
+  motivation: 动量人体骨架解耦表示提升重建效率
+- id: soma
+  name: SOMA
+  full_name: 统一参数化人体模型 (Unifying Parametric Human Body Models)
+  year: '2026.03'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2603.16858
+  category: mesh
+  parent: smplx
+  motivation: 统一参数化框架兼容多种人体模型
+- id: omnifit
+  name: OmniFit
+  full_name: 全能拟合 (OmniFit)
+  year: '2026.04'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2604.21575
+  category: mesh
+  parent: pear
+  motivation: 尺度无关稠密地标预测统一处理穿衣人体
+- id: motionvae
+  name: Motion VAE
+  full_name: 动作变分自编码器 (Motion Variational Autoencoder)
+  year: '2017'
+  org: 爱丁堡大学
+  paper_url: https://www.research.ed.ac.uk/en/publications/a-recurrent-variational-autoencoder-for-human-motion-synthesis/
+  category: motion
+  parent: —
+  motivation: 递归VAE学习运动潜在空间支持多模态生成
+- id: action2motion
+  name: Action2Motion
+  full_name: 动作类别生成 (Action-Conditioned Motion Generation)
+  year: '2020'
+  org: 中科院
+  paper_url: https://dl.acm.org/doi/abs/10.1145/3394171.3413635
+  category: motion
+  parent: motionvae
+  motivation: 基于动作类别引入Lie代数表示生成3D运动
+- id: actor
+  name: ACTOR
+  full_name: 动作Transformer (Action-Conditioned Transformer)
+  year: '2021'
+  org: INRIA
+  paper_url: https://openaccess.thecvf.com/content/ICCV2021/html/Petrovich_Action-Conditioned_3D_Human_Motion_Synthesis_With_Transformer_VAE_ICCV_2021_paper.html
+  category: motion
+  parent: action2motion
+  motivation: Transformer与VAE结合处理变长序列生成
+- id: mdm
+  name: MDM
+  full_name: 动作扩散模型 (Motion Diffusion Model)
+  year: '2022'
+  org: 特拉维夫大学
+  paper_url: https://arxiv.org/abs/2209.14916
+  category: motion
+  parent: actor
+  motivation: 首个将扩散模型应用于动作生成的框架
+- id: motiondiffuse
+  name: MotionDiffuse
+  full_name: 运动扩散 (MotionDiffuse)
+  year: '2022'
+  org: 商汤科技
+  paper_url: https://arxiv.org/abs/2208.15001
+  category: motion
+  parent: actor
+  motivation: 首个基于扩散模型的文本驱动动作生成
+- id: t2mgpt
+  name: T2M-GPT
+  full_name: 动作GPT (Text-to-Motion GPT)
+  year: '2023'
+  org: 腾讯
+  paper_url: http://openaccess.thecvf.com/content_CVPR_2023/html/Zhang_Generating_Human_Motion_From_Textual_Descriptions_With_Discrete_Representations_CVPR_2023_paper.html
+  category: motion
+  parent: mdm
+  motivation: 结合VQ-VAE与GPT离散化Token自回归生成
+- id: cmdm
+  name: CMDM
+  full_name: 因果动作扩散模型 (Causal Motion Diffusion Models)
+  year: '2026.02'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2602.22594
+  category: motion
+  parent: mdm
+  motivation: 因果扩散Transformer支持流式无尽长度生成
+- id: macedance
+  name: MACE-Dance
+  full_name: 运动外观级联专家 (Motion-Appearance Cascaded Experts)
+  year: '2026.05'
+  org: Hugging Face
+  paper_url: https://huggingface.co/papers/2512.18181
+  category: motion
+  parent: cmdm
+  motivation: 混合专家系统BiMamba架构降低长序列开销
+- id: dancecrafter
+  name: DanceCrafter
+  full_name: 舞蹈编排器 (DanceCrafter)
+  year: '2026.04'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2604.DanceCrafter
+  category: motion
+  parent: t2mgpt
+  motivation: 基于编舞语法的细粒度文本控制生成
+- id: tokendance
+  name: TokenDance
+  full_name: Token舞蹈 (TokenDance)
+  year: '2026.03'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2603.TokenDance
+  category: motion
+  parent: t2mgpt
+  motivation: Token-to-Token双向Mamba架构提升效率
+- id: deepface
+  name: DeepFace
+  full_name: 深度人脸 (DeepFace)
+  year: '2014'
+  org: Facebook
+  paper_url: http://openaccess.thecvf.com/content_cvpr_2014/html/Taigman_DeepFace_Closing_the_2014_CVPR_paper.html
+  category: face
+  parent: —
+  motivation: 3D对齐与9层深度网络接近人类识别精度
+- id: facenet
+  name: FaceNet
+  full_name: 人脸网络 (FaceNet)
+  year: '2015'
+  org: Google
+  paper_url: https://www.cv-foundation.org/openaccess/content_cvpr_2015/html/Schroff_FaceNet_A_Unified_2015_CVPR_paper.html
+  category: face
+  parent: deepface
+  motivation: 提出三元组损失直接学习欧氏空间映射
+- id: mtcnn
+  name: MTCNN
+  full_name: 多任务级联网络 (Multi-task Cascaded CNN)
+  year: '2016'
+  org: 中科院
+  paper_url: https://arxiv.org/abs/1604.02878
+  category: face
+  parent: deepface
+  motivation: 三级级联CNN同时完成检测回归与对齐
+- id: 3ddfa
+  name: 3DDFA
+  full_name: 3D对齐 (3D Dense Face Alignment)
+  year: '2016'
+  org: 中科院
+  paper_url: http://openaccess.thecvf.com/content_cvpr_2016/html/Zhu_Face_Alignment_Across_CVPR_2016_paper.html
+  category: face
+  parent: deepface
+  motivation: 拟合3DMM模型解决大角度人脸对齐问题
+- id: arcface
+  name: ArcFace
+  full_name: 角度间隔损失 (Additive Angular Margin Loss)
+  year: '2019'
+  org: 深睿医疗
+  paper_url: http://openaccess.thecvf.com/content_CVPR_2019/html/Deng_ArcFace_Additive_Angular_Margin_Loss_for_Deep_Face_Recognition_CVPR_2019_paper.html
+  category: face
+  parent: facenet
+  motivation: 加性角度间隔损失在超球面最大化类别可分性
+- id: retinaface
+  name: RetinaFace
+  full_name: 视网膜人脸 (RetinaFace)
+  year: '2019'
+  org: 深睿医疗
+  paper_url: http://openaccess.thecvf.com/content_CVPR_2019/html/Deng_RetinaFace_Single-Shot_Multi-Level_Face_Localisation_in_the_Wild_CVPR_2019_paper.html
+  category: face
+  parent: mtcnn
+  motivation: 单阶段多任务检测器引入像素级面部监督
+- id: tridf
+  name: TriDF
+  full_name: 可解释深伪检测 (Interpretable DeepFake Detection)
+  year: '2026.06'
+  org: CVPR 2026
+  paper_url: https://openaccess.thecvf.com/CVPR2026/TriDF
+  category: face
+  parent: retinaface
+  motivation: 提供可解释文本说明的深伪检测框架
+- id: unils
+  name: UniLS
+  full_name: 统一唇语同步 (Unified Lip Sync)
+  year: '2026.06'
+  org: CVPR 2026
+  paper_url: https://openaccess.thecvf.com/CVPR2026/UniLS
+  category: face
+  parent: arcface
+  motivation: 音频驱动头像捕捉自发性微表情
+- id: avatarforcing
+  name: Avatar Forcing
+  full_name: 化身强制 (Avatar Forcing)
+  year: '2026.01'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2601.00664
+  category: face
+  parent: unils
+  motivation: 建模用户与化身间因果交互实现实时反应
+- id: geneava
+  name: GenEAva
+  full_name: 生成表情化身 (Generative Expressive Avatar)
+  year: '2026.01'
+  org: WACV 2026
+  paper_url: https://openaccess.thecvf.com/WACV2026/GenEAva
+  category: face
+  parent: 3ddfa
+  motivation: 从写实扩散脸生成精细表情卡通化身
+graph:
+  nodes:
+  - id: deeppose
+    x: 50
+    y: 100
+    category: pose
+  - id: cpm
+    x: 150
+    y: 80
+    category: pose
+  - id: hourglass
+    x: 150
+    y: 120
+    category: pose
+  - id: openpose
+    x: 250
+    y: 80
+    category: pose
+  - id: simplebaseline
+    x: 300
+    y: 120
+    category: pose
+  - id: posenet
+    x: 300
+    y: 60
+    category: pose
+  - id: densepose
+    x: 300
+    y: 40
+    category: pose
+  - id: hrnet
+    x: 400
+    y: 100
+    category: pose
+  - id: hmpformer
+    x: 850
+    y: 100
+    category: pose
+  - id: yolo26pose
+    x: 900
+    y: 80
+    category: pose
+  - id: e3dpsm
+    x: 1000
+    y: 120
+    category: pose
+  - id: drpose
+    x: 950
+    y: 60
+    category: pose
+  - id: dsvtformer
+    x: 950
+    y: 140
+    category: pose
+  - id: smpl
+    x: 30
+    y: 280
+    category: mesh
+  - id: smplify
+    x: 130
+    y: 260
+    category: mesh
+  - id: hmr
+    x: 280
+    y: 260
+    category: mesh
+  - id: graphcmr
+    x: 380
+    y: 240
+    category: mesh
+  - id: spin
+    x: 380
+    y: 280
+    category: mesh
+  - id: vibe
+    x: 480
+    y: 280
+    category: mesh
+  - id: smplx
+    x: 380
+    y: 320
+    category: mesh
+  - id: pear
+    x: 850
+    y: 320
+    category: mesh
+  - id: hsmr
+    x: 950
+    y: 280
+    category: mesh
+  - id: sam3dbody
+    x: 900
+    y: 340
+    category: mesh
+  - id: soma
+    x: 950
+    y: 320
+    category: mesh
+  - id: omnifit
+    x: 1000
+    y: 340
+    category: mesh
+  - id: motionvae
+    x: 250
+    y: 450
+    category: motion
+  - id: action2motion
+    x: 480
+    y: 430
+    category: motion
+  - id: actor
+    x: 580
+    y: 430
+    category: motion
+  - id: mdm
+    x: 680
+    y: 420
+    category: motion
+  - id: motiondiffuse
+    x: 680
+    y: 460
+    category: motion
+  - id: t2mgpt
+    x: 780
+    y: 440
+    category: motion
+  - id: cmdm
+    x: 900
+    y: 420
+    category: motion
+  - id: macedance
+    x: 1000
+    y: 400
+    category: motion
+  - id: dancecrafter
+    x: 1000
+    y: 440
+    category: motion
+  - id: tokendance
+    x: 950
+    y: 460
+    category: motion
+  - id: deepface
+    x: 50
+    y: 600
+    category: face
+  - id: facenet
+    x: 150
+    y: 580
+    category: face
+  - id: mtcnn
+    x: 150
+    y: 620
+    category: face
+  - id: 3ddfa
+    x: 150
+    y: 660
+    category: face
+  - id: arcface
+    x: 400
+    y: 580
+    category: face
+  - id: retinaface
+    x: 400
+    y: 620
+    category: face
+  - id: tridf
+    x: 1000
+    y: 620
+    category: face
+  - id: unils
+    x: 1000
+    y: 580
+    category: face
+  - id: avatarforcing
+    x: 850
+    y: 560
+    category: face
+  - id: geneava
+    x: 850
+    y: 660
+    category: face
+  edges:
+  - from: deeppose
+    to: cpm
+    label: 多阶段架构
+  - from: deeppose
+    to: hourglass
+    label: 多尺度特征
+  - from: cpm
+    to: openpose
+    label: PAFs多人
+  - from: hourglass
+    to: simplebaseline
+    label: 极简结构
+  - from: hourglass
+    to: hrnet
+    label: 高分辨率流
+  - from: openpose
+    to: posenet
+    label: 轻量化
+  - from: openpose
+    to: densepose
+    label: 稠密映射
+  - from: hrnet
+    to: hmpformer
+    label: 层级建模
+  - from: hrnet
+    to: yolo26pose
+    label: 实时推理
+  - from: hrnet
+    to: e3dpsm
+    label: 事件相机
+  - from: hrnet
+    to: drpose
+    label: 扩散细化
+  - from: hmpformer
+    to: dsvtformer
+    label: 双流注意力
+  - from: smpl
+    to: smplify
+    label: 优化拟合
+  - from: smplify
+    to: hmr
+    label: 端到端回归
+  - from: hmr
+    to: graphcmr
+    label: 图卷积
+  - from: hmr
+    to: spin
+    label: 优化反馈
+  - from: spin
+    to: vibe
+    label: 视频序列
+  - from: smpl
+    to: smplx
+    label: 全身建模
+  - from: smplx
+    to: pear
+    label: 像素对齐
+  - from: vibe
+    to: hsmr
+    label: 生物力学
+  - from: smplx
+    to: sam3dbody
+    label: 动量骨架
+  - from: smplx
+    to: soma
+    label: 统一框架
+  - from: pear
+    to: omnifit
+    label: 尺度无关
+  - from: motionvae
+    to: action2motion
+    label: Lie代数
+  - from: action2motion
+    to: actor
+    label: Transformer
+  - from: actor
+    to: mdm
+    label: 扩散模型
+  - from: actor
+    to: motiondiffuse
+    label: 文本驱动
+  - from: mdm
+    to: t2mgpt
+    label: 离散Token
+  - from: mdm
+    to: cmdm
+    label: 因果流式
+  - from: cmdm
+    to: macedance
+    label: 混合专家
+  - from: t2mgpt
+    to: dancecrafter
+    label: 编舞语法
+  - from: t2mgpt
+    to: tokendance
+    label: Mamba架构
+  - from: deepface
+    to: facenet
+    label: 三元组损失
+  - from: deepface
+    to: mtcnn
+    label: 级联检测
+  - from: deepface
+    to: 3ddfa
+    label: 3DMM拟合
+  - from: facenet
+    to: arcface
+    label: 角度间隔
+  - from: mtcnn
+    to: retinaface
+    label: 单阶段
+  - from: retinaface
+    to: tridf
+    label: 可解释检测
+  - from: arcface
+    to: unils
+    label: 音频驱动
+  - from: unils
+    to: avatarforcing
+    label: 因果交互
+  - from: 3ddfa
+    to: geneava
+    label: 表情生成
+  milestones:
+  - smpl
+  - openpose
+  - mdm

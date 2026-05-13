@@ -1,0 +1,358 @@
+page_meta:
+  domain: cv
+  topic_id: video_vision
+  topic_name: 视频视觉
+  page_icon: 🎬
+  page_title: 视频视觉技术演进
+  page_subtitle: '{build_date} 版'
+  page_desc: 从手工特征到深度学习，再到视频基础模型与世界模型的技术演进
+  hero_pills: 视频理解 · 动作识别 · 时序建模 · 视频大模型
+  count_pill: '{count} 个算法'
+categories:
+  traditional_feature:
+    label: 传统特征方法
+    color: '#8B4513'
+  cnn_rnn:
+    label: CNN/RNN架构
+    color: '#2E8B57'
+  transformer:
+    label: Transformer时序建模
+    color: '#4169E1'
+  foundation_model:
+    label: 视频基础模型
+    color: '#9932CC'
+algorithms:
+- id: idt
+  name: iDT
+  full_name: 改进密集轨迹 (Improved Dense Trajectories)
+  year: 2013
+  org: INRIA
+  paper_url: https://hal.inria.fr/hal-00803241
+  category: traditional_feature
+  parent: —
+  motivation: 相机运动补偿的手工特征巅峰
+- id: two_stream
+  name: Two-Stream
+  full_name: 双流卷积网络 (Two-Stream ConvNets)
+  year: 2014
+  org: Oxford
+  paper_url: https://arxiv.org/abs/1406.2199
+  category: cnn_rnn
+  parent: —
+  motivation: RGB与光流双流解耦架构
+- id: c3d
+  name: C3D
+  full_name: 3D卷积网络 (Convolutional 3D Networks)
+  year: 2015
+  org: Facebook
+  paper_url: https://arxiv.org/abs/1412.0767
+  category: cnn_rnn
+  parent: idt
+  motivation: 3D卷积端到端时空特征学习
+- id: lrcn
+  name: LRCN
+  full_name: 长程循环网络 (Long-term Recurrent ConvNets)
+  year: 2015
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/1411.4389
+  category: cnn_rnn
+  parent: two_stream
+  motivation: CNN+LSTM端到端时序建模
+- id: tsn
+  name: TSN
+  full_name: 时序分段网络 (Temporal Segment Networks)
+  year: 2016
+  org: CUHK
+  paper_url: https://arxiv.org/abs/1608.00859
+  category: cnn_rnn
+  parent: two_stream
+  motivation: 稀疏采样与段共识机制
+- id: i3d
+  name: I3D
+  full_name: 膨胀3D网络 (Inflated 3D ConvNet)
+  year: 2017
+  org: DeepMind
+  paper_url: https://arxiv.org/abs/1705.07750
+  category: cnn_rnn
+  parent: c3d
+  motivation: 2D权重膨胀至3D+Kinetics预训练
+- id: non_local
+  name: Non-local
+  full_name: 非局部神经网络 (Non-local Neural Networks)
+  year: 2018
+  org: FAIR
+  paper_url: https://arxiv.org/abs/1711.07971
+  category: transformer
+  parent: i3d
+  motivation: 自注意力捕捉长程时空依赖
+- id: r2plus1d
+  name: R(2+1)D
+  full_name: 分解3D卷积 (Factorized 3D Convolutions)
+  year: 2018
+  org: Facebook
+  paper_url: https://arxiv.org/abs/1711.11248
+  category: cnn_rnn
+  parent: c3d
+  motivation: 将3D卷积分解为2D空间+1D时间
+- id: tsm
+  name: TSM
+  full_name: 时序移位模块 (Temporal Shift Module)
+  year: 2019
+  org: MIT
+  paper_url: https://arxiv.org/abs/1811.08383
+  category: cnn_rnn
+  parent: tsn
+  motivation: 零计算代价的通道时序移位
+- id: slowfast
+  name: SlowFast
+  full_name: 双速网络 (SlowFast Networks)
+  year: 2019
+  org: FAIR
+  paper_url: https://arxiv.org/abs/1812.03982
+  category: cnn_rnn
+  parent: i3d
+  motivation: 双速采样捕捉外观与运动
+- id: timesformer
+  name: TimeSformer
+  full_name: 时空Transformer (TimeSformer)
+  year: 2021
+  org: Facebook
+  paper_url: https://arxiv.org/abs/2102.05095
+  category: transformer
+  parent: non_local
+  motivation: 分层时空自注意力机制
+- id: vivit
+  name: ViViT
+  full_name: 视频视觉Transformer (Video Vision Transformer)
+  year: 2021
+  org: Google
+  paper_url: https://arxiv.org/abs/2103.15691
+  category: transformer
+  parent: timesformer
+  motivation: 多种时空因子化方案
+- id: clip4clip
+  name: CLIP4Clip
+  full_name: CLIP视频检索 (CLIP for Video Retrieval)
+  year: 2021
+  org: Alibaba
+  paper_url: https://arxiv.org/abs/2104.08860
+  category: foundation_model
+  parent: —
+  motivation: CLIP迁移至视频文本检索
+- id: video_swin
+  name: Video Swin
+  full_name: 视频Swin Transformer (Video Swin Transformer)
+  year: 2022
+  org: MSRA
+  paper_url: https://arxiv.org/abs/2106.13230
+  category: transformer
+  parent: vivit
+  motivation: 3D偏移窗口注意力
+- id: videomae
+  name: VideoMAE
+  full_name: 视频掩码自编码器 (VideoMAE)
+  year: 2022
+  org: Nanjing University
+  paper_url: https://arxiv.org/abs/2203.12602
+  category: foundation_model
+  parent: video_swin
+  motivation: 90%高掩码率自监督预训练
+- id: internvideo
+  name: InternVideo
+  full_name: 通用视频模型 (InternVideo)
+  year: 2022
+  org: Shanghai AI Lab
+  paper_url: https://arxiv.org/abs/2212.03191
+  category: foundation_model
+  parent: videomae
+  motivation: 多任务统一表征与多模态对齐
+- id: mamba3
+  name: Mamba-3
+  full_name: 状态空间模型3代 (Mamba-3 Architecture)
+  year: 2026
+  org: Princeton
+  paper_url: https://pli.princeton.edu/mamba3
+  category: transformer
+  parent: video_swin
+  motivation: 线性注意力解决长视频瓶颈
+- id: cosmos
+  name: Cosmos
+  full_name: 世界模型策略 (Cosmos World Model Policy)
+  year: 2026
+  org: NVIDIA
+  paper_url: https://research.nvidia.com/cosmos
+  category: foundation_model
+  parent: internvideo
+  motivation: 视频预训练转化机器人策略
+- id: worldreel
+  name: WorldReel
+  full_name: 4D世界视频 (WorldReel 4D Generation)
+  year: 2026
+  org: CVPR
+  paper_url: https://cvpr2026.thecvf.com
+  category: foundation_model
+  parent: cosmos
+  motivation: 几何一致4D视频生成
+- id: kangaroo
+  name: Kangaroo
+  full_name: 长视频语言模型 (Kangaroo VLM)
+  year: 2026
+  org: IJCV
+  paper_url: https://link.springer.com/kangaroo
+  category: foundation_model
+  parent: internvideo
+  motivation: 超长上下文视频语言对齐
+- id: trajtok
+  name: TrajTok
+  full_name: 轨迹Token (Learning Trajectory Tokens)
+  year: 2026
+  org: Tsinghua/CAS
+  paper_url: https://arxiv.org/abs/2604.trajtok
+  category: foundation_model
+  parent: videomae
+  motivation: 端到端轨迹Token解耦时长
+graph:
+  nodes:
+  - id: idt
+    x: 0
+    y: 0
+    category: traditional_feature
+  - id: two_stream
+    x: 1
+    y: 1
+    category: cnn_rnn
+  - id: c3d
+    x: 2
+    y: 1
+    category: cnn_rnn
+  - id: lrcn
+    x: 2
+    y: 1.5
+    category: cnn_rnn
+  - id: tsn
+    x: 3
+    y: 1
+    category: cnn_rnn
+  - id: i3d
+    x: 4
+    y: 1
+    category: cnn_rnn
+  - id: non_local
+    x: 5
+    y: 2
+    category: transformer
+  - id: r2plus1d
+    x: 5
+    y: 1
+    category: cnn_rnn
+  - id: tsm
+    x: 6
+    y: 1
+    category: cnn_rnn
+  - id: slowfast
+    x: 6
+    y: 1.5
+    category: cnn_rnn
+  - id: timesformer
+    x: 8
+    y: 2
+    category: transformer
+  - id: vivit
+    x: 8
+    y: 2.5
+    category: transformer
+  - id: clip4clip
+    x: 8
+    y: 3
+    category: foundation_model
+  - id: video_swin
+    x: 9
+    y: 2
+    category: transformer
+  - id: videomae
+    x: 9
+    y: 3
+    category: foundation_model
+  - id: internvideo
+    x: 9
+    y: 3.5
+    category: foundation_model
+  - id: mamba3
+    x: 13
+    y: 2
+    category: transformer
+  - id: cosmos
+    x: 13
+    y: 3
+    category: foundation_model
+  - id: worldreel
+    x: 13
+    y: 3.5
+    category: foundation_model
+  - id: kangaroo
+    x: 13
+    y: 4
+    category: foundation_model
+  - id: trajtok
+    x: 13
+    y: 3.2
+    category: foundation_model
+  edges:
+  - from: idt
+    to: c3d
+    label: 深度学习化
+  - from: two_stream
+    to: lrcn
+    label: 时序建模
+  - from: two_stream
+    to: tsn
+    label: 长视频采样
+  - from: c3d
+    to: i3d
+    label: 权重膨胀
+  - from: c3d
+    to: r2plus1d
+    label: 卷积分解
+  - from: tsn
+    to: tsm
+    label: 时序移位
+  - from: i3d
+    to: non_local
+    label: 自注意力
+  - from: i3d
+    to: slowfast
+    label: 双速采样
+  - from: non_local
+    to: timesformer
+    label: 纯注意力
+  - from: timesformer
+    to: vivit
+    label: 时空因子化
+  - from: vivit
+    to: video_swin
+    label: 窗口注意力
+  - from: video_swin
+    to: videomae
+    label: 自监督
+  - from: video_swin
+    to: mamba3
+    label: 线性注意力
+  - from: videomae
+    to: internvideo
+    label: 多模态对齐
+  - from: videomae
+    to: trajtok
+    label: 轨迹Token
+  - from: internvideo
+    to: cosmos
+    label: 世界模型
+  - from: internvideo
+    to: kangaroo
+    label: 长上下文
+  - from: cosmos
+    to: worldreel
+    label: 4D生成
+  milestones:
+  - c3d
+  - timesformer
+  - videomae

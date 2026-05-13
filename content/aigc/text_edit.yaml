@@ -1,0 +1,612 @@
+page_icon: 🎨
+page_title: 图像编辑技术演进图谱
+page_subtitle: '{build_date} 版'
+page_desc: 梳理从GAN时代到Diffusion时代的图像编辑算法演进脉络，涵盖局部重绘、风格迁移、可控生成及2026年最新的DiT架构编辑与精准控制技术。
+hero_pills: 🏷️ Image Editing · Diffusion Models · Controllable Generation
+count_pill: '{count} 个算法'
+categories:
+  local_editing:
+    label: 局部编辑与修复
+    color: '#2ecc71'
+  style_transfer:
+    label: 风格迁移
+    color: '#3498db'
+  controllable_gen:
+    label: 可控生成
+    color: '#e67e22'
+  identity_preserve:
+    label: 身份/保真度保持
+    color: '#9b59b6'
+  instruction_edit:
+    label: 指令驱动编辑
+    color: '#e74c3c'
+algorithms:
+- id: context-encoders
+  name: Context Encoders
+  full_name: 上下文编码器 (Context Encoders)
+  year: '2016'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/1604.07379
+  category: local_editing
+  parent: —
+  motivation: 编码器+对抗损失实现语义级修复
+- id: contextual-attention
+  name: Contextual Attention
+  full_name: 上下文注意力修复 (Contextual Attention)
+  year: '2018'
+  org: UIUC/Adobe
+  paper_url: https://arxiv.org/abs/1801.07892
+  category: local_editing
+  parent: context-encoders
+  motivation: 远距离特征借用实现精准修复
+- id: deep-image-prior
+  name: Deep Image Prior
+  full_name: 深度图像先验 (Deep Image Prior)
+  year: '2018'
+  org: Skoltech
+  paper_url: https://arxiv.org/abs/1711.10925
+  category: local_editing
+  parent: —
+  motivation: CNN结构本身作为图像恢复先验
+- id: blended-diffusion
+  name: Blended Diffusion
+  full_name: 混合扩散 (Blended Diffusion)
+  year: '2022'
+  org: Hebrew Univ
+  paper_url: https://arxiv.org/abs/2111.14818
+  category: local_editing
+  parent: —
+  motivation: 潜在空间掩码引导扩散混合
+- id: diffedit
+  name: DiffEdit
+  full_name: 差分编辑 (DiffEdit)
+  year: '2022'
+  org: Meta
+  paper_url: https://arxiv.org/abs/2210.11427
+  category: local_editing
+  parent: blended-diffusion
+  motivation: 自动掩码生成实现语义编辑
+- id: hifi-inpaint
+  name: Hifi-Inpaint
+  full_name: 高保真参考修复 (Hifi-Inpaint)
+  year: '2026'
+  org: —
+  paper_url: https://arxiv.org/abs/2603.02210
+  category: local_editing
+  parent: —
+  motivation: 参考图引导细节保留修复
+- id: neural-style-transfer
+  name: Neural Style Transfer
+  full_name: 神经风格迁移 (Neural Style Transfer)
+  year: '2016'
+  org: Tubingen
+  paper_url: https://arxiv.org/abs/1508.06576
+  category: style_transfer
+  parent: —
+  motivation: Gram矩阵匹配实现风格融合
+- id: fast-style-transfer
+  name: Fast Style Transfer
+  full_name: 快速风格迁移 (Fast Style Transfer)
+  year: '2016'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/1603.08155
+  category: style_transfer
+  parent: neural-style-transfer
+  motivation: 感知损失训练实时变换网络
+- id: adain
+  name: AdaIN
+  full_name: 自适应实例归一化 (AdaIN)
+  year: '2017'
+  org: Cornell
+  paper_url: https://arxiv.org/abs/1703.06868
+  category: style_transfer
+  parent: fast-style-transfer
+  motivation: 自适应归一化任意风格迁移
+- id: wct
+  name: WCT
+  full_name: 白化着色变换 (WCT)
+  year: '2017'
+  org: Cornell
+  paper_url: https://arxiv.org/abs/1705.08086
+  category: style_transfer
+  parent: adain
+  motivation: 白化与着色变换通用风格化
+- id: pix2pix
+  name: Pix2Pix
+  full_name: 像素到像素 (Pix2Pix)
+  year: '2017'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/1611.07004
+  category: controllable_gen
+  parent: —
+  motivation: 条件GAN实现成对图像翻译
+- id: cyclegan
+  name: CycleGAN
+  full_name: 循环生成网络 (CycleGAN)
+  year: '2017'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/1703.10593
+  category: controllable_gen
+  parent: pix2pix
+  motivation: 循环一致性损失无配对翻译
+- id: stylegan
+  name: StyleGAN
+  full_name: 风格生成网络 (StyleGAN)
+  year: '2019'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/1812.04948
+  category: controllable_gen
+  parent: —
+  motivation: 风格调制生成架构
+- id: image2stylegan
+  name: Image2StyleGAN
+  full_name: 图像到StyleGAN (Image2StyleGAN)
+  year: '2019'
+  org: KAUST
+  paper_url: https://arxiv.org/abs/1904.03189
+  category: controllable_gen
+  parent: stylegan
+  motivation: GAN反演嵌入真实图像编辑
+- id: controlnet
+  name: ControlNet
+  full_name: 控制网 (ControlNet)
+  year: '2023'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/2302.05543
+  category: controllable_gen
+  parent: —
+  motivation: 可训练副本支路强空间控制
+- id: uni-controlnet
+  name: Uni-ControlNet
+  full_name: 统一控制网 (Uni-ControlNet)
+  year: '2023'
+  org: Tsinghua/Microsoft
+  paper_url: https://arxiv.org/abs/2305.16322
+  category: controllable_gen
+  parent: controlnet
+  motivation: 统一多条件控制框架
+- id: t2i-adapter
+  name: T2I-Adapter
+  full_name: 文生图适配器 (T2I-Adapter)
+  year: '2024'
+  org: Tencent ARC
+  paper_url: https://arxiv.org/abs/2302.08453
+  category: controllable_gen
+  parent: controlnet
+  motivation: 轻量适配器多条件组合
+- id: dc-controlnet
+  name: DC-ControlNet
+  full_name: 解耦控制网 (DC-ControlNet)
+  year: '2026'
+  org: 360 AI
+  paper_url: https://arxiv.org/abs/2601.00000
+  category: controllable_gen
+  parent: controlnet
+  motivation: 解耦元素级多条件控制
+- id: relactrl
+  name: RelaCtrl
+  full_name: 相关性控制 (RelaCtrl)
+  year: '2026'
+  org: —
+  paper_url: https://arxiv.org/abs/2601.00001
+  category: controllable_gen
+  parent: controlnet
+  motivation: 相关性引导减15%参数高效控制
+- id: pi-light
+  name: PI-Light
+  full_name: 物理启发重光照 (PI-Light)
+  year: '2026'
+  org: MMLab@NTU
+  paper_url: https://arxiv.org/abs/2601.00002
+  category: controllable_gen
+  parent: —
+  motivation: 物理启发扩散模型重光照
+- id: ip-adapter
+  name: IP-Adapter
+  full_name: 图像提示适配器 (IP-Adapter)
+  year: '2023'
+  org: Tencent
+  paper_url: https://arxiv.org/abs/2308.06721
+  category: identity_preserve
+  parent: controlnet
+  motivation: 解耦交叉注意力图像提示
+- id: photomaker
+  name: PhotoMaker
+  full_name: 照片生成器 (PhotoMaker)
+  year: '2024'
+  org: Tencent
+  paper_url: https://arxiv.org/abs/2312.04461
+  category: identity_preserve
+  parent: ip-adapter
+  motivation: 堆叠ID嵌入多参考图融合
+- id: instantid
+  name: InstantID
+  full_name: 即时身份 (InstantID)
+  year: '2024'
+  org: InstantX
+  paper_url: https://arxiv.org/abs/2401.07519
+  category: identity_preserve
+  parent: ip-adapter
+  motivation: ControlNet+强身份零样本生成
+- id: consistentid
+  name: ConsistentID
+  full_name: 一致身份 (ConsistentID)
+  year: '2026'
+  org: —
+  paper_url: https://arxiv.org/abs/2404.16771
+  category: identity_preserve
+  parent: instantid
+  motivation: 多模态细粒度身份保持
+- id: emojidiff
+  name: EmojiDiff
+  full_name: 表情扩散 (EmojiDiff)
+  year: '2026'
+  org: —
+  paper_url: https://arxiv.org/abs/2601.00003
+  category: identity_preserve
+  parent: photomaker
+  motivation: 表情控制+身份保持
+- id: pixperfect
+  name: PixPerfect
+  full_name: 像素完美 (PixPerfect)
+  year: '2026'
+  org: —
+  paper_url: https://arxiv.org/abs/2601.00004
+  category: identity_preserve
+  parent: —
+  motivation: 像素空间细化器抗模糊
+- id: prompt-to-prompt
+  name: Prompt-to-Prompt
+  full_name: 提示到提示 (Prompt-to-Prompt)
+  year: '2022'
+  org: Google
+  paper_url: https://arxiv.org/abs/2208.01626
+  category: instruction_edit
+  parent: —
+  motivation: 交叉注意力控制局部编辑
+- id: null-text-inversion
+  name: Null-text Inversion
+  full_name: 空文本反演 (Null-text Inversion)
+  year: '2023'
+  org: Google
+  paper_url: https://arxiv.org/abs/2211.09794
+  category: instruction_edit
+  parent: prompt-to-prompt
+  motivation: 空文本反演精确重建编辑
+- id: instructpix2pix
+  name: InstructPix2Pix
+  full_name: 指令像素编辑 (InstructPix2Pix)
+  year: '2023'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/2211.09800
+  category: instruction_edit
+  parent: prompt-to-prompt
+  motivation: 指令驱动端到端编辑
+- id: ledits
+  name: LEDITS
+  full_name: 轻量编辑 (LEDITS)
+  year: '2023'
+  org: Hugging Face
+  paper_url: https://arxiv.org/abs/2307.00522
+  category: instruction_edit
+  parent: null-text-inversion
+  motivation: DDPM反演+语义引导编辑
+- id: icedit
+  name: ICEdit
+  full_name: 上下文编辑 (ICEdit)
+  year: '2025'
+  org: ByteDance
+  paper_url: https://arxiv.org/abs/2410.16965
+  category: instruction_edit
+  parent: instructpix2pix
+  motivation: 上下文学习0.1%数据达SOTA
+- id: ieap
+  name: IEAP
+  full_name: 编辑即程序 (IEAP)
+  year: '2025'
+  org: —
+  paper_url: https://arxiv.org/abs/2410.00000
+  category: instruction_edit
+  parent: icedit
+  motivation: 编辑即程序处理结构不一致
+- id: edit2perceive
+  name: Edit2Perceive
+  full_name: 编辑到感知 (Edit2Perceive)
+  year: '2026'
+  org: —
+  paper_url: https://arxiv.org/abs/2601.00005
+  category: instruction_edit
+  parent: icedit
+  motivation: 编辑模型适配感知任务
+- id: if-edit
+  name: IF-Edit
+  full_name: 视频免调优编辑 (IF-Edit)
+  year: '2026'
+  org: —
+  paper_url: https://arxiv.org/abs/2601.00006
+  category: instruction_edit
+  parent: —
+  motivation: I2V模型免调优编辑
+- id: geometric-editing
+  name: Geometric Image Editing
+  full_name: 几何图像编辑 (Geometric Image Editing)
+  year: '2026'
+  org: —
+  paper_url: https://arxiv.org/abs/2602.08388
+  category: instruction_edit
+  parent: icedit
+  motivation: DiT几何变换上下文修复
+- id: chronoedit
+  name: ChronoEdit
+  full_name: 时序编辑 (ChronoEdit)
+  year: '2026'
+  org: —
+  paper_url: https://arxiv.org/abs/2601.00007
+  category: instruction_edit
+  parent: —
+  motivation: 视频生成范式时序一致编辑
+- id: draw-in-mind
+  name: Draw-In-Mind
+  full_name: 心中作画 (Draw-In-Mind)
+  year: '2026'
+  org: —
+  paper_url: https://arxiv.org/abs/2601.00008
+  category: instruction_edit
+  parent: —
+  motivation: 设计师-画家分离MLLM指导
+- id: poem
+  name: POEM
+  full_name: 精确对象编辑 (POEM)
+  year: '2026'
+  org: —
+  paper_url: https://arxiv.org/abs/2601.00009
+  category: instruction_edit
+  parent: —
+  motivation: MLLM掩码精确对象编辑
+- id: editreward
+  name: EditReward
+  full_name: 编辑奖励 (EditReward)
+  year: '2026'
+  org: —
+  paper_url: https://arxiv.org/abs/2601.00010
+  category: instruction_edit
+  parent: —
+  motivation: 人类对齐编辑奖励模型
+graph:
+  nodes:
+  - id: context-encoders
+    x: 100
+    y: 100
+    category: local_editing
+  - id: contextual-attention
+    x: 300
+    y: 100
+    category: local_editing
+  - id: deep-image-prior
+    x: 300
+    y: 150
+    category: local_editing
+  - id: blended-diffusion
+    x: 550
+    y: 100
+    category: local_editing
+  - id: diffedit
+    x: 550
+    y: 150
+    category: local_editing
+  - id: hifi-inpaint
+    x: 950
+    y: 100
+    category: local_editing
+  - id: neural-style-transfer
+    x: 100
+    y: 250
+    category: style_transfer
+  - id: fast-style-transfer
+    x: 100
+    y: 300
+    category: style_transfer
+  - id: adain
+    x: 200
+    y: 250
+    category: style_transfer
+  - id: wct
+    x: 200
+    y: 300
+    category: style_transfer
+  - id: pix2pix
+    x: 200
+    y: 400
+    category: controllable_gen
+  - id: cyclegan
+    x: 200
+    y: 450
+    category: controllable_gen
+  - id: stylegan
+    x: 400
+    y: 400
+    category: controllable_gen
+  - id: image2stylegan
+    x: 400
+    y: 450
+    category: controllable_gen
+  - id: controlnet
+    x: 650
+    y: 400
+    category: controllable_gen
+  - id: uni-controlnet
+    x: 650
+    y: 450
+    category: controllable_gen
+  - id: t2i-adapter
+    x: 750
+    y: 400
+    category: controllable_gen
+  - id: dc-controlnet
+    x: 950
+    y: 400
+    category: controllable_gen
+  - id: relactrl
+    x: 950
+    y: 450
+    category: controllable_gen
+  - id: pi-light
+    x: 950
+    y: 500
+    category: controllable_gen
+  - id: ip-adapter
+    x: 650
+    y: 600
+    category: identity_preserve
+  - id: photomaker
+    x: 750
+    y: 600
+    category: identity_preserve
+  - id: instantid
+    x: 750
+    y: 650
+    category: identity_preserve
+  - id: consistentid
+    x: 950
+    y: 650
+    category: identity_preserve
+  - id: emojidiff
+    x: 950
+    y: 600
+    category: identity_preserve
+  - id: pixperfect
+    x: 950
+    y: 700
+    category: identity_preserve
+  - id: prompt-to-prompt
+    x: 550
+    y: 800
+    category: instruction_edit
+  - id: null-text-inversion
+    x: 650
+    y: 800
+    category: instruction_edit
+  - id: instructpix2pix
+    x: 650
+    y: 850
+    category: instruction_edit
+  - id: ledits
+    x: 650
+    y: 900
+    category: instruction_edit
+  - id: icedit
+    x: 850
+    y: 850
+    category: instruction_edit
+  - id: ieap
+    x: 850
+    y: 900
+    category: instruction_edit
+  - id: edit2perceive
+    x: 950
+    y: 850
+    category: instruction_edit
+  - id: if-edit
+    x: 950
+    y: 900
+    category: instruction_edit
+  - id: geometric-editing
+    x: 950
+    y: 950
+    category: instruction_edit
+  - id: chronoedit
+    x: 950
+    y: 1000
+    category: instruction_edit
+  - id: draw-in-mind
+    x: 950
+    y: 1050
+    category: instruction_edit
+  - id: poem
+    x: 950
+    y: 1100
+    category: instruction_edit
+  - id: editreward
+    x: 950
+    y: 1150
+    category: instruction_edit
+  edges:
+  - from: context-encoders
+    to: contextual-attention
+    label: 远距离借用
+  - from: blended-diffusion
+    to: diffedit
+    label: 自动掩码
+  - from: neural-style-transfer
+    to: fast-style-transfer
+    label: 实时化
+  - from: fast-style-transfer
+    to: adain
+    label: 任意风格
+  - from: adain
+    to: wct
+    label: 白化着色
+  - from: pix2pix
+    to: cyclegan
+    label: 无配对
+  - from: stylegan
+    to: image2stylegan
+    label: GAN反演
+  - from: controlnet
+    to: uni-controlnet
+    label: 多条件统一
+  - from: controlnet
+    to: t2i-adapter
+    label: 轻量适配
+  - from: controlnet
+    to: dc-controlnet
+    label: 解耦控制
+  - from: controlnet
+    to: relactrl
+    label: 相关性引导
+  - from: controlnet
+    to: ip-adapter
+    label: 图像提示
+  - from: ip-adapter
+    to: photomaker
+    label: 堆叠ID
+  - from: ip-adapter
+    to: instantid
+    label: 强身份
+  - from: instantid
+    to: consistentid
+    label: 多模态
+  - from: photomaker
+    to: emojidiff
+    label: 表情控制
+  - from: prompt-to-prompt
+    to: null-text-inversion
+    label: 精确反演
+  - from: prompt-to-prompt
+    to: instructpix2pix
+    label: 端到端
+  - from: null-text-inversion
+    to: ledits
+    label: 语义引导
+  - from: instructpix2pix
+    to: icedit
+    label: 上下文学习
+  - from: icedit
+    to: ieap
+    label: 程序化
+  - from: icedit
+    to: edit2perceive
+    label: 感知适配
+  - from: icedit
+    to: geometric-editing
+    label: 几何变换
+  milestones:
+  - id: neural-style-transfer
+    label: 神经风格迁移开创
+    desc: 首次证明深度特征可用于艺术风格化，开创神经风格迁移研究方向
+  - id: controlnet
+    label: 可控生成标准范式
+    desc: 实现精确空间条件控制，成为扩散模型可控生成的标准范式
+  - id: icedit
+    label: DiT时代高效编辑
+    desc: 上下文学习突破数据效率瓶颈，0.1%数据达SOTA，引领DiT编辑新范式

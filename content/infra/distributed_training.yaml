@@ -1,0 +1,628 @@
+meta:
+  domain: infra
+  topic_id: distributed_training
+  topic_name: 分布式训练
+  page_icon: 🚀
+  page_title: 分布式训练 算法总结
+  page_subtitle: '{build_date} 版'
+  page_desc: 系统梳理从经典数据并行到超大规模模型所需的张量并行、流水并行及混合并行技术演进，涵盖2026年最新通信优化进展。
+  hero_pills: 🏷️ Data Parallel · Tensor Parallel · Pipeline Parallel · Communication Optimization
+  count_pill: '{count} 个算法'
+categories:
+- key: dp
+  label: 数据并行 (Data Parallel)
+  color: '#22a06b'
+- key: tp
+  label: 张量并行 (Tensor Parallel)
+  color: '#5b63d3'
+- key: pp
+  label: 流水并行 (Pipeline Parallel)
+  color: '#e8820c'
+- key: comm
+  label: 通信优化 (Comm Optimization)
+  color: '#d33d44'
+- key: hybrid
+  label: 混合并行/MoE
+  color: '#8e44ad'
+algorithms:
+- id: hogwild
+  name: HOGWILD!
+  full_name: 无锁异步SGD (HOGWILD!)
+  year: '2011'
+  org: Univ. of Wisconsin
+  paper_url: https://proceedings.neurips.cc/paper/2011/hash/218a0a56d9938398fa2fdad06f4dd334-Abstract.html
+  category: dp
+  parent: —
+  motivation: 无锁异步更新允许Worker直接覆盖全局参数
+- id: parameter_server
+  name: Parameter Server
+  full_name: 参数服务器 (Parameter Server)
+  year: '2014'
+  org: CMU/Google
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2014/hash/935ad074f32d1e8f085a143449894cdc-Abstract.html
+  category: dp
+  parent: —
+  motivation: Server-Worker架构支持异步/同步梯度聚合
+- id: easgd
+  name: EASGD
+  full_name: 弹性平均SGD (Elastic Averaging SGD)
+  year: '2015'
+  org: NYU/Facebook
+  paper_url: https://arxiv.org/abs/1412.6651
+  category: dp
+  parent: parameter_server
+  motivation: 弹性中心变量平衡本地探索与全局同步
+- id: horovod
+  name: Horovod
+  full_name: 环形AllReduce (Horovod)
+  year: '2018'
+  org: Uber
+  paper_url: https://arxiv.org/abs/1802.05799
+  category: dp
+  parent: parameter_server
+  motivation: Ring-AllReduce优化带宽利用率
+- id: zero
+  name: ZeRO
+  full_name: 零冗余优化器 (ZeRO)
+  year: '2020'
+  org: Microsoft
+  paper_url: https://arxiv.org/abs/1910.02054
+  category: dp
+  parent: horovod
+  motivation: 消除数据并行内存冗余分阶段切分状态
+- id: fsdp
+  name: PyTorch FSDP
+  full_name: 全切分数据并行 (Fully Sharded Data Parallel)
+  year: '2023'
+  org: Meta
+  paper_url: https://arxiv.org/abs/2304.11277
+  category: dp
+  parent: zero
+  motivation: 工业级全切分数据并行支持超大规模参数
+- id: megatron_tp
+  name: Megatron-LM 1D TP
+  full_name: 一维张量并行 (Megatron-LM 1D Tensor Parallel)
+  year: '2019'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/1909.08053
+  category: tp
+  parent: —
+  motivation: 列并行MLP+行并行Attention每层仅2次通信
+- id: tesseract
+  name: Tesseract 2D TP
+  full_name: 二维张量并行 (Tesseract 2D Tensor Parallel)
+  year: '2022'
+  org: NUS
+  paper_url: https://arxiv.org/abs/2105.14500
+  category: tp
+  parent: megatron_tp
+  motivation: 沿隐藏维度双向切分降低激活值冗余
+- id: sequence_parallel
+  name: Sequence Parallelism
+  full_name: 序列并行 (Sequence Parallelism)
+  year: '2023'
+  org: NUS/Colossal-AI
+  paper_url: https://aclanthology.org/2023.acl-long.134/
+  category: tp
+  parent: megatron_tp
+  motivation: 沿序列维度切分LayerNorm和Dropout激活值
+- id: ulysses
+  name: DeepSpeed Ulysses
+  full_name: 序列并行Ulysses (DeepSpeed Ulysses)
+  year: '2023'
+  org: Microsoft
+  paper_url: https://arxiv.org/abs/2309.14509
+  category: tp
+  parent: sequence_parallel
+  motivation: All-to-All序列通信支持极长序列
+- id: lightseq
+  name: LightSeq
+  full_name: 轻量序列并行 (LightSeq)
+  year: '2023'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/2310.03294
+  category: tp
+  parent: sequence_parallel
+  motivation: 序列级别分布式Attention计算
+- id: loogtrain
+  name: LoongTrain
+  full_name: 上下文并行 (Context Parallelism)
+  year: '2024'
+  org: ByteDance
+  paper_url: https://arxiv.org/abs/2406.18485
+  category: tp
+  parent: ulysses
+  motivation: 2D-Attention机制Head-Context双重并行
+- id: activation_recompute
+  name: Selective Recomputation
+  full_name: 选择性激活重计算 (Selective Activation Recomputation)
+  year: '2023'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/2205.05198
+  category: tp
+  parent: sequence_parallel
+  motivation: 选择性重计算+序列并行减少30-40%开销
+- id: dynamic_cp
+  name: Dynamic Context Parallelism
+  full_name: 动态上下文并行 (Dynamic Context Parallelism)
+  year: '2026'
+  org: NVIDIA
+  paper_url: https://github.com/NVIDIA/Megatron-LM
+  category: tp
+  parent: loogtrain
+  motivation: 自适应调整并行尺寸实现变长序列1.48x加速
+- id: gpipe
+  name: GPipe
+  full_name: 微批次流水线 (GPipe)
+  year: '2019'
+  org: Google
+  paper_url: https://proceedings.neurips.cc/paper/2019/hash/093f65e080a295f8076b1c5722a46aa2-Abstract.html
+  category: pp
+  parent: —
+  motivation: 微批次流水线+重计算支持巨型网络
+- id: pipedream
+  name: PipeDream
+  full_name: 1F1B流水线 (PipeDream)
+  year: '2019'
+  org: Microsoft/CMU
+  paper_url: https://dl.acm.org/doi/abs/10.1145/3341301.3359646
+  category: pp
+  parent: gpipe
+  motivation: 1F1B调度策略减少显存驻留
+- id: interleaved_pp
+  name: Interleaved PP
+  full_name: 交错流水并行 (Interleaved Pipeline Parallel)
+  year: '2021'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/2104.04473
+  category: pp
+  parent: pipedream
+  motivation: 交错层分配减小气泡占比
+- id: zero_bubble
+  name: Zero Bubble PP
+  full_name: 零气泡流水线 (Zero Bubble Pipeline)
+  year: '2024'
+  org: Huawei/PKU
+  paper_url: https://arxiv.org/abs/2401.10241
+  category: pp
+  parent: interleaved_pp
+  motivation: 任务拆分填补气泡实现理论零空闲
+- id: mist
+  name: Mist
+  full_name: 内存并行协同优化 (Mist)
+  year: '2025'
+  org: UCSD/Meta
+  paper_url: https://dl.acm.org/doi/abs/10.1145/3689031.3717461
+  category: pp
+  parent: zero_bubble
+  motivation: 内存-并行协同优化动态解耦优化过程
+- id: dgc
+  name: Deep Gradient Compression
+  full_name: 深度梯度压缩 (Deep Gradient Compression)
+  year: '2018'
+  org: Tsinghua/MIT
+  paper_url: https://arxiv.org/abs/1712.01887
+  category: comm
+  parent: —
+  motivation: 动量校正+局部梯度裁剪99.9%压缩率
+- id: gradient_sparsification
+  name: Gradient Sparsification
+  full_name: 梯度稀疏化 (Gradient Sparsification)
+  year: '2018'
+  org: CMU
+  paper_url: https://arxiv.org/abs/1806.00429
+  category: comm
+  parent: dgc
+  motivation: 理论证明TopK稀疏的收敛性
+- id: scalecom
+  name: ScaleCom
+  full_name: 可扩展通信压缩 (ScaleCom)
+  year: '2020'
+  org: IBM
+  paper_url: https://arxiv.org/abs/2004.13334
+  category: comm
+  parent: gradient_sparsification
+  motivation: 可扩展稀疏梯度压缩框架
+- id: 8bit_optimizer
+  name: 8-bit Optimizers
+  full_name: 8比特优化器 (8-bit Optimizers)
+  year: '2021'
+  org: Univ. of Washington
+  paper_url: https://arxiv.org/abs/2110.02861
+  category: comm
+  parent: —
+  motivation: 块量化Adam/AdaGrad减少75%状态内存
+- id: coconet
+  name: CoCoNet
+  full_name: 计算通信协同网络 (CoCoNet)
+  year: '2022'
+  org: Microsoft
+  paper_url: https://arxiv.org/abs/2211.02510
+  category: comm
+  parent: —
+  motivation: 打破计算通信抽象屏障算子融合
+- id: zero_pp
+  name: ZeRO++
+  full_name: ZeRO增强版 (ZeRO++)
+  year: '2024'
+  org: Microsoft
+  paper_url: https://arxiv.org/abs/2306.10209
+  category: comm
+  parent: zero
+  motivation: 量化权重通信+层次化分区4x通信效率
+- id: centauri
+  name: Centauri
+  full_name: 通信分区调度 (Centauri)
+  year: '2024'
+  org: SJTU/Alibaba
+  paper_url: https://dl.acm.org/doi/abs/10.1145/3620666.3651379
+  category: comm
+  parent: coconet
+  motivation: 通信分区调度细粒度计算-通信重叠
+- id: fp8_allgather
+  name: FP8 Parameter AllGather
+  full_name: FP8参数聚合 (FP8 Parameter AllGather)
+  year: '2026'
+  org: NVIDIA
+  paper_url: https://github.com/NVIDIA/TransformerEngine
+  category: comm
+  parent: zero_pp
+  motivation: 无损FP8缩放配方降低权重聚合带宽
+- id: gshard
+  name: GShard
+  full_name: MoE自动分片 (GShard)
+  year: '2020'
+  org: Google
+  paper_url: https://arxiv.org/abs/2006.16668
+  category: hybrid
+  parent: —
+  motivation: MoE层自动分片与负载均衡
+- id: switch_transformer
+  name: Switch Transformer
+  full_name: Switch Transformer
+  year: '2022'
+  org: Google
+  paper_url: http://www.jmlr.org/papers/v23/21-0998.html
+  category: hybrid
+  parent: gshard
+  motivation: 简化为Top-1路由万亿参数MoE模型
+- id: deepspeed_moe
+  name: DeepSpeed-MoE
+  full_name: DeepSpeed MoE系统 (DeepSpeed-MoE)
+  year: '2022'
+  org: Microsoft
+  paper_url: https://arxiv.org/abs/2201.05596
+  category: hybrid
+  parent: gshard
+  motivation: PR-MoE金字塔结构+MoE-Offload
+- id: tutel
+  name: Tutel
+  full_name: Tutel MoE系统 (Tutel)
+  year: '2023'
+  org: Microsoft
+  paper_url: https://arxiv.org/abs/2206.03382
+  category: hybrid
+  parent: deepspeed_moe
+  motivation: 自适应并行度+All-to-All优化
+- id: colossal_ai
+  name: Colossal-AI
+  full_name: 巨量AI系统 (Colossal-AI)
+  year: '2023'
+  org: NUS
+  paper_url: https://arxiv.org/abs/2110.14883
+  category: hybrid
+  parent: —
+  motivation: 统一多维并行接口简化混合并行配置
+- id: galvatron
+  name: Galvatron
+  full_name: 自动并行搜索 (Galvatron)
+  year: '2022'
+  org: PKU/Alibaba
+  paper_url: https://arxiv.org/abs/2211.13878
+  category: hybrid
+  parent: —
+  motivation: 自动搜索最优3D并行配置
+- id: moe_folding
+  name: MoE Parallel Folding
+  full_name: MoE并行折叠 (MoE Parallel Folding)
+  year: '2025'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/2504.14960
+  category: hybrid
+  parent: switch_transformer
+  motivation: 异构并行映射专家-数据混合折叠
+- id: x_moe
+  name: X-MoE
+  full_name: HPC平台MoE (X-MoE)
+  year: '2025'
+  org: ANL/ORNL
+  paper_url: https://arxiv.org/abs/2504.09446
+  category: hybrid
+  parent: switch_transformer
+  motivation: HPC平台MoE扩展专家专业化架构
+- id: fsmoe
+  name: FSMoE
+  full_name: 灵活可扩展MoE (FSMoE)
+  year: '2025'
+  org: CUHK/Huawei
+  paper_url: https://arxiv.org/abs/2103.13262
+  category: hybrid
+  parent: tutel
+  motivation: 灵活可扩展MoE训练框架
+- id: megascale_moe
+  name: MegaScale-MoE
+  full_name: 超大规模MoE (MegaScale-MoE)
+  year: '2026'
+  org: ByteDance
+  paper_url: https://dl.acm.org/doi/abs/10.1145/3767295.3769325
+  category: hybrid
+  parent: moe_folding
+  motivation: 生产级MoE训练1440GPU效率提升1.88x
+- id: sub_moe
+  name: Sub-MoE
+  full_name: 子空间MoE压缩 (Sub-MoE)
+  year: '2026'
+  org: AAAI 2026
+  paper_url: https://ojs.aaai.org/index.php/AAAI/article/view/39464
+  category: hybrid
+  parent: switch_transformer
+  motivation: 子空间专家合并压缩缓解显存压力
+- id: layer_dist_opt
+  name: Layer-wise Distributed Optimizer
+  full_name: 层级分布式优化器 (Layer-wise Distributed Optimizer)
+  year: '2026'
+  org: NVIDIA
+  paper_url: https://developer.nvidia.com/blog/get-started-with-emerging-optimizers-for-llm-training/
+  category: hybrid
+  parent: fsdp
+  motivation: 支持Muon/MOP等需层级梯度的高阶优化器
+graph:
+  nodes:
+  - id: hogwild
+    x: 0
+    y: 0
+    category: dp
+  - id: parameter_server
+    x: 300
+    y: 0
+    category: dp
+  - id: easgd
+    x: 400
+    y: 0
+    category: dp
+  - id: horovod
+    x: 700
+    y: 0
+    category: dp
+  - id: zero
+    x: 900
+    y: 0
+    category: dp
+  - id: fsdp
+    x: 1200
+    y: 0
+    category: dp
+  - id: megatron_tp
+    x: 800
+    y: 150
+    category: tp
+  - id: tesseract
+    x: 1100
+    y: 150
+    category: tp
+  - id: sequence_parallel
+    x: 1200
+    y: 150
+    category: tp
+  - id: ulysses
+    x: 1200
+    y: 150
+    category: tp
+  - id: lightseq
+    x: 1200
+    y: 150
+    category: tp
+  - id: loogtrain
+    x: 1300
+    y: 150
+    category: tp
+  - id: activation_recompute
+    x: 1200
+    y: 150
+    category: tp
+  - id: dynamic_cp
+    x: 1500
+    y: 150
+    category: tp
+  - id: gpipe
+    x: 800
+    y: 300
+    category: pp
+  - id: pipedream
+    x: 800
+    y: 300
+    category: pp
+  - id: interleaved_pp
+    x: 1000
+    y: 300
+    category: pp
+  - id: zero_bubble
+    x: 1300
+    y: 300
+    category: pp
+  - id: mist
+    x: 1400
+    y: 300
+    category: pp
+  - id: dgc
+    x: 700
+    y: 450
+    category: comm
+  - id: gradient_sparsification
+    x: 700
+    y: 450
+    category: comm
+  - id: scalecom
+    x: 900
+    y: 450
+    category: comm
+  - id: 8bit_optimizer
+    x: 1000
+    y: 450
+    category: comm
+  - id: coconet
+    x: 1100
+    y: 450
+    category: comm
+  - id: zero_pp
+    x: 1300
+    y: 450
+    category: comm
+  - id: centauri
+    x: 1300
+    y: 450
+    category: comm
+  - id: fp8_allgather
+    x: 1500
+    y: 450
+    category: comm
+  - id: gshard
+    x: 900
+    y: 600
+    category: hybrid
+  - id: switch_transformer
+    x: 1100
+    y: 600
+    category: hybrid
+  - id: deepspeed_moe
+    x: 1100
+    y: 600
+    category: hybrid
+  - id: tutel
+    x: 1200
+    y: 600
+    category: hybrid
+  - id: colossal_ai
+    x: 1200
+    y: 600
+    category: hybrid
+  - id: galvatron
+    x: 1100
+    y: 600
+    category: hybrid
+  - id: moe_folding
+    x: 1400
+    y: 600
+    category: hybrid
+  - id: x_moe
+    x: 1400
+    y: 600
+    category: hybrid
+  - id: fsmoe
+    x: 1400
+    y: 600
+    category: hybrid
+  - id: megascale_moe
+    x: 1500
+    y: 600
+    category: hybrid
+  - id: sub_moe
+    x: 1500
+    y: 600
+    category: hybrid
+  - id: layer_dist_opt
+    x: 1500
+    y: 600
+    category: hybrid
+  edges:
+  - from: parameter_server
+    to: easgd
+    label: 改进同步效率
+  - from: parameter_server
+    to: horovod
+    label: 优化带宽
+  - from: horovod
+    to: zero
+    label: 消除冗余
+  - from: zero
+    to: fsdp
+    label: 工业化实现
+  - from: megatron_tp
+    to: tesseract
+    label: 2D切分
+  - from: megatron_tp
+    to: sequence_parallel
+    label: 序列切分
+  - from: sequence_parallel
+    to: ulysses
+    label: 长序列支持
+  - from: sequence_parallel
+    to: lightseq
+    label: 轻量化
+  - from: ulysses
+    to: loogtrain
+    label: 2D注意力
+  - from: sequence_parallel
+    to: activation_recompute
+    label: 减少开销
+  - from: loogtrain
+    to: dynamic_cp
+    label: 动态调整
+  - from: gpipe
+    to: pipedream
+    label: 优化显存
+  - from: pipedream
+    to: interleaved_pp
+    label: 减小气泡
+  - from: interleaved_pp
+    to: zero_bubble
+    label: 零气泡
+  - from: zero_bubble
+    to: mist
+    label: 协同优化
+  - from: dgc
+    to: gradient_sparsification
+    label: 理论证明
+  - from: gradient_sparsification
+    to: scalecom
+    label: 可扩展
+  - from: zero
+    to: zero_pp
+    label: 通信优化
+  - from: coconet
+    to: centauri
+    label: 细粒度重叠
+  - from: zero_pp
+    to: fp8_allgather
+    label: FP8量化
+  - from: gshard
+    to: switch_transformer
+    label: Top-1路由
+  - from: gshard
+    to: deepspeed_moe
+    label: 金字塔结构
+  - from: deepspeed_moe
+    to: tutel
+    label: All-to-All优化
+  - from: switch_transformer
+    to: moe_folding
+    label: 并行折叠
+  - from: switch_transformer
+    to: x_moe
+    label: HPC扩展
+  - from: tutel
+    to: fsmoe
+    label: 灵活配置
+  - from: moe_folding
+    to: megascale_moe
+    label: 生产级
+  - from: switch_transformer
+    to: sub_moe
+    label: 专家压缩
+  - from: fsdp
+    to: layer_dist_opt
+    label: 高阶优化器
+  milestones:
+  - zero
+  - megatron_tp
+  - megascale_moe

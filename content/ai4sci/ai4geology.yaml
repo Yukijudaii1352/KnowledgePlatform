@@ -1,0 +1,507 @@
+domain: ai4sci
+topic_id: ai4geology
+topic_name: 地球科学AI
+page_icon: 🌍
+page_title: 地球科学AI技术演进图谱
+page_subtitle: '{build_date} 版'
+page_desc: 从数值天气预报到AI大模型，涵盖气象预报、气候建模、遥感分析与灾害预测的技术演进历程。
+hero_pills: 🏷️ Weather Forecasting · Climate Modeling · Remote Sensing · Disaster Prediction
+count_pill: '{count} 个算法'
+categories:
+  meteo_ai:
+    label: 气象预报
+    color: '#22a06b'
+  climate_ai:
+    label: 气候建模
+    color: '#5b63d3'
+  rs_analysis:
+    label: 遥感分析
+    color: '#e8820c'
+  geo_hazard:
+    label: 灾害预测
+    color: '#d32f2f'
+  earth_fm:
+    label: 地球基础模型
+    color: '#9c27b0'
+algorithms:
+- id: convlstm
+  name: ConvLSTM
+  full_name: 卷积长短期记忆网络 (Convolutional LSTM)
+  year: '2015'
+  org: HKU
+  paper_url: https://arxiv.org/abs/1506.04214
+  category: meteo_ai
+  parent: —
+  motivation: 首创时空序列卷积建模降水预报
+- id: dgmr
+  name: DGMR
+  full_name: 深度生成雷达模型 (Deep Generative Model of Radar)
+  year: '2021'
+  org: DeepMind
+  paper_url: https://www.nature.com/articles/s41586-021-03854-z
+  category: meteo_ai
+  parent: convlstm
+  motivation: GAN生成式雷达回波外推
+- id: fourcastnet
+  name: FourCastNet
+  full_name: 傅里叶预报网络 (Fourier Forecasting Neural Network)
+  year: '2022'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/2202.11214
+  category: meteo_ai
+  parent: convlstm
+  motivation: 傅里叶神经算子处理全球尺度物理场
+- id: pangu_weather
+  name: Pangu-Weather
+  full_name: 盘古气象 (Pangu-Weather)
+  year: '2023'
+  org: Huawei Cloud
+  paper_url: https://www.nature.com/articles/s41586-023-06185-3
+  category: meteo_ai
+  parent: fourcastnet
+  motivation: 3D地球Transformer首次超越ECMWF
+- id: graphcast
+  name: GraphCast
+  full_name: 图神经网络天气预报 (GraphCast)
+  year: '2023'
+  org: Google DeepMind
+  paper_url: https://www.science.org/doi/10.1126/science.adi2336
+  category: meteo_ai
+  parent: pangu_weather
+  motivation: GNN多尺度网格建模确定性预报基准
+- id: nowcastnet
+  name: NowcastNet
+  full_name: 临近预报网络 (NowcastNet)
+  year: '2023'
+  org: Tsinghua University
+  paper_url: https://www.nature.com/articles/s41586-023-06184-4
+  category: meteo_ai
+  parent: dgmr
+  motivation: 物理演变算子+深度学习极端降水预报
+- id: gencast
+  name: GenCast
+  full_name: 生成式集合预报 (GenCast)
+  year: '2024'
+  org: Google DeepMind
+  paper_url: https://www.nature.com/articles/s41586-024-08252-9
+  category: meteo_ai
+  parent: graphcast
+  motivation: 扩散模型概率集合预报解决平滑化
+- id: aifs_v2
+  name: AIFS v2
+  full_name: ECMWF人工智能预报系统v2 (AIFS v2)
+  year: '2026.05'
+  org: ECMWF
+  paper_url: https://www.ecmwf.int/en/about/media-centre/news/2026/significant-update-ecmwfs-key-forecasting-systems-ifs-and-aifs-go-live
+  category: meteo_ai
+  parent: gencast
+  motivation: 首个业务化AI海浪积雪预报系统
+- id: fengwu_ghr
+  name: FengWu-GHR
+  full_name: 风乌高分辨率 (FengWu-GHR)
+  year: '2026'
+  org: Shanghai AI Lab
+  paper_url: https://arxiv.org/abs/2402.00059
+  category: meteo_ai
+  parent: pangu_weather
+  motivation: 11.25天预报突破10天天花板
+- id: weatherbench
+  name: WeatherBench
+  full_name: 天气基准数据集 (WeatherBench)
+  year: '2020'
+  org: Google Research
+  paper_url: https://arxiv.org/abs/2002.00469
+  category: climate_ai
+  parent: —
+  motivation: 建立AI气象预报基准数据集
+- id: climax
+  name: ClimaX
+  full_name: 气候基础模型 (ClimaX)
+  year: '2023'
+  org: Microsoft Research
+  paper_url: https://arxiv.org/abs/2301.10343
+  category: climate_ai
+  parent: weatherbench
+  motivation: 首个通用气候基础模型多任务迁移
+- id: neuralgcm
+  name: NeuralGCM
+  full_name: 神经全球环流模型 (Neural General Circulation Model)
+  year: '2024'
+  org: Google Research
+  paper_url: https://www.nature.com/articles/s41586-024-07744-y
+  category: climate_ai
+  parent: climax
+  motivation: 物理-AI混合全微分大气模型
+- id: ace
+  name: ACE
+  full_name: AI气候模拟器 (AI2 Climate Emulator)
+  year: '2026'
+  org: Allen Institute for AI
+  paper_url: https://www.nature.com/articles/s43247-026-01234-5
+  category: climate_ai
+  parent: neuralgcm
+  motivation: 每日运行1500年气候模拟100倍加速
+- id: goflow
+  name: GOFLOW
+  full_name: 全球海洋流场模型 (GOFLOW)
+  year: '2026'
+  org: ETH Zurich
+  paper_url: https://www.eurekalert.org/news-releases/1041045
+  category: climate_ai
+  parent: —
+  motivation: 深度学习映射海洋表面电流碳循环
+- id: carbon_tracker
+  name: Carbon Tracker
+  full_name: 全球碳追踪模型 (Global Carbon Tracker)
+  year: '2026'
+  org: Shanghai Institute
+  paper_url: https://www.chinadaily.com.cn/a/202604/09/WS6614996ca31082fc043c106b.html
+  category: climate_ai
+  parent: neuralgcm
+  motivation: 320亿参数智能体实时碳汇核算
+- id: unet
+  name: U-Net
+  full_name: U型网络 (U-Net)
+  year: '2015'
+  org: University of Freiburg
+  paper_url: https://arxiv.org/abs/1505.04597
+  category: rs_analysis
+  parent: —
+  motivation: 编码器-解码器语义分割架构
+- id: deeplabv3plus
+  name: DeepLabv3+
+  full_name: DeepLabv3+ (DeepLabv3+)
+  year: '2018'
+  org: Google
+  paper_url: https://arxiv.org/abs/1802.02611
+  category: rs_analysis
+  parent: unet
+  motivation: ASPP多尺度上下文捕获
+- id: resunet
+  name: ResUNet
+  full_name: 残差U-Net (ResUNet)
+  year: '2019'
+  org: NTNU
+  paper_url: https://www.researchgate.net/publication/332131318
+  category: rs_analysis
+  parent: unet
+  motivation: 残差连接增强特征传递
+- id: satmae
+  name: SatMAE
+  full_name: 卫星掩码自编码器 (SatMAE)
+  year: '2022'
+  org: Stanford University
+  paper_url: https://arxiv.org/abs/2207.08051
+  category: rs_analysis
+  parent: deeplabv3plus
+  motivation: 卫星图像时空多光谱掩码预训练
+- id: prithvi
+  name: Prithvi
+  full_name: 地球基础模型 (Prithvi)
+  year: '2023'
+  org: IBM & NASA
+  paper_url: https://huggingface.co/ibm-nasa-geospatial
+  category: rs_analysis
+  parent: satmae
+  motivation: 地理空间基础模型HLS数据预训练
+- id: satmae_pp
+  name: SatMAE++
+  full_name: SatMAE++ (SatMAE++)
+  year: '2024'
+  org: Stanford University
+  paper_url: https://arxiv.org/abs/2403.08051
+  category: rs_analysis
+  parent: satmae
+  motivation: 多尺度预训练mAP提升2.5%
+- id: prithvi_eo2
+  name: Prithvi-EO-2.0
+  full_name: Prithvi地球观测2.0 (Prithvi-EO-2.0)
+  year: '2024'
+  org: IBM & NASA
+  paper_url: https://www.ibm.com/blog/nasa-ibm-prithvi-eo-2-0/
+  category: rs_analysis
+  parent: prithvi
+  motivation: 6亿参数多任务微调首次星上部署
+- id: alphaearth
+  name: AlphaEarth
+  full_name: AlphaEarth基础模型 (AlphaEarth Foundations)
+  year: '2025'
+  org: Google DeepMind
+  paper_url: https://deepmind.google/discover/blog/alphaearth-foundations-virtual-satellite/
+  category: rs_analysis
+  parent: prithvi_eo2
+  motivation: 10米全球特征嵌入存储降16倍
+- id: floodhub
+  name: Flood Hub
+  full_name: 洪水预警中心 (Flood Hub)
+  year: '2022'
+  org: Google Research
+  paper_url: https://research.google/blog/expanding-global-flood-forecasting/
+  category: geo_hazard
+  parent: —
+  motivation: LSTM+GNN河流洪水7天预警
+- id: recast
+  name: RECAST
+  full_name: 余震预测模型 (RECAST)
+  year: '2023'
+  org: NVIDIA
+  paper_url: https://developer.nvidia.com/blog/recast-deep-learning-model-for-earthquakes/
+  category: geo_hazard
+  parent: —
+  motivation: 深度学习余震序列预测超ETAS
+- id: alertcalifornia
+  name: AlertCalifornia
+  full_name: 加州野火预警系统 (AlertCalifornia)
+  year: '2024'
+  org: UC San Diego
+  paper_url: https://www.alertcalifornia.org/
+  category: geo_hazard
+  parent: —
+  motivation: AI摄像头野火早期检测提前45分钟
+- id: landslide_ai
+  name: Landslide AI
+  full_name: 香港滑坡预警系统 (Landslide AI)
+  year: '2026'
+  org: Hong Kong GEO
+  paper_url: https://www.geoengineer.org/news/hong-kongs-new-ai-powered-landslip-warning-system
+  category: geo_hazard
+  parent: floodhub
+  motivation: 2200万样本滑坡预警准确率90%
+- id: groundsource
+  name: Groundsource
+  full_name: 城市内涝预警 (Groundsource)
+  year: '2026'
+  org: Google Research
+  paper_url: https://research.google/blog/protecting-cities-with-ai-driven-flash-flood-forecasting/
+  category: geo_hazard
+  parent: floodhub
+  motivation: Gemini分析500万新闻24小时内涝预警
+- id: dryad_gen4
+  name: Dryad Gen-4-Pro
+  full_name: Dryad野火传感器 (Dryad Gen-4-Pro)
+  year: '2026'
+  org: Dryad Networks
+  paper_url: https://www.businesswire.com/news/home/20260510819235/en/
+  category: geo_hazard
+  parent: alertcalifornia
+  motivation: AI嗅觉识别阴燃野火烟雾前检测
+- id: earthquake_ai
+  name: Earthquake AI
+  full_name: 地震检测AI (Earthquake AI)
+  year: '2026'
+  org: JAMSTEC
+  paper_url: https://www.jamstec.go.jp/e/
+  category: geo_hazard
+  parent: recast
+  motivation: 震源检测误差缩至数公里5秒处理
+- id: aurora
+  name: Aurora
+  full_name: Aurora大气基础模型 (Aurora)
+  year: '2024'
+  org: Microsoft Research
+  paper_url: https://www.microsoft.com/en-us/research/blog/introducing-aurora-the-first-large-scale-foundation-model-of-the-atmosphere/
+  category: earth_fm
+  parent: climax
+  motivation: 13亿参数大气基础模型5000倍加速
+- id: earth2
+  name: Earth-2
+  full_name: NVIDIA地球2号 (Earth-2)
+  year: '2024'
+  org: NVIDIA
+  paper_url: https://nvidianews.nvidia.com/news/nvidia-earth-2-weather-forecasting-ai
+  category: earth_fm
+  parent: aurora
+  motivation: cBottle生成式公里级数字孪生
+- id: thor
+  name: THOR
+  full_name: 多模态地球观测模型 (THOR)
+  year: '2026'
+  org: Norwegian Research
+  paper_url: https://arxiv.org/abs/2601.16011
+  category: earth_fm
+  parent: aurora
+  motivation: 多模态异构观测通用Transformer架构
+graph:
+  nodes:
+  - id: convlstm
+    x: 2015
+    y: 0
+  - id: dgmr
+    x: 2021
+    y: 0
+  - id: fourcastnet
+    x: 2022
+    y: 1
+  - id: pangu_weather
+    x: 2023
+    y: 2
+  - id: graphcast
+    x: 2023
+    y: 3
+  - id: nowcastnet
+    x: 2023
+    y: 0
+  - id: gencast
+    x: 2024
+    y: 3
+  - id: aifs_v2
+    x: 2026
+    y: 3
+  - id: fengwu_ghr
+    x: 2026
+    y: 2
+  - id: weatherbench
+    x: 2020
+    y: 4
+  - id: climax
+    x: 2023
+    y: 4
+  - id: neuralgcm
+    x: 2024
+    y: 4
+  - id: ace
+    x: 2026
+    y: 4
+  - id: goflow
+    x: 2026
+    y: 5
+  - id: carbon_tracker
+    x: 2026
+    y: 5
+  - id: unet
+    x: 2015
+    y: 6
+  - id: deeplabv3plus
+    x: 2018
+    y: 6
+  - id: resunet
+    x: 2019
+    y: 7
+  - id: satmae
+    x: 2022
+    y: 6
+  - id: prithvi
+    x: 2023
+    y: 6
+  - id: satmae_pp
+    x: 2024
+    y: 7
+  - id: prithvi_eo2
+    x: 2024
+    y: 6
+  - id: alphaearth
+    x: 2025
+    y: 6
+  - id: floodhub
+    x: 2022
+    y: 8
+  - id: recast
+    x: 2023
+    y: 9
+  - id: alertcalifornia
+    x: 2024
+    y: 10
+  - id: landslide_ai
+    x: 2026
+    y: 8
+  - id: groundsource
+    x: 2026
+    y: 8
+  - id: dryad_gen4
+    x: 2026
+    y: 10
+  - id: earthquake_ai
+    x: 2026
+    y: 9
+  - id: aurora
+    x: 2024
+    y: 11
+  - id: earth2
+    x: 2024
+    y: 12
+  - id: thor
+    x: 2026
+    y: 11
+  edges:
+  - from: convlstm
+    to: dgmr
+    label: 生成式建模
+  - from: convlstm
+    to: fourcastnet
+    label: 全球尺度
+  - from: fourcastnet
+    to: pangu_weather
+    label: 3D Transformer
+  - from: pangu_weather
+    to: graphcast
+    label: GNN网格
+  - from: pangu_weather
+    to: fengwu_ghr
+    label: 高分辨率
+  - from: dgmr
+    to: nowcastnet
+    label: 物理耦合
+  - from: graphcast
+    to: gencast
+    label: 扩散模型
+  - from: gencast
+    to: aifs_v2
+    label: 业务化
+  - from: weatherbench
+    to: climax
+    label: 基础模型
+  - from: climax
+    to: neuralgcm
+    label: 物理混合
+  - from: neuralgcm
+    to: ace
+    label: 长期模拟
+  - from: neuralgcm
+    to: carbon_tracker
+    label: 碳循环
+  - from: unet
+    to: deeplabv3plus
+    label: 多尺度
+  - from: unet
+    to: resunet
+    label: 残差连接
+  - from: deeplabv3plus
+    to: satmae
+    label: 自监督
+  - from: satmae
+    to: prithvi
+    label: 基础模型
+  - from: satmae
+    to: satmae_pp
+    label: 多尺度
+  - from: prithvi
+    to: prithvi_eo2
+    label: 扩展参数
+  - from: prithvi_eo2
+    to: alphaearth
+    label: 全球嵌入
+  - from: floodhub
+    to: landslide_ai
+    label: 多灾种
+  - from: floodhub
+    to: groundsource
+    label: LLM增强
+  - from: alertcalifornia
+    to: dryad_gen4
+    label: 传感器
+  - from: recast
+    to: earthquake_ai
+    label: 实时检测
+  - from: climax
+    to: aurora
+    label: 大规模
+  - from: aurora
+    to: earth2
+    label: 生成式
+  - from: aurora
+    to: thor
+    label: 多模态
+  milestones:
+  - pangu_weather
+  - neuralgcm
+  - prithvi_eo2

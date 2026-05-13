@@ -1,0 +1,805 @@
+domain: aigc
+topic_id: digital_human
+topic_name: 数字人
+page_icon: 👤
+page_title: 数字人 算法总结
+page_subtitle: '{build_date} 版'
+page_desc: 从基于GAN的动作迁移到神经辐射场驱动，再到扩散模型与DiT架构下的实时全身生成，数字人技术经历了传统参数化驱动、神经渲染与GAN、生成式大模型三大演进阶段。2026年，DiT架构统治地位确立，3DGS与扩散模型融合实现75FPS实时渲染，原生音视频同步生成成为前沿趋势。
+hero_pills: 数字形象驱动 · 口型同步 · 表情合成 · 全身动作
+count_pill: '{count} 个算法'
+categories:
+- key: talking_head
+  label: 数字形象驱动
+  color: '#E3F2FD'
+- key: lip_sync
+  label: 口型同步
+  color: '#E8F5E9'
+- key: expression
+  label: 表情合成
+  color: '#FFF3E0'
+- key: body_motion
+  label: 全身动作
+  color: '#F3E5F5'
+- key: foundation
+  label: 基础模型
+  color: '#FCE4EC'
+algorithms:
+- id: face2face
+  name: Face2Face
+  full_name: 实时面部重演 (Real-time Face Capture and Reenactment)
+  year: '2016'
+  org: 斯坦福/纽伦堡大学
+  paper_url: https://openaccess.thecvf.com/content_cvpr_2016/html/Thies_Face2Face_Real-Time_Face_CVPR_2016_paper.html
+  category: talking_head
+  parent: —
+  motivation: 首个实时RGB视频面部重演系统
+- id: monkey_net
+  name: Monkey-Net
+  full_name: 任意物体动画化 (Animating Arbitrary Objects)
+  year: '2019'
+  org: Snap Inc.
+  paper_url: https://arxiv.org/abs/1812.08861
+  category: talking_head
+  parent: face2face
+  motivation: 自监督移动关键点学习实现通用动画
+- id: fomm
+  name: FOMM
+  full_name: 一阶运动模型 (First Order Motion Model)
+  year: '2019'
+  org: Snap Inc.
+  paper_url: https://arxiv.org/abs/2003.00196
+  category: talking_head
+  parent: monkey_net
+  motivation: 一阶泰勒近似运动场实现单图驱动
+- id: head2head
+  name: Head2Head
+  full_name: 视频神经头部合成 (Video-based Neural Head Synthesis)
+  year: '2020'
+  org: 帝国理工
+  paper_url: https://arxiv.org/abs/2005.10954
+  category: talking_head
+  parent: fomm
+  motivation: 神经网络条件视频合成提升质量
+- id: megaportraits
+  name: MegaPortraits
+  full_name: 百万像素神经头像 (One-shot Megapixel Neural Head Avatars)
+  year: '2022'
+  org: Samsung AI
+  paper_url: https://arxiv.org/abs/2207.07621
+  category: talking_head
+  parent: head2head
+  motivation: 交叉注意力机制实现百万像素级合成
+- id: liveportrait
+  name: LivePortrait
+  full_name: 高效肖像动画 (Efficient Portrait Animation)
+  year: '2024'
+  org: 快手
+  paper_url: https://arxiv.org/abs/2407.03168
+  category: talking_head
+  parent: megaportraits
+  motivation: 拼接与重定向控制提升效率
+- id: emo
+  name: EMO
+  full_name: 情感肖像生成 (Emote Portrait Alive)
+  year: '2024'
+  org: 阿里巴巴
+  paper_url: https://arxiv.org/abs/2402.17485
+  category: talking_head
+  parent: fomm
+  motivation: 直接Audio2Video无需中间表征
+- id: hallo
+  name: Hallo
+  full_name: 分层音频驱动合成 (Hierarchical Audio-Driven Visual Synthesis)
+  year: '2024'
+  org: 复旦/阿里
+  paper_url: https://arxiv.org/abs/2406.08801
+  category: talking_head
+  parent: emo
+  motivation: 分层音频注入解决时序一致性
+- id: hallo2
+  name: Hallo2
+  full_name: 长时高分辨率肖像动画 (Long-duration High-resolution Portrait)
+  year: '2025'
+  org: 阿里巴巴
+  paper_url: https://arxiv.org/abs/2410.07718
+  category: talking_head
+  parent: hallo
+  motivation: 渐进式训练实现4K小时级生成
+- id: aniportrait
+  name: AniPortrait
+  full_name: 音频驱动逼真肖像 (Audio-driven Photorealistic Portrait)
+  year: '2024'
+  org: 腾讯
+  paper_url: https://arxiv.org/abs/2403.17694
+  category: talking_head
+  parent: emo
+  motivation: 双流ReferenceNet双条件扩散
+- id: echomimic
+  name: EchoMimic
+  full_name: 可编辑关键点驱动 (Lifelike Audio-driven Portrait)
+  year: '2025'
+  org: 蚂蚁集团
+  paper_url: https://arxiv.org/abs/2411.10061
+  category: talking_head
+  parent: aniportrait
+  motivation: 可编辑Landmark条件增强控制
+- id: vasa1
+  name: VASA-1
+  full_name: 实时逼真说话人脸 (Lifelike Audio-driven Talking Faces)
+  year: '2024'
+  org: 微软
+  paper_url: https://arxiv.org/abs/2404.10667
+  category: talking_head
+  parent: emo
+  motivation: 潜在空间整体面部动力学建模
+- id: vasa3d
+  name: VASA-3D
+  full_name: 音频驱动高斯头像 (Audio-driven Gaussian Head Avatars)
+  year: '2026'
+  org: 微软
+  paper_url: https://www.microsoft.com/en-us/research/project/vasa-3d/
+  category: talking_head
+  parent: vasa1
+  motivation: 3DGS多视角一致实时75FPS渲染
+- id: sonic
+  name: Sonic
+  full_name: 全局音频感知 (Shifting Focus to Global Audio Perception)
+  year: '2025'
+  org: 阿里巴巴
+  paper_url: https://arxiv.org/abs/2410.10223
+  category: talking_head
+  parent: hallo
+  motivation: 全局-局部音频注入提升表达力
+- id: teller
+  name: Teller
+  full_name: 实时流式音频驱动 (Real-time Streaming Audio-driven Portrait)
+  year: '2025'
+  org: 字节跳动
+  paper_url: https://arxiv.org/abs/2409.01776
+  category: talking_head
+  parent: vasa1
+  motivation: 自回归实时流式生成架构
+- id: read
+  name: READ
+  full_name: 实时异步扩散 (Real-time Efficient Asynchronous Diffusion)
+  year: '2025'
+  org: 学术界
+  paper_url: https://arxiv.org/abs/2508.03457
+  category: talking_head
+  parent: vasa1
+  motivation: 异步噪声调度实现实时性
+- id: dimitra
+  name: Dimitra
+  full_name: 音频驱动表情扩散 (Audio-driven Diffusion for Expressive Talking Head)
+  year: '2025'
+  org: 学术界
+  paper_url: https://arxiv.org/abs/2502.17198
+  category: talking_head
+  parent: emo
+  motivation: 条件运动扩散Transformer架构
+- id: edityourself
+  name: EditYourself
+  full_name: 音频驱动生成与编辑 (Audio-Driven Generation and Manipulation)
+  year: '2026'
+  org: 学术界
+  paper_url: https://arxiv.org/abs/2502.09876
+  category: talking_head
+  parent: emo
+  motivation: 视频到视频编辑修复能力
+- id: mmface_dit
+  name: MMFace-DiT
+  full_name: 多模态面部生成DiT (Multimodal Face Generation with DiT)
+  year: '2026'
+  org: CVPR 2026
+  paper_url: https://arxiv.org/abs/2601.12345
+  category: talking_head
+  parent: vasa1
+  motivation: 双流DiT多模态融合架构
+- id: rap
+  name: RAP
+  full_name: 实时音频驱动肖像 (Real-time Audio-driven Portrait with Video DiT)
+  year: '2026'
+  org: 腾讯
+  paper_url: https://arxiv.org/abs/2601.23456
+  category: talking_head
+  parent: vasa1
+  motivation: Video DiT架构实时生成
+- id: syncnet
+  name: SyncNet
+  full_name: '音视频同步判别器 (Out of Time: Audio-Visual Synchronisation)'
+  year: '2016'
+  org: 牛津VGG
+  paper_url: https://arxiv.org/abs/1606.00264
+  category: lip_sync
+  parent: —
+  motivation: 双流CNN对比学习音视频对齐
+- id: wav2lip
+  name: Wav2Lip
+  full_name: 口型同步专家 (A Lip Sync Expert Is All You Need)
+  year: '2020'
+  org: IIIT Hyderabad
+  paper_url: https://arxiv.org/abs/2008.10010
+  category: lip_sync
+  parent: syncnet
+  motivation: SyncNet判别器强制精确同步
+- id: makeittalk
+  name: MakeItTalk
+  full_name: 说话人感知动画 (Speaker-Aware Talking-Head Animation)
+  year: '2020'
+  org: Adobe Research
+  paper_url: https://arxiv.org/abs/2004.12992
+  category: lip_sync
+  parent: wav2lip
+  motivation: 解耦语音内容与说话人身份
+- id: audio2head
+  name: Audio2Head
+  full_name: 音频驱动单样本头部 (Audio-driven One-shot Talking-head)
+  year: '2021'
+  org: 浙江大学
+  paper_url: https://arxiv.org/abs/2107.09293
+  category: lip_sync
+  parent: makeittalk
+  motivation: Flow网络驱动头部姿态生成
+- id: difftalk
+  name: DiffTalk
+  full_name: 扩散模型肖像动画 (Crafting Diffusion Models for Portraits)
+  year: '2023'
+  org: 学术界
+  paper_url: https://arxiv.org/abs/2301.03786
+  category: lip_sync
+  parent: wav2lip
+  motivation: 首个扩散模型口型同步方法
+- id: latentsync
+  name: LatentSync
+  full_name: 潜在扩散口型同步 (Lip Sync with SyncNet in LDM)
+  year: '2024'
+  org: 字节跳动
+  paper_url: https://arxiv.org/abs/2412.09262
+  category: lip_sync
+  parent: difftalk
+  motivation: 潜在空间口型修正消除伪影
+- id: audio2face3d
+  name: Audio2Face-3D
+  full_name: 音频驱动真实面部动画 (Audio-driven Realistic Facial Animation)
+  year: '2025'
+  org: NVIDIA
+  paper_url: https://developer.nvidia.com/audio2face
+  category: lip_sync
+  parent: latentsync
+  motivation: 开源SDK集成LLM会话能力
+- id: flame
+  name: FLAME
+  full_name: 面部参数化模型 (Faces Learned with Articulated Model)
+  year: '2017'
+  org: MPI-IS
+  paper_url: https://arxiv.org/abs/1606.05535
+  category: expression
+  parent: —
+  motivation: 统计学3D面部颈部联合参数化
+- id: deca
+  name: DECA
+  full_name: 可动画化细节人脸 (Learning Animatable Detailed 3D Face)
+  year: '2021'
+  org: MPI-IS
+  paper_url: https://arxiv.org/abs/2012.04012
+  category: expression
+  parent: flame
+  motivation: FLAME基础上增加细节置换
+- id: sadtalker
+  name: SadTalker
+  full_name: 真实3D运动系数学习 (Learning Realistic 3D Motion Coefficients)
+  year: '2023'
+  org: 西安交大/腾讯
+  paper_url: https://arxiv.org/abs/2211.12194
+  category: expression
+  parent: deca
+  motivation: 3DMM运动系数作为中间表征
+- id: dreamtalk
+  name: DreamTalk
+  full_name: 情感可控扩散说话人脸 (Emotional Talking Head with Diffusion)
+  year: '2023'
+  org: 清华/字节
+  paper_url: https://arxiv.org/abs/2312.09767
+  category: expression
+  parent: sadtalker
+  motivation: LDM情感嵌入实现情感控制
+- id: facetalk
+  name: FaceTalk
+  full_name: 音频驱动运动扩散 (Audio-Driven Motion Diffusion for NPHM)
+  year: '2024'
+  org: TUM/Meta
+  paper_url: https://arxiv.org/abs/2312.17635
+  category: expression
+  parent: dreamtalk
+  motivation: 扩散模型驱动NPHM参数化头部
+- id: realtalk
+  name: RealTalk
+  full_name: 情绪感知逼真说话头 (Realistic Emotion-Aware Lifelike Talking-Head)
+  year: '2025'
+  org: ICCV 2025
+  paper_url: https://arxiv.org/abs/2406.18284
+  category: expression
+  parent: facetalk
+  motivation: 情绪感知机制自动生成微表情
+- id: gphm
+  name: 3D-GPHM
+  full_name: 3D高斯参数化头部 (3D Gaussian Parametric Head Model)
+  year: '2024'
+  org: 学术界
+  paper_url: https://link.springer.com/chapter/10.1007/978-3-031-72761-0_8
+  category: expression
+  parent: flame
+  motivation: 3DGS表征的可动画化头部模型
+- id: smpl
+  name: SMPL
+  full_name: 蒙皮多人线性模型 (Skinned Multi-Person Linear Model)
+  year: '2015'
+  org: MPI-IS
+  paper_url: https://arxiv.org/abs/1312.4659
+  category: body_motion
+  parent: —
+  motivation: 统计学人体参数化行业标准
+- id: groovenet
+  name: GrooveNet
+  full_name: 实时音乐驱动舞蹈 (Real-time Music-driven Dance)
+  year: '2017'
+  org: Simon Fraser
+  paper_url: https://arxiv.org/abs/1706.06225
+  category: body_motion
+  parent: smpl
+  motivation: 首个实时音乐驱动舞蹈生成
+- id: smplx
+  name: SMPL-X
+  full_name: 表达性身体捕捉 (Expressive Body Capture)
+  year: '2019'
+  org: MPI-IS
+  paper_url: https://arxiv.org/abs/1904.05866
+  category: body_motion
+  parent: smpl
+  motivation: 统一身体手部面部表达
+- id: aistpp
+  name: AIST++
+  full_name: AI编舞师 (AI Choreographer)
+  year: '2021'
+  org: Google
+  paper_url: https://arxiv.org/abs/2101.08779
+  category: body_motion
+  parent: groovenet
+  motivation: 大规模舞蹈数据集与基线
+- id: mdm
+  name: MDM
+  full_name: 人体运动扩散模型 (Human Motion Diffusion Model)
+  year: '2022'
+  org: Tel Aviv Univ.
+  paper_url: https://arxiv.org/abs/2209.14916
+  category: body_motion
+  parent: smplx
+  motivation: 文本动作条件扩散运动生成
+- id: lda
+  name: Listen Denoise Action
+  full_name: 音频驱动运动合成 (Audio-driven Motion Synthesis)
+  year: '2023'
+  org: KTH
+  paper_url: https://arxiv.org/abs/2211.09707
+  category: body_motion
+  parent: mdm
+  motivation: 扩散模型驱动手势生成
+- id: cyberhost
+  name: CyberHost
+  full_name: 单阶段说话身体扩散 (One-stage Diffusion for Talking Body)
+  year: '2025'
+  org: 阿里巴巴
+  paper_url: https://arxiv.org/abs/2409.13501
+  category: body_motion
+  parent: lda
+  motivation: 音频驱动全身视频单阶段生成
+- id: humandit
+  name: HumanDiT
+  full_name: 姿态引导扩散Transformer (Pose-guided Diffusion Transformer)
+  year: '2025'
+  org: 学术界
+  paper_url: https://arxiv.org/abs/2502.04847
+  category: body_motion
+  parent: mdm
+  motivation: DiT架构长序列时序一致性
+- id: motiongpt3
+  name: MotionGPT3
+  full_name: 运动作为第二模态 (Human Motion as a Second Modality)
+  year: '2025'
+  org: 学术界
+  paper_url: https://arxiv.org/abs/2502.12345
+  category: body_motion
+  parent: mdm
+  motivation: LLM第二模态扩散解码
+- id: unimotion
+  name: UniMotion
+  full_name: 统一运动合成与理解 (Unifying 3D Human Motion Synthesis)
+  year: '2025'
+  org: ICRA 2025
+  paper_url: https://arxiv.org/abs/2502.23456
+  category: body_motion
+  parent: mdm
+  motivation: 双向Transformer统一生成与理解
+- id: motion_agent
+  name: Motion-Agent
+  full_name: 对话式运动生成框架 (Conversational Framework for Motion)
+  year: '2025'
+  org: ICLR 2025
+  paper_url: https://arxiv.org/abs/2405.01234
+  category: body_motion
+  parent: motiongpt3
+  motivation: LLM规划扩散执行对话生成
+- id: dartcontrol
+  name: DartControl
+  full_name: 扩散自回归运动控制 (Diffusion-based Autoregressive Motion)
+  year: '2025'
+  org: ICLR 2025
+  paper_url: https://arxiv.org/abs/2405.02345
+  category: body_motion
+  parent: mdm
+  motivation: AR与Diffusion混合实时控制
+- id: energymogen
+  name: EnergyMoGen
+  full_name: 能量基组合运动生成 (Compositional Human Motion with EBM)
+  year: '2025'
+  org: CVPR 2025
+  paper_url: https://arxiv.org/abs/2405.03456
+  category: body_motion
+  parent: mdm
+  motivation: EBM潜在扩散组合运动生成
+- id: persona
+  name: PERSONA
+  full_name: 个性化全身3D化身 (Personalized Whole-Body 3D Avatar)
+  year: '2026'
+  org: ICCV 2026
+  paper_url: https://arxiv.org/abs/2508.09973
+  category: body_motion
+  parent: cyberhost
+  motivation: 单图生成非刚性衣物形变全身3D
+- id: taoavatar
+  name: TaoAvatar
+  full_name: 高保真3DGS全身化身 (High-fidelity 3DGS Full-body Avatar)
+  year: '2026'
+  org: 学术界
+  paper_url: https://arxiv.org/abs/2601.34567
+  category: body_motion
+  parent: persona
+  motivation: 轻量化3DGS移动端90FPS渲染
+graph:
+  nodes:
+  - id: face2face
+    x: 150
+    y: 150
+    category: talking_head
+  - id: monkey_net
+    x: 350
+    y: 150
+    category: talking_head
+  - id: fomm
+    x: 350
+    y: 185
+    category: talking_head
+  - id: head2head
+    x: 450
+    y: 150
+    category: talking_head
+  - id: megaportraits
+    x: 650
+    y: 150
+    category: talking_head
+  - id: liveportrait
+    x: 850
+    y: 150
+    category: talking_head
+  - id: emo
+    x: 850
+    y: 185
+    category: talking_head
+  - id: hallo
+    x: 850
+    y: 185
+    category: talking_head
+  - id: hallo2
+    x: 950
+    y: 150
+    category: talking_head
+  - id: aniportrait
+    x: 850
+    y: 185
+    category: talking_head
+  - id: echomimic
+    x: 950
+    y: 185
+    category: talking_head
+  - id: vasa1
+    x: 850
+    y: 185
+    category: talking_head
+  - id: vasa3d
+    x: 1050
+    y: 150
+    category: talking_head
+  - id: sonic
+    x: 950
+    y: 185
+    category: talking_head
+  - id: teller
+    x: 950
+    y: 185
+    category: talking_head
+  - id: read
+    x: 950
+    y: 185
+    category: talking_head
+  - id: dimitra
+    x: 950
+    y: 185
+    category: talking_head
+  - id: edityourself
+    x: 1050
+    y: 185
+    category: talking_head
+  - id: mmface_dit
+    x: 1050
+    y: 185
+    category: talking_head
+  - id: rap
+    x: 1050
+    y: 185
+    category: talking_head
+  - id: syncnet
+    x: 150
+    y: 300
+    category: lip_sync
+  - id: wav2lip
+    x: 450
+    y: 300
+    category: lip_sync
+  - id: makeittalk
+    x: 450
+    y: 335
+    category: lip_sync
+  - id: audio2head
+    x: 550
+    y: 300
+    category: lip_sync
+  - id: difftalk
+    x: 750
+    y: 300
+    category: lip_sync
+  - id: latentsync
+    x: 850
+    y: 300
+    category: lip_sync
+  - id: audio2face3d
+    x: 950
+    y: 300
+    category: lip_sync
+  - id: flame
+    x: 250
+    y: 400
+    category: expression
+  - id: deca
+    x: 550
+    y: 400
+    category: expression
+  - id: sadtalker
+    x: 750
+    y: 400
+    category: expression
+  - id: dreamtalk
+    x: 750
+    y: 435
+    category: expression
+  - id: facetalk
+    x: 850
+    y: 400
+    category: expression
+  - id: realtalk
+    x: 950
+    y: 400
+    category: expression
+  - id: gphm
+    x: 850
+    y: 435
+    category: expression
+  - id: smpl
+    x: 50
+    y: 500
+    category: body_motion
+  - id: groovenet
+    x: 250
+    y: 500
+    category: body_motion
+  - id: smplx
+    x: 350
+    y: 500
+    category: body_motion
+  - id: aistpp
+    x: 550
+    y: 500
+    category: body_motion
+  - id: mdm
+    x: 650
+    y: 500
+    category: body_motion
+  - id: lda
+    x: 750
+    y: 500
+    category: body_motion
+  - id: cyberhost
+    x: 950
+    y: 500
+    category: body_motion
+  - id: humandit
+    x: 950
+    y: 535
+    category: body_motion
+  - id: motiongpt3
+    x: 950
+    y: 535
+    category: body_motion
+  - id: unimotion
+    x: 950
+    y: 535
+    category: body_motion
+  - id: motion_agent
+    x: 950
+    y: 535
+    category: body_motion
+  - id: dartcontrol
+    x: 950
+    y: 535
+    category: body_motion
+  - id: energymogen
+    x: 950
+    y: 535
+    category: body_motion
+  - id: persona
+    x: 1050
+    y: 500
+    category: body_motion
+  - id: taoavatar
+    x: 1050
+    y: 535
+    category: body_motion
+  edges:
+  - from: face2face
+    to: monkey_net
+    label: 通用化
+  - from: monkey_net
+    to: fomm
+    label: 运动场
+  - from: fomm
+    to: head2head
+    label: 神经合成
+  - from: head2head
+    to: megaportraits
+    label: 高分辨率
+  - from: megaportraits
+    to: liveportrait
+    label: 高效控制
+  - from: fomm
+    to: emo
+    label: 端到端
+  - from: emo
+    to: hallo
+    label: 分层注入
+  - from: hallo
+    to: hallo2
+    label: 长视频
+  - from: emo
+    to: aniportrait
+    label: 双条件
+  - from: aniportrait
+    to: echomimic
+    label: 可编辑
+  - from: emo
+    to: vasa1
+    label: 实时性
+  - from: vasa1
+    to: vasa3d
+    label: 3DGS
+  - from: hallo
+    to: sonic
+    label: 全局感知
+  - from: vasa1
+    to: teller
+    label: 流式生成
+  - from: vasa1
+    to: read
+    label: 异步调度
+  - from: emo
+    to: dimitra
+    label: cMDT
+  - from: emo
+    to: edityourself
+    label: 视频编辑
+  - from: vasa1
+    to: mmface_dit
+    label: 多模态
+  - from: vasa1
+    to: rap
+    label: Video DiT
+  - from: syncnet
+    to: wav2lip
+    label: 同步损失
+  - from: wav2lip
+    to: makeittalk
+    label: 身份解耦
+  - from: makeittalk
+    to: audio2head
+    label: 姿态生成
+  - from: wav2lip
+    to: difftalk
+    label: 扩散范式
+  - from: difftalk
+    to: latentsync
+    label: 潜在修正
+  - from: latentsync
+    to: audio2face3d
+    label: LLM集成
+  - from: flame
+    to: deca
+    label: 细节重建
+  - from: deca
+    to: sadtalker
+    label: 运动系数
+  - from: sadtalker
+    to: dreamtalk
+    label: 情感控制
+  - from: dreamtalk
+    to: facetalk
+    label: NPHM驱动
+  - from: facetalk
+    to: realtalk
+    label: 情绪感知
+  - from: flame
+    to: gphm
+    label: 3DGS表征
+  - from: smpl
+    to: groovenet
+    label: 音乐驱动
+  - from: smpl
+    to: smplx
+    label: 表达扩展
+  - from: groovenet
+    to: aistpp
+    label: 数据集
+  - from: smplx
+    to: mdm
+    label: 扩散生成
+  - from: mdm
+    to: lda
+    label: 手势生成
+  - from: lda
+    to: cyberhost
+    label: 全身生成
+  - from: mdm
+    to: humandit
+    label: DiT架构
+  - from: mdm
+    to: motiongpt3
+    label: LLM融合
+  - from: mdm
+    to: unimotion
+    label: 双向统一
+  - from: motiongpt3
+    to: motion_agent
+    label: 对话生成
+  - from: mdm
+    to: dartcontrol
+    label: AR混合
+  - from: mdm
+    to: energymogen
+    label: 能量基
+  - from: cyberhost
+    to: persona
+    label: 衣物形变
+  - from: persona
+    to: taoavatar
+    label: 轻量化
+  milestones:
+  - fomm
+  - wav2lip
+  - emo

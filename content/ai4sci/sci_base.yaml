@@ -1,0 +1,488 @@
+domain: ai4sci
+topic_id: sci_base
+topic_name: 科学基础模型
+page_meta:
+  page_icon: 🔬
+  page_title: 科学基础模型算法总结
+  page_subtitle: '{build_date} 版'
+  page_desc: 涵盖蛋白质结构预测、材料发现、气象预报、分子建模、科学大模型等领域，展示从单任务专用模型到跨学科统一架构的技术演进
+  hero_pills: 🏷️ AI4Sci · Foundation Models · Cross-disciplinary
+  count_pill: '{count} 个算法'
+categories:
+- key: neural_operator
+  label: 神经算子与基础架构
+  color: '#607D8B'
+- key: protein_structure
+  label: 蛋白质结构预测
+  color: '#4CAF50'
+- key: materials_weather
+  label: 材料科学与气象预测
+  color: '#2196F3'
+- key: molecular
+  label: 分子建模与药物发现
+  color: '#9C27B0'
+- key: science_llm
+  label: 科学大语言模型
+  color: '#FF9800'
+- key: unified_foundation
+  label: 统一科学基础模型
+  color: '#E91E63'
+algorithms:
+- id: transformer
+  name: Transformer
+  full_name: Transformer (Transformer)
+  year: '2017'
+  org: Google
+  paper_url: https://arxiv.org/abs/1706.03762
+  category: neural_operator
+  parent: —
+  motivation: 自注意力机制奠定科学大模型基础
+- id: mpnn
+  name: MPNN
+  full_name: 消息传递神经网络 (Message Passing Neural Network)
+  year: '2017'
+  org: Google
+  paper_url: https://arxiv.org/abs/1704.01212
+  category: molecular
+  parent: —
+  motivation: 统一框架处理图结构分子表征学习
+- id: schnet
+  name: SchNet
+  full_name: SchNet (SchNet)
+  year: '2018'
+  org: TU Berlin
+  paper_url: https://aip.scitation.org/doi/10.1063/1.5019779
+  category: neural_operator
+  parent: —
+  motivation: 连续卷积滤波器实现分子3D建模
+- id: jtvae
+  name: JT-VAE
+  full_name: 联结树变分自编码器 (Junction Tree VAE)
+  year: '2018'
+  org: MIT
+  paper_url: https://arxiv.org/abs/1802.04364
+  category: molecular
+  parent: —
+  motivation: 基于分子子结构的可解释生成模型
+- id: fno
+  name: FNO
+  full_name: 傅里叶神经算子 (Fourier Neural Operator)
+  year: '2020'
+  org: Caltech/NVIDIA
+  paper_url: https://arxiv.org/abs/2010.08895
+  category: neural_operator
+  parent: —
+  motivation: 傅里叶空间学习PDE算子映射
+- id: dimenet
+  name: DimeNet
+  full_name: 定向消息传递网络 (Directional Message Passing NN)
+  year: '2020'
+  org: TU Munich
+  paper_url: https://arxiv.org/abs/2003.03123
+  category: neural_operator
+  parent: schnet
+  motivation: 定向消息传递融入键角信息
+- id: chemberta
+  name: ChemBERTa
+  full_name: ChemBERTa (ChemBERTa)
+  year: '2020'
+  org: DeepChem
+  paper_url: https://arxiv.org/abs/2010.09885
+  category: molecular
+  parent: —
+  motivation: BERT架构化学分子SMILES预训练
+- id: alphafold2
+  name: AlphaFold 2
+  full_name: AlphaFold 2 (AlphaFold 2)
+  year: '2021'
+  org: DeepMind
+  paper_url: https://www.nature.com/articles/s41586-021-03819-2
+  category: protein_structure
+  parent: —
+  motivation: Evoformer架构基本解决蛋白质折叠
+- id: rosettafold
+  name: RoseTTAFold
+  full_name: RoseTTAFold (RoseTTAFold)
+  year: '2021'
+  org: Baker Lab/UW
+  paper_url: https://www.science.org/doi/10.1126/science.abj8754
+  category: protein_structure
+  parent: —
+  motivation: 三轨网络同时处理序列距离坐标
+- id: deeponet
+  name: DeepONet
+  full_name: 深度算子网络 (Deep Operator Network)
+  year: '2021'
+  org: Brown University
+  paper_url: https://www.nature.com/articles/s42256-021-00302-5
+  category: neural_operator
+  parent: —
+  motivation: Branch-Trunk双网络通用算子学习
+- id: egnn
+  name: EGNN
+  full_name: E(n)等变图神经网络 (E(n) Equivariant GNN)
+  year: '2021'
+  org: UvA
+  paper_url: https://arxiv.org/abs/2102.09844
+  category: neural_operator
+  parent: —
+  motivation: E(n)等变性保证旋转平移不变
+- id: esm2
+  name: ESM-2
+  full_name: 进化尺度建模2 (Evolutionary Scale Modeling 2)
+  year: '2022'
+  org: Meta AI
+  paper_url: https://www.science.org/doi/10.1126/science.ade2574
+  category: protein_structure
+  parent: —
+  motivation: 150亿参数蛋白质语言模型无需MSA
+- id: fourcastnet
+  name: FourCastNet
+  full_name: 傅里叶预报网络 (Fourier ForeCasting Neural Network)
+  year: '2022'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/2202.11214
+  category: materials_weather
+  parent: —
+  motivation: 傅里叶神经算子+ViT实现快速气象预报
+- id: m3gnet
+  name: M3GNet
+  full_name: 材料三体图网络 (Materials 3-body Graph Network)
+  year: '2022'
+  org: UC San Diego
+  paper_url: https://www.nature.com/articles/s43588-022-00349-3
+  category: materials_weather
+  parent: —
+  motivation: 三体相互作用GNN材料建模
+- id: galactica
+  name: Galactica
+  full_name: Galactica (Galactica)
+  year: '2022'
+  org: Meta AI
+  paper_url: https://arxiv.org/abs/2211.09085
+  category: science_llm
+  parent: —
+  motivation: 120B参数科学专用分词LaTeX/SMILES
+- id: gnome
+  name: GNoME
+  full_name: 材料探索图网络 (Graph Networks for Materials Exploration)
+  year: '2023'
+  org: DeepMind
+  paper_url: https://www.nature.com/articles/s41586-023-06735-9
+  category: materials_weather
+  parent: —
+  motivation: GNN预测220万新晶体等效800年知识
+- id: panguweather
+  name: Pangu-Weather
+  full_name: 盘古气象 (Pangu-Weather)
+  year: '2023'
+  org: Huawei Cloud
+  paper_url: https://www.nature.com/articles/s41586-023-06185-3
+  category: materials_weather
+  parent: —
+  motivation: 3D Transformer首超传统数值预报精度
+- id: graphcast
+  name: GraphCast
+  full_name: GraphCast (GraphCast)
+  year: '2023'
+  org: DeepMind
+  paper_url: https://www.science.org/doi/10.1126/science.adi2336
+  category: materials_weather
+  parent: —
+  motivation: GNN球形网格建模大气动力学
+- id: rfdiffusion
+  name: RFdiffusion
+  full_name: RoseTTAFold扩散 (RoseTTAFold Diffusion)
+  year: '2023'
+  org: Baker Lab/UW
+  paper_url: https://www.nature.com/articles/s41586-023-06415-8
+  category: protein_structure
+  parent: rosettafold
+  motivation: 扩散模型从噪声生成全新蛋白质
+- id: alphafold3
+  name: AlphaFold 3
+  full_name: AlphaFold 3 (AlphaFold 3)
+  year: '2024'
+  org: DeepMind/Isomorphic
+  paper_url: https://www.nature.com/articles/s41586-024-07487-w
+  category: protein_structure
+  parent: alphafold2
+  motivation: 扩散模块预测全生物分子相互作用
+- id: esm3
+  name: ESM3
+  full_name: 进化尺度建模3 (Evolutionary Scale Modeling 3)
+  year: '2024'
+  org: EvolutionaryScale
+  paper_url: https://www.evolutionaryscale.ai/blog/esm3-release
+  category: protein_structure
+  parent: esm2
+  motivation: 98B参数序列-结构-功能协同生成
+- id: sciglm
+  name: SciGLM
+  full_name: 科学GLM (Scientific GLM)
+  year: '2024'
+  org: 清华大学/智谱AI
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2024/hash/02ee6b7295f720407b56c457b34c54d5-Abstract-Datasets_and_Benchmarks_Track.html
+  category: science_llm
+  parent: —
+  motivation: 自反思指令标注大学水平科学推理
+- id: scidfm
+  name: SciDFM
+  full_name: 科学领域基础模型 (Scientific Domain Foundation Model)
+  year: '2024'
+  org: 复旦大学
+  paper_url: https://arxiv.org/abs/2401.12356
+  category: science_llm
+  parent: —
+  motivation: MoE架构科学大模型多领域专家
+- id: unimap
+  name: UniMAP
+  full_name: 统一分子预训练 (Unified Molecular Pre-training)
+  year: '2024'
+  org: Tsinghua University
+  paper_url: https://arxiv.org/abs/2402.13163
+  category: molecular
+  parent: —
+  motivation: 多模态融合SMILES序列与分子图
+- id: aion1
+  name: AION-1
+  full_name: AION-1 (AION-1)
+  year: '2025'
+  org: Polymathic AI
+  paper_url: https://polymathic-ai.org/news/aion-1
+  category: unified_foundation
+  parent: —
+  motivation: 十亿参数多模态天文学基础模型
+- id: walrus
+  name: Walrus
+  full_name: Walrus (Walrus)
+  year: '2025'
+  org: Polymathic AI
+  paper_url: https://polymathic-ai.org/news/walrus
+  category: unified_foundation
+  parent: —
+  motivation: 连续介质动力学跨领域物理迁移
+- id: mattergen
+  name: MatterGen
+  full_name: MatterGen (MatterGen)
+  year: '2025'
+  org: Microsoft Research
+  paper_url: https://www.microsoft.com/en-us/research/blog/mattergen-a-generative-model-for-inorganic-materials-design/
+  category: materials_weather
+  parent: —
+  motivation: 扩散生成满足属性约束的晶体
+- id: auroragpt
+  name: AuroraGPT
+  full_name: AuroraGPT (AuroraGPT)
+  year: '2026'
+  org: Argonne National Lab
+  paper_url: https://www.anl.gov/aurora-gpt
+  category: unified_foundation
+  parent: —
+  motivation: 2T参数整合20T+科学Token多模态
+- id: scienceone100
+  name: ScienceOne 100
+  full_name: 科学一号 (ScienceOne 100)
+  year: '2026'
+  org: 中国科学院
+  paper_url: https://dig.watch/resources/scienceone-100
+  category: unified_foundation
+  parent: —
+  motivation: 跨数学物理生物统一模型100+场景
+- id: prithvi
+  name: Prithvi
+  full_name: Prithvi地学基础模型 (Prithvi Geospatial FM)
+  year: '2026'
+  org: NASA/IBM
+  paper_url: https://www.nasa.gov/news-release/nasa-ibm-geospatial-ai-foundation-model-deployed-in-orbit/
+  category: unified_foundation
+  parent: —
+  motivation: 首个在轨部署地学基础模型ISS实时
+- id: darwin7b
+  name: Darwin-7B
+  full_name: Darwin-7B (Darwin-7B)
+  year: '2026'
+  org: ICLR 2026
+  paper_url: https://fm-science.github.io/
+  category: unified_foundation
+  parent: —
+  motivation: 肠道微生物组多组学基础模型
+graph:
+  nodes:
+  - id: transformer
+    x: 2017
+    y: 0
+    category: neural_operator
+  - id: schnet
+    x: 2018
+    y: 0
+    category: neural_operator
+  - id: fno
+    x: 2020
+    y: 0
+    category: neural_operator
+  - id: dimenet
+    x: 2020.5
+    y: 0
+    category: neural_operator
+  - id: deeponet
+    x: 2021
+    y: 0
+    category: neural_operator
+  - id: egnn
+    x: 2021.5
+    y: 0
+    category: neural_operator
+  - id: alphafold2
+    x: 2021
+    y: 1
+    category: protein_structure
+  - id: rosettafold
+    x: 2021.5
+    y: 1
+    category: protein_structure
+  - id: esm2
+    x: 2022
+    y: 1
+    category: protein_structure
+  - id: rfdiffusion
+    x: 2023
+    y: 1
+    category: protein_structure
+  - id: alphafold3
+    x: 2024
+    y: 1
+    category: protein_structure
+  - id: esm3
+    x: 2024.5
+    y: 1
+    category: protein_structure
+  - id: fourcastnet
+    x: 2022
+    y: 2
+    category: materials_weather
+  - id: m3gnet
+    x: 2022.5
+    y: 2
+    category: materials_weather
+  - id: gnome
+    x: 2023
+    y: 2
+    category: materials_weather
+  - id: panguweather
+    x: 2023.3
+    y: 2
+    category: materials_weather
+  - id: graphcast
+    x: 2023.6
+    y: 2
+    category: materials_weather
+  - id: mattergen
+    x: 2025
+    y: 2
+    category: materials_weather
+  - id: mpnn
+    x: 2017.5
+    y: 3
+    category: molecular
+  - id: jtvae
+    x: 2018
+    y: 3
+    category: molecular
+  - id: chemberta
+    x: 2020
+    y: 3
+    category: molecular
+  - id: unimap
+    x: 2024
+    y: 3
+    category: molecular
+  - id: galactica
+    x: 2022
+    y: 4
+    category: science_llm
+  - id: sciglm
+    x: 2024
+    y: 4
+    category: science_llm
+  - id: scidfm
+    x: 2024.5
+    y: 4
+    category: science_llm
+  - id: aion1
+    x: 2025
+    y: 5
+    category: unified_foundation
+  - id: walrus
+    x: 2025.3
+    y: 5
+    category: unified_foundation
+  - id: auroragpt
+    x: 2026
+    y: 5
+    category: unified_foundation
+  - id: scienceone100
+    x: 2026.3
+    y: 5
+    category: unified_foundation
+  - id: prithvi
+    x: 2026.6
+    y: 5
+    category: unified_foundation
+  - id: darwin7b
+    x: 2026.9
+    y: 5
+    category: unified_foundation
+  edges:
+  - from: schnet
+    to: dimenet
+    label: 融入键角
+  - from: alphafold2
+    to: alphafold3
+    label: 引入扩散
+  - from: rosettafold
+    to: rfdiffusion
+    label: 扩散设计
+  - from: esm2
+    to: esm3
+    label: 协同生成
+  - from: transformer
+    to: alphafold2
+    label: 注意力机制
+  - from: transformer
+    to: panguweather
+    label: 3D架构
+  - from: transformer
+    to: galactica
+    label: 语言建模
+  - from: fno
+    to: fourcastnet
+    label: 傅里叶算子
+  - from: mpnn
+    to: gnome
+    label: GNN材料
+  - from: mpnn
+    to: graphcast
+    label: GNN气象
+  - from: schnet
+    to: esm2
+    label: 几何建模
+  - from: galactica
+    to: sciglm
+    label: 科学推理
+  - from: alphafold3
+    to: auroragpt
+    label: 多模态融合
+  - from: gnome
+    to: mattergen
+    label: 生成式设计
+  - from: esm3
+    to: darwin7b
+    label: 生物组学
+  - from: graphcast
+    to: prithvi
+    label: 地学应用
+  milestones:
+  - alphafold2
+  - gnome
+  - alphafold3

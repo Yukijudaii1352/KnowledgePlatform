@@ -1,0 +1,668 @@
+domain: ai4sci
+topic_id: ai4physics
+topic_name: 物理学AI
+page_icon: ⚛️
+page_title: 物理学AI 算法总结
+page_subtitle: '{build_date} 版'
+page_desc: 从PINN到神经算子，从流体仿真到物理定律发现，涵盖2016-2026年物理学AI核心算法演化
+hero_pills:
+- 🏷️ PINN · Neural Operators · AI4Sci
+- 🔬 PDE求解 · 流体仿真 · 物理发现
+count_pill: '{count} 个算法'
+categories:
+- key: pde_solving
+  label: 偏微分方程求解
+  color: '#3B82F6'
+- key: fluid_simulation
+  label: 流体仿真
+  color: '#10B981'
+- key: solid_mechanics
+  label: 固体力学
+  color: '#F59E0B'
+- key: physics_discovery
+  label: 理论物理发现
+  color: '#8B5CF6'
+- key: physics_constrained
+  label: 物理约束学习
+  color: '#EC4899'
+- key: quantum_particle
+  label: 量子与粒子物理
+  color: '#6366F1'
+algorithms:
+- id: sindy
+  name: SINDy
+  full_name: 稀疏识别动力学 (Sparse Identification of Nonlinear Dynamics)
+  year: '2016'
+  org: 华盛顿大学
+  paper_url: https://www.pnas.org/doi/10.1073/pnas.1517384113
+  category: physics_discovery
+  parent: —
+  motivation: 稀疏回归识别非线性控制方程
+- id: nqs
+  name: NQS
+  full_name: 神经量子态 (Neural Quantum States)
+  year: '2017'
+  org: ETH Zurich
+  paper_url: https://www.science.org/doi/10.1126/science.aag2302
+  category: quantum_particle
+  parent: —
+  motivation: RBM表示波函数解决多体问题
+- id: pde_net
+  name: PDE-Net
+  full_name: 偏微分方程网络 (PDE-Net)
+  year: '2018'
+  org: 北京大学
+  paper_url: http://proceedings.mlr.press/v80/long18a.html
+  category: pde_solving
+  parent: —
+  motivation: 卷积矩约束模拟微分算子
+- id: neural_ode
+  name: Neural ODE
+  full_name: 神经常微分方程 (Neural Ordinary Differential Equations)
+  year: '2018'
+  org: 多伦多大学
+  paper_url: https://arxiv.org/abs/1806.07366
+  category: physics_constrained
+  parent: —
+  motivation: 网络层视为连续时间演化
+- id: pinn
+  name: PINN
+  full_name: 物理信息神经网络 (Physics-Informed Neural Networks)
+  year: '2019'
+  org: 布朗大学
+  paper_url: https://doi.org/10.1016/j.jcp.2018.10.045
+  category: pde_solving
+  parent: —
+  motivation: 将PDE残差嵌入Loss实现无网格求解
+- id: hnn
+  name: HNN
+  full_name: 哈密顿神经网络 (Hamiltonian Neural Networks)
+  year: '2019'
+  org: Google
+  paper_url: https://proceedings.neurips.cc/paper/2019/hash/26cd8ecadce0d4efd6cc8a8725cbd1f8-Abstract.html
+  category: physics_constrained
+  parent: —
+  motivation: 学习哈密顿量确保能量守恒
+- id: xpinns
+  name: XPINNs
+  full_name: 扩展PINN (Extended Physics-Informed Neural Networks)
+  year: '2020'
+  org: 布朗大学
+  paper_url: https://doi.org/10.4208/cicp.OA-2020-0164
+  category: pde_solving
+  parent: pinn
+  motivation: 域分解策略支持复杂几何并行化
+- id: gns
+  name: GNS
+  full_name: 图网络模拟器 (Graph Network Simulators)
+  year: '2020'
+  org: DeepMind
+  paper_url: https://proceedings.mlr.press/v119/sanchez-gonzalez20a.html
+  category: fluid_simulation
+  parent: —
+  motivation: 粒子图网络模拟流体与材料交互
+- id: meshgraphnets
+  name: MeshGraphNets
+  full_name: 网格图网络 (Mesh Graph Networks)
+  year: '2020'
+  org: DeepMind
+  paper_url: https://arxiv.org/abs/2010.03409
+  category: fluid_simulation
+  parent: gns
+  motivation: 针对欧拉网格的非结构化图网络
+- id: jax_md
+  name: JAX MD
+  full_name: JAX分子动力学 (JAX Molecular Dynamics)
+  year: '2020'
+  org: Google
+  paper_url: https://proceedings.neurips.cc/paper/2020/hash/83d3d4b6c9579515e1679aca8cbc8033-Abstract.html
+  category: fluid_simulation
+  parent: —
+  motivation: 端到端可微分分子动力学引擎
+- id: difftaichi
+  name: DiffTaichi
+  full_name: 可微分太极 (Differentiable Taichi)
+  year: '2020'
+  org: MIT
+  paper_url: https://arxiv.org/abs/1910.00935
+  category: fluid_simulation
+  parent: —
+  motivation: 命令式可微分编程支持流体控制
+- id: phiflow
+  name: PhiFlow
+  full_name: 流体物理库 (PhiFlow)
+  year: '2020'
+  org: 慕尼黑工大
+  paper_url: https://github.com/tum-pbs/PhiFlow
+  category: fluid_simulation
+  parent: —
+  motivation: 开源可微分流体仿真库
+- id: ai_feynman
+  name: AI Feynman
+  full_name: AI费曼 (AI Feynman)
+  year: '2020'
+  org: MIT
+  paper_url: https://www.science.org/doi/abs/10.1126/sciadv.aay2631
+  category: physics_discovery
+  parent: —
+  motivation: 物理对称性与递归分解发现公式
+- id: ude
+  name: UDE
+  full_name: 通用微分方程 (Universal Differential Equations)
+  year: '2020'
+  org: Christopher Rackauckas
+  paper_url: https://arxiv.org/abs/2001.04385
+  category: physics_discovery
+  parent: neural_ode
+  motivation: NN作为微分方程未知项补全物理
+- id: lnn
+  name: LNN
+  full_name: 拉格朗日神经网络 (Lagrangian Neural Networks)
+  year: '2020'
+  org: DeepMind
+  paper_url: https://arxiv.org/abs/2003.04630
+  category: physics_constrained
+  parent: hnn
+  motivation: 学习拉格朗日量处理约束动力学
+- id: sympnets
+  name: SympNets
+  full_name: 辛神经网络 (Symplectic Neural Networks)
+  year: '2020'
+  org: Pengzhan Jin
+  paper_url: https://doi.org/10.1016/j.neunet.2020.08.028
+  category: physics_constrained
+  parent: hnn
+  motivation: 本质满足辛对称消除数值耗散
+- id: particlenet
+  name: ParticleNet
+  full_name: 粒子网络 (ParticleNet)
+  year: '2020'
+  org: Huilin Qu
+  paper_url: https://doi.org/10.1103/PhysRevD.101.056019
+  category: quantum_particle
+  parent: —
+  motivation: 粒子云动态图卷积提升喷注鉴别
+- id: hp_vpinns
+  name: hp-VPINNs
+  full_name: 变分PINN (hp-Variational PINNs)
+  year: '2021'
+  org: 布朗大学
+  paper_url: https://doi.org/10.1016/j.cma.2020.113533
+  category: pde_solving
+  parent: pinn
+  motivation: 变分形式与hp细化优化精度
+- id: fno
+  name: FNO
+  full_name: 傅里叶神经算子 (Fourier Neural Operator)
+  year: '2021'
+  org: Caltech
+  paper_url: https://openreview.net/forum?id=c8P9fhUhn9
+  category: pde_solving
+  parent: —
+  motivation: 频率域积分运算实现分辨率无关
+- id: deeponet
+  name: DeepONet
+  full_name: 深度算子网络 (Deep Operator Network)
+  year: '2021'
+  org: 宾大
+  paper_url: https://www.nature.com/articles/s42256-021-00302-5
+  category: pde_solving
+  parent: —
+  motivation: 双分支架构学习函数空间映射
+- id: brax
+  name: Brax
+  full_name: JAX刚体引擎 (Brax)
+  year: '2021'
+  org: Google
+  paper_url: https://github.com/google/brax
+  category: fluid_simulation
+  parent: jax_md
+  motivation: 高性能刚体动力学引擎
+- id: canns
+  name: CANNs
+  full_name: 本构神经网络 (Constitutive Artificial Neural Networks)
+  year: '2021'
+  org: ETH Zurich
+  paper_url: https://doi.org/10.1016/j.jcp.2020.109841
+  category: solid_mechanics
+  parent: —
+  motivation: 应变能密度嵌入确保本构稳定
+- id: tanns
+  name: TANNs
+  full_name: 热力学神经网络 (Thermodynamics-based ANNs)
+  year: '2021'
+  org: 希腊国立理工
+  paper_url: https://doi.org/10.1016/j.jmps.2020.104277
+  category: solid_mechanics
+  parent: —
+  motivation: 强制热力学定律模拟粘塑性
+- id: egnn
+  name: EGNN
+  full_name: 等变图神经网络 (Equivariant Graph Neural Networks)
+  year: '2021'
+  org: 阿姆斯特丹大学
+  paper_url: https://proceedings.mlr.press/v139/satorras21a.html
+  category: physics_constrained
+  parent: —
+  motivation: 旋转平移反射等变保证物理一致
+- id: noether_nets
+  name: Noether Networks
+  full_name: 诺特网络 (Noether Networks)
+  year: '2021'
+  org: MIT
+  paper_url: https://proceedings.neurips.cc/paper/2021/hash/8e296a067a37563370ded05f5a3bf83e-Abstract.html
+  category: physics_constrained
+  parent: —
+  motivation: 基于诺特定理自动发现守恒量
+- id: gpinn
+  name: gPINN
+  full_name: 梯度增强PINN (Gradient-enhanced PINN)
+  year: '2022'
+  org: 宾大
+  paper_url: https://doi.org/10.1016/j.cma.2022.114823
+  category: pde_solving
+  parent: pinn
+  motivation: 引入残差梯度项提升陡峭解精度
+- id: causal_pinn
+  name: Causal PINN
+  full_name: 因果PINN (Causal Physics-Informed Neural Networks)
+  year: '2022'
+  org: 宾大
+  paper_url: https://arxiv.org/abs/2203.07404
+  category: pde_solving
+  parent: pinn
+  motivation: 时间因果律加权解决长时程收敛
+- id: pi_deeponet
+  name: PI-DeepONet
+  full_name: 物理信息DeepONet (Physics-Informed DeepONet)
+  year: '2022'
+  org: 布朗大学
+  paper_url: https://link.springer.com/book/10.1007/978-3-031-36644-4
+  category: pde_solving
+  parent: deeponet
+  motivation: 物理信息嵌入算子网络
+- id: geo_fno
+  name: Geo-FNO
+  full_name: 几何傅里叶算子 (Geometry-Adaptive FNO)
+  year: '2023'
+  org: Caltech
+  paper_url: https://jmlr.org/papers/v24/23-0064.html
+  category: pde_solving
+  parent: fno
+  motivation: 可学习坐标变换支持非规则几何
+- id: uno
+  name: U-NO
+  full_name: U形神经算子 (U-shaped Neural Operator)
+  year: '2023'
+  org: 布朗大学
+  paper_url: https://www.nature.com/articles/s41467-024-49411-w
+  category: pde_solving
+  parent: fno
+  motivation: 多尺度结构捕捉全局与局部特征
+- id: pysr
+  name: PySR
+  full_name: Python符号回归 (PySR)
+  year: '2023'
+  org: Miles Cranmer
+  paper_url: https://arxiv.org/abs/2305.01582
+  category: physics_discovery
+  parent: —
+  motivation: 进化算法提取物理表达式
+- id: poseidon
+  name: Poseidon
+  full_name: PDE基础模型 (Poseidon)
+  year: '2024'
+  org: ETH Zurich
+  paper_url: https://arxiv.org/abs/2405.19101
+  category: pde_solving
+  parent: fno
+  motivation: 首个大规模PDE基础模型
+- id: walrus
+  name: Walrus
+  full_name: 海象基础模型 (Walrus)
+  year: '2026'
+  org: Polymathic AI
+  paper_url: https://www.simonsfoundation.org/2025/12/09/polymathic-ai-announces-walrus-and-aion-1-foundation-models-for-science/
+  category: pde_solving
+  parent: poseidon
+  motivation: 15TB数据训练跨领域物理基础模型
+- id: transolver3
+  name: Transolver-3
+  full_name: 超大规模求解器 (Transolver-3)
+  year: '2026'
+  org: 清华大学/NVIDIA
+  paper_url: https://arxiv.org/abs/2602.02414
+  category: pde_solving
+  parent: fno
+  motivation: 几何切片技术支持1.6亿单元网格
+- id: pf_pino
+  name: PF-PINO
+  full_name: 相场物理神经算子 (Phase-Field PINO)
+  year: '2026'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2603.09693
+  category: pde_solving
+  parent: fno
+  motivation: 相场方程残差提升长期稳定性
+- id: pikan
+  name: PIKAN
+  full_name: KAN物理信息网络 (Physics-Informed KAN)
+  year: '2026'
+  org: ResearchGate
+  paper_url: https://www.researchgate.net/publication/384994434
+  category: pde_solving
+  parent: pinn
+  motivation: KAN替代MLP增强高维处理能力
+- id: fedonet
+  name: FEDONet
+  full_name: 傅里叶嵌入DeepONet (Fourier-embedded DeepONet)
+  year: '2026'
+  org: JCP
+  paper_url: https://www.sciencedirect.com/science/article/pii/S0021999126002846
+  category: pde_solving
+  parent: deeponet
+  motivation: 嵌入傅里叶特征实现谱精度学习
+- id: fano
+  name: FANO
+  full_name: 傅里叶平流算子 (Fourier Advection Neural Operator)
+  year: '2026'
+  org: IEEE
+  paper_url: https://ieeexplore.ieee.org/abstract/document/11358915/
+  category: fluid_simulation
+  parent: fno
+  motivation: 傅里叶平流机制用于天气预报
+- id: physicsnemo
+  name: PhysicsNeMo
+  full_name: 物理AI框架 (PhysicsNeMo)
+  year: '2026'
+  org: NVIDIA
+  paper_url: https://www.nvidia.com/en-us/ai-data-science/physics-nemo/
+  category: fluid_simulation
+  parent: —
+  motivation: 开源物理AI产业化仿真框架
+- id: simple_pinn
+  name: SIMPLE-PINN
+  full_name: SIMPLE算法PINN (SIMPLE-PINN)
+  year: '2026'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2603.24013
+  category: fluid_simulation
+  parent: pinn
+  motivation: SIMPLE算法与PINN融合求解NS方程
+- id: fe_pinns
+  name: FE-PINNs
+  full_name: 有限元PINN (Finite-Element-based PINNs)
+  year: '2026'
+  org: APL Machine Learning
+  paper_url: https://pubs.aip.org/aip/aml/article/4/1/016106/3379950
+  category: solid_mechanics
+  parent: canns
+  motivation: 有限元基函数实现网格无关建模
+- id: aion1
+  name: AION-1
+  full_name: 天文基础模型 (AION-1)
+  year: '2026'
+  org: Flatiron Institute
+  paper_url: https://www.simonsfoundation.org/2025/12/09/polymathic-ai-announces-walrus-and-aion-1-foundation-models-for-science/
+  category: physics_constrained
+  parent: —
+  motivation: 31亿参数统一39种观测模态
+- id: momentum_gnn
+  name: Momentum-GNN
+  full_name: 动量守恒图网络 (Momentum-conserving GNN)
+  year: '2026'
+  org: Nature Communications
+  paper_url: https://www.nature.com/articles/s41467-025-67802-5
+  category: physics_constrained
+  parent: egnn
+  motivation: 严格线性角动量守恒防止能量漂移
+graph:
+  nodes:
+  - id: sindy
+    x: 0.0
+    y: 70
+    category: physics_discovery
+  - id: nqs
+    x: 10.0
+    y: 110
+    category: quantum_particle
+  - id: pde_net
+    x: 20.0
+    y: 10
+    category: pde_solving
+  - id: neural_ode
+    x: 20.0
+    y: 90
+    category: physics_constrained
+  - id: pinn
+    x: 30.0
+    y: 10
+    category: pde_solving
+  - id: hnn
+    x: 30.0
+    y: 90
+    category: physics_constrained
+  - id: xpinns
+    x: 40.0
+    y: 10
+    category: pde_solving
+  - id: gns
+    x: 40.0
+    y: 30
+    category: fluid_simulation
+  - id: meshgraphnets
+    x: 40.0
+    y: 30
+    category: fluid_simulation
+  - id: jax_md
+    x: 40.0
+    y: 30
+    category: fluid_simulation
+  - id: difftaichi
+    x: 40.0
+    y: 30
+    category: fluid_simulation
+  - id: phiflow
+    x: 40.0
+    y: 30
+    category: fluid_simulation
+  - id: ai_feynman
+    x: 40.0
+    y: 70
+    category: physics_discovery
+  - id: ude
+    x: 40.0
+    y: 70
+    category: physics_discovery
+  - id: lnn
+    x: 40.0
+    y: 90
+    category: physics_constrained
+  - id: sympnets
+    x: 40.0
+    y: 90
+    category: physics_constrained
+  - id: particlenet
+    x: 40.0
+    y: 110
+    category: quantum_particle
+  - id: hp_vpinns
+    x: 50.0
+    y: 10
+    category: pde_solving
+  - id: fno
+    x: 50.0
+    y: 10
+    category: pde_solving
+  - id: deeponet
+    x: 50.0
+    y: 10
+    category: pde_solving
+  - id: brax
+    x: 50.0
+    y: 30
+    category: fluid_simulation
+  - id: canns
+    x: 50.0
+    y: 50
+    category: solid_mechanics
+  - id: tanns
+    x: 50.0
+    y: 50
+    category: solid_mechanics
+  - id: egnn
+    x: 50.0
+    y: 90
+    category: physics_constrained
+  - id: noether_nets
+    x: 50.0
+    y: 90
+    category: physics_constrained
+  - id: gpinn
+    x: 60.0
+    y: 10
+    category: pde_solving
+  - id: causal_pinn
+    x: 60.0
+    y: 10
+    category: pde_solving
+  - id: pi_deeponet
+    x: 60.0
+    y: 10
+    category: pde_solving
+  - id: geo_fno
+    x: 70.0
+    y: 10
+    category: pde_solving
+  - id: uno
+    x: 70.0
+    y: 10
+    category: pde_solving
+  - id: pysr
+    x: 70.0
+    y: 70
+    category: physics_discovery
+  - id: poseidon
+    x: 80.0
+    y: 10
+    category: pde_solving
+  - id: walrus
+    x: 100.0
+    y: 10
+    category: pde_solving
+  - id: transolver3
+    x: 100.0
+    y: 10
+    category: pde_solving
+  - id: pf_pino
+    x: 100.0
+    y: 10
+    category: pde_solving
+  - id: pikan
+    x: 100.0
+    y: 10
+    category: pde_solving
+  - id: fedonet
+    x: 100.0
+    y: 10
+    category: pde_solving
+  - id: fano
+    x: 100.0
+    y: 30
+    category: fluid_simulation
+  - id: physicsnemo
+    x: 100.0
+    y: 30
+    category: fluid_simulation
+  - id: simple_pinn
+    x: 100.0
+    y: 30
+    category: fluid_simulation
+  - id: fe_pinns
+    x: 100.0
+    y: 50
+    category: solid_mechanics
+  - id: aion1
+    x: 100.0
+    y: 90
+    category: physics_constrained
+  - id: momentum_gnn
+    x: 100.0
+    y: 90
+    category: physics_constrained
+  edges:
+  - from: pinn
+    to: xpinns
+    label: 域分解
+  - from: gns
+    to: meshgraphnets
+    label: 网格扩展
+  - from: neural_ode
+    to: ude
+    label: 混合建模
+  - from: hnn
+    to: lnn
+    label: 拉格朗日
+  - from: hnn
+    to: sympnets
+    label: 辛对称
+  - from: pinn
+    to: hp_vpinns
+    label: 变分细化
+  - from: jax_md
+    to: brax
+    label: 刚体引擎
+  - from: pinn
+    to: gpinn
+    label: 梯度增强
+  - from: pinn
+    to: causal_pinn
+    label: 因果加权
+  - from: deeponet
+    to: pi_deeponet
+    label: 物理嵌入
+  - from: fno
+    to: geo_fno
+    label: 几何自适应
+  - from: fno
+    to: uno
+    label: 多尺度
+  - from: fno
+    to: poseidon
+    label: 基础模型
+  - from: poseidon
+    to: walrus
+    label: 规模化扩展
+  - from: fno
+    to: transolver3
+    label: 大规模网格
+  - from: fno
+    to: pf_pino
+    label: 相场约束
+  - from: pinn
+    to: pikan
+    label: 架构演进
+  - from: deeponet
+    to: fedonet
+    label: 谱特征嵌入
+  - from: fno
+    to: fano
+    label: 平流增强
+  - from: pinn
+    to: simple_pinn
+    label: 算法融合
+  - from: canns
+    to: fe_pinns
+    label: 有限元集成
+  - from: egnn
+    to: momentum_gnn
+    label: 守恒律硬约束
+  milestones:
+  - id: neural_ode
+    label: 连续深度模型奠基
+  - id: pinn
+    label: 物理信息嵌入范式
+  - id: fno
+    label: 算子学习突破
+  - id: walrus
+    label: 物理大模型时代

@@ -1,0 +1,463 @@
+domain: llm
+topic_id: rag
+topic_name: 检索增强生成
+page_icon: 🔍
+page_title: 检索增强生成 (RAG) 技术演进图谱
+page_subtitle: '{build_date} 版'
+page_desc: 系统梳理RAG技术从2020年DPR/REALM奠基到2026年Agentic RAG、多模态RAG的演进历程，涵盖架构设计、检索策略与评测方法的完整演化路径
+hero_pills: 🏷️ RAG · Dense Retrieval · Knowledge Augmentation · Agentic AI
+count_pill: '{count} 个算法'
+categories:
+  foundation:
+    label: 奠基算法
+    color: '#22a06b'
+  architecture:
+    label: 架构改进
+    color: '#5b63d3'
+  evaluation:
+    label: 评测体系
+    color: '#e8820c'
+  frontier_2026:
+    label: 2026前沿
+    color: '#d32f2f'
+algorithms:
+- id: dpr
+  name: DPR
+  full_name: 密集段落检索 (Dense Passage Retrieval)
+  year: '2020'
+  org: Meta AI
+  paper_url: https://arxiv.org/abs/2004.04906
+  category: foundation
+  parent: —
+  motivation: 双编码器架构实现语义检索，开创密集检索时代
+- id: realm
+  name: REALM
+  full_name: 检索增强语言模型预训练 (Retrieval-Augmented Language Model Pre-training)
+  year: '2020.02'
+  org: Google Research
+  paper_url: https://arxiv.org/abs/2002.08909
+  category: foundation
+  parent: —
+  motivation: 将检索机制集成到预训练阶段，显著跨度掩码任务
+- id: rag
+  name: RAG
+  full_name: 检索增强生成 (Retrieval-Augmented Generation)
+  year: '2020.05'
+  org: Meta AI
+  paper_url: https://arxiv.org/abs/2005.11401
+  category: foundation
+  parent: dpr
+  motivation: 首个端到端RAG框架，结合DPR检索与BART生成
+- id: colbert
+  name: ColBERT
+  full_name: 上下文化后期交互 (Contextualized Late Interaction over BERT)
+  year: '2020.04'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/2004.12832
+  category: foundation
+  parent: —
+  motivation: 后期交互机制平衡重排序精度与速度
+- id: fid
+  name: FiD
+  full_name: 解码器融合 (Fusion-in-Decoder)
+  year: '2021.04'
+  org: INRIA/Meta
+  paper_url: https://arxiv.org/abs/2007.01282
+  category: foundation
+  parent: rag
+  motivation: 解码器端多文档独立编码与联合注意力融合
+- id: contriever
+  name: Contriever
+  full_name: 对比学习检索器 (Contrastive Retriever)
+  year: '2021.12'
+  org: Meta AI
+  paper_url: https://arxiv.org/abs/2112.09118
+  category: foundation
+  parent: dpr
+  motivation: 无监督对比学习实现密集检索，消除标注依赖
+- id: retro
+  name: RETRO
+  full_name: 基于检索的Transformer (Retrieval-Enhanced Transformer)
+  year: '2022.02'
+  org: DeepMind
+  paper_url: https://arxiv.org/abs/2112.04426
+  category: foundation
+  parent: realm
+  motivation: 分块交叉注意力支持2万亿Token检索库
+- id: atlas
+  name: Atlas
+  full_name: Atlas少样本学习模型
+  year: '2022.08'
+  org: Meta AI
+  paper_url: https://arxiv.org/abs/2208.03299
+  category: foundation
+  parent: fid
+  motivation: 检索器与阅读器联合预训练，少样本专家
+- id: e5
+  name: E5
+  full_name: E5文本嵌入 (Text Embeddings by Weakly-supervised Contrastive Pre-training)
+  year: '2022.12'
+  org: Microsoft
+  paper_url: https://arxiv.org/abs/2212.03533
+  category: foundation
+  parent: contriever
+  motivation: 弱监督大规模预训练提升嵌入质量
+- id: hyde
+  name: HyDE
+  full_name: 假设性文档嵌入 (Hypothetical Document Embeddings)
+  year: '2022.12'
+  org: CMU
+  paper_url: https://arxiv.org/abs/2212.10496
+  category: foundation
+  parent: dpr
+  motivation: LLM生成虚构答案再检索，答案-答案匹配提升对齐
+- id: flare
+  name: FLARE
+  full_name: 前瞻性主动检索 (Forward-Looking Active Retrieval)
+  year: '2023.05'
+  org: CMU
+  paper_url: https://arxiv.org/abs/2305.06983
+  category: architecture
+  parent: rag
+  motivation: 低置信度Token触发检索，主动式知识增强
+- id: recomp
+  name: RECOMP
+  full_name: 检索内容压缩 (Retrieval-Augmented LMs with Compression)
+  year: '2023.10'
+  org: Princeton
+  paper_url: https://arxiv.org/abs/2310.04444
+  category: architecture
+  parent: rag
+  motivation: 训练专门压缩器将多文档浓缩为极简摘要
+- id: self_rag
+  name: Self-RAG
+  full_name: 自我反思检索增强生成 (Self-Reflective Retrieval-Augmented Generation)
+  year: '2024.03'
+  org: University of Washington
+  paper_url: https://arxiv.org/abs/2310.11511
+  category: architecture
+  parent: rag
+  motivation: 反射Token自主决策检索时机并批判结果事实性
+- id: crag
+  name: CRAG
+  full_name: 纠正式检索增强生成 (Corrective Retrieval Augmented Generation)
+  year: '2024.01'
+  org: Salesforce
+  paper_url: https://arxiv.org/abs/2401.15884
+  category: architecture
+  parent: self_rag
+  motivation: 检索评估器判断质量，低质时触发Web搜索补充
+- id: graphrag
+  name: GraphRAG
+  full_name: 图谱检索增强生成 (Graph Retrieval-Augmented Generation)
+  year: '2024.02'
+  org: Microsoft Research
+  paper_url: https://arxiv.org/abs/2404.16130
+  category: architecture
+  parent: rag
+  motivation: 知识图谱全局关系推理，解决跨文档总结难题
+- id: llmlingua
+  name: LLMLingua
+  full_name: LLM语言压缩 (LLMLingua Prompt Compression)
+  year: '2024.01'
+  org: Microsoft Research
+  paper_url: https://arxiv.org/abs/2310.05736
+  category: architecture
+  parent: rag
+  motivation: 基于困惑度剔除冗余Token，20倍压缩不损性能
+- id: ragas
+  name: RAGAS
+  full_name: RAG评估框架 (Retrieval-Augmented Generation Assessment)
+  year: '2024.05'
+  org: Explorium
+  paper_url: https://arxiv.org/abs/2309.15217
+  category: evaluation
+  parent: —
+  motivation: RAG三元组评估法，LLM-as-judge评估忠实度
+- id: rgb
+  name: RGB
+  full_name: RGB基准 (Retrieval-Augmented Generation Benchmark)
+  year: '2023.09'
+  org: Tsinghua
+  paper_url: https://arxiv.org/abs/2309.01431
+  category: evaluation
+  parent: —
+  motivation: 诊断噪声鲁棒性与拒绝回答无解问题能力
+- id: linearrag
+  name: LinearRAG
+  full_name: 线性图谱检索增强 (Linear Graph Retrieval-Augmented Generation)
+  year: '2026.01'
+  org: Tsinghua/Alibaba
+  paper_url: https://arxiv.org/abs/2412.14833
+  category: frontier_2026
+  parent: graphrag
+  motivation: 三图层级结构使索引成本线性增长，避开关系抽取
+- id: tm_rag
+  name: TM-RAG
+  full_name: Transformer-Mamba混合RAG (Transformer-Mamba RAG)
+  year: '2026.02'
+  org: King Saud University
+  paper_url: https://link.springer.com/article/10.1007/s44443-026-00723-5
+  category: frontier_2026
+  parent: self_rag
+  motivation: Mamba处理长程依赖，Transformer精细聚合证据
+- id: videorag
+  name: VideoRAG
+  full_name: 视频检索增强生成 (Video Retrieval-Augmented Generation)
+  year: '2026.03'
+  org: Zhejiang University
+  paper_url: https://arxiv.org/abs/2501.09885
+  category: frontier_2026
+  parent: rag
+  motivation: 极长视频多模态编码器实现小时级上下文检索
+- id: bayesrag
+  name: BayesRAG
+  full_name: 贝叶斯多模态RAG (Bayesian Multimodal RAG)
+  year: '2026.01'
+  org: KAIST
+  paper_url: https://arxiv.org/abs/2601.07329
+  category: frontier_2026
+  parent: videorag
+  motivation: 概率性证据互证机制解决多模态保真度融合
+- id: ssrag
+  name: SSRAG
+  full_name: 结构化语义RAG (Structured-Semantic RAG)
+  year: '2026.01'
+  org: IBM Research
+  paper_url: https://arxiv.org/abs/2601.12658
+  category: frontier_2026
+  parent: self_rag
+  motivation: 混合检索与智能路由解决语义漂移问题
+- id: vig_rag
+  name: ViG-RAG
+  full_name: 视频图谱RAG (Video Graph RAG)
+  year: '2026.02'
+  org: Seoul National University
+  paper_url: https://ojs.aaai.org/index.php/AAAI/article/view/30471
+  category: frontier_2026
+  parent: graphrag
+  motivation: 概率时间知识图谱实现视频片段语义时间混合推理
+- id: urag
+  name: URaG
+  full_name: 统一检索生成 (Unified Retrieval and Generation)
+  year: '2026.02'
+  org: Fudan University
+  paper_url: https://ojs.aaai.org/index.php/AAAI/article/view/39729
+  category: frontier_2026
+  parent: videorag
+  motivation: 多模态长文档统一架构，检索生成端到端优化
+- id: mg_crag
+  name: MG-CRAG
+  full_name: 多粒度纠正式RAG (Multi-Granular Corrective RAG)
+  year: '2026.03'
+  org: Peking University
+  paper_url: https://link.springer.com/article/10.1007/s10115-026-02778-2
+  category: frontier_2026
+  parent: crag
+  motivation: 多粒度检索评估器融合，弱监督微调改进CRAG
+- id: qwen3_embedding
+  name: Qwen3-Embedding
+  full_name: Qwen3嵌入模型 (Qwen3 Text Embedding)
+  year: '2026.04'
+  org: Alibaba
+  paper_url: https://qwenlm.github.io/blog/qwen3-embedding/
+  category: frontier_2026
+  parent: e5
+  motivation: 8B参数MTEB 70.6，支持32K上下文多语言检索
+- id: raguard
+  name: RAGUARD
+  full_name: RAG鲁棒性评测基准 (RAG Robustness Benchmark)
+  year: '2026.05'
+  org: Stanford/Google
+  paper_url: https://arxiv.org/abs/2410.20992
+  category: frontier_2026
+  parent: rgb
+  motivation: 首个误导性检索鲁棒性基准，测试冲突信息判断力
+graph:
+  nodes:
+  - id: dpr
+    x: 100
+    y: 150
+    category: foundation
+  - id: realm
+    x: 120
+    y: 100
+    category: foundation
+  - id: colbert
+    x: 130
+    y: 200
+    category: foundation
+  - id: rag
+    x: 200
+    y: 150
+    category: foundation
+  - id: fid
+    x: 280
+    y: 120
+    category: foundation
+  - id: contriever
+    x: 300
+    y: 180
+    category: foundation
+  - id: retro
+    x: 350
+    y: 100
+    category: foundation
+  - id: atlas
+    x: 380
+    y: 120
+    category: foundation
+  - id: e5
+    x: 400
+    y: 180
+    category: foundation
+  - id: hyde
+    x: 420
+    y: 200
+    category: foundation
+  - id: flare
+    x: 500
+    y: 350
+    category: architecture
+  - id: recomp
+    x: 520
+    y: 380
+    category: architecture
+  - id: self_rag
+    x: 600
+    y: 320
+    category: architecture
+  - id: crag
+    x: 650
+    y: 300
+    category: architecture
+  - id: graphrag
+    x: 680
+    y: 360
+    category: architecture
+  - id: llmlingua
+    x: 700
+    y: 400
+    category: architecture
+  - id: ragas
+    x: 650
+    y: 500
+    category: evaluation
+  - id: rgb
+    x: 550
+    y: 500
+    category: evaluation
+  - id: linearrag
+    x: 850
+    y: 360
+    category: frontier_2026
+  - id: tm_rag
+    x: 880
+    y: 300
+    category: frontier_2026
+  - id: videorag
+    x: 900
+    y: 250
+    category: frontier_2026
+  - id: bayesrag
+    x: 950
+    y: 240
+    category: frontier_2026
+  - id: ssrag
+    x: 920
+    y: 320
+    category: frontier_2026
+  - id: vig_rag
+    x: 930
+    y: 380
+    category: frontier_2026
+  - id: urag
+    x: 970
+    y: 260
+    category: frontier_2026
+  - id: mg_crag
+    x: 900
+    y: 340
+    category: frontier_2026
+  - id: qwen3_embedding
+    x: 1000
+    y: 420
+    category: frontier_2026
+  - id: raguard
+    x: 1000
+    y: 500
+    category: frontier_2026
+  edges:
+  - from: dpr
+    to: rag
+    label: 端到端框架
+  - from: dpr
+    to: contriever
+    label: 无监督学习
+  - from: dpr
+    to: hyde
+    label: 假设性嵌入
+  - from: contriever
+    to: e5
+    label: 弱监督预训练
+  - from: e5
+    to: qwen3_embedding
+    label: 大模型化
+  - from: rag
+    to: fid
+    label: 多文档融合
+  - from: fid
+    to: atlas
+    label: 联合预训练
+  - from: realm
+    to: retro
+    label: 分块注意力
+  - from: rag
+    to: flare
+    label: 主动检索
+  - from: rag
+    to: recomp
+    label: 内容压缩
+  - from: rag
+    to: self_rag
+    label: 自我反思
+  - from: rag
+    to: graphrag
+    label: 图谱推理
+  - from: rag
+    to: llmlingua
+    label: 上下文压缩
+  - from: self_rag
+    to: crag
+    label: 检索评估
+  - from: self_rag
+    to: tm_rag
+    label: Mamba融合
+  - from: self_rag
+    to: ssrag
+    label: 混合检索
+  - from: crag
+    to: mg_crag
+    label: 多粒度评估
+  - from: graphrag
+    to: linearrag
+    label: 线性索引
+  - from: graphrag
+    to: vig_rag
+    label: 时间图谱
+  - from: rag
+    to: videorag
+    label: 多模态扩展
+  - from: videorag
+    to: bayesrag
+    label: 概率互证
+  - from: videorag
+    to: urag
+    label: 统一架构
+  - from: rgb
+    to: raguard
+    label: 鲁棒性评测
+  milestones:
+  - dpr
+  - self_rag
+  - linearrag

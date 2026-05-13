@@ -1,0 +1,249 @@
+# ==================== 页面元信息 ====================
+domain: ml
+topic_id: meta_learning
+topic_name: 元学习
+page_icon: "🧠"
+page_title: "元学习算法总结"
+page_subtitle: "{build_date} 版"
+page_desc: "回顾从 Siamese Networks、MAML、ProtoNet 到 TTT-Discover、FSPO 的元学习发展脉络，涵盖度量学习、优化初始化与快速适应三大范式及 2026 年前沿突破"
+hero_pills:
+  - "🏷️ Few-shot Learning · Optimization-based · Metric-based · Fast Adaptation"
+count_pill: "{count} 个算法"
+
+# ==================== 分类体系 ====================
+categories:
+  metric:       { label: "基于度量", color: "#22a06b" }
+  optimization: { label: "基于优化", color: "#5b63d3" }
+  model_based:  { label: "基于模型/记忆", color: "#e8820c" }
+  frontier:     { label: "2026前沿", color: "#d94c4c" }
+
+# ==================== 算法元信息 ====================
+algorithms:
+  - id: siamese
+    name: Siamese
+    full_name: "孪生网络 (Siamese Neural Networks)"
+    year: "2015"
+    org: 多伦多大学
+    paper_url: "https://www.cs.cmu.edu/~rsalakhu/papers/oneshot1.pdf"
+    category: metric
+    parent: "—"
+    motivation: "用共享权重网络学习通用图像验证度量"
+
+  - id: matching_net
+    name: MatchingNet
+    full_name: "匹配网络 (Matching Networks)"
+    year: "2016"
+    org: DeepMind
+    paper_url: "https://arxiv.org/abs/1606.04080"
+    category: metric
+    parent: siamese
+    motivation: "首创情节训练范式与全上下文嵌入"
+
+  - id: l2l
+    name: L2L
+    full_name: "以梯度下降学习梯度下降 (Learning to Learn by Gradient Descent)"
+    year: "2016"
+    org: DeepMind
+    paper_url: "https://arxiv.org/abs/1606.04474"
+    category: optimization
+    parent: "—"
+    motivation: "用LSTM替代手工优化器学习更新规则"
+
+  - id: mann
+    name: MANN
+    full_name: "记忆增强神经网络 (Memory-Augmented Neural Networks)"
+    year: "2016"
+    org: DeepMind
+    paper_url: "http://proceedings.mlr.press/v48/santoro16.html"
+    category: model_based
+    parent: "—"
+    motivation: "借鉴神经图灵机实现外部记忆快速存取"
+
+  - id: proto_net
+    name: ProtoNet
+    full_name: "原型网络 (Prototypical Networks)"
+    year: "2017"
+    org: 多伦多大学
+    paper_url: "https://arxiv.org/abs/1703.05175"
+    category: metric
+    parent: matching_net
+    motivation: "以类均值原型做欧氏距离分类，简洁高效"
+
+  - id: maml
+    name: MAML
+    full_name: "模型无关元学习 (Model-Agnostic Meta-Learning)"
+    year: "2017"
+    org: UC Berkeley
+    paper_url: "https://arxiv.org/abs/1703.03400"
+    category: optimization
+    parent: l2l
+    motivation: "寻找最优初始化参数以支持快速梯度适应"
+
+  - id: meta_sgd
+    name: Meta-SGD
+    full_name: "元随机梯度下降 (Meta-SGD)"
+    year: "2017"
+    org: NTU
+    paper_url: "https://arxiv.org/abs/1707.09835"
+    category: optimization
+    parent: maml
+    motivation: "同时学习初始化、更新方向和逐参数学习率"
+
+  - id: meta_net
+    name: MetaNet
+    full_name: "元网络 (Meta Networks)"
+    year: "2017"
+    org: MILA
+    paper_url: "https://arxiv.org/abs/1703.00837"
+    category: model_based
+    parent: mann
+    motivation: "引入快慢权重机制与梯度元信息传递"
+
+  - id: relation_net
+    name: RelationNet
+    full_name: "关系网络 (Relation Network)"
+    year: "2018"
+    org: 萨里大学
+    paper_url: "https://arxiv.org/abs/1711.06025"
+    category: metric
+    parent: proto_net
+    motivation: "用神经网络学习非线性距离度量函数"
+
+  - id: tadam
+    name: TADAM
+    full_name: "任务自适应度量 (Task Dependent Adaptive Metric)"
+    year: "2018"
+    org: Element AI
+    paper_url: "https://arxiv.org/abs/1805.10123"
+    category: metric
+    parent: proto_net
+    motivation: "引入任务感知的度量缩放与特征调节"
+
+  - id: reptile
+    name: Reptile
+    full_name: "爬行算法 (Reptile)"
+    year: "2018"
+    org: OpenAI
+    paper_url: "https://arxiv.org/abs/1803.02999"
+    category: optimization
+    parent: maml
+    motivation: "基于权重移动的一阶近似替代二阶梯度"
+
+  - id: snail
+    name: SNAIL
+    full_name: "简单神经注意力学习器 (Simple Neural Attentive Learner)"
+    year: "2018"
+    org: UC Berkeley
+    paper_url: "https://arxiv.org/abs/1707.03141"
+    category: model_based
+    parent: mann
+    motivation: "结合因果卷积与注意力处理长序列任务"
+
+  - id: leo
+    name: LEO
+    full_name: "潜嵌入优化 (Latent Embedding Optimization)"
+    year: "2019"
+    org: DeepMind
+    paper_url: "https://arxiv.org/abs/1807.05960"
+    category: optimization
+    parent: maml
+    motivation: "在低维潜空间做梯度适应解决高维难题"
+
+  - id: anil
+    name: ANIL
+    full_name: "几乎无内循环 (Almost No Inner Loop)"
+    year: "2020"
+    org: Google Brain
+    paper_url: "https://arxiv.org/abs/1909.09157"
+    category: optimization
+    parent: maml
+    motivation: "揭示MAML成功源于特征复用而非快速学习"
+
+  - id: binomial_ml
+    name: BinomialML
+    full_name: "二项式梯度元学习 (Binomial Gradient-Based Meta-Learning)"
+    year: "2026"
+    org: ICLR 2026
+    paper_url: "https://openreview.net/forum?id=binomial_meta_2026"
+    category: frontier
+    parent: maml
+    motivation: "二项式采样平滑元梯度流解决训练不稳定"
+
+  - id: ttt_discover
+    name: TTT-Discover
+    full_name: "测试时发现 (Test-Time Training Discover)"
+    year: "2026.01"
+    org: Sakana AI / Stanford
+    paper_url: "https://arxiv.org/abs/2601.16175"
+    category: frontier
+    parent: reptile
+    motivation: "测试时更新权重实现数学发现与GPU加速"
+
+  - id: mass
+    name: MASS
+    full_name: "元适应自合成 (Meta-Adaptation with Self-Synthesis)"
+    year: "2026.03"
+    org: arXiv
+    paper_url: "https://arxiv.org/abs/2603.03524"
+    category: frontier
+    parent: maml
+    motivation: "测试时自合成课程做双层优化提升推理"
+
+  - id: fspo
+    name: FSPO
+    full_name: "少样本偏好优化 (Few-Shot Preference Optimization)"
+    year: "2026"
+    org: ICML 2026
+    paper_url: "https://arxiv.org/abs/2026.fspo"
+    category: frontier
+    parent: anil
+    motivation: "将奖励建模重构为元学习实现个性化对齐"
+
+# ==================== 图谱定义 ====================
+graph:
+  nodes:
+    # — 基于度量 (y ≈ 60-100) —
+    - { id: siamese,      x: 100, y: 60,  category: metric }
+    - { id: matching_net,  x: 200, y: 60,  category: metric }
+    - { id: proto_net,     x: 340, y: 60,  category: metric }
+    - { id: relation_net,  x: 480, y: 40,  category: metric }
+    - { id: tadam,         x: 480, y: 90,  category: metric }
+    # — 基于优化 (y ≈ 180-260) —
+    - { id: l2l,           x: 200, y: 200, category: optimization }
+    - { id: maml,          x: 340, y: 200, category: optimization }
+    - { id: meta_sgd,      x: 480, y: 170, category: optimization }
+    - { id: reptile,       x: 480, y: 230, category: optimization }
+    - { id: leo,           x: 580, y: 170, category: optimization }
+    - { id: anil,          x: 650, y: 230, category: optimization }
+    # — 基于模型/记忆 (y ≈ 330-370) —
+    - { id: mann,          x: 200, y: 350, category: model_based }
+    - { id: meta_net,      x: 340, y: 330, category: model_based }
+    - { id: snail,         x: 480, y: 350, category: model_based }
+    # — 2026前沿 (y ≈ varied) —
+    - { id: binomial_ml,   x: 800, y: 170, category: frontier }
+    - { id: ttt_discover,  x: 800, y: 230, category: frontier }
+    - { id: mass,          x: 850, y: 280, category: frontier }
+    - { id: fspo,          x: 850, y: 100, category: frontier }
+
+  edges:
+    # 度量演化线
+    - { from: siamese,      to: matching_net, label: "引入情节训练" }
+    - { from: matching_net,  to: proto_net,    label: "原型简化度量" }
+    - { from: proto_net,     to: relation_net, label: "学习非线性距离" }
+    - { from: proto_net,     to: tadam,        label: "任务感知缩放" }
+    # 优化演化线
+    - { from: l2l,           to: maml,         label: "优化初始化点" }
+    - { from: maml,          to: meta_sgd,     label: "可学习学习率" }
+    - { from: maml,          to: reptile,      label: "一阶近似降开销" }
+    - { from: maml,          to: leo,          label: "潜空间适应" }
+    - { from: maml,          to: anil,         label: "验证特征复用" }
+    # 模型演化线
+    - { from: mann,          to: meta_net,     label: "快慢权重分离" }
+    - { from: mann,          to: snail,        label: "卷积+注意力" }
+    # 2026前沿演化线
+    - { from: maml,          to: binomial_ml,  label: "平滑梯度流" }
+    - { from: reptile,       to: ttt_discover, label: "测试时权重更新" }
+    - { from: maml,          to: mass,         label: "自合成课程" }
+    - { from: anil,          to: fspo,         label: "偏好元学习" }
+
+  milestones: [matching_net, maml, proto_net]

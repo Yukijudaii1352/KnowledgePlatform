@@ -1,0 +1,236 @@
+domain: ml
+topic_id: kernel_method
+topic_name: "核方法"
+page_icon: "🔮"
+page_title: "核方法 算法总结"
+page_subtitle: "{build_date} 版"
+page_desc: "综述从经典支持向量机、核回归到现代大规模核近似与神经正切核，涵盖2026年核方法与深度学习融合的最新进展。"
+hero_pills:
+  - "核技巧·高维映射·非线性表征"
+count_pill: "{count} 个算法"
+
+categories:
+  classification: { label: "核分类方法", color: "#ff7f0e" }
+  regression:     { label: "核回归方法", color: "#2ca02c" }
+  reduction:      { label: "核降维与特征", color: "#9467bd" }
+  approximation:  { label: "大规模核近似", color: "#d62728" }
+  frontier:       { label: "前沿扩展", color: "#17becf" }
+
+algorithms:
+  - id: svm
+    name: SVM
+    full_name: "支持向量机 (Support Vector Machine)"
+    year: "1992"
+    org: "AT&T Bell Labs"
+    paper_url: "https://dl.acm.org/doi/10.1145/130385.130401"
+    category: classification
+    parent: "—"
+    motivation: "核技巧与最大间隔超平面结合，实现非线性分类"
+
+  - id: csvm
+    name: C-SVM
+    full_name: "软间隔支持向量机 (Soft-Margin SVM)"
+    year: "1995"
+    org: "AT&T Bell Labs"
+    paper_url: "https://link.springer.com/article/10.1007/BF00994018"
+    category: classification
+    parent: svm
+    motivation: "引入松弛变量与惩罚参数C，容忍噪声样本"
+
+  - id: gpr
+    name: GPR
+    full_name: "高斯过程回归 (Gaussian Process Regression)"
+    year: "1995"
+    org: "University of Edinburgh"
+    paper_url: "https://proceedings.neurips.cc/paper/1995/hash/7cce53cf90577442771720a370c3c723-Abstract.html"
+    category: regression
+    parent: "—"
+    motivation: "贝叶斯框架下核函数定义协方差，提供不确定性估计"
+
+  - id: svr
+    name: SVR
+    full_name: "支持向量回归 (Support Vector Regression)"
+    year: "1996"
+    org: "AT&T Bell Labs"
+    paper_url: "https://proceedings.neurips.cc/paper/1996/hash/d38901788c533e8286cb6400b40b386d-Abstract.html"
+    category: regression
+    parent: svm
+    motivation: "ε-不敏感损失实现稀疏核回归"
+
+  - id: kpca
+    name: KPCA
+    full_name: "核主成分分析 (Kernel PCA)"
+    year: "1998"
+    org: "MPI"
+    paper_url: "https://link.springer.com/article/10.1007/s11222-011-9259-4"
+    category: reduction
+    parent: "—"
+    motivation: "特征空间中做PCA，提取非线性主成分"
+
+  - id: krr
+    name: KRR
+    full_name: "核岭回归 (Kernel Ridge Regression)"
+    year: "1998"
+    org: "Royal Holloway"
+    paper_url: "https://pure.royalholloway.ac.uk/en/publications/ridge-regression-learning-algorithm-in-dual-variables"
+    category: regression
+    parent: "—"
+    motivation: "岭回归对偶核化，获得非线性回归闭式解"
+
+  - id: kfda
+    name: KFDA
+    full_name: "核Fisher判别分析 (Kernel Fisher Discriminant Analysis)"
+    year: "1999"
+    org: "GMD FIRST"
+    paper_url: "https://ieeexplore.ieee.org/abstract/document/788121/"
+    category: reduction
+    parent: kpca
+    motivation: "LDA映射到特征空间，最大化核类间散度比"
+
+  - id: lssvm
+    name: LS-SVM
+    full_name: "最小二乘支持向量机 (Least Squares SVM)"
+    year: "1999"
+    org: "KU Leuven"
+    paper_url: "https://link.springer.com/article/10.1023/A:1018628609742"
+    category: classification
+    parent: csvm
+    motivation: "等式约束加平方损失，将QP化为线性方程组"
+
+  - id: nystrom
+    name: "Nyström"
+    full_name: "Nyström近似 (Nyström Approximation)"
+    year: "2001"
+    org: "University of Edinburgh"
+    paper_url: "https://proceedings.neurips.cc/paper/2000/hash/130590ca273143b099a541353748ad29-Abstract.html"
+    category: approximation
+    parent: "—"
+    motivation: "子采样低秩近似核矩阵，降低立方复杂度"
+
+  - id: mkl
+    name: MKL
+    full_name: "多核学习 (Multiple Kernel Learning)"
+    year: "2004"
+    org: "UC Berkeley"
+    paper_url: "https://www.jmlr.org/papers/v5/lanckriet04a.html"
+    category: classification
+    parent: csvm
+    motivation: "凸优化自动学习多核线性组合"
+
+  - id: rff
+    name: RFF
+    full_name: "随机傅里叶特征 (Random Fourier Features)"
+    year: "2007"
+    org: "Intel Research"
+    paper_url: "https://proceedings.neurips.cc/paper/2007/hash/013a006f03dbc5392effeb8f18fda755-Abstract.html"
+    category: approximation
+    parent: nystrom
+    motivation: "Bochner定理将核近似为随机特征内积"
+
+  - id: ntk
+    name: NTK
+    full_name: "神经正切核 (Neural Tangent Kernel)"
+    year: "2018"
+    org: "EPFL"
+    paper_url: "https://arxiv.org/abs/1806.07572"
+    category: frontier
+    parent: krr
+    motivation: "证明无限宽神经网络等价于固定核回归"
+
+  - id: performers
+    name: Performers
+    full_name: "核化高效注意力 (Performers / FAVOR+)"
+    year: "2020"
+    org: "Google"
+    paper_url: "https://arxiv.org/abs/2009.14794"
+    category: frontier
+    parent: rff
+    motivation: "随机特征近似Softmax注意力，线性复杂度"
+
+  - id: nystrom_lssvm
+    name: "Nyström-LSSVM"
+    full_name: "Nyström加速LS-SVM (Nyström-Accelerated LS-SVM)"
+    year: "2026.01"
+    org: "NeurIPS"
+    paper_url: "https://proceedings.neurips.cc/paper_files/paper/2025/hash/4f2e2aac788230bacd2854df94c0b903-Abstract-Conference.html"
+    category: classification
+    parent: lssvm
+    motivation: "Nyström打破LS-SVM立方复杂度瓶颈"
+
+  - id: diff_krr
+    name: Diff-KRR
+    full_name: "可微核岭回归 (Differentiable KRR)"
+    year: "2026.05"
+    org: "arXiv"
+    paper_url: "https://arxiv.org/abs/2605.02313"
+    category: frontier
+    parent: krr
+    motivation: "可微KRR层嵌入端到端深度学习流水线"
+
+  - id: topo_ntk
+    name: TopoNTK
+    full_name: "拓扑神经正切核 (Topological NTK)"
+    year: "2026.05"
+    org: "arXiv"
+    paper_url: "https://arxiv.org/abs/2605.01110"
+    category: frontier
+    parent: ntk
+    motivation: "NTK扩展到单纯复形与拓扑深度学习"
+
+  - id: laplacian_former
+    name: LaplacianFormer
+    full_name: "拉普拉斯核注意力 (LaplacianFormer)"
+    year: "2026.04"
+    org: "arXiv"
+    paper_url: "https://arxiv.org/abs/2604.20368"
+    category: frontier
+    parent: performers
+    motivation: "Nyström加速拉普拉斯核实现线性注意力"
+
+  - id: xkv
+    name: xKV
+    full_name: "核对齐KV缓存压缩 (xKV: CKA for KV-Cache)"
+    year: "2026.05"
+    org: "Sakana AI"
+    paper_url: "https://icml.cc/virtual/2026/papers.html"
+    category: frontier
+    parent: ntk
+    motivation: "CKA识别跨层对齐，压缩LLM推理缓存"
+
+graph:
+  nodes:
+    - { id: svm,              x: 100, y: 80,  category: classification }
+    - { id: csvm,             x: 160, y: 80,  category: classification }
+    - { id: gpr,              x: 160, y: 200, category: regression }
+    - { id: svr,              x: 180, y: 280, category: regression }
+    - { id: kpca,             x: 210, y: 360, category: reduction }
+    - { id: krr,              x: 210, y: 200, category: regression }
+    - { id: kfda,             x: 240, y: 360, category: reduction }
+    - { id: lssvm,            x: 240, y: 80,  category: classification }
+    - { id: nystrom,          x: 280, y: 460, category: approximation }
+    - { id: mkl,              x: 320, y: 80,  category: classification }
+    - { id: rff,              x: 370, y: 460, category: approximation }
+    - { id: ntk,              x: 520, y: 560, category: frontier }
+    - { id: performers,       x: 560, y: 460, category: frontier }
+    - { id: nystrom_lssvm,    x: 660, y: 80,  category: classification }
+    - { id: diff_krr,         x: 660, y: 200, category: frontier }
+    - { id: topo_ntk,         x: 700, y: 560, category: frontier }
+    - { id: laplacian_former, x: 700, y: 460, category: frontier }
+    - { id: xkv,              x: 740, y: 560, category: frontier }
+
+  edges:
+    - { from: svm,        to: csvm,             label: "引入软间隔" }
+    - { from: svm,        to: svr,              label: "扩展到回归" }
+    - { from: csvm,       to: lssvm,            label: "等式约束简化" }
+    - { from: csvm,       to: mkl,              label: "自动核选择" }
+    - { from: lssvm,      to: nystrom_lssvm,    label: "低秩加速" }
+    - { from: nystrom,    to: rff,              label: "随机特征近似" }
+    - { from: rff,        to: performers,       label: "核化注意力" }
+    - { from: performers, to: laplacian_former, label: "拉普拉斯核替代" }
+    - { from: krr,        to: ntk,              label: "无限宽等价" }
+    - { from: ntk,        to: topo_ntk,         label: "拓扑结构扩展" }
+    - { from: ntk,        to: xkv,              label: "核对齐压缩" }
+    - { from: krr,        to: diff_krr,         label: "可微化嵌入" }
+    - { from: kpca,       to: kfda,             label: "判别式扩展" }
+
+  milestones: [svm, rff, ntk]

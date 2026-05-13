@@ -1,0 +1,492 @@
+page_icon: 🌐
+page_title: Omni模型技术演进总结
+page_subtitle: '{build_date} 版'
+page_desc: 全模态统一处理技术的发展脉络，涵盖文本/图像/视频/音频的Any-to-Any交互
+hero_pills: 🏷️ Omni-Modal · Any-to-Any · Foundation Models
+count_pill: '{count} 个算法'
+categories:
+  unified_seq2seq:
+    label: 统一Seq2Seq
+    color: '#3498db'
+  autoregressive:
+    label: 自回归生成
+    color: '#27ae60'
+  diffusion_fusion:
+    label: 扩散模型融合
+    color: '#9b59b6'
+  encoder_llm_decoder:
+    label: 编码器-LLM-解码器
+    color: '#e67e22'
+  native_e2e:
+    label: 原生端到端
+    color: '#e74c3c'
+  frontier_2026:
+    label: 2026前沿
+    color: '#1abc9c'
+algorithms:
+- id: ofa
+  name: OFA
+  full_name: 统一架构模型 (One For All)
+  year: '2022'
+  org: 阿里达摩院
+  paper_url: https://arxiv.org/abs/2202.03052
+  category: unified_seq2seq
+  parent: —
+  motivation: 架构/模态/任务三统一的Seq2Seq
+- id: unified-io
+  name: Unified-IO
+  full_name: 统一输入输出模型 (Unified-IO)
+  year: '2022'
+  org: Allen AI
+  paper_url: https://arxiv.org/abs/2206.08916
+  category: unified_seq2seq
+  parent: ofa
+  motivation: 首个处理95种视觉语言任务
+- id: unified-io-2
+  name: Unified-IO 2
+  full_name: 统一输入输出模型第二代 (Unified-IO 2)
+  year: '2024'
+  org: Allen AI
+  paper_url: https://openaccess.thecvf.com/content/CVPR2024/html/Lu_Unified-IO_2_Scaling_Autoregressive_Multimodal_Models_with_Vision_Language_Audio_CVPR_2024_paper.html
+  category: autoregressive
+  parent: unified-io
+  motivation: Any-to-Any自回归统一模型
+- id: uni-perceiver-v2
+  name: Uni-Perceiver v2
+  full_name: 通用感知器第二代 (Uni-Perceiver v2)
+  year: '2023'
+  org: 商汤/清华
+  paper_url: https://openaccess.thecvf.com/content/CVPR2023/html/Li_Uni-Perceiver_v2_A_Generalist_Model_for_Large-Scale_Vision_and_Vision-Language_CVPR_2023_paper.html
+  category: unified_seq2seq
+  parent: ofa
+  motivation: 通用视觉-语言统一建模
+- id: unival
+  name: UniVal
+  full_name: 统一价值模型 (UniVal)
+  year: '2023'
+  org: Sorbonne
+  paper_url: https://arxiv.org/abs/2307.16184
+  category: unified_seq2seq
+  parent: ofa
+  motivation: 四模态轻量统一模型
+- id: speecht5
+  name: SpeechT5
+  full_name: 语音T5模型 (SpeechT5)
+  year: '2022'
+  org: Microsoft
+  paper_url: https://aclanthology.org/2022.acl-long.393/
+  category: unified_seq2seq
+  parent: —
+  motivation: 语音-文本统一预训练框架
+- id: audiopalm
+  name: AudioPaLM
+  full_name: 音频PaLM模型 (AudioPaLM)
+  year: '2023'
+  org: Google
+  paper_url: https://arxiv.org/abs/2306.12925
+  category: encoder_llm_decoder
+  parent: speecht5
+  motivation: 融合PaLM与AudioLM能力
+- id: qwen-audio
+  name: Qwen-Audio
+  full_name: 通义千问音频模型 (Qwen-Audio)
+  year: '2023'
+  org: 阿里通义
+  paper_url: https://arxiv.org/abs/2311.07919
+  category: encoder_llm_decoder
+  parent: audiopalm
+  motivation: 大规模音频-语言统一模型
+- id: lauragpt
+  name: LauraGPT
+  full_name: 劳拉GPT音频模型 (LauraGPT)
+  year: '2023'
+  org: 阿里达摩院
+  paper_url: https://arxiv.org/abs/2310.04673
+  category: unified_seq2seq
+  parent: speecht5
+  motivation: 端到端音频理解与生成
+- id: gpt-4o
+  name: GPT-4o
+  full_name: GPT-4全模态版 (GPT-4 Omni)
+  year: '2024'
+  org: OpenAI
+  paper_url: https://openai.com/index/hello-gpt-4o/
+  category: native_e2e
+  parent: —
+  motivation: 原生端到端全模态交互
+- id: gemini-1.5
+  name: Gemini 1.5 Pro
+  full_name: Gemini 1.5专业版 (Gemini 1.5 Pro)
+  year: '2024'
+  org: Google
+  paper_url: https://arxiv.org/abs/2403.05530
+  category: native_e2e
+  parent: gpt-4o
+  motivation: 稀疏MoE+200万token上下文
+- id: codi
+  name: CoDi
+  full_name: 可组合扩散模型 (Composable Diffusion)
+  year: '2023'
+  org: Microsoft
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2023/hash/33edf072fe44f19079d66713a1831550-Abstract-Conference.html
+  category: diffusion_fusion
+  parent: —
+  motivation: 可组合扩散Any-to-Any生成
+- id: codi-2
+  name: CoDi-2
+  full_name: 可组合扩散模型第二代 (CoDi-2)
+  year: '2024'
+  org: Microsoft
+  paper_url: https://openaccess.thecvf.com/content/CVPR2024/html/Tang_CoDi-2_In-Context_Interleaved_and_Interactive_Any-to-Any_Generation_CVPR_2024_paper.html
+  category: diffusion_fusion
+  parent: codi
+  motivation: 上下文交错生成增强交互
+- id: anygpt
+  name: AnyGPT
+  full_name: 任意模态GPT (AnyGPT)
+  year: '2024'
+  org: 复旦/上海AI Lab
+  paper_url: https://aclanthology.org/2024.findings-acl.521/
+  category: autoregressive
+  parent: —
+  motivation: 离散Token统一处理所有模态
+- id: next-gpt
+  name: NExT-GPT
+  full_name: 下一代GPT (NExT-GPT)
+  year: '2023'
+  org: NUS
+  paper_url: https://arxiv.org/abs/2309.05519
+  category: encoder_llm_decoder
+  parent: —
+  motivation: LLM+编码器+扩散解码器架构
+- id: onellm
+  name: OneLLM
+  full_name: 统一大语言模型 (OneLLM)
+  year: '2024'
+  org: 上海AI Lab
+  paper_url: https://github.com/csuhan/OneLLM
+  category: encoder_llm_decoder
+  parent: next-gpt
+  motivation: 8种模态统一映射对齐
+- id: emu3
+  name: Emu3
+  full_name: Emu第三代 (Emu3)
+  year: '2024'
+  org: BAAI
+  paper_url: https://baai.ac.cn/news/861
+  category: autoregressive
+  parent: anygpt
+  motivation: 纯Token预测统一图文视频生成
+- id: chameleon
+  name: Chameleon
+  full_name: 变色龙模型 (Chameleon)
+  year: '2024'
+  org: Meta FAIR
+  paper_url: https://ai.meta.com/blog/meta-fair-research-new-release-june-2024/
+  category: autoregressive
+  parent: anygpt
+  motivation: 早期融合自回归统一架构
+- id: show-o
+  name: Show-o
+  full_name: 展示-全模态 (Show-o)
+  year: '2024'
+  org: NUS
+  paper_url: https://arxiv.org/abs/2408.12528
+  category: autoregressive
+  parent: chameleon
+  motivation: 自回归+离散扩散混合建模
+- id: imagebind
+  name: ImageBind
+  full_name: 图像绑定模型 (ImageBind)
+  year: '2023'
+  org: Meta
+  paper_url: https://ai.meta.com/blog/imagebind-six-modalities-binding-ai/
+  category: encoder_llm_decoder
+  parent: —
+  motivation: 六模态统一嵌入空间
+- id: meta-transformer
+  name: Meta-Transformer
+  full_name: 元Transformer (Meta-Transformer)
+  year: '2023'
+  org: 上海AI Lab
+  paper_url: https://arxiv.org/abs/2307.10802
+  category: encoder_llm_decoder
+  parent: imagebind
+  motivation: 12种模态单一编码器处理
+- id: languagebind
+  name: LanguageBind
+  full_name: 语言绑定模型 (LanguageBind)
+  year: '2024'
+  org: ICLR
+  paper_url: https://arxiv.org/abs/2310.01852
+  category: encoder_llm_decoder
+  parent: imagebind
+  motivation: 语言中心N模态语义对齐
+- id: janus-pro
+  name: Janus-Pro
+  full_name: Janus专业版 (Janus-Pro)
+  year: '2025'
+  org: DeepSeek
+  paper_url: https://arxiv.org/abs/2501.17833
+  category: frontier_2026
+  parent: chameleon
+  motivation: 解耦视觉编码解决表征冲突
+- id: minicpm-o
+  name: MiniCPM-o 4.5
+  full_name: MiniCPM全模态4.5版 (MiniCPM-o 4.5)
+  year: '2026'
+  org: OpenBMB
+  paper_url: https://minicpm.vercel.app/blog/minicpm-o-2-6-en
+  category: frontier_2026
+  parent: gpt-4o
+  motivation: 全双工实时交互边端模型
+- id: qwen3.5-omni
+  name: Qwen3.5-Omni
+  full_name: 通义千问3.5全模态版 (Qwen3.5-Omni)
+  year: '2026'
+  org: 阿里通义
+  paper_url: https://qwen.ai/blog/qwen2.5-omni/
+  category: frontier_2026
+  parent: gemini-1.5
+  motivation: Thinker-Talker双核低延迟架构
+- id: omniflow
+  name: OmniFlow
+  full_name: 全模态流模型 (OmniFlow)
+  year: '2025'
+  org: UCLA
+  paper_url: https://openaccess.thecvf.com/content/CVPR2025/html/Li_OmniFlow_Any-to-Any_Generation_with_Multi-Modal_Rectified_Flows_CVPR_2025_paper.html
+  category: diffusion_fusion
+  parent: codi-2
+  motivation: 多模态修正流统一生成
+- id: omni-diffusion
+  name: Omni-Diffusion
+  full_name: 全模态扩散模型 (Omni-Diffusion)
+  year: '2026'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2603.06000
+  category: frontier_2026
+  parent: show-o
+  motivation: 掩码离散扩散统一理解与生成
+- id: nemotron-3-nano
+  name: Nemotron 3 Nano
+  full_name: Nemotron 3纳米版 (Nemotron 3 Nano)
+  year: '2026'
+  org: NVIDIA
+  paper_url: https://nvidianews.nvidia.com/news/nvidia-nemotron-3-nano-omni-open-multimodal-model
+  category: frontier_2026
+  parent: gpt-4o
+  motivation: 高吞吐音视频智能体推理
+- id: llama-4-scout
+  name: Llama 4 Scout
+  full_name: Llama 4侦察版 (Llama 4 Scout)
+  year: '2025'
+  org: Meta
+  paper_url: https://llama.meta.com/llama4-launch
+  category: native_e2e
+  parent: gemini-1.5
+  motivation: 开源原生MoE全模态模型
+- id: gpt-5.5-instant
+  name: GPT-5.5 Instant
+  full_name: GPT-5.5即时版 (GPT-5.5 Instant)
+  year: '2026'
+  org: OpenAI
+  paper_url: https://openai.com/gpt-5-5
+  category: frontier_2026
+  parent: gpt-4o
+  motivation: 强化可靠性与Agentic任务
+graph:
+  nodes:
+  - id: ofa
+    x: 100
+    y: 100
+    category: unified_seq2seq
+  - id: unified-io
+    x: 120
+    y: 100
+    category: unified_seq2seq
+  - id: uni-perceiver-v2
+    x: 200
+    y: 100
+    category: unified_seq2seq
+  - id: unival
+    x: 220
+    y: 100
+    category: unified_seq2seq
+  - id: speecht5
+    x: 100
+    y: 150
+    category: unified_seq2seq
+  - id: lauragpt
+    x: 200
+    y: 150
+    category: unified_seq2seq
+  - id: unified-io-2
+    x: 300
+    y: 200
+    category: autoregressive
+  - id: anygpt
+    x: 300
+    y: 250
+    category: autoregressive
+  - id: emu3
+    x: 320
+    y: 250
+    category: autoregressive
+  - id: chameleon
+    x: 340
+    y: 250
+    category: autoregressive
+  - id: show-o
+    x: 360
+    y: 250
+    category: autoregressive
+  - id: audiopalm
+    x: 200
+    y: 300
+    category: encoder_llm_decoder
+  - id: qwen-audio
+    x: 220
+    y: 300
+    category: encoder_llm_decoder
+  - id: next-gpt
+    x: 200
+    y: 350
+    category: encoder_llm_decoder
+  - id: onellm
+    x: 300
+    y: 350
+    category: encoder_llm_decoder
+  - id: imagebind
+    x: 200
+    y: 400
+    category: encoder_llm_decoder
+  - id: meta-transformer
+    x: 220
+    y: 400
+    category: encoder_llm_decoder
+  - id: languagebind
+    x: 300
+    y: 400
+    category: encoder_llm_decoder
+  - id: codi
+    x: 200
+    y: 500
+    category: diffusion_fusion
+  - id: codi-2
+    x: 300
+    y: 500
+    category: diffusion_fusion
+  - id: omniflow
+    x: 400
+    y: 500
+    category: diffusion_fusion
+  - id: gpt-4o
+    x: 300
+    y: 600
+    category: native_e2e
+  - id: gemini-1.5
+    x: 320
+    y: 600
+    category: native_e2e
+  - id: llama-4-scout
+    x: 400
+    y: 600
+    category: native_e2e
+  - id: janus-pro
+    x: 400
+    y: 700
+    category: frontier_2026
+  - id: minicpm-o
+    x: 500
+    y: 650
+    category: frontier_2026
+  - id: qwen3.5-omni
+    x: 520
+    y: 650
+    category: frontier_2026
+  - id: omni-diffusion
+    x: 500
+    y: 700
+    category: frontier_2026
+  - id: nemotron-3-nano
+    x: 540
+    y: 650
+    category: frontier_2026
+  - id: gpt-5.5-instant
+    x: 560
+    y: 650
+    category: frontier_2026
+  edges:
+  - from: ofa
+    to: unified-io
+    label: 任务扩展
+  - from: ofa
+    to: uni-perceiver-v2
+    label: 视觉增强
+  - from: ofa
+    to: unival
+    label: 轻量化
+  - from: unified-io
+    to: unified-io-2
+    label: 自回归化
+  - from: speecht5
+    to: audiopalm
+    label: LLM融合
+  - from: speecht5
+    to: lauragpt
+    label: 端到端
+  - from: audiopalm
+    to: qwen-audio
+    label: 规模扩展
+  - from: anygpt
+    to: emu3
+    label: 纯Token化
+  - from: anygpt
+    to: chameleon
+    label: 早期融合
+  - from: chameleon
+    to: show-o
+    label: 混合建模
+  - from: chameleon
+    to: janus-pro
+    label: 解耦编码
+  - from: show-o
+    to: omni-diffusion
+    label: 扩散统一
+  - from: next-gpt
+    to: onellm
+    label: 模态扩展
+  - from: imagebind
+    to: meta-transformer
+    label: 编码统一
+  - from: imagebind
+    to: languagebind
+    label: 语言中心
+  - from: codi
+    to: codi-2
+    label: 交错生成
+  - from: codi-2
+    to: omniflow
+    label: 修正流
+  - from: gpt-4o
+    to: gemini-1.5
+    label: MoE架构
+  - from: gpt-4o
+    to: minicpm-o
+    label: 全双工
+  - from: gpt-4o
+    to: nemotron-3-nano
+    label: 智能体优化
+  - from: gpt-4o
+    to: gpt-5.5-instant
+    label: 可靠性强化
+  - from: gemini-1.5
+    to: qwen3.5-omni
+    label: 双核架构
+  - from: gemini-1.5
+    to: llama-4-scout
+    label: 开源MoE
+  milestones:
+  - ofa
+  - gpt-4o
+  - qwen3.5-omni

@@ -1,0 +1,466 @@
+domain: ai4sci
+topic_id: ai4material
+topic_name: 材料学AI
+page_icon: 🧪
+page_title: 材料学AI 算法总结
+page_subtitle: '{build_date} 版'
+page_desc: AI在晶体结构预测、性质预测及新材料发现领域的演进脉络
+hero_pills: 材料发现 · 结构预测
+count_pill: '{count} 个算法'
+categories:
+  gnn_representation:
+    label: 图神经网络表征
+    color: '#22a06b'
+  structure_prediction:
+    label: 晶体结构预测
+    color: '#0065ff'
+  mlip:
+    label: 机器学习原子间势
+    color: '#ff8b00'
+  property_prediction:
+    label: 性质预测
+    color: '#9c27b0'
+  foundation_model:
+    label: 基础模型/LLM
+    color: '#e91e63'
+algorithms:
+- id: schnet
+  name: SchNet
+  full_name: 连续过滤器卷积网络 (Continuous-filter Convolutional NN)
+  year: '2017'
+  org: TU Berlin
+  paper_url: https://proceedings.neurips.cc/paper/2017/hash/303ed4c69846ab36c2904d3ba8573050-Abstract.html
+  category: gnn_representation
+  parent: —
+  motivation: 连续过滤器处理非网格原子位置
+- id: cgcnn
+  name: CGCNN
+  full_name: 晶体图卷积神经网络 (Crystal Graph Convolutional NN)
+  year: '2018'
+  org: MIT
+  paper_url: https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.120.145301
+  category: gnn_representation
+  parent: schnet
+  motivation: 首个通用晶体GNN捕捉周期性
+- id: megnet
+  name: MEGNet
+  full_name: 材料图网络 (MatErials Graph Network)
+  year: '2019'
+  org: UCSD
+  paper_url: https://pubs.acs.org/doi/10.1021/acs.chemmater.9b01294
+  category: gnn_representation
+  parent: cgcnn
+  motivation: 全局状态向量实现多属性预测
+- id: dimenet
+  name: DimeNet
+  full_name: 方向性消息传递网络 (Directional Message Passing NN)
+  year: '2020'
+  org: TU Munich
+  paper_url: https://openreview.net/forum?id=B1e79eBKvS
+  category: gnn_representation
+  parent: schnet
+  motivation: 显式建模键角的方向性消息
+- id: alignn
+  name: ALIGNN
+  full_name: 原子线图神经网络 (Atomistic Line Graph NN)
+  year: '2021'
+  org: NIST
+  paper_url: https://www.nature.com/articles/s41524-021-00650-1
+  category: gnn_representation
+  parent: cgcnn
+  motivation: 线图同时捕捉键长与键角
+- id: painn
+  name: PaiNN
+  full_name: 极速旋转等变消息传递 (Polarizable Atom Interaction NN)
+  year: '2021'
+  org: TU Berlin
+  paper_url: https://proceedings.mlr.press/v139/schutt21a.html
+  category: gnn_representation
+  parent: schnet
+  motivation: 极速旋转等变提升力场效率
+- id: gemnet
+  name: GemNet
+  full_name: 通用方向性图网络 (Geometric Message Passing NN)
+  year: '2021'
+  org: TU Munich
+  paper_url: https://proceedings.neurips.cc/paper/2021/hash/35cf8659cfcb13224cbd47863a34fc58-Abstract.html
+  category: gnn_representation
+  parent: dimenet
+  motivation: 解决分子对称性破缺问题
+- id: equiformer
+  name: Equiformer
+  full_name: 等变图注意力Transformer (Equivariant Graph Attention Transformer)
+  year: '2023'
+  org: SEAS
+  paper_url: https://openreview.net/forum?id=KwmPfARgOTD
+  category: gnn_representation
+  parent: mace
+  motivation: Transformer与SE(3)等变结合
+- id: uspex
+  name: USPEX
+  full_name: '通用结构预测演化算法 (Universal Structure Predictor: Evolutionary Xtallography)'
+  year: '2006'
+  org: Oganov Group
+  paper_url: https://uspex-team.org/en/uspex/overview
+  category: structure_prediction
+  parent: —
+  motivation: 遗传算法全局搜索能量最低点
+- id: calypso
+  name: CALYPSO
+  full_name: 粒子群晶体结构搜索 (Crystal structure AnaLYsis by Particle Swarm Optimization)
+  year: '2012'
+  org: 吉林大学
+  paper_url: https://www.calypso.cn
+  category: structure_prediction
+  parent: uspex
+  motivation: 粒子群优化超硬材料预测
+- id: cdvae
+  name: CDVAE
+  full_name: 晶体扩散变分自编码器 (Crystal Diffusion Variational AutoEncoder)
+  year: '2021'
+  org: MIT
+  paper_url: https://arxiv.org/abs/2110.14810
+  category: structure_prediction
+  parent: —
+  motivation: 首次将扩散模型引入晶体生成
+- id: diffcsp
+  name: DiffCSP
+  full_name: 扩散晶体结构预测 (Diffusion-based Crystal Structure Prediction)
+  year: '2024'
+  org: Tsinghua
+  paper_url: https://openreview.net/forum?id=9T_v_8AAAAJ
+  category: structure_prediction
+  parent: cdvae
+  motivation: 学习原子坐标扩散提升搜索率
+- id: flowmm
+  name: FlowMM
+  full_name: 黎曼流匹配材料生成 (Riemannian Flow Matching for Materials)
+  year: '2024'
+  org: MIT
+  paper_url: https://arxiv.org/abs/2406.04713
+  category: structure_prediction
+  parent: cdvae
+  motivation: 流匹配技术效率提升3倍
+- id: mattergen
+  name: MatterGen
+  full_name: 材料生成模型 (Matter Generator)
+  year: '2025'
+  org: Microsoft
+  paper_url: https://www.nature.com/articles/s41586-023-06735-9
+  category: structure_prediction
+  parent: diffcsp
+  motivation: 目标性质逆向设计生成
+- id: m3gnet
+  name: M3GNet
+  full_name: 三体图网络 (Multi-body Graph Network)
+  year: '2022'
+  org: UCSD
+  paper_url: https://www.nature.com/articles/s43588-022-00349-3
+  category: mlip
+  parent: megnet
+  motivation: 通用势函数覆盖89种元素
+- id: mace
+  name: MACE
+  full_name: 高阶等变消息传递 (Multi-Atomic Cluster Expansion)
+  year: '2022'
+  org: Cambridge
+  paper_url: https://proceedings.neurips.cc/paper/2022/hash/4a36c3c51af11ed9f34615b81edb5bbc-Abstract-Conference.html
+  category: mlip
+  parent: gemnet
+  motivation: 高阶等变消息实现近DFT精度
+- id: chgnet
+  name: CHGNet
+  full_name: 电荷感知图网络 (Charge-informed Graph Network)
+  year: '2023'
+  org: Berkeley
+  paper_url: https://www.nature.com/articles/s42256-023-00716-3
+  category: mlip
+  parent: m3gnet
+  motivation: 引入磁矩区分氧化态
+- id: orb
+  name: Orb
+  full_name: 轨道力场 (Orbital Force Field)
+  year: '2024'
+  org: Orbital Materials
+  paper_url: https://arxiv.org/abs/2410.22570
+  category: mlip
+  parent: mace
+  motivation: 比GNoME快3-6倍误差降31%
+- id: esen
+  name: eSEN
+  full_name: 等变光滑能量网络 (equivariant Smooth Energy Network)
+  year: '2025'
+  org: Meta FAIR
+  paper_url: https://arxiv.org/abs/2502.12147
+  category: mlip
+  parent: mace
+  motivation: 光滑势能面确保长程能量守恒
+- id: matminer
+  name: matminer
+  full_name: 材料数据挖掘工具 (Materials Data Miner)
+  year: '2018'
+  org: LBNL
+  paper_url: https://doi.org/10.1016/j.commatsci.2018.05.018
+  category: property_prediction
+  parent: —
+  motivation: 70+特征提取器的标准工具
+- id: modnet
+  name: MODNet
+  full_name: 材料最优描述符网络 (Materials Optimal Descriptor Network)
+  year: '2021'
+  org: UCLouvain
+  paper_url: https://doi.org/10.1038/s41524-021-00552-2
+  category: property_prediction
+  parent: matminer
+  motivation: 小样本数据集优化预测
+- id: anisonet
+  name: AnisoNet
+  full_name: 各向异性网络 (Anisotropic Network)
+  year: '2025'
+  org: 多机构
+  paper_url: https://pubs.rsc.org/en/content/articlehtml/2024/fd/d4fd00096j
+  category: property_prediction
+  parent: equiformer
+  motivation: 完整介电张量预测
+- id: e2gnn
+  name: E²GNN
+  full_name: 高效等变图神经网络 (Efficient Equivariant Graph NN)
+  year: '2025'
+  org: 多机构
+  paper_url: https://www.nature.com/articles/s41524-025-01535-3
+  category: property_prediction
+  parent: equiformer
+  motivation: 平衡精度与效率的等变设计
+- id: gnome
+  name: GNoME
+  full_name: 图网络材料探索 (Graph Networks for Materials Exploration)
+  year: '2023'
+  org: DeepMind
+  paper_url: https://www.nature.com/articles/s41586-023-06735-9
+  category: foundation_model
+  parent: m3gnet
+  motivation: 主动学习发现220万新晶体
+- id: crystallm
+  name: CrystaLLM
+  full_name: 晶体语言模型 (Crystal Language Model)
+  year: '2024'
+  org: UCL
+  paper_url: https://www.nature.com/articles/s41467-024-54639-7
+  category: foundation_model
+  parent: —
+  motivation: CIF作为语言的生成式模型
+- id: matllmsearch
+  name: MatLLMSearch
+  full_name: 材料LLM搜索 (Materials LLM Search)
+  year: '2025'
+  org: 多机构
+  paper_url: https://arxiv.org/abs/2502.20933
+  category: foundation_model
+  parent: crystallm
+  motivation: LLM作为智能提案代理
+- id: mattersim_mt
+  name: MatterSim-MT
+  full_name: 材料模拟多任务模型 (MatterSim Multi-Task)
+  year: '2026'
+  org: Microsoft
+  paper_url: https://www.microsoft.com/en-us/research/blog/mattersim-updates-experimental-validation-faster-simulation-and-a-new-multi-task-model/
+  category: foundation_model
+  parent: chgnet
+  motivation: 3500万结构多任务基础模型
+- id: llema
+  name: LLEMA
+  full_name: LLM引导材料演化 (LLM-guided Evolution for Materials)
+  year: '2026'
+  org: 多机构
+  paper_url: https://arxiv.org/abs/2603.05123
+  category: foundation_model
+  parent: matllmsearch
+  motivation: LLM引导演化多目标发现
+graph:
+  nodes:
+  - id: schnet
+    x: 430
+    y: 100
+    category: gnn_representation
+  - id: cgcnn
+    x: 460
+    y: 100
+    category: gnn_representation
+  - id: megnet
+    x: 490
+    y: 100
+    category: gnn_representation
+  - id: dimenet
+    x: 520
+    y: 100
+    category: gnn_representation
+  - id: alignn
+    x: 550
+    y: 100
+    category: gnn_representation
+  - id: painn
+    x: 550
+    y: 100
+    category: gnn_representation
+  - id: gemnet
+    x: 550
+    y: 100
+    category: gnn_representation
+  - id: equiformer
+    x: 610
+    y: 100
+    category: gnn_representation
+  - id: uspex
+    x: 100
+    y: 250
+    category: structure_prediction
+  - id: calypso
+    x: 280
+    y: 250
+    category: structure_prediction
+  - id: cdvae
+    x: 550
+    y: 250
+    category: structure_prediction
+  - id: diffcsp
+    x: 640
+    y: 250
+    category: structure_prediction
+  - id: flowmm
+    x: 640
+    y: 250
+    category: structure_prediction
+  - id: mattergen
+    x: 670
+    y: 250
+    category: structure_prediction
+  - id: m3gnet
+    x: 580
+    y: 400
+    category: mlip
+  - id: mace
+    x: 580
+    y: 400
+    category: mlip
+  - id: chgnet
+    x: 610
+    y: 400
+    category: mlip
+  - id: orb
+    x: 640
+    y: 400
+    category: mlip
+  - id: esen
+    x: 670
+    y: 400
+    category: mlip
+  - id: matminer
+    x: 460
+    y: 550
+    category: property_prediction
+  - id: modnet
+    x: 550
+    y: 550
+    category: property_prediction
+  - id: anisonet
+    x: 670
+    y: 550
+    category: property_prediction
+  - id: e2gnn
+    x: 670
+    y: 550
+    category: property_prediction
+  - id: gnome
+    x: 610
+    y: 700
+    category: foundation_model
+  - id: crystallm
+    x: 640
+    y: 700
+    category: foundation_model
+  - id: matllmsearch
+    x: 670
+    y: 700
+    category: foundation_model
+  - id: mattersim_mt
+    x: 700
+    y: 700
+    category: foundation_model
+  - id: llema
+    x: 700
+    y: 700
+    category: foundation_model
+  edges:
+  - from: schnet
+    to: cgcnn
+    label: 周期性建模
+  - from: cgcnn
+    to: megnet
+    label: 全局状态
+  - from: schnet
+    to: dimenet
+    label: 方向性
+  - from: cgcnn
+    to: alignn
+    label: 线图表征
+  - from: schnet
+    to: painn
+    label: 等变性
+  - from: dimenet
+    to: gemnet
+    label: 对称性
+  - from: mace
+    to: equiformer
+    label: Transformer
+  - from: uspex
+    to: calypso
+    label: 群智能
+  - from: cdvae
+    to: diffcsp
+    label: 坐标扩散
+  - from: cdvae
+    to: flowmm
+    label: 流匹配
+  - from: diffcsp
+    to: mattergen
+    label: 逆向设计
+  - from: megnet
+    to: m3gnet
+    label: 通用势
+  - from: gemnet
+    to: mace
+    label: 高阶等变
+  - from: m3gnet
+    to: chgnet
+    label: 电荷感知
+  - from: mace
+    to: orb
+    label: GPU加速
+  - from: mace
+    to: esen
+    label: 光滑势面
+  - from: matminer
+    to: modnet
+    label: 小样本
+  - from: equiformer
+    to: anisonet
+    label: 张量预测
+  - from: equiformer
+    to: e2gnn
+    label: 效率优化
+  - from: m3gnet
+    to: gnome
+    label: 主动学习
+  - from: crystallm
+    to: matllmsearch
+    label: 智能搜索
+  - from: chgnet
+    to: mattersim_mt
+    label: 多任务
+  - from: matllmsearch
+    to: llema
+    label: 演化引导
+  milestones:
+  - cgcnn
+  - gnome
+  - mattersim_mt

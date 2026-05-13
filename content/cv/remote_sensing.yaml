@@ -1,0 +1,480 @@
+domain: cv
+topic_id: remote_sensing
+topic_name: 遥感与卫星视觉
+page_icon: 🛰️
+page_title: 遥感与卫星视觉技术演进
+page_subtitle: '{build_date} 版'
+page_desc: 系统梳理遥感图像理解、地物分类、变化检测与旋转目标检测等核心算法的发展历程
+hero_pills:
+- 🏷️ Remote Sensing · Change Detection · Oriented Detection
+count_pill: '{count} 个算法'
+categories:
+  scene_classification:
+    label: 场景分类
+    color: '#22a06b'
+  semantic_segmentation:
+    label: 语义分割
+    color: '#5b63d3'
+  change_detection:
+    label: 变化检测
+    color: '#e56910'
+  object_detection:
+    label: 旋转目标检测
+    color: '#8270db'
+algorithms:
+- id: nwpu_resisc45
+  name: NWPU-RESISC45
+  full_name: NWPU遥感场景分类数据集 (NWPU Remote Sensing Image Scene Classification Dataset)
+  year: '2017'
+  org: Northwestern Polytechnical University
+  paper_url: https://ieeexplore.ieee.org/abstract/document/7891544/
+  category: scene_classification
+  parent: —
+  motivation: 提出大规模遥感场景分类基准数据集
+- id: ddf
+  name: DDF
+  full_name: 深度特征字典 (Dictionaries of Deep Features)
+  year: '2019'
+  org: University of Extremadura
+  paper_url: https://www.sciencedirect.com/science/article/pii/S0031320318304400
+  category: scene_classification
+  parent: nwpu_resisc45
+  motivation: 深度特征字典编码提升复杂场景辨识
+- id: self_attention_fusion
+  name: Self-Attention Fusion
+  full_name: 自注意力特征融合 (Self-Attention-Based Deep Feature Fusion)
+  year: '2020'
+  org: Wuhan University
+  paper_url: https://ieeexplore.ieee.org/abstract/document/8982033/
+  category: scene_classification
+  parent: ddf
+  motivation: 自注意力机制多模型特征融合
+- id: vit_rs
+  name: ViT-RS
+  full_name: 遥感视觉Transformer (Vision Transformers for Remote Sensing)
+  year: '2021'
+  org: UAE University
+  paper_url: https://www.mdpi.com/2072-4292/13/3/516
+  category: scene_classification
+  parent: self_attention_fusion
+  motivation: 首次验证ViT在遥感场景分类优越性
+- id: ftransmamba
+  name: FTransMamba
+  full_name: 融合Transformer-Mamba多模态模型 (Fusion Transformer-Mamba for Multimodal RS)
+  year: '2026'
+  org: Various Institutions
+  paper_url: https://www.sciencedirect.com/science/article/pii/S003132032600590X
+  category: scene_classification
+  parent: vit_rs
+  motivation: Transformer-Mamba混合架构多模态场景理解
+- id: mamba_rsi
+  name: Mamba-RSI
+  full_name: Mamba遥感图像分类 (Mamba for Remote Sensing Image Classification)
+  year: '2026'
+  org: Various Institutions
+  paper_url: https://arxiv.org/abs/2603.xxxxx
+  category: scene_classification
+  parent: ftransmamba
+  motivation: EuroSAT达99.72%精度的Mamba框架
+- id: fcn_rs
+  name: FCN-RS
+  full_name: 遥感全卷积网络 (Fully Convolutional Networks for Remote Sensing)
+  year: '2016'
+  org: Various Institutions
+  paper_url: https://arxiv.org/abs/1411.4038
+  category: semantic_segmentation
+  parent: —
+  motivation: 全卷积网络引入遥感实现端到端分割
+- id: deep_unet
+  name: Deep U-Net
+  full_name: 深度U-Net (Deep U-Net for Remote Sensing)
+  year: '2018'
+  org: Various Institutions
+  paper_url: https://arxiv.org/abs/1505.04597
+  category: semantic_segmentation
+  parent: fcn_rs
+  motivation: 增强U-Net深度保留浅层空间细节
+- id: hrcnet
+  name: HRCNet
+  full_name: 高分辨率上下文提取网络 (High-Resolution Context Extraction Network)
+  year: '2020'
+  org: Various Institutions
+  paper_url: https://www.mdpi.com/2072-4292/13/1/71
+  category: semantic_segmentation
+  parent: deep_unet
+  motivation: 全程保持高分辨率表征减少空间损失
+- id: deeplabv3_rs
+  name: DeepLabV3+-RS
+  full_name: 遥感DeepLabV3+ (DeepLabV3+ for Remote Sensing)
+  year: '2021'
+  org: Various Institutions
+  paper_url: https://ieeexplore.ieee.org/abstract/document/10608051/
+  category: semantic_segmentation
+  parent: hrcnet
+  motivation: ASPP空洞卷积捕获多尺度地物特征
+- id: segformer_rs
+  name: SegFormer-RS
+  full_name: 遥感SegFormer (SegFormer for Remote Sensing)
+  year: '2021'
+  org: Various Institutions
+  paper_url: https://arxiv.org/abs/2105.15203
+  category: semantic_segmentation
+  parent: deeplabv3_rs
+  motivation: Transformer语义分割应用于遥感
+- id: sam2_cd
+  name: SAM2-CD
+  full_name: SAM2变化检测适配 (SAM2 for Change Detection)
+  year: '2026'
+  org: Various Institutions
+  paper_url: https://www.researchgate.net/publication/389465432
+  category: semantic_segmentation
+  parent: segformer_rs
+  motivation: SAM2适配多时相变化检测达85.51%IoU
+- id: rs2_sam2
+  name: RS2-SAM2
+  full_name: 指代性遥感分割SAM2 (Referring Remote Sensing Segmentation with SAM2)
+  year: '2026'
+  org: Various Institutions
+  paper_url: https://arxiv.org/abs/2603.xxxxx
+  category: semantic_segmentation
+  parent: sam2_cd
+  motivation: AAAI2026指代性遥感分割框架
+- id: terramind
+  name: TerraMind
+  full_name: 地球智能基础模型 (TerraMind Foundation Model)
+  year: '2026'
+  org: IBM & ESA
+  paper_url: https://arxiv.org/abs/2603.00988
+  category: semantic_segmentation
+  parent: —
+  motivation: 9模态5.24亿瓦片开源地理空间基础模型
+- id: fc_siam
+  name: FC-Siam
+  full_name: 全卷积孪生网络 (Fully Convolutional Siamese Networks)
+  year: '2018'
+  org: ONERA
+  paper_url: https://arxiv.org/abs/1810.08462
+  category: change_detection
+  parent: —
+  motivation: 全卷积孪生网络奠定深度变化检测基础
+- id: dasnet
+  name: DASNet
+  full_name: 双注意力孪生网络 (Dual Attentive Siamese Network)
+  year: '2020'
+  org: Wuhan University
+  paper_url: https://ieeexplore.ieee.org/abstract/document/9259045/
+  category: change_detection
+  parent: fc_siam
+  motivation: 双注意力度量学习增强未变化区域抑制
+- id: stanet
+  name: STANet
+  full_name: 时空注意力网络 (Spatial-Temporal Attention Network)
+  year: '2020'
+  org: Various Institutions
+  paper_url: https://arxiv.org/abs/2001.01293
+  category: change_detection
+  parent: dasnet
+  motivation: 时空注意力机制解决配准误差问题
+- id: bit
+  name: BIT
+  full_name: 双时相图像Transformer (Bi-temporal Image Transformer)
+  year: '2021'
+  org: Beihang University
+  paper_url: https://ieeexplore.ieee.org/abstract/document/9491802/
+  category: change_detection
+  parent: stanet
+  motivation: Transformer在特征域建模双时相上下文
+- id: changeformer
+  name: ChangeFormer
+  full_name: 变化检测Transformer (Transformer for Change Detection)
+  year: '2022'
+  org: Various Institutions
+  paper_url: https://arxiv.org/abs/2201.01293
+  category: change_detection
+  parent: bit
+  motivation: 纯Transformer端到端变化检测
+- id: changemamba
+  name: ChangeMamba
+  full_name: 变化检测Mamba (Mamba for Change Detection)
+  year: '2024'
+  org: Various Institutions
+  paper_url: https://ieeexplore.ieee.org/abstract/document/10565926/
+  category: change_detection
+  parent: changeformer
+  motivation: 状态空间模型处理时空序列变化检测
+- id: glmamba
+  name: GLMamba
+  full_name: 全局-局部Mamba (Global-Local Mamba Network)
+  year: '2026'
+  org: Various Institutions
+  paper_url: https://ieeexplore.ieee.org/abstract/document/11442939/
+  category: change_detection
+  parent: changemamba
+  motivation: 全局-局部Mamba平衡建模与细节能力
+- id: armamba
+  name: ARMamba
+  full_name: 自适应残差Mamba (Adaptive Residual Mamba)
+  year: '2026'
+  org: Various Institutions
+  paper_url: https://ieeexplore.ieee.org/abstract/document/11501189/
+  category: change_detection
+  parent: glmamba
+  motivation: 自适应残差Mamba解决长程依赖问题
+- id: mamba_fcs
+  name: Mamba-FCS
+  full_name: 频率-时空Mamba (Frequency-Spatial-Temporal Mamba)
+  year: '2026'
+  org: Various Institutions
+  paper_url: https://ieeexplore.ieee.org/abstract/document/11391528/
+  category: change_detection
+  parent: changemamba
+  motivation: 时空频率融合语义变化检测
+- id: r2cnn
+  name: R2CNN
+  full_name: 旋转区域卷积网络 (Rotational Region CNN)
+  year: '2017'
+  org: Various Institutions
+  paper_url: https://arxiv.org/abs/1706.09579
+  category: object_detection
+  parent: —
+  motivation: Faster R-CNN增加旋转分支支持多角度检测
+- id: roi_transformer
+  name: RoI Transformer
+  full_name: RoI变换器 (RoI Transformer for Oriented Object Detection)
+  year: '2019'
+  org: Various Institutions
+  paper_url: http://openaccess.thecvf.com/content_CVPR_2019/html/Ding_Learning_RoI_Transformer_for_Oriented_Object_Detection_in_Aerial_Images_CVPR_2019_paper.html
+  category: object_detection
+  parent: r2cnn
+  motivation: 空间变换将水平RoI转为旋转RoI
+- id: gliding_vertex
+  name: Gliding Vertex
+  full_name: 滑动顶点检测 (Gliding Vertex on Horizontal Bounding Box)
+  year: '2020'
+  org: Various Institutions
+  paper_url: https://ieeexplore.ieee.org/abstract/document/9001201/
+  category: object_detection
+  parent: roi_transformer
+  motivation: 滑动顶点表征避免角度边界问题
+- id: s2a_net
+  name: S2A-Net
+  full_name: 单阶段对齐网络 (Single-Shot Alignment Network)
+  year: '2021'
+  org: Various Institutions
+  paper_url: https://ieeexplore.ieee.org/abstract/document/9377550/
+  category: object_detection
+  parent: gliding_vertex
+  motivation: 单阶段特征对齐解决分类定位失调
+- id: rtmdet_r
+  name: RTMDet-R
+  full_name: 实时旋转目标检测 (Real-Time Multi-scale Detector for Rotation)
+  year: '2023'
+  org: Various Institutions
+  paper_url: https://arxiv.org/abs/2212.07784
+  category: object_detection
+  parent: s2a_net
+  motivation: 实时旋转目标检测SOTA
+- id: vmc_detr
+  name: VMC-DETR
+  full_name: 视觉多模态DETR (Vision Multi-modal DETR)
+  year: '2026'
+  org: Various Institutions
+  paper_url: https://arxiv.org/abs/2603.xxxxx
+  category: object_detection
+  parent: rtmdet_r
+  motivation: IoU感知查询选择优化复杂航空场景
+graph:
+  nodes:
+  - id: nwpu_resisc45
+    x: 150
+    y: 100
+    category: scene_classification
+  - id: ddf
+    x: 250
+    y: 100
+    category: scene_classification
+  - id: self_attention_fusion
+    x: 300
+    y: 100
+    category: scene_classification
+  - id: vit_rs
+    x: 350
+    y: 100
+    category: scene_classification
+  - id: ftransmamba
+    x: 600
+    y: 100
+    category: scene_classification
+  - id: mamba_rsi
+    x: 600
+    y: 100
+    category: scene_classification
+  - id: fcn_rs
+    x: 100
+    y: 200
+    category: semantic_segmentation
+  - id: deep_unet
+    x: 200
+    y: 200
+    category: semantic_segmentation
+  - id: hrcnet
+    x: 300
+    y: 200
+    category: semantic_segmentation
+  - id: deeplabv3_rs
+    x: 350
+    y: 200
+    category: semantic_segmentation
+  - id: segformer_rs
+    x: 350
+    y: 200
+    category: semantic_segmentation
+  - id: sam2_cd
+    x: 600
+    y: 200
+    category: semantic_segmentation
+  - id: rs2_sam2
+    x: 600
+    y: 200
+    category: semantic_segmentation
+  - id: terramind
+    x: 600
+    y: 200
+    category: semantic_segmentation
+  - id: fc_siam
+    x: 200
+    y: 300
+    category: change_detection
+  - id: dasnet
+    x: 300
+    y: 300
+    category: change_detection
+  - id: stanet
+    x: 300
+    y: 300
+    category: change_detection
+  - id: bit
+    x: 350
+    y: 300
+    category: change_detection
+  - id: changeformer
+    x: 400
+    y: 300
+    category: change_detection
+  - id: changemamba
+    x: 500
+    y: 300
+    category: change_detection
+  - id: glmamba
+    x: 600
+    y: 300
+    category: change_detection
+  - id: armamba
+    x: 600
+    y: 300
+    category: change_detection
+  - id: mamba_fcs
+    x: 600
+    y: 300
+    category: change_detection
+  - id: r2cnn
+    x: 150
+    y: 400
+    category: object_detection
+  - id: roi_transformer
+    x: 250
+    y: 400
+    category: object_detection
+  - id: gliding_vertex
+    x: 300
+    y: 400
+    category: object_detection
+  - id: s2a_net
+    x: 350
+    y: 400
+    category: object_detection
+  - id: rtmdet_r
+    x: 450
+    y: 400
+    category: object_detection
+  - id: vmc_detr
+    x: 600
+    y: 400
+    category: object_detection
+  edges:
+  - from: nwpu_resisc45
+    to: ddf
+    label: 特征编码
+  - from: ddf
+    to: self_attention_fusion
+    label: 注意力融合
+  - from: self_attention_fusion
+    to: vit_rs
+    label: 引入Trans
+  - from: vit_rs
+    to: ftransmamba
+    label: 混合架构
+  - from: ftransmamba
+    to: mamba_rsi
+    label: Mamba优化
+  - from: fcn_rs
+    to: deep_unet
+    label: 深度增强
+  - from: deep_unet
+    to: hrcnet
+    label: 高分辨率
+  - from: hrcnet
+    to: deeplabv3_rs
+    label: 空洞卷积
+  - from: deeplabv3_rs
+    to: segformer_rs
+    label: 引入Trans
+  - from: segformer_rs
+    to: sam2_cd
+    label: SAM适配
+  - from: sam2_cd
+    to: rs2_sam2
+    label: 指代分割
+  - from: fc_siam
+    to: dasnet
+    label: 双注意力
+  - from: dasnet
+    to: stanet
+    label: 时空注意力
+  - from: stanet
+    to: bit
+    label: 引入Trans
+  - from: bit
+    to: changeformer
+    label: 纯Trans
+  - from: changeformer
+    to: changemamba
+    label: Mamba架构
+  - from: changemamba
+    to: glmamba
+    label: 全局-局部
+  - from: glmamba
+    to: armamba
+    label: 自适应残差
+  - from: changemamba
+    to: mamba_fcs
+    label: 频率融合
+  - from: r2cnn
+    to: roi_transformer
+    label: 空间变换
+  - from: roi_transformer
+    to: gliding_vertex
+    label: 顶点表征
+  - from: gliding_vertex
+    to: s2a_net
+    label: 特征对齐
+  - from: s2a_net
+    to: rtmdet_r
+    label: 实时检测
+  - from: rtmdet_r
+    to: vmc_detr
+    label: IoU感知
+  milestones:
+  - fc_siam
+  - bit
+  - changemamba

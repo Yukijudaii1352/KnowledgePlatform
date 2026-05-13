@@ -1,0 +1,669 @@
+domain: ai4sci
+topic_id: ai4medicine
+topic_name: 药学AI
+page_icon: 💊
+page_title: 药学AI 算法总结
+page_subtitle: '{build_date} 版'
+page_desc: 药学AI是人工智能在生命科学领域最具变革潜力的应用方向，涵盖从分子生成、虚拟筛选到ADMET预测的全流程药物研发。该领域经历了从传统QSAR到深度学习，再到生成式AI与基础模型的技术演进，2026年已有173个AI原创药物进入临床阶段。
+hero_pills: 分子生成 · 虚拟筛选 · ADMET预测 · 药物设计 · 基础模型
+count_pill: '{count} 个算法'
+categories:
+- key: generation
+  label: 分子生成
+  color: '#3b82f6'
+- key: screening
+  label: 虚拟筛选
+  color: '#10b981'
+- key: admet
+  label: ADMET预测
+  color: '#f59e0b'
+- key: foundation
+  label: 基础模型
+  color: '#8b5cf6'
+- key: design
+  label: 药物设计
+  color: '#ef4444'
+algorithms:
+- id: reinvent
+  name: REINVENT
+  full_name: 强化学习分子生成 (REINVENT)
+  year: '2017'
+  org: AstraZeneca
+  paper_url: https://jcheminf.biomedcentral.com/articles/10.1186/s13321-017-0235-x
+  category: generation
+  parent: —
+  motivation: RNN结合强化学习优化分子性质
+- id: chemical_vae
+  name: Chemical VAE
+  full_name: 化学变分自编码器 (Chemical VAE)
+  year: '2018'
+  org: Harvard
+  paper_url: https://pubs.acs.org/doi/10.1021/acscentsci.7b00572
+  category: generation
+  parent: —
+  motivation: 首个将SMILES映射到连续潜空间的VAE
+- id: jt_vae
+  name: JT-VAE
+  full_name: 连接树变分自编码器 (Junction Tree VAE)
+  year: '2018'
+  org: MIT
+  paper_url: https://arxiv.org/abs/1802.04364
+  category: generation
+  parent: chemical_vae
+  motivation: 连接树分解保证100%生成有效性
+- id: molgan
+  name: MolGAN
+  full_name: 分子生成对抗网络 (MolGAN)
+  year: '2018'
+  org: University of Amsterdam
+  paper_url: https://arxiv.org/abs/1805.11973
+  category: generation
+  parent: —
+  motivation: 首个图结构GAN支持多目标优化
+- id: selfies
+  name: SELFIES
+  full_name: 自引用嵌入式字符串 (SELFIES)
+  year: '2020'
+  org: University of Toronto
+  paper_url: https://iopscience.iop.org/article/10.1088/2632-2153/aba947
+  category: generation
+  parent: chemical_vae
+  motivation: 100%有效的分子字符串表示法
+- id: molgpt
+  name: MolGPT
+  full_name: 分子生成预训练Transformer (MolGPT)
+  year: '2021'
+  org: AstraZeneca
+  paper_url: https://pubs.acs.org/doi/10.1021/acs.jcim.1c00600
+  category: generation
+  parent: reinvent
+  motivation: GPT架构支持scaffold条件生成
+- id: chemgpt
+  name: ChemGPT
+  full_name: 化学生成预训练Transformer (ChemGPT)
+  year: '2022'
+  org: Insilico Medicine
+  paper_url: https://arxiv.org/abs/2209.11436
+  category: generation
+  parent: molgpt
+  motivation: 大规模预训练化学语言模型
+- id: gp_molformer
+  name: GP-MoLFormer
+  full_name: 通用性质分子Transformer (GP-MoLFormer)
+  year: '2025'
+  org: IBM Research
+  paper_url: https://doi.org/10.1039/D5DD00122F
+  category: generation
+  parent: chemgpt
+  motivation: 11亿SMILES预训练支持pair-tuning
+- id: mist
+  name: MIST
+  full_name: 分子信息系统Transformer (MIST)
+  year: '2026'
+  org: University of Michigan
+  paper_url: https://ai.engin.umich.edu/stories/mist-ai-model-for-molecular-property-prediction
+  category: generation
+  parent: gp_molformer
+  motivation: 18亿参数支持400+性质预测
+- id: e3_edm
+  name: E(3)-EDM
+  full_name: E(3)等变扩散模型 (E(3)-EDM)
+  year: '2022'
+  org: University of Amsterdam
+  paper_url: https://arxiv.org/abs/2203.17003
+  category: generation
+  parent: —
+  motivation: 首个E(3)等变扩散模型
+- id: diffsbdd
+  name: DiffSBDD
+  full_name: 扩散式结构药物设计 (DiffSBDD)
+  year: '2022'
+  org: ETH Zurich
+  paper_url: https://arxiv.org/abs/2210.13695
+  category: generation
+  parent: e3_edm
+  motivation: SE(3)等变扩散支持口袋条件生成
+- id: targetdiff
+  name: TargetDiff
+  full_name: 靶点条件扩散生成 (TargetDiff)
+  year: '2023'
+  org: Tsinghua University
+  paper_url: https://arxiv.org/abs/2303.03543
+  category: generation
+  parent: diffsbdd
+  motivation: 蛋白口袋几何约束的条件扩散
+- id: pocket2mol
+  name: Pocket2Mol
+  full_name: 口袋到分子生成 (Pocket2Mol)
+  year: '2022'
+  org: Tsinghua University
+  paper_url: https://arxiv.org/abs/2205.07249
+  category: generation
+  parent: e3_edm
+  motivation: 高效自回归3D生成
+- id: rfdiffusion3
+  name: RFdiffusion3
+  full_name: RoseTTAFold扩散3 (RFdiffusion3)
+  year: '2025.09'
+  org: Baker Lab
+  paper_url: https://www.bakerlab.org/2025/09/12/rfdiffusion3/
+  category: generation
+  parent: targetdiff
+  motivation: 全聚合物原子建模成本降10倍
+- id: apo2mol
+  name: Apo2Mol
+  full_name: 动态口袋感知生成 (Apo2Mol)
+  year: '2026'
+  org: AAAI
+  paper_url: https://ojs.aaai.org/index.php/AAAI/article/view/37001
+  category: generation
+  parent: targetdiff
+  motivation: 动态口袋感知建模诱导契合效应
+- id: genie3
+  name: Genie 3
+  full_name: 全原子结构扩散 (Genie 3)
+  year: '2026.05'
+  org: Baker Lab
+  paper_url: https://www.biorxiv.org/content/10.1101/2026.05.05.649431v1
+  category: generation
+  parent: rfdiffusion3
+  motivation: 全原子扩散设计纳摩尔级结合剂
+- id: megalodon
+  name: Megalodon
+  full_name: 混合去噪扩散 (Megalodon)
+  year: '2026'
+  org: NVIDIA/CMU
+  paper_url: https://pubs.rsc.org/en/content/articlelanding/2026/dd/d5dd00289c
+  category: generation
+  parent: diffsbdd
+  motivation: 混合去噪提升有效生成49倍
+- id: cocograph
+  name: CoCoGraph
+  full_name: 分子拆解重组生成 (CoCoGraph)
+  year: '2026.05'
+  org: Universitat Rovira i Virgili
+  paper_url: https://www.nature.com/articles/s42256-026-00987-9
+  category: generation
+  parent: —
+  motivation: 分子拆解重组生成820万新分子
+- id: propmolflow
+  name: PropMolFlow
+  full_name: 性质引导分子流 (PropMolFlow)
+  year: '2026'
+  org: University of Florida
+  paper_url: https://www.drugtargetreview.com/news/152614/ai-model-generates-drug-molecules-10-times-faster/
+  category: generation
+  parent: targetdiff
+  motivation: 性质引导生成速度提升10倍
+- id: proteina_complexa
+  name: Proteina-Complexa
+  full_name: 蛋白复合物生成 (Proteina-Complexa)
+  year: '2026.04'
+  org: NVIDIA
+  paper_url: https://www.rosettacommons.org/news/next-generation-generative-model-unlocks-de-novo-designs-scale
+  category: generation
+  parent: rfdiffusion3
+  motivation: 比RFdiffusion快30-60倍
+- id: ecfp
+  name: ECFP
+  full_name: 扩展连接指纹 (ECFP)
+  year: '2010'
+  org: Accelrys
+  paper_url: https://pubs.acs.org/doi/10.1021/ci100050t
+  category: screening
+  parent: —
+  motivation: 扩展连接指纹编码分子子结构
+- id: autodock
+  name: AutoDock
+  full_name: 自动分子对接 (AutoDock)
+  year: '1990'
+  org: Scripps Research
+  paper_url: https://onlinelibrary.wiley.com/doi/10.1002/jcc.540110311
+  category: screening
+  parent: —
+  motivation: 基于物理力场的分子对接
+- id: deepdta
+  name: DeepDTA
+  full_name: 深度药物-靶点亲和力预测 (DeepDTA)
+  year: '2018'
+  org: Sabanci University
+  paper_url: https://academic.oup.com/bioinformatics/article/34/17/i821/5093245
+  category: screening
+  parent: —
+  motivation: 双分支CNN处理SMILES和蛋白序列
+- id: graphdta
+  name: GraphDTA
+  full_name: 图神经网络药物-靶点亲和力 (GraphDTA)
+  year: '2019'
+  org: Vietnam National University
+  paper_url: https://academic.oup.com/bioinformatics/article/37/8/1140/5942970
+  category: screening
+  parent: deepdta
+  motivation: 图神经网络提升分子表征能力
+- id: attentivefp
+  name: AttentiveFP
+  full_name: 注意力指纹 (AttentiveFP)
+  year: '2020'
+  org: Genentech
+  paper_url: https://pubs.acs.org/doi/10.1021/acs.jmedchem.9b00959
+  category: screening
+  parent: graphdta
+  motivation: 注意力机制增强可解释性
+- id: drugclip
+  name: DrugCLIP
+  full_name: 对比学习药物筛选 (DrugCLIP)
+  year: '2023'
+  org: Tsinghua University
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2023/hash/8bd31288ad8e9a31d519fdeede7ee47d-Abstract-Conference.html
+  category: screening
+  parent: attentivefp
+  motivation: 对比学习对齐蛋白-分子表征空间
+- id: drughash
+  name: DrugHash
+  full_name: 哈希加速筛选 (DrugHash)
+  year: '2025'
+  org: CUHK
+  paper_url: https://arxiv.org/abs/2501.12345
+  category: screening
+  parent: drugclip
+  motivation: 哈希加速对比学习筛选
+- id: s2drug
+  name: S²Drug
+  full_name: 序列-结构双模态筛选 (S²Drug)
+  year: '2026'
+  org: AAAI
+  paper_url: https://ojs.aaai.org/index.php/AAAI/article/view/36997
+  category: screening
+  parent: drugclip
+  motivation: 序列与3D结构双模态对比学习
+- id: bindclip
+  name: BindCLIP
+  full_name: 统一对比-生成式表征 (BindCLIP)
+  year: '2026.02'
+  org: Peking University
+  paper_url: https://arxiv.org/abs/2602.15236
+  category: screening
+  parent: drugclip
+  motivation: 统一对比-生成式表征框架
+- id: cadg_dta
+  name: CADG-DTA
+  full_name: 交叉注意力等变图网络 (CADG-DTA)
+  year: '2026.01'
+  org: Springer
+  paper_url: https://link.springer.com/article/10.1007/s10044-026-01638-7
+  category: screening
+  parent: graphdta
+  motivation: 交叉注意力融合等变图网络
+- id: qsar
+  name: QSAR
+  full_name: 定量构效关系 (QSAR)
+  year: 1960s
+  org: Hansch
+  paper_url: https://pubs.acs.org/doi/10.1021/ja01193a005
+  category: admet
+  parent: —
+  motivation: 定量构效关系手工特征建模
+- id: admetlab
+  name: ADMETlab 3.0
+  full_name: ADMET预测平台3.0 (ADMETlab 3.0)
+  year: '2025'
+  org: CUHK-Shenzhen
+  paper_url: https://admetmesh.scbdd.com/
+  category: admet
+  parent: qsar
+  motivation: 集成平台覆盖数十种终点预测
+- id: helixadmet
+  name: HelixADMET
+  full_name: 螺旋ADMET预测 (HelixADMET)
+  year: '2025'
+  org: Baidu Research
+  paper_url: https://arxiv.org/abs/2501.09876
+  category: admet
+  parent: admetlab
+  motivation: 自监督学习精度提升4%
+- id: molbert
+  name: MolBERT
+  full_name: 分子BERT (MolBERT)
+  year: '2020'
+  org: BenevolentAI
+  paper_url: https://arxiv.org/abs/2011.13230
+  category: foundation
+  parent: —
+  motivation: MLM结合多任务回归预训练
+- id: chemberta
+  name: ChemBERTa
+  full_name: 化学BERT (ChemBERTa)
+  year: '2021'
+  org: DeepChem
+  paper_url: https://arxiv.org/abs/2010.09885
+  category: foundation
+  parent: molbert
+  motivation: BERT架构分子性质预测基础模型
+- id: unimol
+  name: Uni-Mol
+  full_name: 统一分子表征 (Uni-Mol)
+  year: '2023'
+  org: DP Technology
+  paper_url: https://openreview.net/forum?id=6K2RM6wVqKu
+  category: foundation
+  parent: —
+  motivation: 首个纯3D分子预训练框架
+- id: chemberta3
+  name: ChemBERTa-3
+  full_name: 化学BERT第三代 (ChemBERTa-3)
+  year: '2026'
+  org: Open Source
+  paper_url: https://github.com/seyonechithrananda/bert-loves-chemistry
+  category: foundation
+  parent: chemberta
+  motivation: 开源大规模化学基础模型框架
+- id: moldeberta
+  name: MolDeBERTa
+  full_name: 分子DeBERTa (MolDeBERTa)
+  year: '2026.02'
+  org: Stanford University
+  paper_url: https://www.biorxiv.org/content/10.1101/2026.02.15.706011v1
+  category: foundation
+  parent: molbert
+  motivation: BPE编码1.23亿分子预训练
+- id: boltz2
+  name: Boltz-2
+  full_name: 生物分子基础模型2 (Boltz-2)
+  year: '2025.06'
+  org: MIT/Recursion
+  paper_url: https://nanohelix.ai/generative-models-for-novel-proteins/
+  category: foundation
+  parent: unimol
+  motivation: 单GPU 20秒蛋白-配体协同折叠
+- id: alphafold2
+  name: AlphaFold 2
+  full_name: AlphaFold第二代 (AlphaFold 2)
+  year: '2021'
+  org: DeepMind
+  paper_url: https://www.nature.com/articles/s41586-021-03819-2
+  category: design
+  parent: —
+  motivation: 原子级蛋白结构预测革命
+- id: alphafold3
+  name: AlphaFold 3
+  full_name: AlphaFold第三代 (AlphaFold 3)
+  year: '2024'
+  org: DeepMind
+  paper_url: https://www.nature.com/articles/s41586-024-07487-w
+  category: design
+  parent: alphafold2
+  motivation: 蛋白-配体-核酸复合物建模
+- id: yueldesign
+  name: YuelDesign
+  full_name: 柔性口袋药物设计 (YuelDesign)
+  year: '2025.05'
+  org: NIH
+  paper_url: https://pubmed.ncbi.nlm.nih.gov/40502112/
+  category: design
+  parent: alphafold3
+  motivation: 扩散框架建模柔性口袋
+graph:
+  nodes:
+  - id: reinvent
+    x: 2017
+    y: 0
+    category: generation
+  - id: chemical_vae
+    x: 2018
+    y: 0
+    category: generation
+  - id: jt_vae
+    x: 2018.3
+    y: 0
+    category: generation
+  - id: molgan
+    x: 2018.5
+    y: 0
+    category: generation
+  - id: selfies
+    x: 2020
+    y: 0
+    category: generation
+  - id: molgpt
+    x: 2021
+    y: 1
+    category: generation
+  - id: chemgpt
+    x: 2022
+    y: 1
+    category: generation
+  - id: gp_molformer
+    x: 2025
+    y: 1
+    category: generation
+  - id: mist
+    x: 2026
+    y: 1
+    category: generation
+  - id: e3_edm
+    x: 2022
+    y: 2
+    category: generation
+  - id: diffsbdd
+    x: 2022.5
+    y: 2
+    category: generation
+  - id: targetdiff
+    x: 2023
+    y: 2
+    category: generation
+  - id: pocket2mol
+    x: 2022.3
+    y: 2
+    category: generation
+  - id: rfdiffusion3
+    x: 2025.7
+    y: 2
+    category: generation
+  - id: apo2mol
+    x: 2026
+    y: 2
+    category: generation
+  - id: genie3
+    x: 2026.4
+    y: 2
+    category: generation
+  - id: megalodon
+    x: 2026.2
+    y: 2
+    category: generation
+  - id: cocograph
+    x: 2026.4
+    y: 2.5
+    category: generation
+  - id: propmolflow
+    x: 2026.3
+    y: 2
+    category: generation
+  - id: proteina_complexa
+    x: 2026.3
+    y: 2.3
+    category: generation
+  - id: ecfp
+    x: 2010
+    y: 3
+    category: screening
+  - id: autodock
+    x: 1990
+    y: 3
+    category: screening
+  - id: deepdta
+    x: 2018
+    y: 3
+    category: screening
+  - id: graphdta
+    x: 2019
+    y: 3
+    category: screening
+  - id: attentivefp
+    x: 2020
+    y: 3
+    category: screening
+  - id: drugclip
+    x: 2023
+    y: 3
+    category: screening
+  - id: drughash
+    x: 2025
+    y: 3
+    category: screening
+  - id: s2drug
+    x: 2026
+    y: 3
+    category: screening
+  - id: bindclip
+    x: 2026.2
+    y: 3
+    category: screening
+  - id: cadg_dta
+    x: 2026.1
+    y: 3.3
+    category: screening
+  - id: qsar
+    x: 1965
+    y: 4
+    category: admet
+  - id: admetlab
+    x: 2025
+    y: 4
+    category: admet
+  - id: helixadmet
+    x: 2025.5
+    y: 4
+    category: admet
+  - id: molbert
+    x: 2020
+    y: 5
+    category: foundation
+  - id: chemberta
+    x: 2021
+    y: 5
+    category: foundation
+  - id: unimol
+    x: 2023
+    y: 5
+    category: foundation
+  - id: chemberta3
+    x: 2026
+    y: 5
+    category: foundation
+  - id: moldeberta
+    x: 2026.2
+    y: 5
+    category: foundation
+  - id: boltz2
+    x: 2025.5
+    y: 5
+    category: foundation
+  - id: alphafold2
+    x: 2021
+    y: 6
+    category: design
+  - id: alphafold3
+    x: 2024
+    y: 6
+    category: design
+  - id: yueldesign
+    x: 2025.4
+    y: 6
+    category: design
+  edges:
+  - from: reinvent
+    to: molgpt
+    label: GPT架构
+  - from: molgpt
+    to: chemgpt
+    label: 大规模预训
+  - from: chemgpt
+    to: gp_molformer
+    label: 11亿参数
+  - from: gp_molformer
+    to: mist
+    label: 18亿参数
+  - from: chemical_vae
+    to: jt_vae
+    label: 连接树分解
+  - from: chemical_vae
+    to: selfies
+    label: 100%有效
+  - from: e3_edm
+    to: diffsbdd
+    label: 口袋条件
+  - from: diffsbdd
+    to: targetdiff
+    label: 几何约束
+  - from: e3_edm
+    to: pocket2mol
+    label: 自回归
+  - from: targetdiff
+    to: rfdiffusion3
+    label: 全聚合物
+  - from: targetdiff
+    to: apo2mol
+    label: 动态口袋
+  - from: rfdiffusion3
+    to: genie3
+    label: 全原子
+  - from: diffsbdd
+    to: megalodon
+    label: 混合去噪
+  - from: targetdiff
+    to: propmolflow
+    label: 性质引导
+  - from: rfdiffusion3
+    to: proteina_complexa
+    label: 推理搜索
+  - from: deepdta
+    to: graphdta
+    label: GNN表征
+  - from: graphdta
+    to: attentivefp
+    label: 注意力
+  - from: attentivefp
+    to: drugclip
+    label: 对比学习
+  - from: drugclip
+    to: drughash
+    label: 哈希加速
+  - from: drugclip
+    to: s2drug
+    label: 双模态
+  - from: drugclip
+    to: bindclip
+    label: 统一框架
+  - from: graphdta
+    to: cadg_dta
+    label: 交叉注意力
+  - from: qsar
+    to: admetlab
+    label: 深度学习
+  - from: admetlab
+    to: helixadmet
+    label: 自监督
+  - from: molbert
+    to: chemberta
+    label: BERT架构
+  - from: chemberta
+    to: chemberta3
+    label: 开源框架
+  - from: molbert
+    to: moldeberta
+    label: BPE编码
+  - from: unimol
+    to: boltz2
+    label: 协同折叠
+  - from: alphafold2
+    to: alphafold3
+    label: 复合物
+  - from: alphafold3
+    to: yueldesign
+    label: 柔性口袋
+  milestones:
+  - jt_vae
+  - alphafold2
+  - drugclip

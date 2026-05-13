@@ -1,0 +1,904 @@
+domain: infra
+topic_id: device
+topic_name: AI硬件
+page_icon: ⚙️
+page_title: AI硬件技术演进图谱
+page_subtitle: '{build_date} 版'
+page_desc: 梳理从通用GPU到专用AI加速器（TPU/NPU）及存算一体、光计算等前沿硬件的发展历程。
+hero_pills:
+- 🏷️ AI Accelerators · GPU/NPU/TPU · Architecture
+count_pill: '{count} 个算法'
+categories:
+  gpu_architecture:
+    label: GPU架构演进
+    color: '#4285F4'
+  tpu:
+    label: Google TPU系列
+    color: '#34A853'
+  npu_asic:
+    label: NPU与专用AI芯片
+    color: '#EA4335'
+  emerging_chips:
+    label: 新兴AI芯片架构
+    color: '#FF6D01'
+  pim_cim:
+    label: 存算一体
+    color: '#AB47BC'
+  dataflow:
+    label: 数据流与脉动阵列
+    color: '#00ACC1'
+  interconnect:
+    label: 互联技术
+    color: '#78909C'
+  hw_sw_codesign:
+    label: 硬件-软件协同
+    color: '#FFB300'
+  fpga:
+    label: FPGA加速器
+    color: '#8D6E63'
+  efficiency:
+    label: 能效优化
+    color: '#66BB6A'
+  photonic:
+    label: 光计算
+    color: '#E91E63'
+  chiplet:
+    label: Chiplet与封装
+    color: '#795548'
+  llm_inference:
+    label: 大模型推理硬件
+    color: '#F44336'
+  quantum_hybrid:
+    label: 量子-经典混合
+    color: '#9C27B0'
+algorithms:
+- id: cuda
+  name: CUDA
+  full_name: 统一计算设备架构 (Compute Unified Device Architecture)
+  year: '2008'
+  org: NVIDIA
+  paper_url: —
+  category: gpu_architecture
+  parent: —
+  motivation: 将GPU转变为通用并行计算平台
+- id: volta_tensor_core
+  name: Volta Tensor Core
+  full_name: Volta张量核心架构 (Volta Tensor Core Architecture)
+  year: '2017'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/1803.04432
+  category: gpu_architecture
+  parent: cuda
+  motivation: 引入Tensor Core实现硬件级矩阵运算
+- id: ampere_sparse
+  name: Ampere 2:4 Sparsity
+  full_name: 安培结构化稀疏架构 (Ampere Structured Sparsity)
+  year: '2020'
+  org: NVIDIA
+  paper_url: https://www.nvidia.com/content/dam/en-zz/Solutions/Data-Center/nvidia-ampere-architecture-whitepaper.pdf
+  category: gpu_architecture
+  parent: volta_tensor_core
+  motivation: 硬件级2:4结构化稀疏与TF32格式
+- id: hopper_fp8
+  name: Hopper FP8
+  full_name: Hopper FP8变换引擎 (Hopper Transformer Engine)
+  year: '2022'
+  org: NVIDIA
+  paper_url: https://www.nvidia.com/en-us/data-center/hopper-architecture/
+  category: gpu_architecture
+  parent: ampere_sparse
+  motivation: Transformer Engine支持FP8动态精度
+- id: blackwell_fp4
+  name: Blackwell FP4
+  full_name: Blackwell FP4架构 (Blackwell FP4 Architecture)
+  year: '2025'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/2507.10789
+  category: gpu_architecture
+  parent: hopper_fp8
+  motivation: FP4精度与专用解压引擎优化万亿参数模型
+- id: rubin_gpu
+  name: Rubin GPU
+  full_name: NVIDIA Rubin GPU架构 (NVIDIA Rubin GPU Architecture)
+  year: '2026'
+  org: NVIDIA
+  paper_url: https://www.nvidia.com/en-us/about-nvidia/press-releases/2026/nvidia-vera-rubin-platform-agentic-ai/
+  category: gpu_architecture
+  parent: blackwell_fp4
+  motivation: NVFP4精度50PFLOPS与HBM4推理能效跃升
+- id: amd_mi400
+  name: AMD MI400
+  full_name: AMD Instinct MI400加速器 (AMD Instinct MI400 Accelerator)
+  year: '2026'
+  org: AMD
+  paper_url: https://www.tomshardware.com/pc-components/gpus/amd-data-center-roadmap-2026-2027-mi400-mi500-zen-6-zen-7
+  category: gpu_architecture
+  parent: —
+  motivation: CDNA5架构2nm工艺432GB HBM4
+- id: tpu_v1
+  name: TPU v1
+  full_name: 张量处理单元v1 (Tensor Processing Unit v1)
+  year: '2017'
+  org: Google
+  paper_url: https://arxiv.org/abs/1704.04760
+  category: tpu
+  parent: —
+  motivation: 8位整数脉动阵列实现推理能效比提升15-30倍
+- id: tpu_v2v3
+  name: TPU v2/v3
+  full_name: 张量处理单元v2/v3训练版 (TPU v2/v3 for Training)
+  year: '2020'
+  org: Google
+  paper_url: https://dl.acm.org/doi/10.1145/3360307
+  category: tpu
+  parent: tpu_v1
+  motivation: 引入bfloat16格式支持大规模集群训练
+- id: tpu_v4
+  name: TPU v4
+  full_name: 张量处理单元v4光互联版 (TPU v4 with Optical Interconnect)
+  year: '2023'
+  org: Google
+  paper_url: https://arxiv.org/abs/2304.01433
+  category: tpu
+  parent: tpu_v2v3
+  motivation: 光路交换机实现3D Torus拓扑动态重构
+- id: tpu_v7
+  name: TPU v7 Ironwood
+  full_name: 张量处理单元v7铁杉版 (TPU v7 Ironwood)
+  year: '2026'
+  org: Google
+  paper_url: https://cloud.google.com/tpu/docs/release-notes
+  category: tpu
+  parent: tpu_v4
+  motivation: 3nm双芯粒架构42.5 Exaflops集群算力
+- id: diannao
+  name: DianNao
+  full_name: 电脑深度学习加速器 (DianNao Accelerator)
+  year: '2014'
+  org: ICT-CAS/Inria
+  paper_url: —
+  category: npu_asic
+  parent: —
+  motivation: 首个DL专用加速器解决片上访存瓶颈
+- id: dadiannao
+  name: DaDianNao
+  full_name: 大电脑多核架构 (DaDianNao Multi-chip Architecture)
+  year: '2014'
+  org: ICT-CAS/Inria
+  paper_url: —
+  category: npu_asic
+  parent: diannao
+  motivation: eDRAM片上存储消除外部DRAM访问压力
+- id: cambricon_isa
+  name: Cambricon ISA
+  full_name: 寒武纪神经网络指令集 (Cambricon Instruction Set Architecture)
+  year: '2016'
+  org: ICT-CAS
+  paper_url: https://dl.acm.org/doi/abs/10.1145/3007787.3001179
+  category: npu_asic
+  parent: dadiannao
+  motivation: 首个神经网络指令集架构标准化AI芯片编程
+- id: ascend_davinci
+  name: Ascend Da Vinci
+  full_name: 昇腾达芬奇架构 (Ascend Da Vinci Architecture)
+  year: '2021'
+  org: Huawei
+  paper_url: —
+  category: npu_asic
+  parent: —
+  motivation: 3D Cube计算单元实现端云统一架构覆盖
+- id: habana_gaudi
+  name: Habana Gaudi
+  full_name: Habana高迪处理器 (Habana Gaudi Processor)
+  year: '2020'
+  org: Intel/Habana
+  paper_url: https://ieeexplore.ieee.org/abstract/document/9018203/
+  category: npu_asic
+  parent: —
+  motivation: 集成10×100GbE以太网支持RDMA横向扩展
+- id: cerebras_wse
+  name: Cerebras WSE
+  full_name: Cerebras晶圆级引擎 (Cerebras Wafer-Scale Engine)
+  year: '2024'
+  org: Cerebras
+  paper_url: —
+  category: emerging_chips
+  parent: —
+  motivation: 整片晶圆单颗芯片85万核消除芯片间通信
+- id: graphcore_ipu
+  name: Graphcore IPU
+  full_name: Graphcore智能处理单元 (Graphcore Intelligence Processing Unit)
+  year: '2019'
+  org: Graphcore
+  paper_url: —
+  category: emerging_chips
+  parent: —
+  motivation: MIMD架构片上300MB SRAM适合稀疏图计算
+- id: groq_tsp
+  name: Groq TSP
+  full_name: Groq张量流处理器 (Groq Tensor Streaming Processor)
+  year: '2020'
+  org: Groq
+  paper_url: https://ieeexplore.ieee.org/abstract/document/9138986/
+  category: emerging_chips
+  parent: —
+  motivation: 确定性调度取消缓存实现极低延迟推理
+- id: sambanova_rdu
+  name: SambaNova RDU
+  full_name: SambaNova可重构数据流单元 (SambaNova Reconfigurable Dataflow Unit)
+  year: '2022'
+  org: SambaNova
+  paper_url: —
+  category: emerging_chips
+  parent: —
+  motivation: 三级存储架构应对万亿参数模型存储墙
+- id: prime
+  name: PRIME
+  full_name: ReRAM存内计算架构 (Processing-in-ReRAM Architecture)
+  year: '2016'
+  org: UCSB
+  paper_url: https://dl.acm.org/doi/abs/10.1145/3007787.3001140
+  category: pim_cim
+  parent: —
+  motivation: ReRAM交叉阵列实现模拟矩阵乘法
+- id: isaac
+  name: ISAAC
+  full_name: 原位模拟计算加速器 (In-Situ Analog Arithmetic in Crossbars)
+  year: '2016'
+  org: Utah/HP Labs
+  paper_url: https://dl.acm.org/doi/abs/10.1145/3007787.3001139
+  category: pim_cim
+  parent: prime
+  motivation: 完整流水线架构平衡模拟计算与数字控制
+- id: rram_cim_survey
+  name: RRAM-CIM Survey
+  full_name: RRAM存算一体综述 (RRAM-based CIM Survey)
+  year: '2021'
+  org: ASU
+  paper_url: —
+  category: pim_cim
+  parent: isaac
+  motivation: 系统综述从器件到架构的CIM技术演进
+- id: intel_18a_cim
+  name: Intel 18A CIM
+  full_name: Intel 18A数字存内计算加速器 (Intel 18A Digital CIM Accelerator)
+  year: '2026'
+  org: Intel
+  paper_url: https://ieeexplore.ieee.org/abstract/document/11409207/
+  category: pim_cim
+  parent: rram_cim_survey
+  motivation: 18A工艺147TOPS/W数字CIM加速器
+- id: reram_mlc_cim
+  name: ReRAM MLC CIM
+  full_name: 多级ReRAM存内计算宏 (MLC ReRAM Compute-in-Memory Macro)
+  year: '2026'
+  org: ISSCC
+  paper_url: https://ieeexplore.ieee.org/abstract/document/11409297/
+  category: pim_cim
+  parent: rram_cim_survey
+  motivation: MLC ReRAM CIM支持多架构推理
+- id: mpu_pim
+  name: MPU
+  full_name: 存内处理通用接口 (Memory Processing Unit)
+  year: '2026'
+  org: HPCA
+  paper_url: https://ieeexplore.ieee.org/abstract/document/11408599/
+  category: pim_cim
+  parent: isaac
+  motivation: 通用PIM接口实现端到端存内执行
+- id: systolic_array
+  name: Systolic Array
+  full_name: 脉动阵列 (Systolic Array)
+  year: '1982'
+  org: CMU
+  paper_url: https://www.eecs.harvard.edu/~htk/publication/1982-kung-why-systolic-architecture.pdf
+  category: dataflow
+  parent: —
+  motivation: 数据在处理单元间脉动流转解决I/O瓶颈
+- id: eyeriss
+  name: Eyeriss
+  full_name: Eyeriss能效加速器 (Eyeriss Energy-Efficient Accelerator)
+  year: '2016'
+  org: MIT
+  paper_url: https://ieeexplore.ieee.org/abstract/document/7738524/
+  category: dataflow
+  parent: systolic_array
+  motivation: Row-Stationary数据流最大化局部数据复用
+- id: eyeriss_v2
+  name: Eyeriss v2
+  full_name: Eyeriss v2灵活互联架构 (Eyeriss v2 Flexible Architecture)
+  year: '2019'
+  org: MIT
+  paper_url: —
+  category: dataflow
+  parent: eyeriss
+  motivation: 层级化网格互联支持更广泛的网络拓扑
+- id: sze_dnn_survey
+  name: DNN硬件综述
+  full_name: 深度学习硬件加速综述 (Efficient Processing of DNNs Survey)
+  year: '2017'
+  org: MIT
+  paper_url: —
+  category: dataflow
+  parent: eyeriss
+  motivation: 定义数据流分类学权威综述DNN硬件加速
+- id: nvlink
+  name: NVLink/NVSwitch
+  full_name: NVLink高速互联 (NVLink/NVSwitch Interconnect)
+  year: '2016'
+  org: NVIDIA
+  paper_url: —
+  category: interconnect
+  parent: —
+  motivation: 私有高速协议支持数千GPU统一寻址
+- id: cxl
+  name: CXL
+  full_name: 计算快速链接 (Compute Express Link)
+  year: '2024'
+  org: CXL Consortium
+  paper_url: https://dl.acm.org/doi/abs/10.1145/3669900
+  category: interconnect
+  parent: —
+  motivation: 基于PCIe 5.0的缓存一致性开放互联标准
+- id: tvm
+  name: TVM
+  full_name: 张量虚拟机 (Tensor Virtual Machine)
+  year: '2018'
+  org: UW/AWS
+  paper_url: https://www.usenix.org/conference/osdi18/presentation/chen
+  category: hw_sw_codesign
+  parent: —
+  motivation: 自动调优编译器高效部署模型到多种硬件
+- id: mlir
+  name: MLIR
+  full_name: 多层级中间表示 (Multi-Level Intermediate Representation)
+  year: '2021'
+  org: Google
+  paper_url: —
+  category: hw_sw_codesign
+  parent: tvm
+  motivation: 统一多层级IR框架成为现代AI编译器基础
+- id: mnasnet
+  name: MnasNet
+  full_name: 移动端硬件感知NAS (Mobile Neural Architecture Search)
+  year: '2019'
+  org: Google
+  paper_url: http://openaccess.thecvf.com/content_CVPR_2019/html/Tan_MnasNet_Platform-Aware_Neural_Architecture_Search_for_Mobile_CVPR_2019_paper.html
+  category: hw_sw_codesign
+  parent: —
+  motivation: 将硬件延迟纳入NAS搜索目标
+- id: hw_nas_bench
+  name: HW-NAS-Bench
+  full_name: 硬件感知NAS基准 (Hardware-Aware NAS Benchmark)
+  year: '2021'
+  org: —
+  paper_url: —
+  category: hw_sw_codesign
+  parent: mnasnet
+  motivation: 首个硬件感知NAS基准推动标准化评测
+- id: fuseflow
+  name: FuseFlow
+  full_name: 融合中心稀疏编译框架 (FuseFlow Fusion-Centric Compilation)
+  year: '2026'
+  org: Stanford/SambaNova
+  paper_url: https://asplos-conference.org/asplos2026/program/
+  category: hw_sw_codesign
+  parent: tvm
+  motivation: 以融合为中心的稀疏深度学习编译框架
+- id: tisa
+  name: TISA
+  full_name: 三合一动态调度架构 (TISA Tri-in-One Dynamic Scheduling)
+  year: '2026'
+  org: ISCA
+  paper_url: https://www.eeworld.com.cn/mp/yixingzhineng/a114343.jspx
+  category: hw_sw_codesign
+  parent: —
+  motivation: 硬件调度器实时优化算力三合一动态分配
+- id: fpga_cnn_survey
+  name: FPGA-CNN综述
+  full_name: FPGA加速CNN综述 (FPGA-based CNN Acceleration Survey)
+  year: '2017'
+  org: NUDT
+  paper_url: —
+  category: fpga
+  parent: —
+  motivation: 系统总结FPGA在CNN加速中的关键优化技术
+- id: fpga_svd
+  name: SVD-FPGA
+  full_name: SVD压缩FPGA加速 (SVD-based FPGA Acceleration)
+  year: '2016'
+  org: Tsinghua
+  paper_url: —
+  category: fpga
+  parent: —
+  motivation: 基于SVD压缩的FPGA定制化量化推理
+- id: deep_compression
+  name: Deep Compression
+  full_name: 深度压缩 (Deep Compression)
+  year: '2015'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/1510.00149
+  category: efficiency
+  parent: —
+  motivation: 剪枝量化Huffman编码实现模型50倍压缩
+- id: eie
+  name: EIE
+  full_name: 高效推理引擎 (Efficient Inference Engine)
+  year: '2016'
+  org: Stanford
+  paper_url: —
+  category: efficiency
+  parent: deep_compression
+  motivation: 首个针对压缩稀疏模型的专用硬件加速器
+- id: bnn
+  name: BNN
+  full_name: 二值神经网络 (Binarized Neural Networks)
+  year: '2016'
+  org: MILA
+  paper_url: —
+  category: efficiency
+  parent: —
+  motivation: 权重和激活限制为1位极大简化硬件乘法器
+- id: ampere_24_sparsity
+  name: Ampere 2:4 Sparsity HW
+  full_name: 安培2:4稀疏硬件 (Ampere 2:4 Structured Sparsity)
+  year: '2020'
+  org: NVIDIA
+  paper_url: https://www.nvidia.com/content/dam/en-zz/Solutions/Data-Center/nvidia-ampere-architecture-whitepaper.pdf
+  category: efficiency
+  parent: ampere_sparse
+  motivation: Ampere架构原生2:4结构化稀疏硬件支持
+- id: sageattention3
+  name: SageAttention3
+  full_name: 微缩放FP4注意力机制 (SageAttention3 Microscaling FP4 Attention)
+  year: '2026'
+  org: NeurIPS
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/4db397e0f760cc573c681e81a01a3dba-Abstract-Conference.html
+  category: efficiency
+  parent: —
+  motivation: 微缩放FP4注意力机制大幅提升推理能效
+- id: atropos
+  name: Atropos
+  full_name: 稀疏Transformer处理器 (Atropos Sparse Transformer Processor)
+  year: '2026'
+  org: IEEE
+  paper_url: https://ieeexplore.ieee.org/abstract/document/11435429/
+  category: efficiency
+  parent: ampere_24_sparsity
+  motivation: 12nm稀疏处理器达18.1TFLOPs/W能效比
+- id: fp4_training
+  name: FP4 Training
+  full_name: FP4全量化训练 (FP4 Fully Quantized LLM Training)
+  year: '2026'
+  org: NeurIPS
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/8340b085045cf13f1f0b6c2c4cc0a89c-Abstract-Conference.html
+  category: efficiency
+  parent: bnn
+  motivation: 首次实现FP4精度全量化LLM训练
+- id: nanophotonic_nn
+  name: Nanophotonic NN
+  full_name: 逆向设计纳米光子神经网络 (Inverse-Designed Nanophotonic Neural Network)
+  year: '2026'
+  org: Nature Comms
+  paper_url: https://www.nature.com/articles/s41467-026-68648-1
+  category: photonic
+  parent: —
+  motivation: 逆向设计实现超紧凑片上光学计算
+- id: astra_photonic
+  name: ASTRA
+  full_name: 硅光子随机Transformer加速器 (ASTRA Silicon Photonic Transformer Accelerator)
+  year: '2026'
+  org: ACM TECS
+  paper_url: https://dl.acm.org/doi/abs/10.1145/3769092
+  category: photonic
+  parent: —
+  motivation: 硅光子随机计算降低注意力机制功耗
+- id: lightmatter_passage
+  name: Lightmatter Passage
+  full_name: Lightmatter 3D光子互连 (Lightmatter Passage 3D Photonic Interconnect)
+  year: '2026'
+  org: Lightmatter
+  paper_url: https://lightmatter.co/blog/isscc-2026-scaling-ai-with-light/
+  category: photonic
+  parent: —
+  motivation: 3D光子互连链路功耗从30W降至9W
+- id: rebellions_chiplet
+  name: Rebellions Quad-Chiplet
+  full_name: Rebellions四芯粒AI SoC (Rebellions Quad-Chiplet AI SoC)
+  year: '2026'
+  org: Rebellions
+  paper_url: https://isscc.org/2026-highlights/
+  category: chiplet
+  parent: —
+  motivation: 四芯粒4nm NPU与HBM3E UCIe互连
+- id: flare_chiplet
+  name: FLARE
+  full_name: 细粒度CIM异构多芯粒加速器 (FLARE Multi-Chiplet LLM Accelerator)
+  year: '2026'
+  org: IEEE JETCAS
+  paper_url: https://ieeexplore.ieee.org/abstract/document/11456071/
+  category: chiplet
+  parent: —
+  motivation: 细粒度CIM异构多芯粒LLM加速器
+- id: deepstack_3d
+  name: DeepStack
+  full_name: 分布式3D堆叠AI加速器 (DeepStack Distributed 3D-Stacked Accelerator)
+  year: '2026'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2604.04750
+  category: chiplet
+  parent: —
+  motivation: 分布式3D堆叠架构优化LLM推理效率
+- id: moentwine
+  name: MoEntwine
+  full_name: 晶圆级MoE专家并行推理 (MoEntwine Wafer-Scale Expert Parallel Inference)
+  year: '2026'
+  org: HPCA
+  paper_url: https://ieeexplore.ieee.org/abstract/document/11408594/
+  category: llm_inference
+  parent: cerebras_wse
+  motivation: 释放晶圆级芯片超大规模MoE并行推理潜力
+- id: diamond_moe
+  name: DIAMoND
+  full_name: 异构存内MoE推理架构 (DIAMoND Heterogeneous In-Memory MoE)
+  year: '2026'
+  org: ISCA
+  paper_url: https://mengli.me/news/2026-03-31-isca2026/
+  category: llm_inference
+  parent: —
+  motivation: 异构NAND/DRAM实现边缘侧存内MoE推理
+- id: bitdecoding
+  name: BitDecoding
+  full_name: 低比特KV Cache解码 (BitDecoding Low-Bit KV Cache Decoding)
+  year: '2026'
+  org: HPCA
+  paper_url: https://hpca-conf.org/2026/program/
+  category: llm_inference
+  parent: —
+  motivation: 低比特KV Cache量化释放Tensor Core算力
+- id: nvidia_ising
+  name: NVIDIA Ising
+  full_name: NVIDIA Ising量子AI模型 (NVIDIA Ising Quantum AI Model)
+  year: '2026'
+  org: NVIDIA
+  paper_url: https://nvidianews.nvidia.com/news/nvidia-ising-open-source-quantum-ai-models
+  category: quantum_hybrid
+  parent: —
+  motivation: AI优化量子纠错实现微秒级混合控制
+graph:
+  nodes:
+  - id: cuda
+    x: 200
+    y: 80
+    category: gpu_architecture
+  - id: volta_tensor_core
+    x: 450
+    y: 80
+    category: gpu_architecture
+  - id: ampere_sparse
+    x: 600
+    y: 80
+    category: gpu_architecture
+  - id: hopper_fp8
+    x: 700
+    y: 80
+    category: gpu_architecture
+  - id: blackwell_fp4
+    x: 850
+    y: 80
+    category: gpu_architecture
+  - id: rubin_gpu
+    x: 950
+    y: 80
+    category: gpu_architecture
+  - id: amd_mi400
+    x: 950
+    y: 120
+    category: gpu_architecture
+  - id: tpu_v1
+    x: 450
+    y: 180
+    category: tpu
+  - id: tpu_v2v3
+    x: 600
+    y: 180
+    category: tpu
+  - id: tpu_v4
+    x: 750
+    y: 180
+    category: tpu
+  - id: tpu_v7
+    x: 950
+    y: 180
+    category: tpu
+  - id: diannao
+    x: 300
+    y: 280
+    category: npu_asic
+  - id: dadiannao
+    x: 300
+    y: 320
+    category: npu_asic
+  - id: cambricon_isa
+    x: 380
+    y: 280
+    category: npu_asic
+  - id: ascend_davinci
+    x: 650
+    y: 280
+    category: npu_asic
+  - id: habana_gaudi
+    x: 600
+    y: 280
+    category: npu_asic
+  - id: cerebras_wse
+    x: 800
+    y: 380
+    category: emerging_chips
+  - id: graphcore_ipu
+    x: 530
+    y: 380
+    category: emerging_chips
+  - id: groq_tsp
+    x: 600
+    y: 380
+    category: emerging_chips
+  - id: sambanova_rdu
+    x: 700
+    y: 380
+    category: emerging_chips
+  - id: prime
+    x: 380
+    y: 480
+    category: pim_cim
+  - id: isaac
+    x: 380
+    y: 520
+    category: pim_cim
+  - id: rram_cim_survey
+    x: 650
+    y: 480
+    category: pim_cim
+  - id: intel_18a_cim
+    x: 950
+    y: 480
+    category: pim_cim
+  - id: reram_mlc_cim
+    x: 950
+    y: 520
+    category: pim_cim
+  - id: mpu_pim
+    x: 950
+    y: 560
+    category: pim_cim
+  - id: systolic_array
+    x: 100
+    y: 580
+    category: dataflow
+  - id: eyeriss
+    x: 380
+    y: 580
+    category: dataflow
+  - id: eyeriss_v2
+    x: 530
+    y: 580
+    category: dataflow
+  - id: sze_dnn_survey
+    x: 450
+    y: 580
+    category: dataflow
+  - id: nvlink
+    x: 380
+    y: 680
+    category: interconnect
+  - id: cxl
+    x: 800
+    y: 680
+    category: interconnect
+  - id: tvm
+    x: 480
+    y: 760
+    category: hw_sw_codesign
+  - id: mlir
+    x: 650
+    y: 760
+    category: hw_sw_codesign
+  - id: mnasnet
+    x: 530
+    y: 760
+    category: hw_sw_codesign
+  - id: hw_nas_bench
+    x: 650
+    y: 800
+    category: hw_sw_codesign
+  - id: fuseflow
+    x: 950
+    y: 760
+    category: hw_sw_codesign
+  - id: tisa
+    x: 950
+    y: 800
+    category: hw_sw_codesign
+  - id: fpga_cnn_survey
+    x: 450
+    y: 850
+    category: fpga
+  - id: fpga_svd
+    x: 380
+    y: 850
+    category: fpga
+  - id: deep_compression
+    x: 320
+    y: 940
+    category: efficiency
+  - id: eie
+    x: 380
+    y: 940
+    category: efficiency
+  - id: bnn
+    x: 380
+    y: 980
+    category: efficiency
+  - id: ampere_24_sparsity
+    x: 600
+    y: 940
+    category: efficiency
+  - id: sageattention3
+    x: 950
+    y: 940
+    category: efficiency
+  - id: atropos
+    x: 950
+    y: 980
+    category: efficiency
+  - id: fp4_training
+    x: 950
+    y: 1020
+    category: efficiency
+  - id: nanophotonic_nn
+    x: 950
+    y: 1040
+    category: photonic
+  - id: astra_photonic
+    x: 950
+    y: 1080
+    category: photonic
+  - id: lightmatter_passage
+    x: 950
+    y: 1120
+    category: photonic
+  - id: rebellions_chiplet
+    x: 950
+    y: 1130
+    category: chiplet
+  - id: flare_chiplet
+    x: 950
+    y: 1170
+    category: chiplet
+  - id: deepstack_3d
+    x: 950
+    y: 1210
+    category: chiplet
+  - id: moentwine
+    x: 950
+    y: 1220
+    category: llm_inference
+  - id: diamond_moe
+    x: 950
+    y: 1260
+    category: llm_inference
+  - id: bitdecoding
+    x: 950
+    y: 1300
+    category: llm_inference
+  - id: nvidia_ising
+    x: 950
+    y: 1310
+    category: quantum_hybrid
+  edges:
+  - from: cuda
+    to: volta_tensor_core
+    label: 张量核心引入
+  - from: volta_tensor_core
+    to: ampere_sparse
+    label: 结构化稀疏
+  - from: ampere_sparse
+    to: hopper_fp8
+    label: FP8精度适配
+  - from: hopper_fp8
+    to: blackwell_fp4
+    label: FP4万亿参数
+  - from: systolic_array
+    to: tpu_v1
+    label: 商用脉动阵列
+  - from: systolic_array
+    to: eyeriss
+    label: RS数据流
+  - from: tpu_v1
+    to: tpu_v2v3
+    label: 训练架构升级
+  - from: tpu_v2v3
+    to: tpu_v4
+    label: 光互联扩展
+  - from: eyeriss
+    to: eyeriss_v2
+    label: 灵活互联
+  - from: diannao
+    to: dadiannao
+    label: 多核扩展
+  - from: dadiannao
+    to: cambricon_isa
+    label: 指令集标准化
+  - from: prime
+    to: isaac
+    label: 流水线架构
+  - from: isaac
+    to: rram_cim_survey
+    label: 技术综述
+  - from: deep_compression
+    to: eie
+    label: 压缩专用硬件
+  - from: tvm
+    to: mlir
+    label: 多层级IR统一
+  - from: mnasnet
+    to: hw_nas_bench
+    label: 标准化基准
+  - from: ampere_sparse
+    to: ampere_24_sparsity
+    label: 硬件稀疏原生
+  - from: blackwell_fp4
+    to: rubin_gpu
+    label: NVFP4演进
+  - from: tpu_v4
+    to: tpu_v7
+    label: 双芯粒扩展
+  - from: rram_cim_survey
+    to: intel_18a_cim
+    label: 数字CIM工业化
+  - from: rram_cim_survey
+    to: reram_mlc_cim
+    label: MLC多级存算
+  - from: isaac
+    to: mpu_pim
+    label: 通用PIM接口
+  - from: cerebras_wse
+    to: moentwine
+    label: 晶圆级MoE
+  - from: ampere_24_sparsity
+    to: atropos
+    label: 稀疏处理器
+  - from: bnn
+    to: fp4_training
+    label: 极低精度训练
+  - from: tvm
+    to: fuseflow
+    label: 稀疏融合编译
+  - from: hopper_fp8
+    to: sageattention3
+    label: FP4注意力
+  - from: rubin_gpu
+    to: nvidia_ising
+    label: 量子混合加速
+  - from: intel_18a_cim
+    to: flare_chiplet
+    label: CIM芯粒融合
+  - from: rebellions_chiplet
+    to: flare_chiplet
+    label: 异构芯粒
+  - from: flare_chiplet
+    to: deepstack_3d
+    label: 3D堆叠扩展
+  - from: moentwine
+    to: diamond_moe
+    label: 边缘MoE下沉
+  - from: fp4_training
+    to: sageattention3
+    label: FP4生态互补
+  - from: lightmatter_passage
+    to: tpu_v7
+    label: 光互连赋能
+  milestones:
+  - systolic_array
+  - tpu_v1
+  - volta_tensor_core

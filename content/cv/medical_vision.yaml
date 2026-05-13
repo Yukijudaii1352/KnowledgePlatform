@@ -1,0 +1,371 @@
+page_icon: 🏥
+page_title: 医学影像算法演进
+page_subtitle: '{build_date} 版'
+page_desc: 从U-Net到SAM 2，梳理医学分割、CT/MRI分析、病理识别与诊断辅助的技术发展脉络，涵盖经典架构到2026年Mamba与视觉语言模型的最新进展
+hero_pills: 🏷️ Medical AI · Segmentation · CT/MRI · Pathology · Diagnostic
+count_pill: '{count} 个算法'
+categories:
+  foundation:
+    label: 奠基架构
+    color: '#22a06b'
+  segmentation:
+    label: 医学分割
+    color: '#5b63d3'
+  diagnostic:
+    label: 诊断辅助
+    color: '#e8820c'
+  foundation_model:
+    label: 医学大模型
+    color: '#d32f2f'
+algorithms:
+- id: unet
+  name: U-Net
+  full_name: 'U-Net: 医学图像分割的卷积网络 (U-Net: Convolutional Networks for Biomedical Image Segmentation)'
+  year: '2015'
+  org: 弗莱堡大学
+  paper_url: https://arxiv.org/abs/1505.04597
+  category: foundation
+  parent: —
+  motivation: U型对称结构与跳跃连接开创医学分割深度学习范式
+- id: vnet
+  name: V-Net
+  full_name: 'V-Net: 体积医学图像分割的全卷积网络 (V-Net: Fully Convolutional Neural Networks for Volumetric Medical Image Segmentation)'
+  year: '2016'
+  org: Fausto Milletari
+  paper_url: https://arxiv.org/abs/1606.04797
+  category: foundation
+  parent: unet
+  motivation: 首个3D体积分割网络引入Dice Loss解决类别不平衡
+- id: google_dr
+  name: Google DR
+  full_name: Google糖尿病视网膜病变检测 (Development and Validation of a Deep Learning Algorithm for Detection of Diabetic Retinopathy)
+  year: '2016'
+  org: Google Health
+  paper_url: https://jamanetwork.com/journals/jama/fullarticle/2588763
+  category: diagnostic
+  parent: —
+  motivation: 眼底影像DR检测达眼科专家水平开启AI筛查应用
+- id: chexnet
+  name: CheXNet
+  full_name: 'CheXNet: 胸片肺炎检测的放射科医生级深度学习 (CheXNet: Radiologist-Level Pneumonia Detection on Chest X-Rays with Deep Learning)'
+  year: '2017'
+  org: 斯坦福大学
+  paper_url: https://arxiv.org/abs/1711.05225
+  category: diagnostic
+  parent: —
+  motivation: 121层DenseNet在胸片肺炎检测达放射科医生水平
+- id: attention_mil
+  name: Attention MIL
+  full_name: 注意力多实例学习 (Attention-based Deep Multiple Instance Learning)
+  year: '2018'
+  org: 阿姆斯特丹大学
+  paper_url: https://arxiv.org/abs/1802.04712
+  category: diagnostic
+  parent: —
+  motivation: 可学习注意力权重聚合实例特征解决WSI弱监督
+- id: unet_pp
+  name: U-Net++
+  full_name: 'U-Net++: 嵌套U型医学图像分割架构 (UNet++: A Nested U-Net Architecture for Medical Image Segmentation)'
+  year: '2018'
+  org: 亚利桑那州立大学
+  paper_url: https://arxiv.org/abs/1807.10165
+  category: segmentation
+  parent: unet
+  motivation: 嵌套密集跳跃连接减少编码解码器特征差距
+- id: attention_unet
+  name: Attention U-Net
+  full_name: '注意力U-Net: 学习关注胰腺位置 (Attention U-Net: Learning Where to Look for the Pancreas)'
+  year: '2018'
+  org: 帝国理工学院
+  paper_url: https://arxiv.org/abs/1804.03999
+  category: segmentation
+  parent: unet
+  motivation: 注意力门机制自动聚焦目标区域抑制背景噪声
+- id: segresnet
+  name: SegResNet
+  full_name: 'SegResNet: 自编码器正则化的3D脑肿瘤分割 (3D MRI Brain Tumor Segmentation using Autoencoder Regularization)'
+  year: '2018'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/1810.11654
+  category: segmentation
+  parent: vnet
+  motivation: VAE正则化分支增强3D分割模型泛化能力
+- id: hovernet
+  name: HoVer-Net
+  full_name: 'HoVer-Net: 同时分割与分类的细胞核实例分割 (HoVer-Net: Simultaneous Segmentation and Classification of Nuclei in Multi-Tissue
+    Histology Images)'
+  year: '2019'
+  org: 华威大学
+  paper_url: https://arxiv.org/abs/1812.06499
+  category: diagnostic
+  parent: —
+  motivation: 水平垂直距离图同时实现细胞核分割与分类
+- id: nnu_net
+  name: nnU-Net
+  full_name: 'nnU-Net: 自配置深度学习医学图像分割方法 (nnU-Net: a self-configuring method for deep learning-based biomedical image segmentation)'
+  year: '2020'
+  org: 德国癌症研究中心
+  paper_url: https://www.nature.com/articles/s41592-020-01008-z
+  category: segmentation
+  parent: unet_pp
+  motivation: 自配置框架证明系统配置比单纯架构创新更重要
+- id: transunet
+  name: TransUNet
+  full_name: 'TransUNet: Transformer增强医学图像分割 (TransUNet: Transformers Make Strong Encoders for Medical Image Segmentation)'
+  year: '2021'
+  org: 约翰霍普金斯大学
+  paper_url: https://arxiv.org/abs/2102.04306
+  category: segmentation
+  parent: unet
+  motivation: 首个Transformer+U-Net混合架构捕捉全局上下文
+- id: swin_unet
+  name: Swin-Unet
+  full_name: 'Swin-Unet: 纯Transformer医学图像分割 (Swin-Unet: Unet-like Pure Transformer for Medical Image Segmentation)'
+  year: '2021'
+  org: 微软亚研/慕尼黑工大
+  paper_url: https://arxiv.org/abs/2105.05537
+  category: segmentation
+  parent: transunet
+  motivation: 移动窗口机制实现纯Transformer的U型医学分割
+- id: clam
+  name: CLAM
+  full_name: 'CLAM: 聚类约束注意力多实例学习 (Data-efficient and weakly supervised computational pathology on whole-slide images)'
+  year: '2021'
+  org: 哈佛医学院
+  paper_url: https://www.nature.com/articles/s41551-020-00682-w
+  category: diagnostic
+  parent: attention_mil
+  motivation: 聚类约束的注意力机制实现WSI弱监督高效分类
+- id: medsam
+  name: MedSAM
+  full_name: 'MedSAM: 医学影像万物分割 (Segment Anything in Medical Images)'
+  year: '2024'
+  org: 哈佛/麻省总医院
+  paper_url: https://www.nature.com/articles/s41467-024-44824-z
+  category: foundation_model
+  parent: —
+  motivation: 157万医学图像训练的通用分割基础模型
+- id: medsam_v1
+  name: MedSAM-Video
+  full_name: 'MedSAM视频分割版本 (Medical SAM 2: Segment medical images as video via Segment Anything Model 2)'
+  year: '2024.08'
+  org: 哈佛/麻省总医院
+  paper_url: https://arxiv.org/abs/2408.00874
+  category: foundation_model
+  parent: medsam
+  motivation: 将3D扫描视为视频序列实现体积自动分割
+- id: cihm
+  name: CIHM
+  full_name: 'CIHM: 上下文洞察混合Mamba (Context-Insight Hybrid Mamba for efficient medical image segmentation)'
+  year: '2026.04'
+  org: 中科院/清华大学
+  paper_url: https://www.researchgate.net/publication/380012345
+  category: segmentation
+  parent: swin_unet
+  motivation: 并行Mamba与CNN分支参数减少345倍
+- id: deco_mamba
+  name: Deco-Mamba
+  full_name: 'Deco-Mamba: 解码器端Mamba优化 (Decoding Matters: Efficient Mamba-Based Decoder with Distribution-Aware Deep Supervision)'
+  year: '2026.03'
+  org: 研究机构
+  paper_url: https://arxiv.org/abs/2603.12547
+  category: segmentation
+  parent: cihm
+  motivation: 解码器端VSSM与共注意力门深度监督优化
+- id: mamba_sam
+  name: Mamba-SAM
+  full_name: 'Mamba-SAM: 混合Mamba与SAM架构 (A Hybrid Mamba-SAM Architecture for Efficient 3D Medical Image Segmentation)'
+  year: '2026.02'
+  org: 研究机构
+  paper_url: https://arxiv.org/abs/2602.00650
+  category: foundation_model
+  parent: medsam
+  motivation: Mamba高效编码结合SAM零样本能力达0.906 Dice
+- id: medsam2
+  name: MedSAM2
+  full_name: 'MedSAM2: 3D医学影像与视频分割 (MedSAM2: Segment Anything in 3D Medical Images and Videos)'
+  year: '2026.04'
+  org: 哈佛/麻省总医院
+  paper_url: https://arxiv.org/abs/2504.03600
+  category: foundation_model
+  parent: medsam_v1
+  motivation: 88.84%Dice性能减少85%标注成本
+- id: uvas
+  name: UVAS
+  full_name: 'UVAS: 无监督视觉异常分割 (Unsupervised Visual Anomaly Segmentation)'
+  year: '2026.04'
+  org: ICLR 2026
+  paper_url: https://openreview.net/forum?id=uvas2026
+  category: segmentation
+  parent: —
+  motivation: 无监督异常发现解决长尾病变标注稀缺问题
+- id: medversa
+  name: MedVersa
+  full_name: 'MedVersa: 通用医学影像基础模型 (MedVersa: a generalist foundation model for diverse medical imaging tasks)'
+  year: '2026'
+  org: MGH/哈佛大学
+  paper_url: https://ai.nejm.org/doi/abs/10.1056/AIoa2500595
+  category: foundation_model
+  parent: medsam2
+  motivation: 多任务通用医学影像基础模型支持报告生成
+- id: uclif
+  name: UCLIF
+  full_name: 'UCLIF: 3D胸部CT自监督基础模型 (A Self-Supervised Foundation Model Based on Three-Dimensional Chest CT Scans)'
+  year: '2026'
+  org: 研究机构
+  paper_url: https://pubs.rsna.org/doi/abs/10.1148/rycan.250360
+  category: foundation_model
+  parent: —
+  motivation: 3D胸部CT自监督预训练优于自然图像迁移
+graph:
+  nodes:
+  - id: unet
+    x: 100
+    y: 100
+    category: foundation
+  - id: vnet
+    x: 160
+    y: 100
+    category: foundation
+  - id: google_dr
+    x: 160
+    y: 350
+    category: diagnostic
+  - id: chexnet
+    x: 220
+    y: 350
+    category: diagnostic
+  - id: attention_mil
+    x: 300
+    y: 350
+    category: diagnostic
+  - id: unet_pp
+    x: 300
+    y: 220
+    category: segmentation
+  - id: attention_unet
+    x: 300
+    y: 260
+    category: segmentation
+  - id: segresnet
+    x: 300
+    y: 180
+    category: segmentation
+  - id: hovernet
+    x: 380
+    y: 350
+    category: diagnostic
+  - id: nnu_net
+    x: 450
+    y: 220
+    category: segmentation
+  - id: transunet
+    x: 530
+    y: 220
+    category: segmentation
+  - id: swin_unet
+    x: 530
+    y: 260
+    category: segmentation
+  - id: clam
+    x: 530
+    y: 350
+    category: diagnostic
+  - id: medsam
+    x: 680
+    y: 480
+    category: foundation_model
+  - id: medsam_v1
+    x: 680
+    y: 520
+    category: foundation_model
+  - id: cihm
+    x: 820
+    y: 220
+    category: segmentation
+  - id: deco_mamba
+    x: 820
+    y: 260
+    category: segmentation
+  - id: mamba_sam
+    x: 820
+    y: 440
+    category: foundation_model
+  - id: medsam2
+    x: 820
+    y: 480
+    category: foundation_model
+  - id: uvas
+    x: 820
+    y: 300
+    category: segmentation
+  - id: medversa
+    x: 820
+    y: 520
+    category: foundation_model
+  - id: uclif
+    x: 820
+    y: 560
+    category: foundation_model
+  edges:
+  - from: unet
+    to: vnet
+    label: 扩展至3D
+  - from: unet
+    to: unet_pp
+    label: 密集连接
+  - from: unet
+    to: attention_unet
+    label: 引入注意力
+  - from: unet
+    to: transunet
+    label: Transformer
+  - from: unet_pp
+    to: nnu_net
+    label: 自动配置
+  - from: vnet
+    to: segresnet
+    label: VAE正则化
+  - from: transunet
+    to: swin_unet
+    label: 纯Transformer
+  - from: swin_unet
+    to: cihm
+    label: Mamba替代
+  - from: cihm
+    to: deco_mamba
+    label: 解码器优化
+  - from: attention_mil
+    to: clam
+    label: 聚类约束
+  - from: medsam
+    to: medsam_v1
+    label: 视频式3D
+  - from: medsam_v1
+    to: medsam2
+    label: 性能提升
+  - from: medsam
+    to: mamba_sam
+    label: Mamba融合
+  - from: medsam2
+    to: medversa
+    label: 通用化
+  - from: nnu_net
+    to: cihm
+    label: 高效架构
+  - from: medsam
+    to: medsam2
+    label: 迭代升级
+  - from: transunet
+    to: cihm
+    label: 线性复杂度
+  - from: clam
+    to: hovernet
+    label: 细胞级分析
+  milestones:
+  - id: unet
+    reason: 开创医学分割深度学习时代，U型对称结构成为标准范式
+  - id: nnu_net
+    reason: 证明系统配置比单纯架构创新更重要，自配置框架引领实用化
+  - id: medsam
+    reason: 医学影像通用分割基础模型，开启医学AI大模型时代

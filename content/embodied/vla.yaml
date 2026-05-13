@@ -1,0 +1,498 @@
+domain: embodied
+topic_id: vla
+topic_name: 视觉-语言-动作基础模型
+page_icon: 🦾
+page_title: 视觉-语言-动作 (VLA) 基础模型算法总结
+page_subtitle: '{build_date} 版'
+page_desc: 从模仿学习到原生多模态端到端控制，梳理VLA模型在具身智能领域的技术演进与前沿突破
+hero_pills: 具身智能 · 多模态大模型 · 机器人控制 · 流匹配策略
+count_pill: '{count} 个算法'
+categories:
+- key: transformer_policy
+  label: Transformer策略
+  color: '#3B82F6'
+- key: vlm_finetune
+  label: VLM微调策略
+  color: '#10B981'
+- key: diffusion_flow
+  label: 扩散/流匹配策略
+  color: '#F59E0B'
+- key: llm_planning
+  label: LLM规划与代码生成
+  color: '#8B5CF6'
+- key: spatial_3d
+  label: 3D空间表征
+  color: '#EC4899'
+algorithms:
+- id: bc_z
+  name: BC-Z
+  full_name: 零样本任务泛化模仿学习 (BC-Z)
+  year: '2021.11'
+  org: Google/Stanford
+  paper_url: https://arxiv.org/abs/2202.02005
+  category: transformer_policy
+  parent: —
+  motivation: 大规模模仿学习实现100+任务零样本泛化
+- id: cliport
+  name: CLIPort
+  full_name: 视觉语言操作路径 (CLIPort)
+  year: '2022'
+  org: Google/UW
+  paper_url: https://proceedings.mlr.press/v164/shridhar22a.html
+  category: spatial_3d
+  parent: —
+  motivation: 融合CLIP语义与Transporter几何精度
+- id: saycan
+  name: SayCan
+  full_name: 语言可行性规划 (SayCan)
+  year: '2022.04'
+  org: Google
+  paper_url: https://arxiv.org/abs/2204.01691
+  category: llm_planning
+  parent: —
+  motivation: LLM规划结合底层技能可行性评估
+- id: gato
+  name: Gato
+  full_name: 通用智能体 (Gato)
+  year: '2022.05'
+  org: DeepMind
+  paper_url: https://deepmind.google/research/publications/a-generalist-agent/
+  category: transformer_policy
+  parent: —
+  motivation: 单一Transformer处理600+多形态任务
+- id: code_as_policies
+  name: Code as Policies
+  full_name: 代码即策略 (Code as Policies)
+  year: '2022.11'
+  org: Google
+  paper_url: https://ai.googleblog.com/2022/11/robots-that-write-their-own-code.html
+  category: llm_planning
+  parent: saycan
+  motivation: LLM生成Python代码控制机器人
+- id: rt1
+  name: RT-1
+  full_name: 机器人Transformer第一代 (RT-1)
+  year: '2022.12'
+  org: Google DeepMind
+  paper_url: https://arxiv.org/abs/2212.06817
+  category: transformer_policy
+  parent: bc_z
+  motivation: TokenLearner压缩视觉实现3Hz控制
+- id: palm_e
+  name: PaLM-E
+  full_name: 具身多模态语言模型 (PaLM-E)
+  year: '2023.03'
+  org: Google/TU Berlin
+  paper_url: https://arxiv.org/abs/2303.03378
+  category: vlm_finetune
+  parent: —
+  motivation: 562B参数多模态观察注入LLM嵌入空间
+- id: moo
+  name: MOO
+  full_name: 开放世界物体操作 (MOO)
+  year: '2023.03'
+  org: Google
+  paper_url: https://arxiv.org/abs/2303.00905
+  category: vlm_finetune
+  parent: palm_e
+  motivation: VLM提取对象掩码增强开放世界操作
+- id: rt2
+  name: RT-2
+  full_name: 机器人Transformer第二代 (RT-2)
+  year: '2023.07'
+  org: Google DeepMind
+  paper_url: https://arxiv.org/abs/2307.15818
+  category: vlm_finetune
+  parent: rt1
+  motivation: 动作Token化实现互联网知识迁移
+- id: voxposer
+  name: VoxPoser
+  full_name: 体素价值图组合器 (VoxPoser)
+  year: '2023.07'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/2307.05973
+  category: spatial_3d
+  parent: cliport
+  motivation: LLM生成3D体素价值图零样本操纵
+- id: roboagent
+  name: RoboAgent
+  full_name: 机器人通用智能体 (RoboAgent)
+  year: '2023.09'
+  org: CMU/Meta
+  paper_url: https://arxiv.org/abs/2309.01918
+  category: diffusion_flow
+  parent: —
+  motivation: 扩散模型扩充演示实现多任务泛化
+- id: rt_x
+  name: RT-X
+  full_name: 跨形态机器人Transformer (RT-X)
+  year: '2023.10'
+  org: Google/OXE
+  paper_url: https://arxiv.org/abs/2310.08864
+  category: transformer_policy
+  parent: rt2
+  motivation: 跨形态学习验证不同机器人互助
+- id: roboflamingo
+  name: RoboFlamingo
+  full_name: 机器人火烈鸟 (RoboFlamingo)
+  year: '2023.11'
+  org: ByteDance/清华
+  paper_url: https://arxiv.org/abs/2311.01378
+  category: vlm_finetune
+  parent: palm_e
+  motivation: 解耦VLM与显式策略头的高效方案
+- id: hpt
+  name: HPT
+  full_name: 异构预训练Transformer (HPT)
+  year: '2024'
+  org: 清华/Meta
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2024/hash/e0f393e7980a24fd12fa6f15adfa25fb-Abstract-Conference.html
+  category: transformer_policy
+  parent: rt_x
+  motivation: 处理不同机器人本体感知差异
+- id: octo
+  name: Octo
+  full_name: 开源通用机器人策略 (Octo)
+  year: '2024.05'
+  org: UC Berkeley等
+  paper_url: https://arxiv.org/abs/2405.12213
+  category: diffusion_flow
+  parent: roboagent
+  motivation: 开源通用策略支持扩散动作头
+- id: openvla
+  name: OpenVLA
+  full_name: 开源视觉语言动作模型 (OpenVLA)
+  year: '2024.06'
+  org: Stanford/UCB
+  paper_url: https://arxiv.org/abs/2406.09246
+  category: vlm_finetune
+  parent: rt2
+  motivation: 双视觉特征7B超越55B RT-2-X
+- id: gr1
+  name: GR-1/GR-2
+  full_name: 傅里叶人形机器人 (GR-1/GR-2)
+  year: '2024.09'
+  org: Fourier
+  paper_url: https://www.fftai.com/newsroom-newintech/14
+  category: transformer_policy
+  parent: rt_x
+  motivation: 人形机器人端到端全身控制
+- id: pi0
+  name: π0
+  full_name: 物理智能零号 (π0)
+  year: '2024.10'
+  org: Physical Intelligence
+  paper_url: https://www.pi.website/blog/pi0
+  category: diffusion_flow
+  parent: octo
+  motivation: 流匹配动作专家支持50Hz高频控制
+- id: helix
+  name: Helix-02
+  full_name: 螺旋双系统架构 (Helix-02)
+  year: '2025.02'
+  org: Figure AI
+  paper_url: https://www.figure.ai/news/helix
+  category: diffusion_flow
+  parent: pi0
+  motivation: 双系统架构支持200Hz全身控制
+- id: long_vla
+  name: Long-VLA
+  full_name: 长程视觉语言动作 (Long-VLA)
+  year: '2025.09'
+  org: CoRL 2025
+  paper_url: https://proceedings.mlr.press/v305/
+  category: transformer_policy
+  parent: openvla
+  motivation: 相位感知输入掩码解决长程任务
+- id: groot_n2
+  name: GR00T N2
+  full_name: 英伟达人形基础模型 (GR00T N2)
+  year: '2026.03'
+  org: NVIDIA
+  paper_url: https://nvidianews.nvidia.com/news/nvidia-partners-with-global-robotics-ecosystem-to-power-production-scale-physical-ai
+  category: diffusion_flow
+  parent: helix
+  motivation: 世界动作模型预测物理状态演变
+- id: dfm_vla
+  name: DFM-VLA
+  full_name: 离散流匹配VLA (DFM-VLA)
+  year: '2026.03'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2603.26320
+  category: diffusion_flow
+  parent: pi0
+  motivation: 迭代细化动作Token解决轨迹不稳定
+- id: pangu_embodied
+  name: 盘古具身智能
+  full_name: 盘古具身智能大模型 (Pangu-Embodied)
+  year: '2026.03'
+  org: 华为
+  paper_url: https://www.huawei.com/cn/news/2026/3/huawei-full-stack-tech-2026
+  category: llm_planning
+  parent: code_as_policies
+  motivation: 10步+长程规划星闪纳秒级同步
+- id: gemini_robotics_er
+  name: Gemini Robotics-ER
+  full_name: Gemini具身推理 (Gemini Robotics-ER)
+  year: '2026.04'
+  org: Google DeepMind
+  paper_url: https://deepmind.google/discover/blog/gemini-robotics-er-1-6-powering-real-world-robotics-tasks/
+  category: vlm_finetune
+  parent: rt2
+  motivation: 具身推理与Agentic Vision工业安全
+- id: univla
+  name: UniVLA
+  full_name: 统一视觉语言动作 (UniVLA)
+  year: '2026.04'
+  org: ICLR 2026
+  paper_url: https://openreview.net/forum?id=UniVLA_Paper_ID
+  category: vlm_finetune
+  parent: openvla
+  motivation: 原生多模态统一Token化达95.5%
+- id: hy_embodied
+  name: HY-Embodied
+  full_name: 腾讯混元具身 (HY-Embodied-0.5)
+  year: '2026.04'
+  org: 腾讯
+  paper_url: https://arxiv.org/abs/2604.07430v1
+  category: vlm_finetune
+  parent: univla
+  motivation: MoT架构解耦视觉语言22项领先
+- id: neurovla
+  name: NeuroVLA
+  full_name: 类脑VLA (NeuroVLA)
+  year: '2026.04'
+  org: 智平方
+  paper_url: https://www.leiphone.com/category/ai/VLA-NeuroVLA-GuoYandong.html
+  category: transformer_policy
+  parent: hpt
+  motivation: 类脑架构0.4W功耗20ms生存本能
+- id: pi0_7
+  name: π0.7
+  full_name: 物理智能零点七 (π0.7)
+  year: '2026.04'
+  org: Physical Intelligence
+  paper_url: https://www.pi.website/blog/pi0-7-a-steerable-model-with-emergent-capabilities
+  category: diffusion_flow
+  parent: pi0
+  motivation: 组合泛化支持跨多种机器人本体
+- id: openvla2
+  name: OpenVLA 2
+  full_name: 开源VLA第二代 (OpenVLA 2)
+  year: '2026.05'
+  org: OpenVLA Consortium
+  paper_url: https://robotwale.com/openvla-2-released-with-improved-generalisation/
+  category: vlm_finetune
+  parent: openvla
+  motivation: 自适应推理模块多机协作泛化提升30%
+- id: last_r1
+  name: LaST-R1
+  full_name: 潜在空间推理R1 (LaST-R1)
+  year: '2026.05'
+  org: Simplexity/北大
+  paper_url: https://pandaily.com/simplexity-robotics-pku-and-cuhk-propose-last-r1-achieving-99-9-success-on-libero-benchmark/
+  category: diffusion_flow
+  parent: pi0_7
+  motivation: 潜在空间物理推理达99.9%
+graph:
+  nodes:
+  - id: bc_z
+    x: 2021.11
+    y: 1
+    category: transformer_policy
+  - id: cliport
+    x: 2022
+    y: 5
+    category: spatial_3d
+  - id: saycan
+    x: 2022.04
+    y: 4
+    category: llm_planning
+  - id: gato
+    x: 2022.05
+    y: 1
+    category: transformer_policy
+  - id: code_as_policies
+    x: 2022.11
+    y: 4
+    category: llm_planning
+  - id: rt1
+    x: 2022.12
+    y: 1
+    category: transformer_policy
+  - id: palm_e
+    x: 2023.03
+    y: 2
+    category: vlm_finetune
+  - id: moo
+    x: 2023.03
+    y: 2.3
+    category: vlm_finetune
+  - id: rt2
+    x: 2023.07
+    y: 2
+    category: vlm_finetune
+  - id: voxposer
+    x: 2023.07
+    y: 5
+    category: spatial_3d
+  - id: roboagent
+    x: 2023.09
+    y: 3
+    category: diffusion_flow
+  - id: rt_x
+    x: 2023.1
+    y: 1
+    category: transformer_policy
+  - id: roboflamingo
+    x: 2023.11
+    y: 2.3
+    category: vlm_finetune
+  - id: hpt
+    x: 2024
+    y: 1
+    category: transformer_policy
+  - id: octo
+    x: 2024.05
+    y: 3
+    category: diffusion_flow
+  - id: openvla
+    x: 2024.06
+    y: 2
+    category: vlm_finetune
+  - id: gr1
+    x: 2024.09
+    y: 1
+    category: transformer_policy
+  - id: pi0
+    x: 2024.1
+    y: 3
+    category: diffusion_flow
+  - id: helix
+    x: 2025.02
+    y: 3
+    category: diffusion_flow
+  - id: long_vla
+    x: 2025.09
+    y: 1
+    category: transformer_policy
+  - id: groot_n2
+    x: 2026.03
+    y: 3
+    category: diffusion_flow
+  - id: dfm_vla
+    x: 2026.03
+    y: 3.3
+    category: diffusion_flow
+  - id: pangu_embodied
+    x: 2026.03
+    y: 4
+    category: llm_planning
+  - id: gemini_robotics_er
+    x: 2026.04
+    y: 2
+    category: vlm_finetune
+  - id: univla
+    x: 2026.04
+    y: 2.2
+    category: vlm_finetune
+  - id: hy_embodied
+    x: 2026.04
+    y: 2.4
+    category: vlm_finetune
+  - id: neurovla
+    x: 2026.04
+    y: 1
+    category: transformer_policy
+  - id: pi0_7
+    x: 2026.04
+    y: 3.2
+    category: diffusion_flow
+  - id: openvla2
+    x: 2026.05
+    y: 2
+    category: vlm_finetune
+  - id: last_r1
+    x: 2026.05
+    y: 3
+    category: diffusion_flow
+  edges:
+  - from: bc_z
+    to: rt1
+    label: 架构优化
+  - from: saycan
+    to: code_as_policies
+    label: 代码生成
+  - from: rt1
+    to: rt2
+    label: VLM迁移
+  - from: palm_e
+    to: moo
+    label: 开放世界
+  - from: cliport
+    to: voxposer
+    label: 3D价值图
+  - from: rt2
+    to: rt_x
+    label: 跨形态
+  - from: palm_e
+    to: roboflamingo
+    label: 解耦设计
+  - from: roboagent
+    to: octo
+    label: 开源通用
+  - from: rt2
+    to: openvla
+    label: 双视觉
+  - from: rt_x
+    to: hpt
+    label: 异构预训练
+  - from: rt_x
+    to: gr1
+    label: 人形控制
+  - from: octo
+    to: pi0
+    label: 流匹配
+  - from: pi0
+    to: helix
+    label: 双系统
+  - from: openvla
+    to: long_vla
+    label: 长程规划
+  - from: helix
+    to: groot_n2
+    label: 世界模型
+  - from: pi0
+    to: dfm_vla
+    label: 离散流
+  - from: code_as_policies
+    to: pangu_embodied
+    label: 长程规划
+  - from: rt2
+    to: gemini_robotics_er
+    label: 具身推理
+  - from: openvla
+    to: univla
+    label: 原生多模态
+  - from: univla
+    to: hy_embodied
+    label: MoT架构
+  - from: hpt
+    to: neurovla
+    label: 类脑架构
+  - from: pi0
+    to: pi0_7
+    label: 组合泛化
+  - from: openvla
+    to: openvla2
+    label: 自适应推理
+  - from: pi0_7
+    to: last_r1
+    label: 潜在推理
+  - from: rt2
+    to: rt_x
+    label: 跨形态
+  milestones:
+  - rt2
+  - pi0
+  - last_r1

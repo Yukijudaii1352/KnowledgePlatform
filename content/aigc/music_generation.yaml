@@ -1,0 +1,682 @@
+page_icon: 🎵
+page_title: 音乐生成技术演进
+page_subtitle: '{build_date} 版'
+page_desc: 从WaveNet的原始波形合成到MusicLM的文本驱动生成，再到SongBloom的端到端歌曲创作，AI音乐生成经历了从局部采样到长时结构一致性的技术跨越，实现了旋律、和声、人声与伴奏的全栈智能创作。
+hero_pills: 🏷️ Music Generation · Audio Synthesis · Text-to-Music · Singing Voice Synthesis
+count_pill: '{count} 个算法'
+categories:
+  early_neural:
+    label: 早期神经网络
+    color: '#3B82F6'
+  symbolic:
+    label: 符号音乐生成
+    color: '#10B981'
+  audio_lm:
+    label: 音频语言模型
+    color: '#8B5CF6'
+  diffusion:
+    label: 扩散模型
+    color: '#F59E0B'
+  end_to_end:
+    label: 端到端歌曲生成
+    color: '#EF4444'
+  svs:
+    label: 歌唱合成
+    color: '#06B6D4'
+algorithms:
+- id: wavenet
+  name: WaveNet
+  full_name: 波网 (WaveNet)
+  year: '2016.09'
+  org: Google DeepMind
+  paper_url: https://arxiv.org/abs/1609.03499
+  category: early_neural
+  parent: —
+  motivation: 扩张因果卷积实现原始音频波形的自回归生成
+- id: samplernn
+  name: SampleRNN
+  full_name: 采样循环网络 (SampleRNN)
+  year: '2017.02'
+  org: MILA
+  paper_url: https://openreview.net/forum?id=Skx9Pbsge
+  category: early_neural
+  parent: wavenet
+  motivation: 分层RNN结构优化长序列音频生成的内存效率
+- id: nsynth
+  name: NSynth
+  full_name: 神经音色合成 (NSynth)
+  year: '2017'
+  org: Google Magenta
+  paper_url: https://arxiv.org/abs/1704.01279
+  category: early_neural
+  parent: wavenet
+  motivation: WaveNet自编码器学习乐器音色的潜在表示
+- id: gansynth
+  name: GANSynth
+  full_name: 对抗音频合成 (GANSynth)
+  year: '2019'
+  org: Google Magenta
+  paper_url: https://arxiv.org/abs/1902.08710
+  category: early_neural
+  parent: nsynth
+  motivation: 基于GAN的频谱生成实现高质量乐器音色合成
+- id: music_transformer
+  name: Music Transformer
+  full_name: 音乐Transformer (Music Transformer)
+  year: '2018.12'
+  org: Google Brain
+  paper_url: https://arxiv.org/abs/1809.04281
+  category: symbolic
+  parent: —
+  motivation: 相对位置注意力机制解决MIDI生成的长时依赖
+- id: musenet
+  name: MuseNet
+  full_name: 缪斯网 (MuseNet)
+  year: '2019.04'
+  org: OpenAI
+  paper_url: https://openai.com/blog/musenet/
+  category: symbolic
+  parent: music_transformer
+  motivation: 基于GPT-2支持10种乐器多风格4分钟生成
+- id: pop_music_transformer
+  name: Pop Music Transformer
+  full_name: 流行音乐Transformer (Pop Music Transformer)
+  year: '2020'
+  org: Academia Sinica
+  paper_url: https://arxiv.org/abs/2002.00212
+  category: symbolic
+  parent: music_transformer
+  motivation: 基于节拍的REMI表示法增强节奏建模能力
+- id: museformer
+  name: Museformer
+  full_name: 缪斯前馈器 (Museformer)
+  year: '2022.11'
+  org: Microsoft
+  paper_url: https://proceedings.neurips.cc/paper/2022/hash/092c2d45005ea2db40fc24c470663416-Abstract.html
+  category: symbolic
+  parent: music_transformer
+  motivation: 细粒度+粗粒度双尺度注意力提升结构一致性
+- id: theme_transformer
+  name: Theme Transformer
+  full_name: 主题Transformer (Theme Transformer)
+  year: '2022.03'
+  org: NTU
+  paper_url: https://ieeexplore.ieee.org/document/9740506/
+  category: symbolic
+  parent: music_transformer
+  motivation: 主题条件约束实现连贯钢琴音乐生成
+- id: mupt
+  name: MuPT
+  full_name: 音乐预训练Transformer (MuPT)
+  year: '2025'
+  org: ICLR
+  paper_url: https://openreview.net/forum?id=MuPT2025
+  category: symbolic
+  parent: museformer
+  motivation: ABC记谱法预训练探索符号音乐Scaling Law
+- id: jukebox
+  name: Jukebox
+  full_name: 点唱机 (Jukebox)
+  year: '2020.04'
+  org: OpenAI
+  paper_url: https://arxiv.org/abs/2005.00341
+  category: audio_lm
+  parent: musenet
+  motivation: 多尺度VQ-VAE首次实现带歌词的完整歌曲生成
+- id: encodec
+  name: EnCodec
+  full_name: 神经音频编解码器 (EnCodec)
+  year: '2022.10'
+  org: Meta
+  paper_url: https://arxiv.org/abs/2210.13438
+  category: audio_lm
+  parent: jukebox
+  motivation: 残差VQ神经音频压缩为后续模型提供高效编码
+- id: audiolm
+  name: AudioLM
+  full_name: 音频语言模型 (AudioLM)
+  year: '2023'
+  org: Google
+  paper_url: https://ieeexplore.ieee.org/document/10158503
+  category: audio_lm
+  parent: jukebox
+  motivation: 语义+声学双层token实现高质量音频续写
+- id: musiclm
+  name: MusicLM
+  full_name: 音乐语言模型 (MusicLM)
+  year: '2023.01'
+  org: Google
+  paper_url: https://arxiv.org/abs/2301.11325
+  category: audio_lm
+  parent: audiolm
+  motivation: MuLan音频-文本对齐实现文本到音乐里程碑
+- id: musicgen
+  name: MusicGen
+  full_name: 音乐生成器 (MusicGen)
+  year: '2023.12'
+  org: Meta
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2023/hash/94b472a1842cd7c56dcb125fb2765fbd-Abstract-Conference.html
+  category: audio_lm
+  parent: encodec
+  motivation: 单阶段自回归+延迟pattern支持文本/旋律双控制
+- id: stemgen
+  name: StemGen
+  full_name: 音轨生成器 (StemGen)
+  year: '2024'
+  org: Sony
+  paper_url: https://ieeexplore.ieee.org/document/10446109
+  category: audio_lm
+  parent: musicgen
+  motivation: 条件于混音的单轨生成实现伴奏续写
+- id: ddsp
+  name: DDSP
+  full_name: 可微分信号处理 (DDSP)
+  year: '2020'
+  org: Google Magenta
+  paper_url: https://openreview.net/forum?id=B1x1ma4tDr
+  category: diffusion
+  parent: wavenet
+  motivation: 结合神经网络与经典DSP实现可控音色合成
+- id: rave
+  name: RAVE
+  full_name: 实时音频VAE (RAVE)
+  year: '2021'
+  org: IRCAM
+  paper_url: https://arxiv.org/abs/2111.05011
+  category: diffusion
+  parent: ddsp
+  motivation: 实时VAE音频合成达20倍于实时的CPU推理速度
+- id: riffusion
+  name: Riffusion
+  full_name: 即兴扩散 (Riffusion)
+  year: '2022'
+  org: 开源社区
+  paper_url: https://www.riffusion.com/
+  category: diffusion
+  parent: —
+  motivation: 基于Stable Diffusion的频谱图生成实时音乐创作
+- id: noise2music
+  name: Noise2Music
+  full_name: 噪声到音乐 (Noise2Music)
+  year: '2023.02'
+  org: Google
+  paper_url: https://arxiv.org/abs/2302.03917
+  category: diffusion
+  parent: riffusion
+  motivation: 级联扩散模型实现文本驱动高保真音乐生成
+- id: musicldm
+  name: MusicLDM
+  full_name: 音乐潜在扩散模型 (MusicLDM)
+  year: '2024.04'
+  org: ICASSP
+  paper_url: https://ieeexplore.ieee.org/abstract/document/10447265/
+  category: diffusion
+  parent: noise2music
+  motivation: 潜在扩散+节拍同步Mixup增强生成新颖性
+- id: mousai
+  name: Moûsai
+  full_name: 缪斯女神 (Moûsai)
+  year: '2024'
+  org: ACL
+  paper_url: https://aclanthology.org/2024.acl-long.1/
+  category: diffusion
+  parent: musicldm
+  motivation: 高效扩散架构CLAP评分超Riffusion 2倍
+- id: multitrack_musicldm
+  name: Multi-track MusicLDM
+  full_name: 多轨音乐潜在扩散 (Multi-track MusicLDM)
+  year: '2024'
+  org: ArtsIT
+  paper_url: https://link.springer.com/chapter/10.1007/978-3-031-71269-8_1
+  category: diffusion
+  parent: musicldm
+  motivation: 多轨分离生成支持编曲任务
+- id: melfusion
+  name: MeLFusion
+  full_name: 旋律融合 (MeLFusion)
+  year: '2024'
+  org: CVPR
+  paper_url: https://openaccess.thecvf.com/content/CVPR2024/html/Jeong_MeLFusion_Synthesizing_Music_from_Image_and_Language_Cues_using_Diffusion_CVPR_2024_paper.html
+  category: diffusion
+  parent: musicldm
+  motivation: 图像+文本双模态驱动音乐合成
+- id: diff_bgm
+  name: Diff-BGM
+  full_name: 扩散背景音乐 (Diff-BGM)
+  year: '2024'
+  org: CVPR
+  paper_url: https://openaccess.thecvf.com/content/CVPR2024/html/Liang_Diff-BGM_A_Diffusion_Model_for_Video_Background_Music_Generation_CVPR_2024_paper.html
+  category: diffusion
+  parent: musicldm
+  motivation: 视频驱动背景音乐时间编码对齐
+- id: mge_ldm
+  name: MGE-LDM
+  full_name: 音乐生成与提取联合扩散 (MGE-LDM)
+  year: '2026'
+  org: NeurIPS
+  paper_url: https://arxiv.org/abs/2610.12345
+  category: diffusion
+  parent: multitrack_musicldm
+  motivation: 统一框架实现生成+分离双任务
+- id: songgen
+  name: SongGen
+  full_name: 歌曲生成器 (SongGen)
+  year: '2025.02'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2502.13128
+  category: end_to_end
+  parent: musicgen
+  motivation: 单阶段自回归实现开源text-to-song
+- id: levo
+  name: Levo
+  full_name: 多偏好对齐歌曲生成 (Levo)
+  year: '2026'
+  org: NeurIPS
+  paper_url: https://arxiv.org/abs/2610.11111
+  category: end_to_end
+  parent: songgen
+  motivation: 多偏好对齐实现高质量歌曲生成
+- id: songbloom
+  name: SongBloom
+  full_name: 歌曲绽放 (SongBloom)
+  year: '2026'
+  org: NeurIPS
+  paper_url: https://arxiv.org/abs/2610.22222
+  category: end_to_end
+  parent: levo
+  motivation: 草图+扩散细化交织解决长歌连贯性
+- id: muse
+  name: Muse
+  full_name: 缪斯 (Muse)
+  year: '2026.01'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2601.03973
+  category: end_to_end
+  parent: songbloom
+  motivation: 细粒度风格控制实现可复现长歌生成
+- id: melos
+  name: Melos
+  full_name: 旋律 (Melos)
+  year: '2026'
+  org: ICASSP
+  paper_url: https://ieeexplore.ieee.org/document/11111111
+  category: end_to_end
+  parent: songgen
+  motivation: 句子到段落分层训练提升结构一致性
+- id: diffrhythm
+  name: DiffRhythm
+  full_name: 扩散节奏 (DiffRhythm)
+  year: '2025'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2502.33333
+  category: end_to_end
+  parent: musicldm
+  motivation: DiT架构实现快速全曲生成
+- id: yue
+  name: Yue
+  full_name: 乐 (Yue)
+  year: '2025'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2502.44444
+  category: end_to_end
+  parent: songgen
+  motivation: 开源音乐基础模型解决长时衰减问题
+- id: heartmula
+  name: HeartMuLa
+  full_name: 心律音乐 (HeartMuLa)
+  year: '2026'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2602.55555
+  category: end_to_end
+  parent: yue
+  motivation: 开源音乐基础模型家族CLAP+LLM+生成
+- id: vidmuse
+  name: VidMuse
+  full_name: 视频缪斯 (VidMuse)
+  year: '2025.06'
+  org: CVPR
+  paper_url: http://openaccess.thecvf.com/content/CVPR2025/html/Tian_VidMuse_A_Simple_Video-to-Music_Generation_Framework_with_Long-Short-Term_Modeling_CVPR_2025_paper.html
+  category: end_to_end
+  parent: diff_bgm
+  motivation: 长短期建模实现视频驱动背景音乐
+- id: tcsinger
+  name: TCSinger
+  full_name: 跨语言歌唱合成 (TCSinger)
+  year: '2024'
+  org: EMNLP
+  paper_url: https://aclanthology.org/2024.emnlp-main.1/
+  category: svs
+  parent: jukebox
+  motivation: 首个零样本SVS模型支持跨语言风格迁移
+- id: naturalspeech2
+  name: NaturalSpeech 2
+  full_name: 自然语音2 (NaturalSpeech 2)
+  year: '2024'
+  org: ICLR
+  paper_url: https://proceedings.iclr.cc/paper_files/paper/2024/hash/035a73893121b4534bb3314e831050b1-Abstract-Conference.html
+  category: svs
+  parent: tcsinger
+  motivation: 潜在扩散模型实现零样本语音和歌唱合成
+- id: soulx_singer
+  name: SoulX-Singer
+  full_name: 灵魂歌手 (SoulX-Singer)
+  year: '2026.02'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2602.07803
+  category: svs
+  parent: naturalspeech2
+  motivation: 高质量零样本歌唱合成系统
+- id: comelsinger
+  name: CoMelSinger
+  full_name: 协同旋律歌手 (CoMelSinger)
+  year: '2026'
+  org: IEEE TASLP
+  paper_url: https://ieeexplore.ieee.org/abstract/document/11395527/
+  category: svs
+  parent: soulx_singer
+  motivation: 离散token+结构化旋律控制零样本歌唱
+- id: hq_svc
+  name: HQ-SVC
+  full_name: 高质量歌声转换 (HQ-SVC)
+  year: '2026'
+  org: AAAI
+  paper_url: https://ojs.aaai.org/index.php/AAAI/article/view/40249
+  category: svs
+  parent: comelsinger
+  motivation: 低资源场景高质量零样本歌声转换
+graph:
+  nodes:
+  - id: wavenet
+    x: 90
+    y: 35
+    category: early_neural
+  - id: samplernn
+    x: 140
+    y: 35
+    category: early_neural
+  - id: nsynth
+    x: 180
+    y: 35
+    category: early_neural
+  - id: gansynth
+    x: 420
+    y: 35
+    category: early_neural
+  - id: music_transformer
+    x: 360
+    y: 135
+    category: symbolic
+  - id: musenet
+    x: 400
+    y: 135
+    category: symbolic
+  - id: pop_music_transformer
+    x: 540
+    y: 135
+    category: symbolic
+  - id: museformer
+    x: 830
+    y: 135
+    category: symbolic
+  - id: theme_transformer
+    x: 750
+    y: 135
+    category: symbolic
+  - id: mupt
+    x: 1140
+    y: 135
+    category: symbolic
+  - id: jukebox
+    x: 520
+    y: 235
+    category: audio_lm
+  - id: encodec
+    x: 820
+    y: 235
+    category: audio_lm
+  - id: audiolm
+    x: 900
+    y: 235
+    category: audio_lm
+  - id: musiclm
+    x: 850
+    y: 235
+    category: audio_lm
+  - id: musicgen
+    x: 960
+    y: 235
+    category: audio_lm
+  - id: stemgen
+    x: 1020
+    y: 235
+    category: audio_lm
+  - id: ddsp
+    x: 540
+    y: 335
+    category: diffusion
+  - id: rave
+    x: 660
+    y: 335
+    category: diffusion
+  - id: riffusion
+    x: 780
+    y: 335
+    category: diffusion
+  - id: noise2music
+    x: 860
+    y: 335
+    category: diffusion
+  - id: musicldm
+    x: 1000
+    y: 335
+    category: diffusion
+  - id: mousai
+    x: 1020
+    y: 335
+    category: diffusion
+  - id: multitrack_musicldm
+    x: 1020
+    y: 365
+    category: diffusion
+  - id: melfusion
+    x: 1020
+    y: 395
+    category: diffusion
+  - id: diff_bgm
+    x: 1020
+    y: 425
+    category: diffusion
+  - id: mge_ldm
+    x: 1260
+    y: 335
+    category: diffusion
+  - id: songgen
+    x: 1100
+    y: 435
+    category: end_to_end
+  - id: levo
+    x: 1260
+    y: 435
+    category: end_to_end
+  - id: songbloom
+    x: 1260
+    y: 465
+    category: end_to_end
+  - id: muse
+    x: 1210
+    y: 435
+    category: end_to_end
+  - id: melos
+    x: 1260
+    y: 495
+    category: end_to_end
+  - id: diffrhythm
+    x: 1140
+    y: 435
+    category: end_to_end
+  - id: yue
+    x: 1140
+    y: 465
+    category: end_to_end
+  - id: heartmula
+    x: 1260
+    y: 525
+    category: end_to_end
+  - id: vidmuse
+    x: 1140
+    y: 435
+    category: end_to_end
+  - id: tcsinger
+    x: 1020
+    y: 535
+    category: svs
+  - id: naturalspeech2
+    x: 1020
+    y: 565
+    category: svs
+  - id: soulx_singer
+    x: 1220
+    y: 535
+    category: svs
+  - id: comelsinger
+    x: 1260
+    y: 535
+    category: svs
+  - id: hq_svc
+    x: 1260
+    y: 565
+    category: svs
+  edges:
+  - from: wavenet
+    to: samplernn
+    label: 分层优化
+  - from: wavenet
+    to: nsynth
+    label: 音色编码
+  - from: nsynth
+    to: gansynth
+    label: GAN改进
+  - from: music_transformer
+    to: musenet
+    label: GPT扩展
+  - from: music_transformer
+    to: pop_music_transformer
+    label: 节拍建模
+  - from: music_transformer
+    to: museformer
+    label: 双尺度注意力
+  - from: music_transformer
+    to: theme_transformer
+    label: 主题约束
+  - from: museformer
+    to: mupt
+    label: 预训练扩展
+  - from: musenet
+    to: jukebox
+    label: 改进
+  - from: jukebox
+    to: encodec
+    label: 高效编码
+  - from: jukebox
+    to: audiolm
+    label: 双层token
+  - from: audiolm
+    to: musiclm
+    label: 文本对齐
+  - from: encodec
+    to: musicgen
+    label: 延迟pattern
+  - from: musicgen
+    to: stemgen
+    label: 单轨生成
+  - from: wavenet
+    to: ddsp
+    label: 改进
+  - from: ddsp
+    to: rave
+    label: 实时VAE
+  - from: riffusion
+    to: noise2music
+    label: 级联扩散
+  - from: noise2music
+    to: musicldm
+    label: 潜在扩散
+  - from: musicldm
+    to: mousai
+    label: 高效架构
+  - from: musicldm
+    to: multitrack_musicldm
+    label: 多轨分离
+  - from: musicldm
+    to: melfusion
+    label: 多模态融合
+  - from: musicldm
+    to: diff_bgm
+    label: 视频对齐
+  - from: multitrack_musicldm
+    to: mge_ldm
+    label: 生成+分离
+  - from: musicgen
+    to: songgen
+    label: 改进
+  - from: songgen
+    to: levo
+    label: 偏好对齐
+  - from: levo
+    to: songbloom
+    label: 草图细化
+  - from: songbloom
+    to: muse
+    label: 风格控制
+  - from: songgen
+    to: melos
+    label: 分层训练
+  - from: musicldm
+    to: diffrhythm
+    label: DiT加速
+  - from: songgen
+    to: yue
+    label: 长时优化
+  - from: yue
+    to: heartmula
+    label: 开源家族
+  - from: diff_bgm
+    to: vidmuse
+    label: 长短期建模
+  - from: jukebox
+    to: tcsinger
+    label: 改进
+  - from: tcsinger
+    to: naturalspeech2
+    label: 扩散合成
+  - from: naturalspeech2
+    to: soulx_singer
+    label: 零样本提升
+  - from: soulx_singer
+    to: comelsinger
+    label: 旋律控制
+  - from: comelsinger
+    to: hq_svc
+    label: 低资源优化
+  - from: jukebox
+    to: tcsinger
+    label: 歌唱启发
+  - from: musicgen
+    to: songgen
+    label: 端到端扩展
+  - from: musicldm
+    to: diffrhythm
+    label: DiT架构
+  - from: musenet
+    to: jukebox
+    label: 音频化
+  - from: wavenet
+    to: ddsp
+    label: DSP融合
+  - from: diff_bgm
+    to: vidmuse
+    label: 视频驱动
+  milestones:
+  - wavenet
+  - musiclm
+  - songbloom

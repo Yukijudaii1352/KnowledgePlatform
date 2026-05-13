@@ -1,0 +1,520 @@
+domain: llm
+topic_id: llm_pretraining
+topic_name: LLM预训练
+page_icon: ⚡
+page_title: LLM预训练算法总结
+page_subtitle: '{build_date} 版'
+page_desc: 系统梳理从Scaling Laws理论奠基、数据工程精炼到分布式训练优化的大语言模型预训练技术演进脉络
+hero_pills:
+- Scaling Laws · 数据工程 · 训练稳定性 · 分布式训练
+count_pill: '{count} 个算法'
+categories:
+  scaling:
+    label: 规模法则
+    color: '#22a06b'
+  data:
+    label: 数据工程
+    color: '#5b63d3'
+  training:
+    label: 训练优化
+    color: '#e97f33'
+  distributed:
+    label: 分布式系统
+    color: '#8b5cf6'
+algorithms:
+- id: kaplan_scaling
+  name: OpenAI Scaling Laws
+  full_name: OpenAI规模定律 (Scaling Laws for Neural Language Models)
+  year: '2020'
+  org: OpenAI
+  paper_url: https://arxiv.org/abs/2001.08361
+  category: scaling
+  parent: —
+  motivation: 幂律公式揭示模型性能与N/D/C关系
+- id: chinchilla_law
+  name: Chinchilla Laws
+  full_name: 计算最优训练法则 (Training Compute-Optimal Large Language Models)
+  year: '2022.03'
+  org: DeepMind
+  paper_url: https://arxiv.org/abs/2203.15556
+  category: scaling
+  parent: kaplan_scaling
+  motivation: 提出20:1数据参数比的计算最优原则
+- id: mup
+  name: μP/μTransfer
+  full_name: 最大更新参数化 (Maximal Update Parameterization)
+  year: '2022.03'
+  org: Microsoft Research
+  paper_url: https://arxiv.org/abs/2203.03466
+  category: scaling
+  parent: —
+  motivation: 实现超参数跨规模零次迁移
+- id: data_constrained_scaling
+  name: 数据受限规模定律
+  full_name: 数据受限规模定律 (Scaling Data-Constrained Language Models)
+  year: '2023.05'
+  org: HuggingFace
+  paper_url: https://arxiv.org/abs/2305.16264
+  category: scaling
+  parent: chinchilla_law
+  motivation: 揭示数据重复训练的衰减幂律
+- id: t2_scaling
+  name: T²缩放定律
+  full_name: T²缩放定律 (Train-to-Test Scaling Laws)
+  year: '2026'
+  org: 多机构
+  paper_url: https://www.machinelearningplus.com/llm/llm-scaling-laws/
+  category: scaling
+  parent: chinchilla_law
+  motivation: 推理最优的过度训练策略
+- id: u_mup
+  name: u-μP
+  full_name: 单位缩放μP (Unit-Scaled Maximal Update Parametrization)
+  year: '2025.11'
+  org: OPT-ML
+  paper_url: https://opt-ml.org/papers/2024/paper_26.pdf
+  category: scaling
+  parent: mup
+  motivation: 单位缩放支持FP8稳定训练
+- id: rl_scaling
+  name: RL Scaling Laws
+  full_name: 强化学习规模定律 (RL Scaling Laws)
+  year: '2026'
+  org: 多机构
+  paper_url: https://www.machinelearningplus.com/llm/llm-scaling-laws/
+  category: scaling
+  parent: kaplan_scaling
+  motivation: 强化学习阶段能力-计算量预测
+- id: c4
+  name: C4
+  full_name: C4数据集 (Colossal Clean Crawled Corpus)
+  year: '2020'
+  org: Google
+  paper_url: https://arxiv.org/abs/1910.10683
+  category: data
+  parent: —
+  motivation: T5基石数据集启发式规则清洗
+- id: the_pile
+  name: The Pile
+  full_name: 'The Pile数据集 (The Pile: An 800GB Dataset)'
+  year: '2021'
+  org: EleutherAI
+  paper_url: https://arxiv.org/abs/2101.00027
+  category: data
+  parent: c4
+  motivation: 825GB多源数据集强调多样性
+- id: minhash_dedup
+  name: MinHash LSH
+  full_name: MinHash局部敏感哈希去重 (MinHash LSH Deduplication)
+  year: '2022'
+  org: 学术界
+  paper_url: https://aclanthology.org/2022.acl-long.577/
+  category: data
+  parent: —
+  motivation: 局部敏感哈希实现文档级去重
+- id: suffix_array_dedup
+  name: Suffix Array去重
+  full_name: 后缀数组去重 (Suffix Array Deduplication)
+  year: '2022'
+  org: Google
+  paper_url: https://aclanthology.org/2022.acl-long.577/
+  category: data
+  parent: minhash_dedup
+  motivation: 后缀数组子串去重防重复生成
+- id: refinedweb
+  name: RefinedWeb
+  full_name: RefinedWeb数据集 (RefinedWeb Dataset)
+  year: '2023'
+  org: TII
+  paper_url: https://arxiv.org/abs/2306.01116
+  category: data
+  parent: c4
+  motivation: 5T纯网页数据MDR方法论
+- id: dolma
+  name: Dolma
+  full_name: 'Dolma数据集 (Dolma: An Open Corpus)'
+  year: '2024'
+  org: AI2
+  paper_url: https://aclanthology.org/2024.acl-long.840/
+  category: data
+  parent: the_pile
+  motivation: 3T全透明开源支持OLMo研究
+- id: doremi
+  name: DoReMi
+  full_name: 'DoReMi数据配比优化 (DoReMi: Optimizing Data Mixtures)'
+  year: '2023'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/2305.10429
+  category: data
+  parent: —
+  motivation: 极小极大优化自动确定数据配比
+- id: fineweb
+  name: FineWeb
+  full_name: FineWeb数据集 (FineWeb Dataset)
+  year: '2024'
+  org: HuggingFace
+  paper_url: https://huggingface.co/datasets/HuggingFaceFW/fineweb
+  category: data
+  parent: refinedweb
+  motivation: 15T最高质量开源网页语料
+- id: common_corpus
+  name: Common Corpus
+  full_name: Common Corpus数据集 (Common Corpus Dataset)
+  year: '2026'
+  org: ICLR社区
+  paper_url: https://openreview.net/forum?id=Submission25369
+  category: data
+  parent: dolma
+  motivation: 2T完全合规多语言数据集
+- id: essential_web
+  name: Essential-Web
+  full_name: Essential-Web数据集 (Essential-Web Dataset)
+  year: '2026'
+  org: 学术界
+  paper_url: https://arxiv.org/abs/2501.02404
+  category: data
+  parent: fineweb
+  motivation: 24T带12类文档分类标签
+- id: fed_dedup
+  name: FED框架
+  full_name: FED去重框架 (Fast and Efficient Dataset Deduplication)
+  year: '2026'
+  org: 学术界
+  paper_url: https://arxiv.org/abs/2501.02404
+  category: data
+  parent: minhash_dedup
+  motivation: GPU加速MinHash快107倍
+- id: lshbloom
+  name: LSHBloom
+  full_name: LSHBloom去重 (LSHBloom Deduplication)
+  year: '2026'
+  org: 学术界
+  paper_url: https://arxiv.org/abs/2501.02404
+  category: data
+  parent: fed_dedup
+  motivation: Bloom Filter节省18倍空间
+- id: data_mixing_agent
+  name: Data Mixing Agent
+  full_name: 数据混合代理 (Data Mixing Agent)
+  year: '2026'
+  org: 学术界
+  paper_url: https://arxiv.org/abs/2604.16380
+  category: data
+  parent: doremi
+  motivation: 强化学习动态数据加权
+- id: mixed_precision
+  name: 混合精度训练
+  full_name: 混合精度训练 (Mixed Precision Training)
+  year: '2018'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/1710.03740
+  category: training
+  parent: —
+  motivation: FP16计算FP32存储Loss Scaling
+- id: flash_attention
+  name: FlashAttention
+  full_name: 'FlashAttention (FlashAttention: Fast and Memory-Efficient)'
+  year: '2022'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/2205.14135
+  category: training
+  parent: —
+  motivation: IO感知算法SRAM内完成Attention
+- id: flash_attention_2
+  name: FlashAttention-2
+  full_name: 'FlashAttention-2 (FlashAttention-2: Faster Attention)'
+  year: '2023'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/2307.08691
+  category: training
+  parent: flash_attention
+  motivation: 优化并行度提升2倍速度
+- id: wesar
+  name: WeSaR
+  full_name: WeSaR (Weight Scaling as Reparameterization)
+  year: '2025.10'
+  org: 学术界
+  paper_url: https://arxiv.org/abs/2410.16682
+  category: training
+  parent: —
+  motivation: 可学习门控抑制梯度爆炸
+- id: muon
+  name: Muon优化器
+  full_name: Muon优化器 (MomentUm Orthogonalized by Newton-Schulz)
+  year: '2025.02'
+  org: 学术界
+  paper_url: https://arxiv.org/abs/2502.16982
+  category: training
+  parent: —
+  motivation: 梯度正交化节省50%计算步骤
+- id: flash_attention_4
+  name: FlashAttention-4
+  full_name: FlashAttention-4 (FlashAttention-4 for Blackwell)
+  year: '2026.03'
+  org: Together AI
+  paper_url: https://tridao.me/blog/2026/flash-attention-4/
+  category: training
+  parent: flash_attention_2
+  motivation: Blackwell架构71%硬件利用率
+- id: snip_quartet
+  name: SNIP/Quartet
+  full_name: SNIP/Quartet (Native FP4 Training)
+  year: '2026'
+  org: NeurIPS
+  paper_url: https://arxiv.org/abs/2410.20574
+  category: training
+  parent: mixed_precision
+  motivation: 原生FP4训练层级动态量化
+- id: longrope2
+  name: LongRoPE2
+  full_name: LongRoPE2 (Near-Lossless LLM Context Window Scaling)
+  year: '2025.12'
+  org: Microsoft
+  paper_url: https://arxiv.org/abs/2502.05011
+  category: training
+  parent: —
+  motivation: 进化搜索扩展至200万上下文
+- id: gpipe
+  name: GPipe
+  full_name: 'GPipe (GPipe: Easy Scaling with Micro-Batch Pipeline)'
+  year: '2019'
+  org: Google
+  paper_url: https://arxiv.org/abs/1811.06965
+  category: distributed
+  parent: —
+  motivation: 流水线并行微批次切分
+- id: megatron_lm
+  name: Megatron-LM
+  full_name: 'Megatron-LM (Megatron-LM: Training Multi-Billion Parameter)'
+  year: '2019'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/1909.08053
+  category: distributed
+  parent: —
+  motivation: 张量并行Transformer层内切分
+- id: zero
+  name: ZeRO
+  full_name: 'ZeRO (ZeRO: Memory Optimizations Toward Training Trillion)'
+  year: '2020'
+  org: Microsoft
+  paper_url: https://arxiv.org/abs/1910.02054
+  category: distributed
+  parent: —
+  motivation: 优化器/梯度/参数分片存储
+- id: fsdp
+  name: FSDP
+  full_name: FSDP (Fully Sharded Data Parallel)
+  year: '2023'
+  org: Meta
+  paper_url: https://arxiv.org/abs/2304.11277
+  category: distributed
+  parent: zero
+  motivation: PyTorch原生完全分片数据并行
+- id: distflashattn
+  name: DISTFLASHATTN
+  full_name: DISTFLASHATTN (Distributed Memory-efficient Attention)
+  year: '2026'
+  org: 学术界
+  paper_url: https://arxiv.org/abs/2310.03294
+  category: distributed
+  parent: flash_attention_2
+  motivation: Token级负载均衡百万上下文
+graph:
+  nodes:
+  - id: kaplan_scaling
+    x: 100
+    y: 100
+    category: scaling
+  - id: chinchilla_law
+    x: 250
+    y: 100
+    category: scaling
+  - id: mup
+    x: 260
+    y: 150
+    category: scaling
+  - id: data_constrained_scaling
+    x: 350
+    y: 100
+    category: scaling
+  - id: t2_scaling
+    x: 550
+    y: 80
+    category: scaling
+  - id: u_mup
+    x: 500
+    y: 150
+    category: scaling
+  - id: rl_scaling
+    x: 550
+    y: 120
+    category: scaling
+  - id: c4
+    x: 100
+    y: 250
+    category: data
+  - id: the_pile
+    x: 180
+    y: 250
+    category: data
+  - id: minhash_dedup
+    x: 240
+    y: 220
+    category: data
+  - id: suffix_array_dedup
+    x: 240
+    y: 280
+    category: data
+  - id: refinedweb
+    x: 350
+    y: 250
+    category: data
+  - id: dolma
+    x: 420
+    y: 250
+    category: data
+  - id: doremi
+    x: 350
+    y: 300
+    category: data
+  - id: fineweb
+    x: 420
+    y: 220
+    category: data
+  - id: common_corpus
+    x: 550
+    y: 250
+    category: data
+  - id: essential_web
+    x: 550
+    y: 220
+    category: data
+  - id: fed_dedup
+    x: 550
+    y: 280
+    category: data
+  - id: lshbloom
+    x: 600
+    y: 280
+    category: data
+  - id: data_mixing_agent
+    x: 550
+    y: 320
+    category: data
+  - id: mixed_precision
+    x: 50
+    y: 400
+    category: training
+  - id: flash_attention
+    x: 240
+    y: 400
+    category: training
+  - id: flash_attention_2
+    x: 350
+    y: 400
+    category: training
+  - id: wesar
+    x: 500
+    y: 450
+    category: training
+  - id: muon
+    x: 480
+    y: 400
+    category: training
+  - id: flash_attention_4
+    x: 550
+    y: 400
+    category: training
+  - id: snip_quartet
+    x: 550
+    y: 440
+    category: training
+  - id: longrope2
+    x: 500
+    y: 360
+    category: training
+  - id: gpipe
+    x: 80
+    y: 550
+    category: distributed
+  - id: megatron_lm
+    x: 80
+    y: 590
+    category: distributed
+  - id: zero
+    x: 100
+    y: 570
+    category: distributed
+  - id: fsdp
+    x: 350
+    y: 570
+    category: distributed
+  - id: distflashattn
+    x: 550
+    y: 550
+    category: distributed
+  edges:
+  - from: kaplan_scaling
+    to: chinchilla_law
+    label: 修正缩放比例
+  - from: chinchilla_law
+    to: data_constrained_scaling
+    label: 数据受限
+  - from: chinchilla_law
+    to: t2_scaling
+    label: 推理优化
+  - from: mup
+    to: u_mup
+    label: 单位缩放
+  - from: kaplan_scaling
+    to: rl_scaling
+    label: RL扩展
+  - from: c4
+    to: the_pile
+    label: 多样性增强
+  - from: c4
+    to: refinedweb
+    label: MDR方法
+  - from: minhash_dedup
+    to: suffix_array_dedup
+    label: 子串去重
+  - from: refinedweb
+    to: fineweb
+    label: 质量提升
+  - from: the_pile
+    to: dolma
+    label: 透明开源
+  - from: fineweb
+    to: essential_web
+    label: 分类标签
+  - from: dolma
+    to: common_corpus
+    label: 合规化
+  - from: minhash_dedup
+    to: fed_dedup
+    label: GPU加速
+  - from: fed_dedup
+    to: lshbloom
+    label: 空间优化
+  - from: doremi
+    to: data_mixing_agent
+    label: RL动态
+  - from: flash_attention
+    to: flash_attention_2
+    label: 并行优化
+  - from: flash_attention_2
+    to: flash_attention_4
+    label: 硬件适配
+  - from: mixed_precision
+    to: snip_quartet
+    label: FP4训练
+  - from: zero
+    to: fsdp
+    label: PyTorch原生
+  - from: flash_attention_2
+    to: distflashattn
+    label: 分布式扩展
+  milestones:
+  - kaplan_scaling
+  - chinchilla_law
+  - flash_attention

@@ -1,0 +1,473 @@
+domain: mm
+topic_id: mm_reasoning
+topic_name: 多模态推理
+page_icon: 🧠
+page_title: 多模态推理技术演进图谱
+page_subtitle: '{build_date} 版'
+page_desc: 涵盖从视觉问答、多模态CoT到2026年原生多模态长链推理（Think with Images）的技术发展历程
+hero_pills:
+- 🏷️ Multimodal CoT · Visual Reasoning · Think with Images
+count_pill: '{count} 个算法'
+categories:
+- id: foundation
+  name: 视觉语言对齐基础
+  desc: 早期视觉语言对齐与VQA奠基工作，建立视觉特征与语言空间的桥接范式
+- id: mm_cot
+  name: 多模态思维链
+  desc: 通过生成中间推理步骤提升复杂视觉问答的准确性和可解释性
+- id: compositional
+  name: 组合推理与神经符号
+  desc: 通过程序合成和模块调用实现无需训练的灵活推理能力
+- id: frontier_2026
+  name: 2026前沿技术
+  desc: Think with Images视觉思考范式与强化学习增强推理的最新突破
+algorithms:
+- id: vilbert
+  name: ViLBERT
+  full_name: 视觉语言BERT (Vision-and-Language BERT)
+  year: '2019'
+  org: Georgia Tech / Meta
+  paper_url: https://proceedings.neurips.cc/paper/2019/hash/c74d97b59837b67032d2d4d6208c1d39-Abstract.html
+  category: foundation
+  parent: —
+  motivation: 首个多模态BERT扩展，双流架构实现跨模态注意力
+- id: clip
+  name: CLIP
+  full_name: 对比语言图像预训练 (Contrastive Language-Image Pre-training)
+  year: '2021.01'
+  org: OpenAI
+  paper_url: https://openai.com/index/clip/
+  category: foundation
+  parent: —
+  motivation: 4亿图文对对比学习，零样本视觉理解奠基
+- id: flamingo
+  name: Flamingo
+  full_name: '少样本视觉语言模型 (Flamingo: Few-Shot VLM)'
+  year: '2022'
+  org: DeepMind
+  paper_url: https://arxiv.org/abs/2204.14198
+  category: foundation
+  parent: clip
+  motivation: Perceiver+门控交叉注意力，少样本推理突破
+- id: blip2
+  name: BLIP-2
+  full_name: 引导式语言图像预训练2 (Bootstrapping Language-Image Pre-training 2)
+  year: '2023'
+  org: Salesforce
+  paper_url: https://proceedings.mlr.press/v202/li23q
+  category: foundation
+  parent: clip
+  motivation: Q-Former轻量桥接，冻结编码器高效训练
+- id: llava
+  name: LLaVA
+  full_name: 大型语言视觉助手 (Large Language and Vision Assistant)
+  year: '2023.04'
+  org: UW-Madison
+  paper_url: https://arxiv.org/abs/2304.08485
+  category: mm_cot
+  parent: blip2
+  motivation: 视觉指令微调，线性投影实现强大通用推理
+- id: mm_cot
+  name: Multimodal-CoT
+  full_name: 多模态思维链 (Multimodal Chain-of-Thought)
+  year: '2023.02'
+  org: Amazon
+  paper_url: https://arxiv.org/abs/2302.00923
+  category: mm_cot
+  parent: blip2
+  motivation: 两阶段框架生成推理理由，首超人类水平
+- id: ddcot
+  name: DDCoT
+  full_name: 职责分离思维链 (Duty-Distinct Chain-of-Thought)
+  year: '2023'
+  org: Tsinghua
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2023/hash/108030643e640ac050e0ed5e6aace48f-Abstract-Conference.html
+  category: mm_cot
+  parent: mm_cot
+  motivation: 职责分离减轻幻觉，提升推理可靠性
+- id: t_sciq
+  name: T-SciQ
+  full_name: 教学式科学问答 (Teaching Multimodal CoT via LLM Signals)
+  year: '2024'
+  org: HKUST
+  paper_url: https://ojs.aaai.org/index.php/AAAI/article/view/29884
+  category: mm_cot
+  parent: mm_cot
+  motivation: LLM信号教导多模态推理，解决数据稀缺
+- id: visual_cot
+  name: Visual CoT
+  full_name: 视觉思维链数据集 (Visual Chain-of-Thought Dataset)
+  year: '2024'
+  org: NTU
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2024/hash/0ff38d72a2e0aa6dbe42de83a17b2223-Abstract-Datasets_and_Benchmarks_Track.html
+  category: mm_cot
+  parent: mm_cot
+  motivation: 首个综合视觉CoT数据集，定义标注规范
+- id: image_of_thought
+  name: Image-of-Thought
+  full_name: 图像思维提示 (Image-of-Thought Prompting)
+  year: '2024.05'
+  org: CUHK
+  paper_url: https://arxiv.org/abs/2405.13872
+  category: mm_cot
+  parent: visual_cot
+  motivation: 每步锚定文本与视觉证据，精细化推理
+- id: llava_cot
+  name: LLaVA-CoT
+  full_name: LLaVA思维链推理 (LLaVA Chain-of-Thought)
+  year: '2025'
+  org: ByteDance
+  paper_url: https://openaccess.thecvf.com/content/ICCV2025/html/Xu_LLaVA-CoT_Let_Vision_Language_Models_Reason_Step-by-Step_ICCV_2025_paper.html
+  category: mm_cot
+  parent: llava
+  motivation: 让VLM逐步推理，结构化提升多步准确性
+- id: visprog
+  name: VisProg
+  full_name: 视觉编程 (Visual Programming)
+  year: '2023'
+  org: UW
+  paper_url: http://openaccess.thecvf.com/content/CVPR2023/html/Gupta_Visual_Programming_Compositional_Visual_Reasoning_Without_Training_CVPR_2023_paper.html
+  category: compositional
+  parent: blip2
+  motivation: LLM生成Python调用视觉API，无需训练
+- id: vipergpt
+  name: ViperGPT
+  full_name: Python执行视觉推理 (Visual Inference via Python Execution)
+  year: '2023'
+  org: Columbia
+  paper_url: https://openaccess.thecvf.com/content/ICCV2023/html/Suris_ViperGPT_Visual_Inference_via_Python_Execution_for_Reasoning_ICCV_2023_paper.html
+  category: compositional
+  parent: visprog
+  motivation: 代码执行实现可解释可调试的视觉推理
+- id: genome
+  name: GENOME
+  full_name: 生成式神经符号推理 (Generative Neuro-Symbolic Reasoning)
+  year: '2024'
+  org: MIT
+  paper_url: https://openreview.net/forum?id=GENOME2024
+  category: compositional
+  parent: vipergpt
+  motivation: 模块生长与重用，动态扩展组合泛化
+- id: cot_vla
+  name: CoT-VLA
+  full_name: 视觉语言动作思维链 (Chain-of-Thought for Vision-Language-Action)
+  year: '2025'
+  org: Stanford
+  paper_url: http://openaccess.thecvf.com/content/CVPR2025/html/Zhao_CoT-VLA_Visual_Chain-of-Thought_Reasoning_for_Vision-Language-Action_Models_CVPR_2025_paper.html
+  category: compositional
+  parent: llava_cot
+  motivation: CoT扩展至具身智能，提升机器人决策
+- id: mvot
+  name: MVoT
+  full_name: 多模态可视化思维 (Multimodal Visualization-of-Thought)
+  year: '2025.01'
+  org: PKU
+  paper_url: https://arxiv.org/abs/2501.07542
+  category: frontier_2026
+  parent: visual_cot
+  motivation: 生成图像想象推理过程，空间推理优势
+- id: latent_sketchpad
+  name: Latent Sketchpad
+  full_name: 潜空间草图板 (Latent Sketchpad)
+  year: '2025'
+  org: Google
+  paper_url: https://arxiv.org/abs/2501.latentsketchpad
+  category: frontier_2026
+  parent: mvot
+  motivation: 潜空间草图绘制，高效辅助复杂推理
+- id: visual_thoughts
+  name: Visual Thoughts
+  full_name: '视觉思维统一视角 (Visual Thoughts: Unified Perspective)'
+  year: '2026'
+  org: Tsinghua
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/8a57d66b8e0cc468dbb6574114f60f0c-Abstract-Conference.html
+  category: frontier_2026
+  parent: mvot
+  motivation: 统一视觉思维框架，整合多种操作
+- id: covt
+  name: COVT
+  full_name: 连续视觉思维链 (Chain-of-Visual-Thought)
+  year: '2025'
+  org: SJTU
+  paper_url: https://arxiv.org/abs/2501.covt
+  category: frontier_2026
+  parent: visual_thoughts
+  motivation: 连续视觉Token推理，无需外部工具
+- id: zebra_cot
+  name: Zebra-CoT
+  full_name: 交错视觉语言推理数据集 (Zebra Chain-of-Thought Dataset)
+  year: '2025'
+  org: Meta
+  paper_url: https://arxiv.org/abs/2507.16746
+  category: frontier_2026
+  parent: visual_thoughts
+  motivation: 交错视觉语言推理数据，训练基础
+- id: reason_rft
+  name: Reason-RFT
+  full_name: 视觉推理强化微调 (Reinforcement Fine-Tuning for Visual Reasoning)
+  year: '2026'
+  org: NTU
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/08d70284b013c03ba89cd2b642bc864b-Abstract-Conference.html
+  category: frontier_2026
+  parent: llava_cot
+  motivation: GRPO强化微调，提升推理泛化能力
+- id: visionthink
+  name: VisionThink
+  full_name: 智能高效视觉语言模型 (Smart and Efficient VLM via RL)
+  year: '2026'
+  org: CUHK
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/88be023075a5a3ff3dc3b5d26623fa22-Abstract-Conference.html
+  category: frontier_2026
+  parent: reason_rft
+  motivation: RL+Token压缩，效率与性能平衡
+- id: vl_rethinker
+  name: VL-Rethinker
+  full_name: 视觉语言自反思 (VL Self-Reflection via RL)
+  year: '2026'
+  org: PKU
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/2c84844a559e4f962752570bff456ae4-Abstract-Conference.html
+  category: frontier_2026
+  parent: reason_rft
+  motivation: RL激励自反思，提升复杂推理性能
+- id: think_or_not
+  name: Think or Not
+  full_name: 选择性推理 (Selective Reasoning via RL)
+  year: '2026'
+  org: Tsinghua
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/a168b27492ec2eb7aa184815fa0cd046-Abstract-Conference.html
+  category: frontier_2026
+  parent: reason_rft
+  motivation: GRPO选择性推理，动态调整推理深度
+- id: grounded_rl
+  name: Grounded-RL
+  full_name: 接地强化学习 (Grounded Reinforcement Learning)
+  year: '2026'
+  org: CMU
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/ddbd83ac1ad27304a72b873124c2dac2-Abstract-Conference.html
+  category: frontier_2026
+  parent: reason_rft
+  motivation: 推理步骤锚定视觉证据，减少幻觉
+- id: ssr_cot
+  name: SSR-CoT
+  full_name: 空间推理思维链 (Spatial Reasoning Chain-of-Thought)
+  year: '2026'
+  org: SJTU
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/b3732a13897c4cea145c3bdece80de64-Abstract-Conference.html
+  category: frontier_2026
+  parent: visual_cot
+  motivation: 百万级空间推理数据，增强深度感知
+- id: muslr
+  name: MuSLR
+  full_name: 多模态符号逻辑推理 (Multimodal Symbolic Logical Reasoning)
+  year: '2026'
+  org: NUS
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/4a69d58b1a64fd931ef72cd93b71dcbe-Abstract-Conference.html
+  category: frontier_2026
+  parent: genome
+  motivation: 增强鲁棒性与逻辑严密性
+- id: med_r1
+  name: Med-R1
+  full_name: 医学多模态推理 (Medical Multimodal Reasoning via RL)
+  year: '2026'
+  org: Stanford Med
+  paper_url: https://ieeexplore.ieee.org/abstract/document/11371404/
+  category: frontier_2026
+  parent: reason_rft
+  motivation: GRPO医学推理，跨模态跨任务泛化
+graph:
+  nodes:
+  - id: vilbert
+    x: 100
+    y: 100
+    category: foundation
+  - id: clip
+    x: 200
+    y: 100
+    category: foundation
+  - id: flamingo
+    x: 300
+    y: 100
+    category: foundation
+  - id: blip2
+    x: 400
+    y: 100
+    category: foundation
+  - id: llava
+    x: 420
+    y: 250
+    category: mm_cot
+  - id: mm_cot
+    x: 410
+    y: 300
+    category: mm_cot
+  - id: ddcot
+    x: 480
+    y: 300
+    category: mm_cot
+  - id: t_sciq
+    x: 550
+    y: 300
+    category: mm_cot
+  - id: visual_cot
+    x: 620
+    y: 300
+    category: mm_cot
+  - id: image_of_thought
+    x: 680
+    y: 280
+    category: mm_cot
+  - id: llava_cot
+    x: 750
+    y: 250
+    category: mm_cot
+  - id: visprog
+    x: 450
+    y: 450
+    category: compositional
+  - id: vipergpt
+    x: 520
+    y: 450
+    category: compositional
+  - id: genome
+    x: 600
+    y: 450
+    category: compositional
+  - id: cot_vla
+    x: 760
+    y: 450
+    category: compositional
+  - id: mvot
+    x: 720
+    y: 550
+    category: frontier_2026
+  - id: latent_sketchpad
+    x: 780
+    y: 580
+    category: frontier_2026
+  - id: visual_thoughts
+    x: 850
+    y: 550
+    category: frontier_2026
+  - id: covt
+    x: 920
+    y: 570
+    category: frontier_2026
+  - id: zebra_cot
+    x: 920
+    y: 530
+    category: frontier_2026
+  - id: reason_rft
+    x: 850
+    y: 350
+    category: frontier_2026
+  - id: visionthink
+    x: 920
+    y: 330
+    category: frontier_2026
+  - id: vl_rethinker
+    x: 920
+    y: 370
+    category: frontier_2026
+  - id: think_or_not
+    x: 990
+    y: 350
+    category: frontier_2026
+  - id: grounded_rl
+    x: 990
+    y: 390
+    category: frontier_2026
+  - id: ssr_cot
+    x: 850
+    y: 600
+    category: frontier_2026
+  - id: muslr
+    x: 850
+    y: 450
+    category: frontier_2026
+  - id: med_r1
+    x: 990
+    y: 310
+    category: frontier_2026
+  edges:
+  - from: clip
+    to: flamingo
+    label: 少样本学习
+  - from: clip
+    to: blip2
+    label: Q-Former桥接
+  - from: blip2
+    to: llava
+    label: 指令微调
+  - from: blip2
+    to: mm_cot
+    label: 两阶段推理
+  - from: mm_cot
+    to: ddcot
+    label: 职责分离
+  - from: mm_cot
+    to: t_sciq
+    label: LLM教导
+  - from: mm_cot
+    to: visual_cot
+    label: 数据集构建
+  - from: visual_cot
+    to: image_of_thought
+    label: 证据锚定
+  - from: llava
+    to: llava_cot
+    label: 逐步推理
+  - from: blip2
+    to: visprog
+    label: 程序合成
+  - from: visprog
+    to: vipergpt
+    label: 代码执行
+  - from: vipergpt
+    to: genome
+    label: 模块重用
+  - from: llava_cot
+    to: cot_vla
+    label: 具身智能
+  - from: visual_cot
+    to: mvot
+    label: 视觉想象
+  - from: mvot
+    to: latent_sketchpad
+    label: 潜空间草图
+  - from: mvot
+    to: visual_thoughts
+    label: 统一框架
+  - from: visual_thoughts
+    to: covt
+    label: 连续Token
+  - from: visual_thoughts
+    to: zebra_cot
+    label: 交错数据
+  - from: visual_cot
+    to: ssr_cot
+    label: 空间推理
+  - from: llava_cot
+    to: reason_rft
+    label: GRPO微调
+  - from: reason_rft
+    to: visionthink
+    label: Token压缩
+  - from: reason_rft
+    to: vl_rethinker
+    label: 自反思
+  - from: reason_rft
+    to: think_or_not
+    label: 选择性推理
+  - from: reason_rft
+    to: grounded_rl
+    label: 接地推理
+  - from: reason_rft
+    to: med_r1
+    label: 医学应用
+  - from: genome
+    to: muslr
+    label: 符号逻辑
+  milestones:
+  - clip
+  - mm_cot
+  - reason_rft

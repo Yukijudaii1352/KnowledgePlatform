@@ -1,0 +1,639 @@
+# LLM Agent 领域知识文档
+# 生成时间: 2026-05-12
+# 规范版本: DOCUMENT_SPEC.md
+
+# ========== 页面元信息 ==========
+page_icon: "🤖"
+page_title: "LLM Agent"
+page_subtitle: "{build_date} 版"
+page_desc: "大语言模型智能体研究从工具调用、自主规划到多智能体协作的技术演进与前沿突破"
+hero_pills:
+  - "工具使用"
+  - "规划推理"
+  - "多智能体"
+  - "Agent基准"
+  - "2026前沿"
+count_pill: "{count} 个算法"
+
+# ========== 分类体系 ==========
+categories:
+  tool_use:
+    label: "工具使用"
+    color: "#10B981"
+  planning:
+    label: "规划与推理"
+    color: "#3B82F6"
+  multi_agent:
+    label: "多智能体协作"
+    color: "#8B5CF6"
+  benchmark:
+    label: "Agent基准"
+    color: "#F59E0B"
+  frontier_2026:
+    label: "2026前沿"
+    color: "#EF4444"
+
+# ========== 算法元信息 ==========
+algorithms:
+  # ----- 工具使用 (8个) -----
+  - id: toolformer
+    name: "Toolformer"
+    full_name: "工具学习者 (Toolformer)"
+    year: 2023
+    org: "Meta AI"
+    paper_url: "https://arxiv.org/abs/2302.04761"
+    category: tool_use
+    parent: "—"
+    motivation: "自监督学习使模型自主学会调用工具"
+
+  - id: art
+    name: "ART"
+    full_name: "自动推理与工具使用 (Automatic Reasoning and Tool-use)"
+    year: 2023
+    org: "华盛顿大学/AI2"
+    paper_url: "https://arxiv.org/abs/2303.09014"
+    category: tool_use
+    parent: toolformer
+    motivation: "自动选择多步推理示例与工具调用"
+
+  - id: hugginggpt
+    name: "HuggingGPT"
+    full_name: "HuggingFace任务调度器 (HuggingGPT)"
+    year: 2023
+    org: "微软亚洲研究院"
+    paper_url: "https://proceedings.neurips.cc/paper_files/paper/2023/hash/77c33e6a367922d003ff102ffb92b658-Abstract-Conference.html"
+    category: tool_use
+    parent: toolformer
+    motivation: "LLM作为控制器调度专家模型"
+
+  - id: api_bank
+    name: "API-Bank"
+    full_name: "API工具基准 (API-Bank)"
+    year: 2023
+    org: "中科院/阿里巴巴"
+    paper_url: "https://aclanthology.org/2023.emnlp-main.187/"
+    category: tool_use
+    parent: "—"
+    motivation: "首个系统性工具增强LLM基准"
+
+  - id: gorilla
+    name: "Gorilla"
+    full_name: "大规模API连接器 (Gorilla)"
+    year: 2024
+    org: "UC Berkeley"
+    paper_url: "https://proceedings.neurips.cc/paper_files/paper/2024/hash/e4c61f578ff07830f5c37378dd3ecb0d-Abstract-Conference.html"
+    category: tool_use
+    parent: toolformer
+    motivation: "检索增强微调连接大规模API"
+
+  - id: toolllm
+    name: "ToolLLM"
+    full_name: "工具大模型 (ToolLLM)"
+    year: 2024
+    org: "清华大学"
+    paper_url: "https://proceedings.iclr.cc/paper_files/paper/2024/hash/28e50ee5b72e90b50e7196fde8ea260e-Abstract-Conference.html"
+    category: tool_use
+    parent: gorilla
+    motivation: "DFSDT推理策略支持万级API泛化"
+
+  - id: llm_compiler
+    name: "LLM Compiler"
+    full_name: "LLM编译器 (LLM Compiler)"
+    year: 2024
+    org: "Meta AI"
+    paper_url: "https://openreview.net/forum?id=uQ2FUoFjnF"
+    category: tool_use
+    parent: toolllm
+    motivation: "并行函数调用架构降低多工具延迟"
+
+  - id: toolace
+    name: "ToolACE"
+    full_name: "工具调用王牌 (ToolACE)"
+    year: 2025
+    org: "浙江大学"
+    paper_url: "https://proceedings.iclr.cc/paper_files/paper/2025/hash/663865ea167425c6c562cb0b6bcf76c7-Abstract-Conference.html"
+    category: tool_use
+    parent: toolllm
+    motivation: "自动化数据合成提升函数调用准确率"
+
+  # ----- 规划与推理 (8个) -----
+  - id: cot
+    name: "CoT"
+    full_name: "思维链 (Chain-of-Thought)"
+    year: 2022
+    org: "Google"
+    paper_url: "https://arxiv.org/abs/2201.11903"
+    category: planning
+    parent: "—"
+    motivation: "激发中间推理步骤提升复杂推理"
+
+  - id: self_consistency
+    name: "Self-Consistency"
+    full_name: "自一致性 (Self-Consistency)"
+    year: 2022
+    org: "Google"
+    paper_url: "https://arxiv.org/abs/2203.11171"
+    category: planning
+    parent: cot
+    motivation: "多路采样投票选出一致答案"
+
+  - id: react
+    name: "ReAct"
+    full_name: "推理与行动协同 (ReAct)"
+    year: 2022
+    org: "Google/普林斯顿"
+    paper_url: "https://arxiv.org/abs/2210.03629"
+    category: planning
+    parent: cot
+    motivation: "交替执行推理与行动支持动态环境"
+
+  - id: plan_and_solve
+    name: "Plan-and-Solve"
+    full_name: "计划求解 (Plan-and-Solve)"
+    year: 2023
+    org: "新加坡国立大学"
+    paper_url: "https://aclanthology.org/2023.acl-long.147/"
+    category: planning
+    parent: cot
+    motivation: "先制定计划再逐步执行"
+
+  - id: tot
+    name: "ToT"
+    full_name: "思维树 (Tree of Thoughts)"
+    year: 2023
+    org: "普林斯顿/Google DeepMind"
+    paper_url: "https://proceedings.neurips.cc/paper/2023/hash/271db9922b8d1f4dd7aaef84ed5ac703-Abstract.html"
+    category: planning
+    parent: cot
+    motivation: "树结构推理支持搜索与回溯"
+
+  - id: reflexion
+    name: "Reflexion"
+    full_name: "反思机制 (Reflexion)"
+    year: 2023
+    org: "Northeastern大学"
+    paper_url: "https://proceedings.neurips.cc/paper_files/paper/2023/hash/1b44b878bb782e6954cd888628510e90-Abstract-Conference.html"
+    category: planning
+    parent: react
+    motivation: "语言反馈实现自我反思与纠错"
+
+  - id: lats
+    name: "LATS"
+    full_name: "语言智能体树搜索 (LATS)"
+    year: 2023
+    org: "UIUC"
+    paper_url: "https://arxiv.org/abs/2310.04406"
+    category: planning
+    parent: tot
+    motivation: "统一推理行动于蒙特卡洛树搜索"
+
+  - id: retroformer
+    name: "Retroformer"
+    full_name: "回顾式智能体 (Retroformer)"
+    year: 2024
+    org: "Salesforce"
+    paper_url: "https://proceedings.iclr.cc/paper_files/paper/2024/hash/29f421fbdcc82aeb349d784d3aaccdb3-Abstract-Conference.html"
+    category: planning
+    parent: reflexion
+    motivation: "策略梯度优化反思模块加速学习"
+
+  # ----- 多智能体协作 (7个) -----
+  - id: camel
+    name: "CAMEL"
+    full_name: "交流式智能体 (CAMEL)"
+    year: 2023
+    org: "KAUST"
+    paper_url: "https://proceedings.neurips.cc/paper/2023/hash/a3621ee907def47c1b952ade25c67698-Abstract-Conference.html"
+    category: multi_agent
+    parent: "—"
+    motivation: "角色扮演框架实现自主协作"
+
+  - id: babyagi
+    name: "BabyAGI"
+    full_name: "任务驱动智能体 (BabyAGI)"
+    year: 2023
+    org: "Yohei Nakajima"
+    paper_url: "https://yoheinakajima.com/task-driven-autonomous-agent/"
+    category: multi_agent
+    parent: "—"
+    motivation: "任务生成与优先级排序自主循环"
+
+  - id: chatdev
+    name: "ChatDev"
+    full_name: "聊天驱动开发 (ChatDev)"
+    year: 2023
+    org: "清华大学"
+    paper_url: "https://arxiv.org/abs/2307.07924"
+    category: multi_agent
+    parent: camel
+    motivation: "多Agent模拟软件公司开发流程"
+
+  - id: autogen
+    name: "AutoGen"
+    full_name: "自动生成智能体 (AutoGen)"
+    year: 2024
+    org: "微软"
+    paper_url: "https://openreview.net/forum?id=BAakY1hNKS"
+    category: multi_agent
+    parent: camel
+    motivation: "可定制可对话的多Agent工作流框架"
+
+  - id: metagpt
+    name: "MetaGPT"
+    full_name: "元编程智能体 (MetaGPT)"
+    year: 2024
+    org: "深度赋智"
+    paper_url: "https://openreview.net/forum?id=uS04ESuElM"
+    category: multi_agent
+    parent: chatdev
+    motivation: "SOP注入多Agent协作流程"
+
+  - id: agentverse
+    name: "AgentVerse"
+    full_name: "智能体宇宙 (AgentVerse)"
+    year: 2024
+    org: "清华大学"
+    paper_url: "https://proceedings.iclr.cc/paper_files/paper/2024/hash/578e65cdee35d00c708d4c64bce32971-Abstract-Conference.html"
+    category: multi_agent
+    parent: camel
+    motivation: "模拟群体涌现行为与动态调整"
+
+  - id: openagents
+    name: "OpenAgents"
+    full_name: "开放智能体平台 (OpenAgents)"
+    year: 2024
+    org: "香港大学"
+    paper_url: "https://arxiv.org/abs/2310.10634"
+    category: multi_agent
+    parent: autogen
+    motivation: "面向真实世界的开放Agent平台"
+
+  # ----- Agent基准 (5个) -----
+  - id: api_bank_bench
+    name: "API-Bank"
+    full_name: "API工具基准 (API-Bank)"
+    year: 2023
+    org: "中科院/阿里巴巴"
+    paper_url: "https://aclanthology.org/2023.emnlp-main.187/"
+    category: benchmark
+    parent: "—"
+    motivation: "首个系统性工具增强LLM基准"
+
+  - id: agentbench
+    name: "AgentBench"
+    full_name: "智能体基准 (AgentBench)"
+    year: 2024
+    org: "清华大学"
+    paper_url: "https://proceedings.iclr.cc/paper_files/paper/2024/hash/e9df36b21ff4ee211a8b71ee8b7e9f57-Abstract-Conference.html"
+    category: benchmark
+    parent: api_bank_bench
+    motivation: "涵盖8个交互环境的综合评测"
+
+  - id: webarena
+    name: "WebArena"
+    full_name: "网页竞技场 (WebArena)"
+    year: 2024
+    org: "CMU"
+    paper_url: "https://proceedings.iclr.cc/paper_files/paper/2024/hash/4410c0711e9154a7a2d26f9b3816d1ef-Abstract-Conference.html"
+    category: benchmark
+    parent: agentbench
+    motivation: "真实网站端到端任务执行评测"
+
+  - id: gaia
+    name: "GAIA"
+    full_name: "通用AI助手评测 (GAIA)"
+    year: 2024
+    org: "Meta/HuggingFace"
+    paper_url: "https://proceedings.iclr.cc/paper_files/paper/2024/hash/25ae35b5b1738d80f1f03a8713e405ec-Abstract-Conference.html"
+    category: benchmark
+    parent: agentbench
+    motivation: "现实世界复杂任务评测"
+
+  - id: swe_bench
+    name: "SWE-bench"
+    full_name: "软件工程基准 (SWE-bench)"
+    year: 2024
+    org: "普林斯顿"
+    paper_url: "https://arxiv.org/abs/2310.06770"
+    category: benchmark
+    parent: agentbench
+    motivation: "真实GitHub Issue解决能力评测"
+
+  # ----- 2026前沿 (7个) -----
+  - id: hi_cot
+    name: "Hi-CoT"
+    full_name: "分层思维链 (Hierarchical CoT)"
+    year: 2026
+    org: "arXiv"
+    paper_url: "https://arxiv.org/abs/2604.00130"
+    category: frontier_2026
+    parent: cot
+    motivation: "分层架构解决超长任务上下文丢失"
+
+  - id: gaia2
+    name: "Gaia2"
+    full_name: "动态异步基准 (Gaia2)"
+    year: 2026
+    org: "arXiv"
+    paper_url: "https://arxiv.org/abs/2602.11964"
+    category: frontier_2026
+    parent: gaia
+    motivation: "动态异步环境评测Agent鲁棒性"
+
+  - id: agentic_reasoning
+    name: "Agentic Reasoning"
+    full_name: "智能体推理 (Agentic Reasoning)"
+    year: 2026
+    org: "arXiv"
+    paper_url: "https://arxiv.org/abs/2601.12538"
+    category: frontier_2026
+    parent: react
+    motivation: "感知规划验证统一组织原则"
+
+  - id: embocoach_bench
+    name: "EmboCoach-Bench"
+    full_name: "具身教练基准 (EmboCoach-Bench)"
+    year: 2026
+    org: "arXiv"
+    paper_url: "https://arxiv.org/abs/2601.21570"
+    category: frontier_2026
+    parent: agentbench
+    motivation: "首个具身机器人开发Agent基准"
+
+  - id: causal_cot
+    name: "Causal CoT"
+    full_name: "因果思维链 (Causal CoT)"
+    year: 2026
+    org: "NeurIPS"
+    paper_url: "https://proceedings.neurips.cc/paper_files/paper/2025/hash/b7870bd43b2d133a1ed95582ae5d82a4-Abstract-Conference.html"
+    category: frontier_2026
+    parent: cot
+    motivation: "因果充分性与必要性改进推理"
+
+  - id: reasonflux_prm
+    name: "ReasonFlux-PRM"
+    full_name: "推理流过程奖励 (ReasonFlux-PRM)"
+    year: 2026
+    org: "NeurIPS"
+    paper_url: "https://proceedings.neurips.cc/paper_files/paper/2025/hash/26618fb384d3873b8ef6ab292a69095b-Abstract-Conference.html"
+    category: frontier_2026
+    parent: retroformer
+    motivation: "轨迹感知长链推理过程奖励模型"
+
+  - id: solagent
+    name: "SolAgent"
+    full_name: "Solidity代码智能体 (SolAgent)"
+    year: 2026
+    org: "arXiv"
+    paper_url: "https://arxiv.org/abs/2601.23009"
+    category: frontier_2026
+    parent: chatdev
+    motivation: "多Agent架构生成智能合约代码"
+
+# ========== 图谱定义 ==========
+graph:
+  nodes:
+    # 工具使用
+    - id: toolformer
+      x: 200
+      y: 50
+      category: tool_use
+    - id: art
+      x: 250
+      y: 20
+      category: tool_use
+    - id: hugginggpt
+      x: 250
+      y: 80
+      category: tool_use
+    - id: api_bank
+      x: 200
+      y: 110
+      category: tool_use
+    - id: gorilla
+      x: 300
+      y: 50
+      category: tool_use
+    - id: toolllm
+      x: 350
+      y: 50
+      category: tool_use
+    - id: llm_compiler
+      x: 400
+      y: 20
+      category: tool_use
+    - id: toolace
+      x: 450
+      y: 80
+      category: tool_use
+    # 规划与推理
+    - id: cot
+      x: 100
+      y: 200
+      category: planning
+    - id: self_consistency
+      x: 150
+      y: 170
+      category: planning
+    - id: react
+      x: 150
+      y: 230
+      category: planning
+    - id: plan_and_solve
+      x: 200
+      y: 170
+      category: planning
+    - id: tot
+      x: 200
+      y: 200
+      category: planning
+    - id: reflexion
+      x: 250
+      y: 230
+      category: planning
+    - id: lats
+      x: 300
+      y: 200
+      category: planning
+    - id: retroformer
+      x: 350
+      y: 230
+      category: planning
+    # 多智能体协作
+    - id: camel
+      x: 200
+      y: 320
+      category: multi_agent
+    - id: babyagi
+      x: 200
+      y: 380
+      category: multi_agent
+    - id: chatdev
+      x: 250
+      y: 320
+      category: multi_agent
+    - id: autogen
+      x: 300
+      y: 350
+      category: multi_agent
+    - id: metagpt
+      x: 350
+      y: 320
+      category: multi_agent
+    - id: agentverse
+      x: 350
+      y: 380
+      category: multi_agent
+    - id: openagents
+      x: 400
+      y: 350
+      category: multi_agent
+    # Agent基准
+    - id: api_bank_bench
+      x: 200
+      y: 450
+      category: benchmark
+    - id: agentbench
+      x: 300
+      y: 450
+      category: benchmark
+    - id: webarena
+      x: 350
+      y: 420
+      category: benchmark
+    - id: gaia
+      x: 350
+      y: 450
+      category: benchmark
+    - id: swe_bench
+      x: 350
+      y: 480
+      category: benchmark
+    # 2026前沿
+    - id: hi_cot
+      x: 500
+      y: 170
+      category: frontier_2026
+    - id: gaia2
+      x: 500
+      y: 450
+      category: frontier_2026
+    - id: agentic_reasoning
+      x: 500
+      y: 230
+      category: frontier_2026
+    - id: embocoach_bench
+      x: 500
+      y: 480
+      category: frontier_2026
+    - id: causal_cot
+      x: 500
+      y: 200
+      category: frontier_2026
+    - id: reasonflux_prm
+      x: 500
+      y: 260
+      category: frontier_2026
+    - id: solagent
+      x: 500
+      y: 320
+      category: frontier_2026
+
+  edges:
+    # 工具使用演化
+    - from: toolformer
+      to: art
+      label: "自动化示例"
+    - from: toolformer
+      to: hugginggpt
+      label: "专家模型调度"
+    - from: toolformer
+      to: gorilla
+      label: "检索增强微调"
+    - from: gorilla
+      to: toolllm
+      label: "万级API扩展"
+    - from: toolllm
+      to: llm_compiler
+      label: "并行调用优化"
+    - from: toolllm
+      to: toolace
+      label: "数据合成增强"
+    # 规划推理演化
+    - from: cot
+      to: self_consistency
+      label: "多路采样投票"
+    - from: cot
+      to: react
+      label: "引入行动循环"
+    - from: cot
+      to: plan_and_solve
+      label: "显式规划分离"
+    - from: cot
+      to: tot
+      label: "树结构搜索"
+    - from: react
+      to: reflexion
+      label: "语言反馈强化"
+    - from: tot
+      to: lats
+      label: "MCTS框架整合"
+    - from: reflexion
+      to: retroformer
+      label: "策略梯度优化"
+    # 多智能体演化
+    - from: camel
+      to: chatdev
+      label: "软件开发场景"
+    - from: camel
+      to: autogen
+      label: "框架通用化"
+    - from: camel
+      to: agentverse
+      label: "群体行为模拟"
+    - from: chatdev
+      to: metagpt
+      label: "SOP流程注入"
+    - from: autogen
+      to: openagents
+      label: "开放平台扩展"
+    # 基准演化
+    - from: api_bank_bench
+      to: agentbench
+      label: "多环境扩展"
+    - from: agentbench
+      to: webarena
+      label: "网页交互聚焦"
+    - from: agentbench
+      to: gaia
+      label: "现实任务覆盖"
+    - from: agentbench
+      to: swe_bench
+      label: "软件工程聚焦"
+    # 2026前沿演化
+    - from: cot
+      to: hi_cot
+      label: "分层架构扩展"
+    - from: cot
+      to: causal_cot
+      label: "因果机制引入"
+    - from: gaia
+      to: gaia2
+      label: "动态异步升级"
+    - from: react
+      to: agentic_reasoning
+      label: "元推理统一"
+    - from: agentbench
+      to: embocoach_bench
+      label: "具身场景扩展"
+    - from: retroformer
+      to: reasonflux_prm
+      label: "过程奖励建模"
+    - from: chatdev
+      to: solagent
+      label: "智能合约场景"
+
+  milestones:
+    - cot
+    - react
+    - metagpt

@@ -1,0 +1,552 @@
+domain: aigc
+topic_id: 3d_generation
+topic_name: 3D生成
+search_scope: 文生3D、图生3D、纹理生成与3D资产生产
+build_date: '2026-05-12'
+page_icon: 🧊
+page_title: 3D生成 技术演进
+page_subtitle: 2026-05-12 版
+page_desc: 概述3D生成技术从NeRF神经辐射场、3D Gaussian Splatting到扩散模型及原生3D大模型的发展历程，涵盖文生3D、图生3D、纹理生成与3D资产生产四大方向。
+hero_pills: 🏷️ Text-to-3D · NeRF · 3DGS · Diffusion · LRM
+count_pill: 32 个算法
+categories:
+  representation:
+    name: 3D表征奠基
+    desc: NeRF及变体、3D Gaussian Splatting等基础表示方法
+    color: '#3b82f6'
+  optimization:
+    name: 基于优化的生成
+    desc: SDS/VSD等分数蒸馏方法，通过2D扩散先验优化3D表示
+    color: '#8b5cf6'
+  feed_forward:
+    name: 前馈快速生成
+    desc: LRM系列大规模重建模型，实现秒级前馈生成
+    color: '#10b981'
+  texture:
+    name: 纹理生成
+    desc: 基于扩散模型的纹理与PBR材质生成
+    color: '#f59e0b'
+  native_3d:
+    name: 原生3D生成
+    desc: 2026年原生3D扩散/大模型，摆脱2D先验依赖
+    color: '#ef4444'
+algorithms:
+- id: nerf
+  name: NeRF
+  full_name: 神经辐射场 (Neural Radiance Fields)
+  year: '2020'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/2003.08934
+  category: representation
+  parent: —
+  motivation: MLP+体渲染实现连续隐式表示
+- id: mip_nerf
+  name: Mip-NeRF
+  full_name: 抗锯齿神经辐射场 (Mip-NeRF)
+  year: '2021'
+  org: Google Research
+  paper_url: https://arxiv.org/abs/2103.13415
+  category: representation
+  parent: nerf
+  motivation: 集成位置编码解决多尺度渲染
+- id: instant_ngp
+  name: Instant-NGP
+  full_name: 即时神经图形基元 (Instant Neural Graphics Primitives)
+  year: '2022'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/2201.05989
+  category: representation
+  parent: nerf
+  motivation: 哈希编码将训练加速1000倍
+- id: plenoxels
+  name: Plenoxels
+  full_name: 光场体素 (Plenoxels)
+  year: '2022'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/2112.05131
+  category: representation
+  parent: nerf
+  motivation: 稀疏体素+球谐函数无需神经网络
+- id: 3dgs
+  name: 3D-GS
+  full_name: 3D高斯泼溅 (3D Gaussian Splatting)
+  year: '2023'
+  org: INRIA
+  paper_url: https://arxiv.org/abs/2308.04079
+  category: representation
+  parent: instant_ngp
+  motivation: 显式高斯实现100+FPS实时渲染
+- id: hgs
+  name: HGS
+  full_name: 硬高斯泼溅 (Hard Gaussian Splatting)
+  year: '2026.01'
+  org: AAAI
+  paper_url: https://arxiv.org/abs/2601.05000
+  category: representation
+  parent: 3dgs
+  motivation: 解决模糊和针状伪影问题
+- id: dreamfusion
+  name: DreamFusion
+  full_name: 梦境融合 (DreamFusion)
+  year: '2022'
+  org: Google Research
+  paper_url: https://arxiv.org/abs/2209.14988
+  category: optimization
+  parent: nerf
+  motivation: 提出SDS Loss开创文生3D范式
+- id: magic3d
+  name: Magic3D
+  full_name: 魔法3D (Magic3D)
+  year: '2022'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/2211.10440
+  category: optimization
+  parent: dreamfusion
+  motivation: 两阶段粗到精提升分辨率
+- id: fantasia3d
+  name: Fantasia3D
+  full_name: 幻想3D (Fantasia3D)
+  year: '2023'
+  org: Alibaba
+  paper_url: https://arxiv.org/abs/2303.13873
+  category: optimization
+  parent: dreamfusion
+  motivation: 解耦几何与外观学习PBR材质
+- id: prolificdreamer
+  name: ProlificDreamer
+  full_name: 高产梦想家 (ProlificDreamer)
+  year: '2023'
+  org: Tsinghua University
+  paper_url: https://arxiv.org/abs/2305.16213
+  category: optimization
+  parent: dreamfusion
+  motivation: 变分分数蒸馏VSD解决过平滑
+- id: luciddreamer
+  name: LucidDreamer
+  full_name: 清醒梦境 (LucidDreamer)
+  year: '2023'
+  org: KAIST
+  paper_url: https://arxiv.org/abs/2311.11284
+  category: optimization
+  parent: prolificdreamer
+  motivation: 区间分数匹配ISM提升保真度
+- id: zero123
+  name: Zero-1-to-3
+  full_name: 零样本视角合成 (Zero-1-to-3)
+  year: '2023'
+  org: Columbia University
+  paper_url: https://arxiv.org/abs/2303.11328
+  category: feed_forward
+  parent: —
+  motivation: 注入相机参数实现单图新视角
+- id: one2345
+  name: One-2-3-45
+  full_name: 单图45秒重建 (One-2-3-45)
+  year: '2023'
+  org: Stanford University
+  paper_url: https://arxiv.org/abs/2306.16928
+  category: feed_forward
+  parent: zero123
+  motivation: 多视图生成+快速网格重建
+- id: mvdream
+  name: MVDream
+  full_name: 多视图梦境 (MVDream)
+  year: '2024'
+  org: ByteDance
+  paper_url: https://arxiv.org/abs/2308.16512
+  category: feed_forward
+  parent: zero123
+  motivation: 多视图注意力解决Janus问题
+- id: wonder3d
+  name: Wonder3D
+  full_name: 神奇3D (Wonder3D)
+  year: '2024'
+  org: HKU
+  paper_url: https://arxiv.org/abs/2310.15008
+  category: feed_forward
+  parent: mvdream
+  motivation: 跨域扩散生成一致多视图
+- id: lrm
+  name: LRM
+  full_name: 大规模重建模型 (Large Reconstruction Model)
+  year: '2024'
+  org: Adobe Research
+  paper_url: https://arxiv.org/abs/2311.04400
+  category: feed_forward
+  parent: zero123
+  motivation: Transformer单图5秒预测NeRF
+- id: instant3d
+  name: Instant3D
+  full_name: 即时3D (Instant3D)
+  year: '2024'
+  org: Tencent
+  paper_url: https://arxiv.org/abs/2311.06214
+  category: feed_forward
+  parent: lrm
+  motivation: 稀疏视图+LRM快速前馈生成
+- id: ilrm
+  name: iLRM
+  full_name: 迭代大规模重建 (Iterative LRM)
+  year: '2026.03'
+  org: CVPR
+  paper_url: https://arxiv.org/abs/2604.16000
+  category: feed_forward
+  parent: lrm
+  motivation: 迭代细化机制生成3DGS
+- id: vgg_t3
+  name: VGG-T³
+  full_name: 测试时训练重建 (VGG-T³)
+  year: '2026.02'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2602.23361
+  category: feed_forward
+  parent: ilrm
+  motivation: TTT线性扩展58秒千图重建
+- id: 4d_lrm
+  name: 4D-LRM
+  full_name: 4D大规模重建 (4D-LRM)
+  year: '2025.12'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2512.04000
+  category: feed_forward
+  parent: lrm
+  motivation: 首个大规模4D动态重建模型
+- id: yonosplat
+  name: YoNoSplat
+  full_name: 单模型前馈3DGS (YoNoSplat)
+  year: '2026.04'
+  org: ICLR
+  paper_url: https://openreview.net/forum?id=yono2026
+  category: feed_forward
+  parent: ilrm
+  motivation: 毫秒级任意视图重建
+- id: texture
+  name: TEXTure
+  full_name: 文本纹理 (TEXTure)
+  year: '2023'
+  org: Technion
+  paper_url: https://arxiv.org/abs/2302.01721
+  category: texture
+  parent: —
+  motivation: 迭代投影涂色生成无缝纹理
+- id: text2tex
+  name: Text2Tex
+  full_name: 文本转纹理 (Text2Tex)
+  year: '2023'
+  org: Stanford University
+  paper_url: https://arxiv.org/abs/2303.11396
+  category: texture
+  parent: texture
+  motivation: 渐进式策略确保全局一致性
+- id: trellis2
+  name: TRELLIS 2
+  full_name: 微软TRELLIS 2 (TRELLIS 2)
+  year: '2025.12'
+  org: Microsoft Research
+  paper_url: https://trellis2.app/
+  category: texture
+  parent: text2tex
+  motivation: O-Voxel原生PBR材质生成
+- id: hunyuan3d_21
+  name: Hunyuan3D 2.1
+  full_name: 混元3D 2.1 (Hunyuan3D 2.1)
+  year: '2026.03'
+  org: Tencent
+  paper_url: https://github.com/tencent/Hunyuan3D-2
+  category: texture
+  parent: trellis2
+  motivation: 78%盲测胜率高质量纹理
+- id: dragtex
+  name: Dragtex
+  full_name: 拖拽纹理编辑 (Dragtex)
+  year: '2026.02'
+  org: IEEE
+  paper_url: https://ieeexplore.ieee.org/document/11368713
+  category: texture
+  parent: hunyuan3d_21
+  motivation: 基于点的交互式纹理编辑
+- id: ar3dr1
+  name: AR3DR1
+  full_name: 强化学习3D生成 (AR3DR1)
+  year: '2026.03'
+  org: CVPR
+  paper_url: https://arxiv.org/abs/2603.15000
+  category: native_3d
+  parent: luciddreamer
+  motivation: high-GRPO分层RL优化生成
+- id: vist3a
+  name: VIST3A
+  full_name: 视频蒸馏3D (VIST3A)
+  year: '2026.04'
+  org: ICLR
+  paper_url: https://iclr.cc/virtual/2026/poster/25432
+  category: native_3d
+  parent: luciddreamer
+  motivation: 视频生成器缝合3D重建
+- id: lyra
+  name: Lyra
+  full_name: 视频扩散自蒸馏 (Lyra)
+  year: '2026.04'
+  org: ICLR
+  paper_url: https://iclr.cc/virtual/2026/poster/lyra
+  category: native_3d
+  parent: vist3a
+  motivation: 视频扩散自蒸馏到3DGS
+- id: hunyuan3d_3
+  name: Hunyuan3D 3.0
+  full_name: 混元3D 3.0 (Hunyuan3D 3.0)
+  year: '2026.04'
+  org: Tencent
+  paper_url: https://github.com/tencent/Hunyuan3D-3
+  category: native_3d
+  parent: instant3d
+  motivation: 1536³原生分辨率36亿体素
+- id: seed3d_2
+  name: Seed3D 2.0
+  full_name: 豆包3D 2.0 (Seed3D 2.0)
+  year: '2026.04'
+  org: ByteDance
+  paper_url: https://www.bytedance.com/seed3d
+  category: native_3d
+  parent: hunyuan3d_3
+  motivation: DiT+URDF工业级资产输出
+- id: rodin_gen2
+  name: Rodin Gen-2
+  full_name: Rodin二代 (Rodin Gen-2)
+  year: '2026.04'
+  org: Microsoft
+  paper_url: https://microsoft.com/rodin
+  category: native_3d
+  parent: seed3d_2
+  motivation: 100亿参数四边形拓扑生成
+graph:
+  nodes:
+  - id: nerf
+    x: 2020
+    y: 100
+    category: representation
+  - id: mip_nerf
+    x: 2021
+    y: 90
+    category: representation
+  - id: instant_ngp
+    x: 2022
+    y: 80
+    category: representation
+  - id: plenoxels
+    x: 2022
+    y: 110
+    category: representation
+  - id: 3dgs
+    x: 2023
+    y: 70
+    category: representation
+  - id: hgs
+    x: 2026
+    y: 60
+    category: representation
+  - id: dreamfusion
+    x: 2022
+    y: 200
+    category: optimization
+  - id: magic3d
+    x: 2022.5
+    y: 190
+    category: optimization
+  - id: fantasia3d
+    x: 2023
+    y: 210
+    category: optimization
+  - id: prolificdreamer
+    x: 2023.5
+    y: 200
+    category: optimization
+  - id: luciddreamer
+    x: 2023.8
+    y: 190
+    category: optimization
+  - id: zero123
+    x: 2023
+    y: 300
+    category: feed_forward
+  - id: one2345
+    x: 2023.3
+    y: 310
+    category: feed_forward
+  - id: mvdream
+    x: 2024
+    y: 290
+    category: feed_forward
+  - id: wonder3d
+    x: 2024.3
+    y: 300
+    category: feed_forward
+  - id: lrm
+    x: 2024
+    y: 320
+    category: feed_forward
+  - id: instant3d
+    x: 2024.3
+    y: 330
+    category: feed_forward
+  - id: ilrm
+    x: 2026
+    y: 310
+    category: feed_forward
+  - id: vgg_t3
+    x: 2026.2
+    y: 320
+    category: feed_forward
+  - id: 4d_lrm
+    x: 2025.8
+    y: 340
+    category: feed_forward
+  - id: yonosplat
+    x: 2026.4
+    y: 300
+    category: feed_forward
+  - id: texture
+    x: 2023
+    y: 400
+    category: texture
+  - id: text2tex
+    x: 2023.5
+    y: 410
+    category: texture
+  - id: trellis2
+    x: 2025.8
+    y: 400
+    category: texture
+  - id: hunyuan3d_21
+    x: 2026.2
+    y: 410
+    category: texture
+  - id: dragtex
+    x: 2026.4
+    y: 420
+    category: texture
+  - id: ar3dr1
+    x: 2026
+    y: 500
+    category: native_3d
+  - id: vist3a
+    x: 2026.2
+    y: 510
+    category: native_3d
+  - id: lyra
+    x: 2026.4
+    y: 520
+    category: native_3d
+  - id: hunyuan3d_3
+    x: 2026.3
+    y: 490
+    category: native_3d
+  - id: seed3d_2
+    x: 2026.5
+    y: 500
+    category: native_3d
+  - id: rodin_gen2
+    x: 2026.6
+    y: 510
+    category: native_3d
+  edges:
+  - from: nerf
+    to: mip_nerf
+    label: 抗锯齿
+  - from: nerf
+    to: instant_ngp
+    label: 哈希加速
+  - from: nerf
+    to: plenoxels
+    label: 去神经网络
+  - from: instant_ngp
+    to: 3dgs
+    label: 显式高斯
+  - from: 3dgs
+    to: hgs
+    label: 消除伪影
+  - from: nerf
+    to: dreamfusion
+    label: SDS蒸馏
+  - from: dreamfusion
+    to: magic3d
+    label: 两阶段
+  - from: dreamfusion
+    to: fantasia3d
+    label: 解耦几何
+  - from: dreamfusion
+    to: prolificdreamer
+    label: VSD改进
+  - from: prolificdreamer
+    to: luciddreamer
+    label: ISM匹配
+  - from: zero123
+    to: one2345
+    label: 快速重建
+  - from: zero123
+    to: mvdream
+    label: 多视图
+  - from: mvdream
+    to: wonder3d
+    label: 跨域扩散
+  - from: zero123
+    to: lrm
+    label: 大模型
+  - from: lrm
+    to: instant3d
+    label: 稀疏视图
+  - from: lrm
+    to: ilrm
+    label: 迭代细化
+  - from: ilrm
+    to: vgg_t3
+    label: TTT扩展
+  - from: lrm
+    to: 4d_lrm
+    label: 4D动态
+  - from: ilrm
+    to: yonosplat
+    label: 单模型
+  - from: texture
+    to: text2tex
+    label: 渐进式
+  - from: text2tex
+    to: trellis2
+    label: PBR材质
+  - from: trellis2
+    to: hunyuan3d_21
+    label: 质量提升
+  - from: hunyuan3d_21
+    to: dragtex
+    label: 交互编辑
+  - from: luciddreamer
+    to: ar3dr1
+    label: 强化学习
+  - from: luciddreamer
+    to: vist3a
+    label: 视频蒸馏
+  - from: vist3a
+    to: lyra
+    label: 自蒸馏
+  - from: instant3d
+    to: hunyuan3d_3
+    label: 原生分辨率
+  - from: hunyuan3d_3
+    to: seed3d_2
+    label: DiT架构
+  - from: seed3d_2
+    to: rodin_gen2
+    label: 拓扑优化
+  milestones:
+  - id: nerf
+    title: NeRF开创神经隐式表示
+    year: '2020'
+    desc: 提出神经辐射场概念，利用MLP和体渲染实现照片级新视角合成，开启神经渲染时代
+  - id: dreamfusion
+    title: DreamFusion打通2D到3D
+    year: '2022'
+    desc: 提出分数蒸馏采样(SDS)，利用2D扩散模型先验优化3D表示，开创文生3D现代范式
+  - id: 3dgs
+    title: 3DGS革新实时渲染
+    year: '2023'
+    desc: 显式3D高斯泼溅实现100+FPS实时渲染，取代NeRF成为2026年主流表征方法

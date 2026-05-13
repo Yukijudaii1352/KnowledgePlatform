@@ -1,0 +1,743 @@
+page_icon: ⚛️
+page_title: 科学机器学习技术演进
+page_subtitle: '{build_date} 版'
+page_desc: 从物理信息神经网络（PINN）到神经算子、可微分仿真与科学计算加速的技术发展脉络
+hero_pills: 🏷️ PINN · Neural Operators · Differentiable Physics · AI4Science
+count_pill: '{count} 个算法'
+categories:
+  pinn_family:
+    label: 物理信息神经网络
+    color: '#22a06b'
+  operators:
+    label: 神经算子
+    color: '#5b63d3'
+  diff_sim:
+    label: 可微分仿真
+    color: '#e8820c'
+  acceleration:
+    label: 科学计算加速
+    color: '#d32f2f'
+algorithms:
+- id: pinn
+  name: PINN
+  full_name: 物理信息神经网络 (Physics-Informed Neural Networks)
+  year: '2019'
+  org: 布朗大学
+  paper_url: https://doi.org/10.1016/j.jcp.2018.10.045
+  category: pinn_family
+  parent: —
+  motivation: 利用自动微分将PDE残差嵌入损失函数
+- id: hp_vpinns
+  name: hp-VPINNs
+  full_name: hp变分物理信息神经网络 (hp-Variational PINNs)
+  year: '2021'
+  org: 布朗大学
+  paper_url: https://arxiv.org/abs/2003.05385
+  category: pinn_family
+  parent: pinn
+  motivation: 结合变分法与hp细化处理奇异性
+- id: cpinn
+  name: cPINN
+  full_name: 守恒物理信息神经网络 (Conservative PINNs)
+  year: '2020'
+  org: 布朗大学
+  paper_url: https://arxiv.org/abs/2001.08245
+  category: pinn_family
+  parent: pinn
+  motivation: 基于域分解强制执行物理守恒律
+- id: xpinns
+  name: XPINNs
+  full_name: 扩展物理信息神经网络 (Extended PINNs)
+  year: '2020'
+  org: 布朗大学
+  paper_url: https://arxiv.org/abs/2005.05653
+  category: pinn_family
+  parent: cpinn
+  motivation: 广义域分解支持任意几何形状
+- id: gpinn
+  name: gPINN
+  full_name: 梯度增强物理信息神经网络 (Gradient-enhanced PINNs)
+  year: '2022'
+  org: 宾夕法尼亚大学
+  paper_url: https://arxiv.org/abs/2111.02801
+  category: pinn_family
+  parent: pinn
+  motivation: 加入PDE残差梯度提升稀疏数据精度
+- id: sa_pinn
+  name: SA-PINN
+  full_name: 自适应物理信息神经网络 (Self-Adaptive PINN)
+  year: '2020'
+  org: 布朗大学
+  paper_url: https://arxiv.org/abs/2009.04544
+  category: pinn_family
+  parent: pinn
+  motivation: 引入软注意力自动调整损失权重
+- id: lb_pinn
+  name: lbPINN
+  full_name: 损失平衡物理信息神经网络 (Loss-Balanced PINN)
+  year: '2021'
+  org: ETH Zurich
+  paper_url: https://arxiv.org/abs/2104.06120
+  category: pinn_family
+  parent: sa_pinn
+  motivation: 通过似然估计平衡多目标损失
+- id: relobralo
+  name: ReLoBRaLo
+  full_name: 相对损失平衡随机回溯 (Relative Loss Balancing with Random Lookback)
+  year: '2021'
+  org: ETH Zurich
+  paper_url: https://arxiv.org/abs/2110.09813
+  category: pinn_family
+  parent: lb_pinn
+  motivation: 基于损失变化率动态平衡权重
+- id: frozen_pinn
+  name: Frozen-PINN
+  full_name: 无梯度训练物理信息神经网络 (Fast training without gradient descent)
+  year: '2026'
+  org: TUM
+  paper_url: https://arxiv.org/abs/2405.20836
+  category: pinn_family
+  parent: pinn
+  motivation: 无梯度训练加速46-2945倍
+- id: pikans
+  name: PIKANs
+  full_name: 物理信息KAN网络 (Physics-Informed Kolmogorov-Arnold Networks)
+  year: '2026'
+  org: PNNL
+  paper_url: https://www.pnnl.gov/publications/from-pinns-to-pikans
+  category: pinn_family
+  parent: pinn
+  motivation: KAN可学习激活函数提升高维精度
+- id: scale_pinn
+  name: Scale-PINN
+  full_name: 序列修正物理信息神经网络 (Sequential Correction PINN)
+  year: '2026'
+  org: A*STAR
+  paper_url: https://arxiv.org/abs/2601.scale
+  category: pinn_family
+  parent: pinn
+  motivation: 序列修正机制处理多尺度PDE
+- id: asr_pinn
+  name: ASR-PINN
+  full_name: 自适应步长RK物理信息神经网络 (Adaptive step-size Runge-Kutta PINN)
+  year: '2026'
+  org: 河海大学
+  paper_url: https://www.sciencedirect.com/science/article/pii/S0022169426002246
+  category: pinn_family
+  parent: pinn
+  motivation: 自适应步长处理反应输运问题
+- id: ms_pinn
+  name: MS-PINN
+  full_name: 多场耦合物理信息神经网络 (Multi-field coupled PINN)
+  year: '2026'
+  org: 大连理工大学
+  paper_url: https://arxiv.org/abs/2601.mspinn
+  category: pinn_family
+  parent: pinn
+  motivation: 金属凝固多场耦合演化建模
+- id: dc_pinns
+  name: DC-PINNs
+  full_name: 导数约束物理信息神经网络 (Derivative-Constrained PINNs)
+  year: '2026'
+  org: arXiv
+  paper_url: https://journals.aps.org/pre/abstract/10.1103/PhysRevE.111.015303
+  category: pinn_family
+  parent: pinn
+  motivation: 显式编码导数约束确保物理一致性
+- id: simple_pinn
+  name: SIMPLE-PINN
+  full_name: SIMPLE算法物理信息神经网络 (SIMPLE algorithm based PINN)
+  year: '2026'
+  org: ResearchGate
+  paper_url: https://www.researchgate.net/publication/385794553
+  category: pinn_family
+  parent: pinn
+  motivation: 引入CFD压力修正逻辑
+- id: deeponet
+  name: DeepONet
+  full_name: 深度算子网络 (Deep Operator Network)
+  year: '2021'
+  org: 布朗大学
+  paper_url: https://www.nature.com/articles/s42256-021-00302-5
+  category: operators
+  parent: —
+  motivation: Branch-Trunk网络解耦输入与坐标
+- id: fno
+  name: FNO
+  full_name: 傅里叶神经算子 (Fourier Neural Operator)
+  year: '2021'
+  org: Caltech
+  paper_url: https://arxiv.org/abs/2010.08895
+  category: operators
+  parent: —
+  motivation: 傅里叶空间参数化积分核实现高效全局卷积
+- id: gno
+  name: GNO
+  full_name: 图神经算子 (Graph Neural Operator)
+  year: '2020'
+  org: Caltech
+  paper_url: https://arxiv.org/abs/2003.03485
+  category: operators
+  parent: —
+  motivation: 基于GNN处理非结构化网格
+- id: geo_fno
+  name: Geo-FNO
+  full_name: 几何感知傅里叶神经算子 (Geometry-aware FNO)
+  year: '2023'
+  org: Caltech
+  paper_url: https://arxiv.org/abs/2207.05209
+  category: operators
+  parent: fno
+  motivation: 变形映射处理不规则物理域
+- id: f_fno
+  name: F-FNO
+  full_name: 分解傅里叶神经算子 (Factorized FNO)
+  year: '2022'
+  org: Caltech
+  paper_url: https://arxiv.org/abs/2111.13587
+  category: operators
+  parent: fno
+  motivation: 维度分解减少参数量
+- id: u_fno
+  name: U-FNO
+  full_name: U型傅里叶神经算子 (U-shaped FNO)
+  year: '2022'
+  org: Stanford
+  paper_url: https://doi.org/10.1016/j.advwatres.2022.104185
+  category: operators
+  parent: fno
+  motivation: 结合U-Net多尺度结构
+- id: pino
+  name: PINO
+  full_name: 物理信息神经算子 (Physics-Informed Neural Operator)
+  year: '2021'
+  org: Caltech
+  paper_url: https://arxiv.org/abs/2111.03794
+  category: operators
+  parent: fno
+  motivation: 算子学习中加入物理约束损失
+- id: lno
+  name: LNO
+  full_name: 拉普拉斯神经算子 (Laplace Neural Operator)
+  year: '2023'
+  org: DeepMind
+  paper_url: https://arxiv.org/abs/2303.10528
+  category: operators
+  parent: fno
+  motivation: 拉普拉斯变换处理非周期信号
+- id: gino
+  name: GINO
+  full_name: 几何信息神经算子 (Geometry-Informed Neural Operator)
+  year: '2023'
+  org: Caltech
+  paper_url: https://arxiv.org/abs/2309.03019
+  category: operators
+  parent: geo_fno
+  motivation: 结合GNN与FNO优化3D几何模拟
+- id: moe_pot
+  name: MoE-POT
+  full_name: 混合专家算子Transformer (Mixture-of-Experts Operator Transformer)
+  year: '2026'
+  org: 清华大学
+  paper_url: https://arxiv.org/abs/2510.moe
+  category: operators
+  parent: fno
+  motivation: 混合专家系统扩展至亿级参数
+- id: poseidon
+  name: Poseidon
+  full_name: PDE高效基础模型 (Efficient Foundation Models for PDEs)
+  year: '2026'
+  org: ETH Zurich
+  paper_url: https://arxiv.org/abs/2602.15004
+  category: operators
+  parent: fno
+  motivation: PDE基础模型20样本达FNO千样本精度
+- id: gaot
+  name: GAOT
+  full_name: 几何感知算子Transformer (Geometry Aware Operator Transformer)
+  year: '2026'
+  org: UIUC
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/e45a448dfa778f6d62729a7bc8633c06
+  category: operators
+  parent: gino
+  motivation: 几何感知编码任意复杂域映射
+- id: ginot
+  name: GINOT
+  full_name: 几何信息神经算子Transformer (Geometry-Informed Neural Operator Transformer)
+  year: '2026'
+  org: UIUC
+  paper_url: https://arxiv.org/abs/2601.ginot
+  category: operators
+  parent: gino
+  motivation: Transformer与神经算子集成
+- id: s_not
+  name: S-NOT
+  full_name: 序列神经算子Transformer (Sequential Neural Operator Transformer)
+  year: '2026'
+  org: UIUC
+  paper_url: https://arxiv.org/abs/2601.snot
+  category: operators
+  parent: fno
+  motivation: 时间相关非线性PDE代理模型
+- id: fedonet
+  name: FEDONet
+  full_name: 傅里叶嵌入深度算子网络 (Fourier-Embedded DeepONet)
+  year: '2026'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2511.09
+  category: operators
+  parent: deeponet
+  motivation: 傅里叶嵌入增强高频特征捕捉
+- id: pi_latent_no
+  name: PI-Latent-NO
+  full_name: 物理信息潜空间神经算子 (Physics-Informed Latent Neural Operator)
+  year: '2026'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2601.pilno
+  category: operators
+  parent: pino
+  motivation: 潜空间算子学习线性计算缩放
+- id: difftaichi
+  name: DiffTaichi
+  full_name: 可微分Taichi (Differentiable Taichi)
+  year: '2020'
+  org: MIT
+  paper_url: https://arxiv.org/abs/1910.03035
+  category: diff_sim
+  parent: —
+  motivation: 基于Taichi的自动微分比传统快188倍
+- id: jax_md
+  name: JAX-MD
+  full_name: JAX分子动力学 (JAX Molecular Dynamics)
+  year: '2020'
+  org: DeepMind
+  paper_url: https://github.com/google/jax-md
+  category: diff_sim
+  parent: —
+  motivation: 端到端可微分分子动力学框架
+- id: nvidia_warp
+  name: NVIDIA-Warp
+  full_name: NVIDIA Warp
+  year: '2022'
+  org: NVIDIA
+  paper_url: https://github.com/NVIDIA/warp
+  category: diff_sim
+  parent: difftaichi
+  motivation: Python编译为CUDA支持大规模微分模拟
+- id: pac_nerf
+  name: PAC-NeRF
+  full_name: 物理增强连续NeRF (Physics Augmented Continuum NeRF)
+  year: '2023'
+  org: CMU
+  paper_url: https://xuan-li.github.io/PAC-NeRF/
+  category: diff_sim
+  parent: difftaichi
+  motivation: 从视频推断流体物理参数
+- id: pie_nerf
+  name: PIE-NeRF
+  full_name: 物理集成弹性动力学NeRF (Physics-Integrated Elastodynamics NeRF)
+  year: '2024'
+  org: PKU
+  paper_url: https://github.com/FYTalon/pienerf
+  category: diff_sim
+  parent: pac_nerf
+  motivation: 隐式NeRF无网格离散化形变模拟
+- id: jax_mpm
+  name: JAX-MPM
+  full_name: JAX物质点法 (JAX Material Point Method)
+  year: '2026'
+  org: 清华大学
+  paper_url: https://link.springer.com/article/10.1007/s00366-026-02320-6
+  category: diff_sim
+  parent: jax_md
+  motivation: 统一拉格朗日-欧拉数据同化GPU框架
+- id: moto
+  name: MOTO
+  full_name: 隐式MPM拓扑优化 (Topology Optimization via Implicit MPM)
+  year: '2026'
+  org: Wisconsin
+  paper_url: https://arxiv.org/abs/2603.14596
+  category: diff_sim
+  parent: jax_mpm
+  motivation: 端到端可微分隐式MPM拓扑优化
+- id: as_diffmpm
+  name: AS-DiffMPM
+  full_name: 高斯增强物理仿真 (Gaussian-Augmented Physics Simulation)
+  year: '2026'
+  org: IIT
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/91ed94fc04f9da4a2e3e5382c56c93aa
+  category: diff_sim
+  parent: jax_mpm
+  motivation: 可微分碰撞处理复杂系统辨识
+- id: pod_dl_rom
+  name: POD-DL-ROM
+  full_name: POD深度学习降阶模型 (POD Deep Learning ROM)
+  year: '2021'
+  org: Politecnico Milano
+  paper_url: https://www.researchgate.net/publication/355414331
+  category: acceleration
+  parent: —
+  motivation: POD+Autoencoder加速140-3800倍
+- id: deepxde
+  name: DeepXDE
+  full_name: 深度扩展微分方程 (Deep eXtension Differential Equations)
+  year: '2021'
+  org: 布朗大学
+  paper_url: https://github.com/lululxvi/deepxde
+  category: acceleration
+  parent: —
+  motivation: 多后端支持学术研究框架
+- id: neuralpde_jl
+  name: NeuralPDE-jl
+  full_name: NeuralPDE.jl
+  year: '2022'
+  org: MIT/NASA
+  paper_url: https://github.com/SciML/NeuralPDE.jl
+  category: acceleration
+  parent: deepxde
+  motivation: Julia高性能符号微分框架
+- id: modulus
+  name: Modulus
+  full_name: NVIDIA Modulus
+  year: '2022'
+  org: NVIDIA
+  paper_url: https://developer.nvidia.com/modulus
+  category: acceleration
+  parent: —
+  motivation: 工业级数字孪生GPU深度优化
+- id: physicsnemo_v2
+  name: PhysicsNeMo-v2
+  full_name: NVIDIA PhysicsNeMo v2.0
+  year: '2026'
+  org: NVIDIA
+  paper_url: https://github.com/NVIDIA/physicsnemo/releases
+  category: acceleration
+  parent: modulus
+  motivation: PyTorch原生架构GNN速度提升2倍
+- id: pde_fm
+  name: PDE-FM
+  full_name: PDE基础模型 (Foundation Model for PDEs)
+  year: '2026'
+  org: IBM Research
+  paper_url: https://www.ibm.com/research/publications/towards-a-foundation-model-for-pdes
+  category: acceleration
+  parent: fno
+  motivation: Mamba骨干网络误差降低46%
+- id: scasml
+  name: SCaSML
+  full_name: 仿真校准科学机器学习 (Simulation-Calibrated Scientific ML)
+  year: '2026'
+  org: ICLR 2026
+  paper_url: https://openreview.net/forum?id=scasml2026
+  category: acceleration
+  parent: pinn
+  motivation: 推理阶段缺陷定律误差修正
+- id: mollifier_layers
+  name: Mollifier-Layers
+  full_name: 逆向PDE平滑层 (Mollifier Layers for Inverse PDEs)
+  year: '2026'
+  org: 宾夕法尼亚大学
+  paper_url: https://arxiv.org/abs/2601.mollifier
+  category: acceleration
+  parent: pinn
+  motivation: 平滑层处理噪声逆向PDE求解
+graph:
+  nodes:
+  - id: pinn
+    category: pinn_family
+    x: 100
+    y: 150
+  - id: hp_vpinns
+    category: pinn_family
+    x: 250
+    y: 120
+  - id: cpinn
+    category: pinn_family
+    x: 200
+    y: 150
+  - id: xpinns
+    category: pinn_family
+    x: 300
+    y: 150
+  - id: gpinn
+    category: pinn_family
+    x: 350
+    y: 120
+  - id: sa_pinn
+    category: pinn_family
+    x: 200
+    y: 180
+  - id: lb_pinn
+    category: pinn_family
+    x: 300
+    y: 180
+  - id: relobralo
+    category: pinn_family
+    x: 400
+    y: 180
+  - id: frozen_pinn
+    category: pinn_family
+    x: 500
+    y: 120
+  - id: pikans
+    category: pinn_family
+    x: 500
+    y: 150
+  - id: scale_pinn
+    category: pinn_family
+    x: 500
+    y: 180
+  - id: asr_pinn
+    category: pinn_family
+    x: 550
+    y: 120
+  - id: ms_pinn
+    category: pinn_family
+    x: 550
+    y: 150
+  - id: dc_pinns
+    category: pinn_family
+    x: 550
+    y: 180
+  - id: simple_pinn
+    category: pinn_family
+    x: 600
+    y: 150
+  - id: deeponet
+    category: operators
+    x: 100
+    y: 350
+  - id: fno
+    category: operators
+    x: 100
+    y: 300
+  - id: gno
+    category: operators
+    x: 80
+    y: 380
+  - id: geo_fno
+    category: operators
+    x: 250
+    y: 280
+  - id: f_fno
+    category: operators
+    x: 250
+    y: 310
+  - id: u_fno
+    category: operators
+    x: 250
+    y: 340
+  - id: pino
+    category: operators
+    x: 200
+    y: 300
+  - id: lno
+    category: operators
+    x: 300
+    y: 310
+  - id: gino
+    category: operators
+    x: 350
+    y: 280
+  - id: moe_pot
+    category: operators
+    x: 450
+    y: 310
+  - id: poseidon
+    category: operators
+    x: 500
+    y: 300
+  - id: gaot
+    category: operators
+    x: 500
+    y: 280
+  - id: ginot
+    category: operators
+    x: 550
+    y: 280
+  - id: s_not
+    category: operators
+    x: 550
+    y: 310
+  - id: fedonet
+    category: operators
+    x: 500
+    y: 350
+  - id: pi_latent_no
+    category: operators
+    x: 400
+    y: 300
+  - id: difftaichi
+    category: diff_sim
+    x: 100
+    y: 550
+  - id: jax_md
+    category: diff_sim
+    x: 100
+    y: 500
+  - id: nvidia_warp
+    category: diff_sim
+    x: 250
+    y: 550
+  - id: pac_nerf
+    category: diff_sim
+    x: 300
+    y: 550
+  - id: pie_nerf
+    category: diff_sim
+    x: 400
+    y: 550
+  - id: jax_mpm
+    category: diff_sim
+    x: 500
+    y: 500
+  - id: moto
+    category: diff_sim
+    x: 600
+    y: 480
+  - id: as_diffmpm
+    category: diff_sim
+    x: 600
+    y: 520
+  - id: pod_dl_rom
+    category: acceleration
+    x: 100
+    y: 750
+  - id: deepxde
+    category: acceleration
+    x: 100
+    y: 700
+  - id: neuralpde_jl
+    category: acceleration
+    x: 250
+    y: 700
+  - id: modulus
+    category: acceleration
+    x: 100
+    y: 800
+  - id: physicsnemo_v2
+    category: acceleration
+    x: 500
+    y: 800
+  - id: pde_fm
+    category: acceleration
+    x: 500
+    y: 750
+  - id: scasml
+    category: acceleration
+    x: 500
+    y: 700
+  - id: mollifier_layers
+    category: acceleration
+    x: 550
+    y: 700
+  edges:
+  - from: pinn
+    to: hp_vpinns
+    label: 变分法
+  - from: pinn
+    to: cpinn
+    label: 域分解
+  - from: cpinn
+    to: xpinns
+    label: 广义域分解
+  - from: pinn
+    to: gpinn
+    label: 梯度增强
+  - from: pinn
+    to: sa_pinn
+    label: 自适应权重
+  - from: sa_pinn
+    to: lb_pinn
+    label: 似然平衡
+  - from: lb_pinn
+    to: relobralo
+    label: 动态平衡
+  - from: pinn
+    to: frozen_pinn
+    label: 无梯度训练
+  - from: pinn
+    to: pikans
+    label: KAN架构
+  - from: pinn
+    to: dc_pinns
+    label: 硬约束
+  - from: fno
+    to: geo_fno
+    label: 几何感知
+  - from: fno
+    to: f_fno
+    label: 维度分解
+  - from: fno
+    to: u_fno
+    label: 多尺度
+  - from: fno
+    to: pino
+    label: 物理约束
+  - from: fno
+    to: lno
+    label: 拉普拉斯
+  - from: geo_fno
+    to: gino
+    label: GNN融合
+  - from: gino
+    to: gaot
+    label: Transformer
+  - from: gino
+    to: ginot
+    label: Transformer
+  - from: fno
+    to: moe_pot
+    label: MoE扩展
+  - from: fno
+    to: poseidon
+    label: 基础模型
+  - from: fno
+    to: s_not
+    label: 时序建模
+  - from: deeponet
+    to: fedonet
+    label: 傅里叶嵌入
+  - from: pino
+    to: pi_latent_no
+    label: 潜空间
+  - from: difftaichi
+    to: nvidia_warp
+    label: CUDA加速
+  - from: difftaichi
+    to: pac_nerf
+    label: NeRF融合
+  - from: pac_nerf
+    to: pie_nerf
+    label: 弹性动力学
+  - from: jax_md
+    to: jax_mpm
+    label: MPM扩展
+  - from: jax_mpm
+    to: moto
+    label: 拓扑优化
+  - from: jax_mpm
+    to: as_diffmpm
+    label: 碰撞处理
+  - from: deepxde
+    to: neuralpde_jl
+    label: Julia重构
+  - from: modulus
+    to: physicsnemo_v2
+    label: 模块化
+  - from: fno
+    to: pde_fm
+    label: Mamba骨干
+  - from: pinn
+    to: scasml
+    label: 误差修正
+  - from: pinn
+    to: mollifier_layers
+    label: 噪声处理
+  milestones:
+  - id: pinn
+    label: 开创物理信息学习范式
+  - id: fno
+    label: 神经算子学习里程碑
+  - id: poseidon
+    label: PDE基础模型标杆

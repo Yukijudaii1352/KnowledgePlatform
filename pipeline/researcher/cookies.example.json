@@ -1,0 +1,12 @@
+{
+  "_comment": "可选：为反爬平台提供 cookies 可解锁抓取（知乎 / medium 等）。删除 _comment 即生效。",
+  "_example_zhihu": {
+    "z_c0": "你的 z_c0 cookie",
+    "d_c0": "你的 d_c0 cookie",
+    "_xsrf": "你的 _xsrf cookie"
+  },
+  "_example_medium": {
+    "sid": "你的 sid cookie",
+    "uid": "你的 uid cookie"
+  }
+}

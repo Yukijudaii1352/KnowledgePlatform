@@ -1,0 +1,737 @@
+domain: infra
+topic_id: compiler
+topic_name: AI编译器
+page_icon: ⚙️
+page_title: AI编译器技术演进总结
+page_subtitle: '{build_date} 版'
+page_desc: 系统梳理从 XLA、TVM 到 MLIR、Triton 的 AI 编译器发展历程与核心技术突破，覆盖经典奠基工作与2026年最新进展。
+hero_pills:
+- 🏷️ Deep Learning Compiler · Graph Optimization · Kernel Synthesis · LLM-Driven Compilation
+count_pill: '{count} 个算法'
+categories:
+  graph_compilers:
+    label: 图级编译器
+    color: '#2563eb'
+  tensor_ir:
+    label: 张量算子编译器
+    color: '#16a34a'
+  infrastructure:
+    label: 编译基础设施
+    color: '#9333ea'
+  hardware_specific:
+    label: 硬件特化优化
+    color: '#ea580c'
+  llm_driven:
+    label: LLM驱动编译
+    color: '#db2777'
+algorithms:
+- id: llvm
+  name: LLVM
+  full_name: 底层虚拟机编译框架 (Low Level Virtual Machine)
+  year: '2004'
+  org: UIUC
+  paper_url: https://ieeexplore.ieee.org/abstract/document/1281665/
+  category: infrastructure
+  parent: —
+  motivation: 提供硬件无关IR，实现编译器组件高度解耦复用
+- id: halide
+  name: Halide
+  full_name: 计算调度分离图像编译语言 (Halide)
+  year: '2013'
+  org: MIT/Google
+  paper_url: https://dl.acm.org/doi/abs/10.1145/2499370.2462176
+  category: tensor_ir
+  parent: —
+  motivation: 首创计算与调度分离范式，解决并行性与局部性权衡
+- id: tensorrt
+  name: TensorRT
+  full_name: NVIDIA深度学习推理优化引擎 (TensorRT)
+  year: '2015'
+  org: NVIDIA
+  paper_url: https://developer.nvidia.com/tensorrt
+  category: hardware_specific
+  parent: —
+  motivation: 量化校准与算子融合深度集成，实现GPU极致推理性能
+- id: xla
+  name: XLA
+  full_name: 加速线性代数编译器 (Accelerated Linear Algebra)
+  year: '2017'
+  org: Google
+  paper_url: https://openxla.org/xla
+  category: graph_compilers
+  parent: —
+  motivation: 通过HLO IR实现跨算子全局内存优化，解决内存墙问题
+- id: tvm
+  name: TVM
+  full_name: 端到端深度学习自动优化编译框架 (Tensor Virtual Machine)
+  year: '2018'
+  org: UW
+  paper_url: https://www.usenix.org/conference/osdi18/presentation/chen
+  category: tensor_ir
+  parent: halide
+  motivation: 将编译优化转化为搜索问题，ML自动调优替代手工算子
+- id: autotvm
+  name: AutoTVM
+  full_name: 基于模板的张量程序自动调优 (AutoTVM)
+  year: '2018'
+  org: UW
+  paper_url: https://proceedings.neurips.cc/paper/2018/hash/8b5700012be65c9da25f49408d959ca0-Abstract.html
+  category: tensor_ir
+  parent: tvm
+  motivation: 用ML代价模型替代硬件测量，加速模板参数空间搜索
+- id: glow
+  name: Glow
+  full_name: 图下降神经网络编译器 (Graph Lowering Compiler)
+  year: '2018'
+  org: Meta
+  paper_url: https://arxiv.org/abs/1805.00907
+  category: graph_compilers
+  parent: —
+  motivation: 两级IR渐进下降结合静态内存规划，提升推理内存效率
+- id: ngraph
+  name: nGraph
+  full_name: Intel深度学习统一编译器 (Intel nGraph)
+  year: '2018'
+  org: Intel
+  paper_url: https://arxiv.org/abs/1801.08058
+  category: graph_compilers
+  parent: —
+  motivation: 框架无关统一IR，解决Intel异构硬件多框架适配问题
+- id: tc
+  name: TC
+  full_name: 框架无关高性能张量抽象 (Tensor Comprehensions)
+  year: '2018'
+  org: Meta/FAIR
+  paper_url: https://arxiv.org/abs/1802.04730
+  category: tensor_ir
+  parent: halide
+  motivation: 数学符号描述张量运算，多面体编译自动生成CUDA代码
+- id: jax
+  name: JAX
+  full_name: 可组合函数变换加速框架 (JAX)
+  year: '2018'
+  org: Google
+  paper_url: https://github.com/google/jax
+  category: graph_compilers
+  parent: xla
+  motivation: 函数式变换统一自动微分与JIT编译，极简接口极致性能
+- id: flexflow
+  name: FlexFlow
+  full_name: 自动并行化深度学习编译器 (FlexFlow)
+  year: '2019'
+  org: Stanford
+  paper_url: https://proceedings.mlsys.org/paper_files/paper/2019/hash/b422680f3db0986ddd7f8f126baaf0fa-Abstract.html
+  category: graph_compilers
+  parent: —
+  motivation: SOAP空间统一并行维度搜索，超越数据与模型并行二元对立
+- id: triton
+  name: Triton
+  full_name: 分块神经网络计算中间语言与编译器 (Triton)
+  year: '2019'
+  org: OpenAI
+  paper_url: https://dl.acm.org/doi/abs/10.1145/3315508.3329973
+  category: tensor_ir
+  parent: —
+  motivation: Tile抽象屏蔽GPU细节，非专家也能写出高性能内核
+- id: tiramisu
+  name: Tiramisu
+  full_name: 多面体深度学习编译器 (Tiramisu)
+  year: '2019'
+  org: MIT
+  paper_url: https://ieeexplore.ieee.org/abstract/document/8661197/
+  category: tensor_ir
+  parent: —
+  motivation: 四层多面体表示自动推导依赖，数学严谨保证变换正确性
+- id: relay
+  name: Relay
+  full_name: 深度学习高层函数式图IR (Relay)
+  year: '2019'
+  org: UW/Apache
+  paper_url: https://arxiv.org/abs/1904.08368
+  category: infrastructure
+  parent: tvm
+  motivation: 函数式静态类型图IR，支持复杂图优化与类型推断
+- id: ansor
+  name: Ansor
+  full_name: 无模板高性能张量程序自动生成 (Ansor)
+  year: '2020'
+  org: UC Berkeley
+  paper_url: https://www.usenix.org/conference/osdi20/presentation/zheng
+  category: tensor_ir
+  parent: autotvm
+  motivation: 无需专家模板自动构建搜索空间，覆盖更广优化可能性
+- id: mlir
+  name: MLIR
+  full_name: 多层中间表示编译基础设施 (Multi-Level Intermediate Representation)
+  year: '2020'
+  org: Google
+  paper_url: https://ieeexplore.ieee.org/abstract/document/9370308/
+  category: infrastructure
+  parent: llvm
+  motivation: Dialect元框架解决IR碎片化，实现优化Pass高度复用
+- id: akg
+  name: AKG
+  full_name: 昇腾NPU自动算子生成器 (Automatic Kernel Generator)
+  year: '2021'
+  org: Huawei
+  paper_url: https://dl.acm.org/doi/10.1145/3453483.3454106
+  category: hardware_specific
+  parent: tiramisu
+  motivation: 多面体技术适配NPU，自动协同异构调度
+- id: iree
+  name: IREE
+  full_name: 中间表示执行环境 (Intermediate Representation Execution Environment)
+  year: '2021'
+  org: Google
+  paper_url: https://arxiv.org/abs/2205.14479
+  category: infrastructure
+  parent: mlir
+  motivation: 基于MLIR实现云端到嵌入式全场景ML部署
+- id: meta_schedule
+  name: MetaSchedule
+  full_name: 概率化张量程序调度框架 (MetaSchedule)
+  year: '2022'
+  org: CMU/OctoML
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2022/hash/e894eafae43e68b4c8dfdacf742bcbf3-Abstract-Conference.html
+  category: tensor_ir
+  parent: ansor
+  motivation: 概率程序统一调度搜索空间，泛化模板与无模板调优
+- id: flash_attention
+  name: FlashAttention
+  full_name: IO感知精确注意力计算 (FlashAttention)
+  year: '2022'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/2205.14135
+  category: hardware_specific
+  parent: —
+  motivation: IO感知分块计算精确注意力，突破显存带宽瓶颈
+- id: alpa
+  name: Alpa
+  full_name: 自动层间层内并行分布式编译器 (Alpa)
+  year: '2022'
+  org: UC Berkeley
+  paper_url: https://www.usenix.org/conference/osdi22/presentation/zheng-lianmin
+  category: graph_compilers
+  parent: xla
+  motivation: 两级分层优化统一层间与层内并行，自动搜索最优分布式策略
+- id: torch_dynamo
+  name: TorchDynamo
+  full_name: PyTorch动态字节码编译器 (TorchDynamo + TorchInductor)
+  year: '2022'
+  org: Meta
+  paper_url: https://dl.acm.org/doi/abs/10.1145/3620665.3640366
+  category: infrastructure
+  parent: —
+  motivation: Python字节码变换实现零侵入动态图编译加速
+- id: bladedisc
+  name: BladeDISC
+  full_name: 动态形状机器学习编译优化器 (BladeDISC)
+  year: '2023'
+  org: Alibaba
+  paper_url: https://dl.acm.org/doi/abs/10.1145/3617327
+  category: hardware_specific
+  parent: mlir
+  motivation: 符号形状传播实现动态形状下算子融合，消除频繁重编译
+- id: mojo
+  name: Mojo
+  full_name: AI原生系统编程语言 (Mojo)
+  year: '2023'
+  org: Modular
+  paper_url: https://www.modular.com/mojo
+  category: infrastructure
+  parent: mlir
+  motivation: Python超集语法提供MLIR原生系统级AI编程能力
+- id: byteir
+  name: ByteIR
+  full_name: 字节跳动端到端AI编译器 (ByteIR)
+  year: '2023'
+  org: ByteDance
+  paper_url: https://github.com/bytedance/byteir
+  category: infrastructure
+  parent: mlir
+  motivation: linalg-ext扩展覆盖复杂AI计算模式
+- id: openxla
+  name: OpenXLA
+  full_name: 开放跨框架XLA编译生态 (OpenXLA)
+  year: '2023'
+  org: Google
+  paper_url: https://github.com/openxla/xla
+  category: infrastructure
+  parent: xla
+  motivation: StableHLO解耦XLA为跨框架行业标准编译后端
+- id: relax
+  name: Relax
+  full_name: 动态机器学习端到端可组合抽象 (Relax)
+  year: '2025'
+  org: Apache TVM
+  paper_url: https://dl.acm.org/doi/abs/10.1145/3676641.3716249
+  category: infrastructure
+  parent: relay
+  motivation: 符号形状作为一等公民，完美适配LLM动态推理需求
+- id: trinity
+  name: Trinity
+  full_name: Tile级等价饱和三维张量程序优化器 (Trinity)
+  year: '2026'
+  org: KAIST/FuriosaAI
+  paper_url: https://ina.kaist.ac.kr/publications
+  category: tensor_ir
+  parent: ansor
+  motivation: Tile级等价饱和联合优化代数、内存与计算编排
+- id: redfuser
+  name: RedFuser
+  full_name: 级联归约算子自动融合框架 (RedFuser)
+  year: '2026'
+  org: Alibaba Cloud
+  paper_url: https://arxiv.org/abs/2603.10026
+  category: tensor_ir
+  parent: tvm
+  motivation: 增量计算突破缓存限制，自动融合级联归约算子
+- id: nautilus
+  name: Nautilus
+  full_name: 端到端自动调度张量编译器 (Nautilus)
+  year: '2026'
+  org: UIUC
+  paper_url: https://arxiv.org/abs/2604.14825
+  category: tensor_ir
+  parent: ansor
+  motivation: 端到端自动调度生成FlashAttn级内核
+- id: linear_layouts
+  name: Linear Layouts
+  full_name: F2域线性映射张量布局编译 (Linear Layouts)
+  year: '2026'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/2505.23819
+  category: tensor_ir
+  parent: triton
+  motivation: F2域线性映射建模布局，自动推导布局转换消除组合爆炸
+- id: event_tensor
+  name: Event Tensor
+  full_name: 动态Megakernel编译统一抽象 (Event Tensor)
+  year: '2026'
+  org: ByteDance
+  paper_url: https://arxiv.org/abs/2604.13327
+  category: tensor_ir
+  parent: triton
+  motivation: 符号变量统一动态Megakernel抽象
+- id: triton_distributed
+  name: Triton-Distributed
+  full_name: 分布式AI系统重叠内核编译器 (Triton-Distributed)
+  year: '2026'
+  org: Community
+  paper_url: https://arxiv.org/abs/2504.19442
+  category: tensor_ir
+  parent: triton
+  motivation: 原生通信-计算重叠优化，64卡44x加速
+- id: flashlight
+  name: Flashlight
+  full_name: PyTorch编译器注意力扩展 (Flashlight)
+  year: '2026'
+  org: Meta
+  paper_url: https://arxiv.org/abs/2511.03230
+  category: hardware_specific
+  parent: flash_attention
+  motivation: PyTorch编译器扩展支持多样注意力变体高效编译
+- id: flash_attention_4
+  name: FlashAttention-4
+  full_name: 算法与Kernel流水线协同设计注意力 (FlashAttention-4)
+  year: '2026'
+  org: Tri Dao Lab
+  paper_url: https://arxiv.org/abs/2603.05451
+  category: hardware_specific
+  parent: flash_attention
+  motivation: 算法与Kernel流水线协同设计，适配非对称硬件扩展
+- id: wave
+  name: Wave
+  full_name: 符号化Python DSL编译器 (Wave)
+  year: '2026'
+  org: Modular
+  paper_url: https://mlsys.org/Conferences/2026/AcceptedPapers
+  category: infrastructure
+  parent: mojo
+  motivation: 符号化Python DSL统一AI硬件编程与编译优化
+- id: approx_mlir
+  name: ApproxMLIR
+  full_name: 精度感知复合ML系统编译器 (ApproxMLIR)
+  year: '2026'
+  org: UIUC
+  paper_url: https://mlsys.org/Conferences/2026/Abstract/1742
+  category: infrastructure
+  parent: mlir
+  motivation: approx方言自动平衡精度与速度，优化复合ML系统
+- id: hexagon_mlir
+  name: Hexagon-MLIR
+  full_name: Qualcomm NPU开源编译栈 (Hexagon-MLIR)
+  year: '2026'
+  org: Qualcomm
+  paper_url: https://arxiv.org/abs/2602.19762
+  category: hardware_specific
+  parent: mlir
+  motivation: Triton到Hexagon NPU直接编译路径
+- id: magellan
+  name: Magellan
+  full_name: AlphaEvolve驱动自主编译优化发现 (Magellan)
+  year: '2026'
+  org: Google DeepMind
+  paper_url: https://arxiv.org/abs/2601.21096
+  category: llm_driven
+  parent: openxla
+  motivation: LLM Agent自主进化编译优化启发式
+- id: cutegen
+  name: CuTeGen
+  full_name: LLM智能体GPU Kernel生成框架 (CuTeGen)
+  year: '2026'
+  org: Community
+  paper_url: https://arxiv.org/abs/2604.01489
+  category: llm_driven
+  parent: triton
+  motivation: LLM Agent自动生成CuTe GPU Kernel
+- id: autokernel
+  name: AutoKernel
+  full_name: 自主GPU Kernel迭代优化智能体 (AutoKernel)
+  year: '2026'
+  org: Community
+  paper_url: https://arxiv.org/abs/2603.21331
+  category: llm_driven
+  parent: triton
+  motivation: Agent闭环迭代优化GPU Kernel性能
+- id: acclaim
+  name: ACCLAIM
+  full_name: 编译器-LLM协作代码优化系统 (ACCLAIM)
+  year: '2026'
+  org: Community
+  paper_url: https://arxiv.org/abs/2604.04238
+  category: llm_driven
+  parent: —
+  motivation: 源码-IR-汇编三层LLM协作，系统化编译优化决策
+- id: deep_compile
+  name: DeepCompile
+  full_name: 编译器驱动分布式训练优化系统 (DeepCompile)
+  year: '2026'
+  org: Microsoft/UVA
+  paper_url: https://arxiv.org/abs/2504.09983
+  category: graph_compilers
+  parent: torch_dynamo
+  motivation: 编译器驱动主动预取与自适应offloading优化分布式训练
+- id: flex_linear_attn
+  name: FlexLinearAttention
+  full_name: 线性注意力统一抽象编译框架 (FlexLinearAttention)
+  year: '2026'
+  org: Community
+  paper_url: https://openreview.net/forum?id=N4jJQvQSiN
+  category: hardware_specific
+  parent: flash_attention
+  motivation: 统一抽象将线性注意力变体编译为可扩展高效内核
+- id: quantix
+  name: Quantix
+  full_name: 非均匀量化LLM推理加速编译器 (Quantix)
+  year: '2026'
+  org: Community
+  paper_url: https://dl.acm.org/doi/abs/10.1145/3774934.3786423
+  category: hardware_specific
+  parent: tensorrt
+  motivation: 3-bit非均匀量化编译优化，大幅提升LLM推理吞吐
+- id: hexcute
+  name: Hexcute
+  full_name: GPU程序自动布局合成编译框架 (Hexcute)
+  year: '2026'
+  org: Community
+  paper_url: https://ieeexplore.ieee.org/abstract/document/11395194/
+  category: tensor_ir
+  parent: triton
+  motivation: 自动合成GPU程序布局，消除手工布局设计负担
+graph:
+  nodes:
+  - id: llvm
+    x: 50
+    y: 380
+    category: infrastructure
+  - id: relay
+    x: 490
+    y: 380
+    category: infrastructure
+  - id: mlir
+    x: 560
+    y: 330
+    category: infrastructure
+  - id: iree
+    x: 640
+    y: 430
+    category: infrastructure
+  - id: torch_dynamo
+    x: 660
+    y: 330
+    category: infrastructure
+  - id: mojo
+    x: 730
+    y: 380
+    category: infrastructure
+  - id: byteir
+    x: 730
+    y: 430
+    category: infrastructure
+  - id: openxla
+    x: 730
+    y: 330
+    category: infrastructure
+  - id: relax
+    x: 870
+    y: 380
+    category: infrastructure
+  - id: wave
+    x: 980
+    y: 330
+    category: infrastructure
+  - id: approx_mlir
+    x: 980
+    y: 430
+    category: infrastructure
+  - id: xla
+    x: 230
+    y: 80
+    category: graph_compilers
+  - id: glow
+    x: 310
+    y: 130
+    category: graph_compilers
+  - id: ngraph
+    x: 310
+    y: 30
+    category: graph_compilers
+  - id: jax
+    x: 390
+    y: 80
+    category: graph_compilers
+  - id: flexflow
+    x: 470
+    y: 130
+    category: graph_compilers
+  - id: alpa
+    x: 660
+    y: 80
+    category: graph_compilers
+  - id: deep_compile
+    x: 980
+    y: 80
+    category: graph_compilers
+  - id: halide
+    x: 130
+    y: 230
+    category: tensor_ir
+  - id: tvm
+    x: 310
+    y: 230
+    category: tensor_ir
+  - id: autotvm
+    x: 390
+    y: 180
+    category: tensor_ir
+  - id: tc
+    x: 310
+    y: 280
+    category: tensor_ir
+  - id: triton
+    x: 470
+    y: 230
+    category: tensor_ir
+  - id: tiramisu
+    x: 470
+    y: 280
+    category: tensor_ir
+  - id: ansor
+    x: 560
+    y: 180
+    category: tensor_ir
+  - id: meta_schedule
+    x: 660
+    y: 230
+    category: tensor_ir
+  - id: trinity
+    x: 980
+    y: 180
+    category: tensor_ir
+  - id: redfuser
+    x: 980
+    y: 230
+    category: tensor_ir
+  - id: nautilus
+    x: 1060
+    y: 180
+    category: tensor_ir
+  - id: linear_layouts
+    x: 1060
+    y: 230
+    category: tensor_ir
+  - id: event_tensor
+    x: 1060
+    y: 280
+    category: tensor_ir
+  - id: triton_distributed
+    x: 1140
+    y: 230
+    category: tensor_ir
+  - id: hexcute
+    x: 1140
+    y: 280
+    category: tensor_ir
+  - id: tensorrt
+    x: 170
+    y: 530
+    category: hardware_specific
+  - id: akg
+    x: 640
+    y: 530
+    category: hardware_specific
+  - id: flash_attention
+    x: 660
+    y: 580
+    category: hardware_specific
+  - id: bladedisc
+    x: 730
+    y: 530
+    category: hardware_specific
+  - id: flashlight
+    x: 980
+    y: 530
+    category: hardware_specific
+  - id: flash_attention_4
+    x: 980
+    y: 580
+    category: hardware_specific
+  - id: hexagon_mlir
+    x: 1060
+    y: 530
+    category: hardware_specific
+  - id: flex_linear_attn
+    x: 1060
+    y: 580
+    category: hardware_specific
+  - id: quantix
+    x: 1140
+    y: 530
+    category: hardware_specific
+  - id: magellan
+    x: 980
+    y: 680
+    category: llm_driven
+  - id: cutegen
+    x: 1060
+    y: 680
+    category: llm_driven
+  - id: autokernel
+    x: 1140
+    y: 680
+    category: llm_driven
+  - id: acclaim
+    x: 1140
+    y: 730
+    category: llm_driven
+  edges:
+  - from: llvm
+    to: mlir
+    label: 元框架升级
+  - from: mlir
+    to: iree
+    label: 端到端部署
+  - from: mlir
+    to: byteir
+    label: 业务定制
+  - from: mlir
+    to: bladedisc
+    label: 动态形状
+  - from: mlir
+    to: mojo
+    label: 语言融合
+  - from: mlir
+    to: approx_mlir
+    label: 精度感知
+  - from: mlir
+    to: hexagon_mlir
+    label: NPU适配
+  - from: mojo
+    to: wave
+    label: DSL扩展
+  - from: xla
+    to: openxla
+    label: 开放标准
+  - from: openxla
+    to: magellan
+    label: LLM进化
+  - from: tvm
+    to: relay
+    label: 图IR升级
+  - from: relay
+    to: relax
+    label: 动态形状
+  - from: torch_dynamo
+    to: deep_compile
+    label: 分布式扩展
+  - from: xla
+    to: jax
+    label: 函数变换
+  - from: xla
+    to: alpa
+    label: 并行搜索
+  - from: halide
+    to: tvm
+    label: 调度继承
+  - from: halide
+    to: tc
+    label: 数学描述
+  - from: tvm
+    to: autotvm
+    label: ML调优
+  - from: tvm
+    to: redfuser
+    label: 融合扩展
+  - from: autotvm
+    to: ansor
+    label: 无模板化
+  - from: ansor
+    to: meta_schedule
+    label: 概率统一
+  - from: ansor
+    to: trinity
+    label: 等价饱和
+  - from: ansor
+    to: nautilus
+    label: 端到端调度
+  - from: triton
+    to: linear_layouts
+    label: 布局形式化
+  - from: triton
+    to: event_tensor
+    label: 动态抽象
+  - from: triton
+    to: triton_distributed
+    label: 分布式扩展
+  - from: triton
+    to: cutegen
+    label: LLM生成
+  - from: triton
+    to: autokernel
+    label: Agent优化
+  - from: triton
+    to: hexcute
+    label: 布局合成
+  - from: tiramisu
+    to: akg
+    label: NPU适配
+  - from: flash_attention
+    to: flashlight
+    label: 编译扩展
+  - from: flash_attention
+    to: flash_attention_4
+    label: 流水线协同
+  - from: flash_attention
+    to: flex_linear_attn
+    label: 线性统一
+  - from: tensorrt
+    to: quantix
+    label: 量化加速
+  - from: cutegen
+    to: autokernel
+    label: 迭代优化
+  milestones:
+  - halide
+  - tvm
+  - mlir

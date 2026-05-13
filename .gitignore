@@ -36,3 +36,10 @@ pipeline/__pycache__/
 
 # 部署脚本可能写入的临时文件
 .deploy_tmp/
+
+# 内容生成过程中的失败日志与锁文件
+content/**/logs/
+
+# researcher 本地凭据与抓取产物
+pipeline/researcher/cookies.json
+pipeline/researcher/output/

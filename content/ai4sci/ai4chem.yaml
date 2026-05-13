@@ -1,0 +1,545 @@
+domain: ai4sci
+topic_id: ai4chem
+page_icon: 🧪
+page_title: 化学AI 技术演进图谱
+page_subtitle: '{build_date} 版'
+page_desc: 从分子表示学习到反应预测、逆合成分析、催化剂设计与分子生成，AI正在重塑化学研究范式。本图谱涵盖2017-2026年化学AI领域的经典算法与前沿突破，展现从数据驱动到物理感知、从辅助工具到AI科学家的演化历程。
+hero_pills: 🏷️ AI4Chemistry · Reaction Prediction · Retrosynthesis · Catalyst Discovery · Molecular Generation
+count_pill: '{count} 个算法'
+categories:
+- id: representation
+  label: 分子表示学习
+  color: '#3B82F6'
+- id: reaction
+  label: 反应预测
+  color: '#10B981'
+- id: retrosynthesis
+  label: 逆合成分析
+  color: '#F59E0B'
+- id: generation
+  label: 分子生成
+  color: '#8B5CF6'
+- id: catalyst
+  label: 催化剂设计
+  color: '#EF4444'
+- id: property
+  label: 性质预测
+  color: '#EC4899'
+algorithms:
+- id: mpnn
+  name: MPNN
+  full_name: 消息传递神经网络 (Message Passing Neural Networks)
+  year: '2017'
+  org: Google Research
+  paper_url: https://proceedings.mlr.press/v70/gilmer17a.html
+  category: representation
+  parent: —
+  motivation: 统一图神经网络框架，在QM9达到化学精度
+- id: schnet
+  name: SchNet
+  full_name: 连续滤波卷积网络 (SchNet)
+  year: '2017'
+  org: TU Berlin
+  paper_url: https://arxiv.org/abs/1706.08566
+  category: representation
+  parent: mpnn
+  motivation: 引入连续滤波器处理原子间距离信息
+- id: grover
+  name: GROVER
+  full_name: 图表示预训练模型 (GROVER)
+  year: '2020'
+  org: 腾讯AI Lab
+  paper_url: https://arxiv.org/abs/2007.02835
+  category: representation
+  parent: mpnn
+  motivation: 集成GNN与Transformer的1亿参数自监督模型
+- id: dimenet
+  name: DimeNet
+  full_name: 方向性消息传递网络 (DimeNet)
+  year: '2020'
+  org: TU Munich
+  paper_url: https://arxiv.org/abs/2003.03123
+  category: representation
+  parent: schnet
+  motivation: 加入角度信息提升3D构象区分度
+- id: gemnet
+  name: GemNet
+  full_name: 几何消息传递网络 (GemNet)
+  year: '2021'
+  org: TU Munich
+  paper_url: https://arxiv.org/abs/2106.08903
+  category: representation
+  parent: dimenet
+  motivation: 引入二面角和两步消息传递，成为3D图通用近似器
+- id: unimol
+  name: Uni-Mol
+  full_name: 通用分子表示框架 (Uni-Mol)
+  year: '2023'
+  org: DP Technology
+  paper_url: https://arxiv.org/abs/2302.12600
+  category: representation
+  parent: gemnet
+  motivation: 3D空间位置预训练，统一性质预测与对接任务
+- id: mist
+  name: MIST
+  full_name: 分子交互结构Tokenizer (MIST)
+  year: '2026.04'
+  org: 密歇根大学
+  paper_url: https://midas.umich.edu/events/aiir-symposium-2026/
+  category: representation
+  parent: unimol
+  motivation: 18亿参数基础模型，捕获核、电子与几何信息
+- id: mattersim_mt
+  name: MatterSim-MT
+  full_name: 多任务材料模拟基础模型 (MatterSim-MT)
+  year: '2026.05'
+  org: 微软亚洲研究院
+  paper_url: https://www.microsoft.com/en-us/research/publication/mattersim-mt-a-multi-task-foundation-model-for-in-silico-materials-characterization/
+  category: representation
+  parent: unimol
+  motivation: 3500万DFT数据预训练，支持极端温压环境模拟
+- id: chemmlm
+  name: ChemMLLM
+  full_name: 化学多模态大语言模型 (ChemMLLM)
+  year: '2026.01'
+  org: 上海人工智能实验室
+  paper_url: https://arxiv.org/abs/2412.04112
+  category: representation
+  parent: grover
+  motivation: 统一处理文本、SMILES和分子图像的多模态架构
+- id: molecular_transformer
+  name: Molecular Transformer
+  full_name: 分子Transformer (Molecular Transformer)
+  year: '2018'
+  org: IBM Research / ETH Zurich
+  paper_url: https://pubs.acs.org/doi/10.1021/acscentsci.9b00576
+  category: reaction
+  parent: —
+  motivation: 将反应预测类比为机器翻译，Top-1准确率超90%
+- id: flower
+  name: FlowER
+  full_name: 电子再分配流匹配模型 (FlowER)
+  year: '2025.09'
+  org: MIT
+  paper_url: https://news.mit.edu/2025/system-developed-mit-realistic-predictions-chemical-reactions-0903
+  category: reaction
+  parent: molecular_transformer
+  motivation: 引入质量守恒和电子守恒约束，防止化学幻觉
+- id: reactome
+  name: Reactome
+  full_name: 药用反应数据集与预测模型 (Reactome)
+  year: '2026.04'
+  org: 剑桥大学 / Pfizer
+  paper_url: https://www.earth.com/news/ai-predicts-how-molecules-react-in-the-lab-drug-discovery/
+  category: reaction
+  parent: molecular_transformer
+  motivation: 3.9万药用反应数据集，预测实验室真实反应性
+- id: 3n_mcts
+  name: 3N-MCTS
+  full_name: 三网络蒙特卡洛树搜索 (3N-MCTS)
+  year: '2018'
+  org: University of Münster
+  paper_url: https://www.nature.com/articles/nature25978
+  category: retrosynthesis
+  parent: —
+  motivation: 结合MCTS与三神经网络，解决组合爆炸问题
+- id: aizynthfinder
+  name: AiZynthFinder
+  full_name: AI逆合成规划工具 (AiZynthFinder)
+  year: '2020'
+  org: AstraZeneca
+  paper_url: https://jcheminf.biomedcentral.com/articles/10.1186/s13321-020-00472-1
+  category: retrosynthesis
+  parent: 3n_mcts
+  motivation: 神经网络引导MCTS，工业级多步合成规划
+- id: localretro
+  name: LocalRetro
+  full_name: 局部反应中心预测 (LocalRetro)
+  year: '2021'
+  org: MIT
+  paper_url: https://pubs.acs.org/doi/10.1021/jacsau.1c00173
+  category: retrosynthesis
+  parent: 3n_mcts
+  motivation: 预测局部反应中心简化搜索空间
+- id: graphretro
+  name: GraphRetro
+  full_name: 图半模板逆合成 (GraphRetro)
+  year: '2021'
+  org: Tsinghua University
+  paper_url: https://arxiv.org/abs/2006.15426
+  category: retrosynthesis
+  parent: 3n_mcts
+  motivation: 先预测合子再补全，提升复杂分子预测精度
+- id: synthegy
+  name: Synthegy
+  full_name: 自然语言引导逆合成 (Synthegy)
+  year: '2026.05'
+  org: EPFL
+  paper_url: https://www.sciencedaily.com/releases/2026/05/260506133400.htm
+  category: retrosynthesis
+  parent: aizynthfinder
+  motivation: LLM驱动自然语言战略引导，专家一致性71.2%
+- id: mosaic
+  name: MOSAIC
+  full_name: 自动实验方案生成平台 (MOSAIC)
+  year: '2026.01'
+  org: Yale / Boehringer Ingelheim
+  paper_url: https://news.yale.edu/2026/01/19/new-recipes-accelerating-chemistry-discoveries-dash-ai
+  category: retrosynthesis
+  parent: aizynthfinder
+  motivation: 导航百万反应协议，生成可操作实验室规程
+- id: jt_vae
+  name: JT-VAE
+  full_name: 连接树变分自编码器 (JT-VAE)
+  year: '2018'
+  org: MIT
+  paper_url: https://arxiv.org/abs/1802.04364
+  category: generation
+  parent: —
+  motivation: 先生成子结构再组装，实现100%化学合法性
+- id: reinvent4
+  name: REINVENT 4
+  full_name: 强化学习分子设计 (REINVENT 4)
+  year: '2024'
+  org: AstraZeneca
+  paper_url: https://link.springer.com/article/10.1186/s13321-024-00812-5
+  category: generation
+  parent: jt_vae
+  motivation: 集成Transformer和课程学习的多目标优化
+- id: geodiff
+  name: GeoDiff
+  full_name: 几何扩散模型 (GeoDiff)
+  year: '2022'
+  org: Stanford University
+  paper_url: https://arxiv.org/abs/2203.02923
+  category: generation
+  parent: jt_vae
+  motivation: 首个3D构象生成扩散模型
+- id: edm
+  name: EDM
+  full_name: 等变扩散模型 (EDM)
+  year: '2022'
+  org: University of Amsterdam
+  paper_url: https://arxiv.org/abs/2203.17003
+  category: generation
+  parent: geodiff
+  motivation: 原子类型与3D坐标联合等变生成
+- id: cocograph
+  name: CoCoGraph
+  full_name: 约束协作图扩散 (CoCoGraph)
+  year: '2026.05'
+  org: Universitat Rovira i Virgili
+  paper_url: https://www.thebrighterside.news/post/new-ai-tool-can-generate-millions-of-new-molecules
+  category: generation
+  parent: edm
+  motivation: 学习硬性规则，生成820万高真实感新分子
+- id: propmolflow
+  name: PropMolFlow
+  full_name: 物理启发多尺度流模型 (PropMolFlow)
+  year: '2026.04'
+  org: MIT
+  paper_url: https://www.earth.com/news/ai-predicts-how-molecules-react-in-the-lab-drug-discovery/
+  category: generation
+  parent: edm
+  motivation: 10倍速度提升，符合DFT物理约束
+- id: trajcast
+  name: TrajCast
+  full_name: 无力分子动力学 (TrajCast)
+  year: '2026.03'
+  org: University of Cambridge
+  paper_url: https://www.nature.com/articles/s42256-026-00000-0
+  category: generation
+  parent: edm
+  motivation: 等变MPNN自回归预测，无需计算原子力
+- id: oc20
+  name: OC20
+  full_name: 开放催化剂项目 (Open Catalyst 2020)
+  year: '2020'
+  org: Meta AI / CMU
+  paper_url: https://ai.meta.com/blog/open-catalyst-project-accelerating-renewable-energy-storage-with-ai/
+  category: catalyst
+  parent: —
+  motivation: 128万弛豫+2.65亿DFT点，催化剂AI基石
+- id: gemnet_oc
+  name: GemNet-OC
+  full_name: 催化剂优化GemNet (GemNet-OC)
+  year: '2021'
+  org: TU Munich / Meta AI
+  paper_url: https://arxiv.org/abs/2106.08903
+  category: catalyst
+  parent: oc20
+  motivation: OC20数据集上的高效几何GNN
+- id: equiformerv2
+  name: EquiformerV2
+  full_name: 等变Transformer V2 (EquiformerV2)
+  year: '2023'
+  org: Atomic Architects
+  paper_url: https://arxiv.org/abs/2306.12059
+  category: catalyst
+  parent: gemnet_oc
+  motivation: SE(3)等变图注意力，OC20 SOTA性能
+- id: equiformerv3
+  name: EquiformerV3
+  full_name: 等变Transformer V3 (EquiformerV3)
+  year: '2026.04'
+  org: Atomic Architects
+  paper_url: https://arxiv.org/abs/2604.09130
+  category: catalyst
+  parent: equiformerv2
+  motivation: 5.9倍训练效率提升，SwiGLU-S²激活函数
+- id: digcat
+  name: DigCat
+  full_name: 数字催化AI智能体 (DigCat)
+  year: '2026.02'
+  org: 东北大学
+  paper_url: https://www.miragenews.com/ai-identifies-key-characteristic-for-sustainable-fuel-catalysts/
+  category: catalyst
+  parent: oc20
+  motivation: 发现CO₂电还原铜基单原子合金设计原则
+- id: moleculenet
+  name: MoleculeNet
+  full_name: 分子性质预测基准 (MoleculeNet)
+  year: '2018'
+  org: Stanford University
+  paper_url: https://pubs.rsc.org/en/content/articlelanding/2018/sc/c7sc02664a
+  category: property
+  parent: —
+  motivation: 化学AI的ImageNet，多维度标准数据集
+- id: attentivefp
+  name: AttentiveFP
+  full_name: 注意力指纹网络 (AttentiveFP)
+  year: '2020'
+  org: Tencent AI Lab
+  paper_url: https://pubs.acs.org/doi/10.1021/acs.jmedchem.9b00959
+  category: property
+  parent: moleculenet
+  motivation: 双层注意力机制提升ADMET预测可解释性
+- id: admetpred
+  name: ADMETPred
+  full_name: 高通量ADMET预测平台 (ADMETPred)
+  year: '2026.03'
+  org: 中国科学院
+  paper_url: https://link.springer.com/article/10.1007/s11427-025-3166-8
+  category: property
+  parent: attentivefp
+  motivation: 集成多模型与可解释子结构识别
+graph:
+  nodes:
+  - id: mpnn
+    x: 50
+    y: 150
+    category: representation
+  - id: schnet
+    x: 100
+    y: 120
+    category: representation
+  - id: grover
+    x: 200
+    y: 180
+    category: representation
+  - id: dimenet
+    x: 250
+    y: 120
+    category: representation
+  - id: gemnet
+    x: 350
+    y: 120
+    category: representation
+  - id: unimol
+    x: 500
+    y: 140
+    category: representation
+  - id: mist
+    x: 700
+    y: 130
+    category: representation
+  - id: mattersim_mt
+    x: 720
+    y: 170
+    category: representation
+  - id: chemmlm
+    x: 680
+    y: 200
+    category: representation
+  - id: molecular_transformer
+    x: 100
+    y: 280
+    category: reaction
+  - id: flower
+    x: 600
+    y: 270
+    category: reaction
+  - id: reactome
+    x: 700
+    y: 300
+    category: reaction
+  - id: 3n_mcts
+    x: 100
+    y: 400
+    category: retrosynthesis
+  - id: aizynthfinder
+    x: 250
+    y: 380
+    category: retrosynthesis
+  - id: localretro
+    x: 350
+    y: 420
+    category: retrosynthesis
+  - id: graphretro
+    x: 350
+    y: 360
+    category: retrosynthesis
+  - id: synthegy
+    x: 650
+    y: 380
+    category: retrosynthesis
+  - id: mosaic
+    x: 700
+    y: 420
+    category: retrosynthesis
+  - id: jt_vae
+    x: 100
+    y: 530
+    category: generation
+  - id: reinvent4
+    x: 450
+    y: 550
+    category: generation
+  - id: geodiff
+    x: 300
+    y: 510
+    category: generation
+  - id: edm
+    x: 400
+    y: 500
+    category: generation
+  - id: cocograph
+    x: 650
+    y: 500
+    category: generation
+  - id: propmolflow
+    x: 680
+    y: 540
+    category: generation
+  - id: trajcast
+    x: 720
+    y: 480
+    category: generation
+  - id: oc20
+    x: 250
+    y: 640
+    category: catalyst
+  - id: gemnet_oc
+    x: 350
+    y: 630
+    category: catalyst
+  - id: equiformerv2
+    x: 500
+    y: 620
+    category: catalyst
+  - id: equiformerv3
+    x: 700
+    y: 610
+    category: catalyst
+  - id: digcat
+    x: 650
+    y: 660
+    category: catalyst
+  - id: moleculenet
+    x: 100
+    y: 730
+    category: property
+  - id: attentivefp
+    x: 250
+    y: 720
+    category: property
+  - id: admetpred
+    x: 700
+    y: 730
+    category: property
+  edges:
+  - from: mpnn
+    to: schnet
+    label: 连续滤波
+  - from: mpnn
+    to: grover
+    label: 预训练
+  - from: schnet
+    to: dimenet
+    label: 加入角度
+  - from: dimenet
+    to: gemnet
+    label: 二面角
+  - from: gemnet
+    to: unimol
+    label: 3D预训练
+  - from: unimol
+    to: mist
+    label: 基础模型
+  - from: unimol
+    to: mattersim_mt
+    label: 材料模拟
+  - from: grover
+    to: chemmlm
+    label: 多模态
+  - from: molecular_transformer
+    to: flower
+    label: 物理约束
+  - from: molecular_transformer
+    to: reactome
+    label: 药用数据
+  - from: 3n_mcts
+    to: aizynthfinder
+    label: 工业化
+  - from: 3n_mcts
+    to: localretro
+    label: 局部预测
+  - from: 3n_mcts
+    to: graphretro
+    label: 半模板
+  - from: aizynthfinder
+    to: synthegy
+    label: LLM引导
+  - from: aizynthfinder
+    to: mosaic
+    label: 实验方案
+  - from: jt_vae
+    to: reinvent4
+    label: 强化学习
+  - from: jt_vae
+    to: geodiff
+    label: 扩散模型
+  - from: geodiff
+    to: edm
+    label: 等变性
+  - from: edm
+    to: cocograph
+    label: 约束协作
+  - from: edm
+    to: propmolflow
+    label: 物理启发
+  - from: edm
+    to: trajcast
+    label: 无力MD
+  - from: oc20
+    to: gemnet_oc
+    label: 几何GNN
+  - from: gemnet_oc
+    to: equiformerv2
+    label: 等变注意力
+  - from: equiformerv2
+    to: equiformerv3
+    label: 效率优化
+  - from: oc20
+    to: digcat
+    label: AI智能体
+  - from: moleculenet
+    to: attentivefp
+    label: 注意力
+  - from: attentivefp
+    to: admetpred
+    label: 高通量
+  milestones:
+  - 3n_mcts
+  - oc20
+  - mist

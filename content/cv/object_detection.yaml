@@ -1,0 +1,342 @@
+page_meta:
+  domain: cv
+  topic_id: object_detection
+  topic_name: 目标检测
+  page_icon: 🎯
+  page_title: 目标检测算法技术演进
+  page_subtitle: '{build_date} 版'
+  page_desc: 从R-CNN到YOLO、从Anchor-based到Anchor-free、从CNN到Transformer的技术演进脉络，涵盖两阶段检测、单阶段检测、无锚点检测及Transformer检测四大范式的核心算法与最新进展
+  hero_pills: R-CNN系列 · YOLO系列 · DETR系列 · Anchor-free
+  count_pill: '{count} 个算法'
+categories:
+- key: two_stage
+  label: 两阶段检测器
+  color: '#3B82F6'
+- key: one_stage
+  label: 单阶段检测器
+  color: '#10B981'
+- key: anchor_free
+  label: 无锚点检测器
+  color: '#F59E0B'
+- key: transformer_based
+  label: Transformer检测器
+  color: '#8B5CF6'
+algorithms:
+- id: rcnn
+  name: R-CNN
+  full_name: 区域卷积神经网络 (Region-based CNN)
+  year: '2014'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/1311.2524
+  category: two_stage
+  parent: —
+  motivation: 首次将CNN引入目标检测
+- id: fast_rcnn
+  name: Fast R-CNN
+  full_name: 快速区域卷积神经网络 (Fast R-CNN)
+  year: '2015'
+  org: Microsoft Research
+  paper_url: https://arxiv.org/abs/1504.08083
+  category: two_stage
+  parent: rcnn
+  motivation: RoI Pooling实现整图单次特征提取
+- id: faster_rcnn
+  name: Faster R-CNN
+  full_name: 更快区域卷积神经网络 (Faster R-CNN)
+  year: '2015'
+  org: Microsoft Research
+  paper_url: https://arxiv.org/abs/1506.01497
+  category: two_stage
+  parent: fast_rcnn
+  motivation: RPN实现端到端训练
+- id: mask_rcnn
+  name: Mask R-CNN
+  full_name: 掩码区域卷积神经网络 (Mask R-CNN)
+  year: '2017'
+  org: FAIR
+  paper_url: https://arxiv.org/abs/1703.06870
+  category: two_stage
+  parent: faster_rcnn
+  motivation: RoI Align解决像素级对齐问题
+- id: yolov1
+  name: YOLOv1
+  full_name: 你只需要看一次v1 (You Only Look Once v1)
+  year: '2016'
+  org: 华盛顿大学
+  paper_url: https://arxiv.org/abs/1506.02640
+  category: one_stage
+  parent: —
+  motivation: 单网络直接回归边界框
+- id: ssd
+  name: SSD
+  full_name: 单次多框检测器 (Single Shot MultiBox Detector)
+  year: '2016'
+  org: UNC Chapel Hill
+  paper_url: https://arxiv.org/abs/1512.02325
+  category: one_stage
+  parent: yolov1
+  motivation: 多尺度特征图检测机制
+- id: yolov3
+  name: YOLOv3
+  full_name: 你只需要看一次v3 (You Only Look Once v3)
+  year: '2018'
+  org: 华盛顿大学
+  paper_url: https://arxiv.org/abs/1804.02767
+  category: one_stage
+  parent: yolov1
+  motivation: Darknet-53与多尺度预测
+- id: retinanet
+  name: RetinaNet
+  full_name: 视网膜网络 (RetinaNet)
+  year: '2017'
+  org: FAIR
+  paper_url: https://arxiv.org/abs/1708.02002
+  category: one_stage
+  parent: ssd
+  motivation: Focal Loss解决类别不平衡
+- id: yolov8
+  name: YOLOv8
+  full_name: 你只需要看一次v8 (You Only Look Once v8)
+  year: '2023'
+  org: Ultralytics
+  paper_url: https://docs.ultralytics.com/models/yolov8/
+  category: one_stage
+  parent: yolov3
+  motivation: Anchor-free与解耦检测头
+- id: yolov10
+  name: YOLOv10
+  full_name: 你只需要看一次v10 (You Only Look Once v10)
+  year: '2024'
+  org: 清华大学
+  paper_url: https://arxiv.org/abs/2405.14458
+  category: one_stage
+  parent: yolov8
+  motivation: NMS-Free一致性双重分配
+- id: yolov12
+  name: YOLOv12
+  full_name: 你只需要看一次v12 (You Only Look Once v12)
+  year: '2025'
+  org: sunsmarterjie
+  paper_url: https://github.com/sunsmarterjie/yolov12
+  category: one_stage
+  parent: yolov10
+  motivation: Area Attention与R-ELAN模块
+- id: yolo26
+  name: YOLO26
+  full_name: 你只需要看一次26 (You Only Look Once 26)
+  year: '2026.01'
+  org: Ultralytics
+  paper_url: https://docs.ultralytics.com/models/yolo26/
+  category: one_stage
+  parent: yolov12
+  motivation: NMS-Free原生推理与MuSGD优化
+- id: cornernet
+  name: CornerNet
+  full_name: 角点网络 (CornerNet)
+  year: '2018'
+  org: UT Austin
+  paper_url: https://arxiv.org/abs/1808.01244
+  category: anchor_free
+  parent: —
+  motivation: 利用角点对检测目标
+- id: centernet
+  name: CenterNet
+  full_name: 中心点网络 (CenterNet)
+  year: '2019'
+  org: UT Austin
+  paper_url: https://arxiv.org/abs/1904.07850
+  category: anchor_free
+  parent: cornernet
+  motivation: 将目标建模为中心点
+- id: fcos
+  name: FCOS
+  full_name: 全卷积单阶段检测器 (Fully Convolutional One-Stage)
+  year: '2019'
+  org: 阿德莱德大学
+  paper_url: https://arxiv.org/abs/1904.01355
+  category: anchor_free
+  parent: centernet
+  motivation: 逐像素预测与Center-ness分支
+- id: detr
+  name: DETR
+  full_name: 检测Transformer (Detection Transformer)
+  year: '2020'
+  org: FAIR
+  paper_url: https://arxiv.org/abs/2005.12872
+  category: transformer_based
+  parent: —
+  motivation: Transformer实现端到端检测
+- id: deformable_detr
+  name: Deformable DETR
+  full_name: 可变形检测Transformer (Deformable DETR)
+  year: '2021'
+  org: 商汤科技
+  paper_url: https://arxiv.org/abs/2010.04159
+  category: transformer_based
+  parent: detr
+  motivation: 多尺度可变形注意力加速收敛
+- id: dino
+  name: DINO
+  full_name: 带去噪锚框的改进DETR (DETR with Improved Denoising)
+  year: '2022'
+  org: IDEA
+  paper_url: https://arxiv.org/abs/2203.03605
+  category: transformer_based
+  parent: deformable_detr
+  motivation: 对比去噪训练提升性能
+- id: rt_detr
+  name: RT-DETR
+  full_name: 实时检测Transformer (Real-Time Detection Transformer)
+  year: '2023'
+  org: 百度
+  paper_url: https://arxiv.org/abs/2304.08069
+  category: transformer_based
+  parent: dino
+  motivation: 首个实时Transformer检测器
+- id: rf_detr
+  name: RF-DETR
+  full_name: Roboflow检测Transformer (Roboflow Detection Transformer)
+  year: '2025'
+  org: Roboflow
+  paper_url: https://arxiv.org/abs/2511.09554
+  category: transformer_based
+  parent: rt_detr
+  motivation: NAS优化首破60mAP大关
+graph:
+  nodes:
+  - id: rcnn
+    x: 0
+    y: 100
+    category: two_stage
+  - id: fast_rcnn
+    x: 100
+    y: 100
+    category: two_stage
+  - id: faster_rcnn
+    x: 100
+    y: 100
+    category: two_stage
+  - id: mask_rcnn
+    x: 300
+    y: 100
+    category: two_stage
+  - id: yolov1
+    x: 200
+    y: 250
+    category: one_stage
+  - id: ssd
+    x: 200
+    y: 250
+    category: one_stage
+  - id: yolov3
+    x: 400
+    y: 250
+    category: one_stage
+  - id: retinanet
+    x: 300
+    y: 250
+    category: one_stage
+  - id: yolov8
+    x: 900
+    y: 250
+    category: one_stage
+  - id: yolov10
+    x: 1000
+    y: 250
+    category: one_stage
+  - id: yolov12
+    x: 1100
+    y: 250
+    category: one_stage
+  - id: yolo26
+    x: 1200
+    y: 250
+    category: one_stage
+  - id: cornernet
+    x: 400
+    y: 400
+    category: anchor_free
+  - id: centernet
+    x: 500
+    y: 400
+    category: anchor_free
+  - id: fcos
+    x: 500
+    y: 400
+    category: anchor_free
+  - id: detr
+    x: 600
+    y: 550
+    category: transformer_based
+  - id: deformable_detr
+    x: 700
+    y: 550
+    category: transformer_based
+  - id: dino
+    x: 800
+    y: 550
+    category: transformer_based
+  - id: rt_detr
+    x: 900
+    y: 550
+    category: transformer_based
+  - id: rf_detr
+    x: 1100
+    y: 550
+    category: transformer_based
+  edges:
+  - from: rcnn
+    to: fast_rcnn
+    label: RoI池化
+  - from: fast_rcnn
+    to: faster_rcnn
+    label: 引入RPN
+  - from: faster_rcnn
+    to: mask_rcnn
+    label: 增加分割头
+  - from: yolov1
+    to: ssd
+    label: 多尺度特征
+  - from: yolov1
+    to: yolov3
+    label: 深度骨干
+  - from: ssd
+    to: retinanet
+    label: Focal Loss
+  - from: retinanet
+    to: fcos
+    label: 逐像素预测
+  - from: cornernet
+    to: centernet
+    label: 中心点建模
+  - from: centernet
+    to: fcos
+    label: Center-ness
+  - from: detr
+    to: deformable_detr
+    label: 可变形注意力
+  - from: deformable_detr
+    to: dino
+    label: 对比去噪
+  - from: dino
+    to: rt_detr
+    label: 实时化
+  - from: rt_detr
+    to: rf_detr
+    label: NAS优化
+  - from: yolov3
+    to: yolov8
+    label: Anchor-free
+  - from: yolov8
+    to: yolov10
+    label: NMS消除
+  - from: yolov10
+    to: yolov12
+    label: 注意力增强
+  - from: yolov12
+    to: yolo26
+    label: 边缘优化
+  milestones:
+  - faster_rcnn
+  - detr
+  - rf_detr

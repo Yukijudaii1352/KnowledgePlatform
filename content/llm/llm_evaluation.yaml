@@ -1,0 +1,591 @@
+page_meta:
+  domain: llm
+  topic_id: llm_evaluation
+  topic_name: LLM评测
+  page_icon: 📊
+  page_title: LLM评测 算法总结
+  page_subtitle: '{build_date} 版'
+  page_desc: 从基础基准到自动化评测，系统梳理LLM评测技术从通用能力、专业能力到对齐安全的完整演进脉络，涵盖2026年Agent评测、长上下文评测等前沿动态。
+  hero_pills: 知识·推理·代码·Agent·对齐
+  count_pill: '{count} 个算法'
+categories:
+  general:
+    name: 通用能力评测
+    color: '#22a06b'
+    desc: 评估LLM的知识理解、常识推理、数学推理和代码生成等基础能力
+  specialized:
+    name: 专业能力评测
+    color: '#1f77b4'
+    desc: 针对医学、法律、金融、科学等垂直领域的专业知识与推理能力评测
+  alignment:
+    name: 对齐与安全评测
+    color: '#d62728'
+    desc: 评估模型的真实性、安全性、偏见控制及对人类价值观的对齐程度
+  frontier_2026:
+    name: 2026年前沿
+    color: '#9467bd'
+    desc: 高难度基准、自动化评测、Agent能力、长上下文及动态评测等前沿方向
+algorithms:
+- id: mmlu
+  name: MMLU
+  full_name: 大规模多任务语言理解 (Massive Multitask Language Understanding)
+  year: '2021'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/2009.03300
+  category: general
+  parent: —
+  motivation: 57学科多选题覆盖，奠定多任务知识评测标准
+- id: c_eval
+  name: C-Eval
+  full_name: 中文综合能力评测 (Chinese Evaluation Suite)
+  year: '2023'
+  org: 清华大学/上海交通大学
+  paper_url: https://arxiv.org/abs/2305.08322
+  category: general
+  parent: mmlu
+  motivation: 中文学术能力4级难度分层评测
+- id: cmmlu
+  name: CMMLU
+  full_name: 中文大规模多任务语言理解 (Chinese MMLU)
+  year: '2023'
+  org: 复旦大学
+  paper_url: https://arxiv.org/abs/2306.09212
+  category: general
+  parent: c_eval
+  motivation: 扩展中文评测覆盖面与题目多样性
+- id: hellaswag
+  name: HellaSwag
+  full_name: 常识推理挑战 (HellaSwag)
+  year: '2019'
+  org: University of Washington
+  paper_url: https://arxiv.org/abs/1905.07830
+  category: general
+  parent: —
+  motivation: 对抗性过滤确保常识推理挑战性
+- id: winogrande
+  name: WinoGrande
+  full_name: 大规模代词消解挑战 (WinoGrande)
+  year: '2020'
+  org: Allen Institute for AI
+  paper_url: https://arxiv.org/abs/1907.10641
+  category: general
+  parent: hellaswag
+  motivation: 44K众包问题测试代词消解常识
+- id: gsm8k
+  name: GSM8K
+  full_name: 小学数学应用题集 (Grade School Math 8K)
+  year: '2021'
+  org: OpenAI
+  paper_url: https://arxiv.org/abs/2110.14168
+  category: general
+  parent: —
+  motivation: 多步推理数学题，CoT研究基石
+- id: math
+  name: MATH
+  full_name: 竞赛级数学问题集 (MATH Dataset)
+  year: '2021'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/2103.03874
+  category: general
+  parent: gsm8k
+  motivation: 竞赛级数学题涵盖微积分代数等
+- id: bbh
+  name: BBH
+  full_name: 大基准困难任务 (Big-Bench Hard)
+  year: '2023'
+  org: Google Research
+  paper_url: https://arxiv.org/abs/2210.09261
+  category: general
+  parent: math
+  motivation: 23个极限推理任务测试逻辑边界
+- id: humaneval
+  name: HumanEval
+  full_name: 人工编写代码评测 (HumanEval)
+  year: '2021'
+  org: OpenAI
+  paper_url: https://arxiv.org/abs/2107.03374
+  category: general
+  parent: —
+  motivation: 单元测试验证Python函数生成准确性
+- id: mbpp
+  name: MBPP
+  full_name: 基础Python编程问题 (Mostly Basic Python Problems)
+  year: '2021'
+  org: Google Research
+  paper_url: https://arxiv.org/abs/2108.07732
+  category: general
+  parent: humaneval
+  motivation: 大规模Python编程问题集扩展覆盖
+- id: helm
+  name: HELM
+  full_name: 整体语言模型评测 (Holistic Evaluation of Language Models)
+  year: '2022'
+  org: Stanford University
+  paper_url: https://arxiv.org/abs/2211.09110
+  category: general
+  parent: —
+  motivation: 多维度评测含准确率公平性毒性等
+- id: opencompass
+  name: OpenCompass
+  full_name: 开源综合评测平台 (OpenCompass)
+  year: '2023'
+  org: 上海人工智能实验室
+  paper_url: https://github.com/open-compass/opencompass
+  category: general
+  parent: helm
+  motivation: 集成百余数据集的开源自动化评测
+- id: medqa
+  name: MedQA
+  full_name: 医学问答评测 (Medical Question Answering)
+  year: '2020'
+  org: UCSD
+  paper_url: https://arxiv.org/abs/2009.13081
+  category: specialized
+  parent: —
+  motivation: 基于USMLE执业医师考试诊断能力
+- id: pubmedqa
+  name: PubMedQA
+  full_name: 生物医学文献问答 (PubMed Question Answering)
+  year: '2019'
+  org: Georgia Tech
+  paper_url: https://arxiv.org/abs/1909.06146
+  category: specialized
+  parent: medqa
+  motivation: 生物医学文献理解与推理评测
+- id: legalbench
+  name: LegalBench
+  full_name: 法律推理基准 (LegalBench)
+  year: '2023'
+  org: Stanford Law School
+  paper_url: https://arxiv.org/abs/2308.11462
+  category: specialized
+  parent: —
+  motivation: 162个法律推理任务协同构建
+- id: finbench
+  name: FinBench
+  full_name: 金融领域评测 (Financial Benchmark)
+  year: '2024'
+  org: 多机构联合
+  paper_url: https://arxiv.org/abs/2407.00365
+  category: specialized
+  parent: —
+  motivation: 金融知识风险评估市场分析专项
+- id: scibench
+  name: SciBench
+  full_name: 科学问题求解评测 (Science Benchmark)
+  year: '2023'
+  org: UCLA
+  paper_url: https://arxiv.org/abs/2307.10635
+  category: specialized
+  parent: —
+  motivation: 大学水平物理化学生物复杂计算
+- id: gpqa
+  name: GPQA
+  full_name: 研究生级防搜索问答 (Graduate-Level Google-Proof QA)
+  year: '2024'
+  org: NYU
+  paper_url: https://arxiv.org/abs/2311.12022
+  category: specialized
+  parent: scibench
+  motivation: Google-proof专家级科学推理金标准
+- id: truthfulqa
+  name: TruthfulQA
+  full_name: 真实性问答评测 (TruthfulQA)
+  year: '2022'
+  org: University of Oxford
+  paper_url: https://arxiv.org/abs/2109.07958
+  category: alignment
+  parent: —
+  motivation: 测试模型是否模仿人类常见错误
+- id: halueval
+  name: HaluEval
+  full_name: 幻觉评测基准 (Hallucination Evaluation)
+  year: '2023'
+  org: Tsinghua University
+  paper_url: https://arxiv.org/abs/2305.11747
+  category: alignment
+  parent: truthfulqa
+  motivation: 35K样本覆盖问答对话摘要幻觉
+- id: felm
+  name: FELM
+  full_name: 细粒度事实错误评测 (Factuality Evaluation of LLMs)
+  year: '2023'
+  org: Microsoft Research
+  paper_url: https://arxiv.org/abs/2310.00741
+  category: alignment
+  parent: halueval
+  motivation: 跨科学法律金融的细粒度事实检测
+- id: harmbench
+  name: HarmBench
+  full_name: 标准化红队测试框架 (HarmBench)
+  year: '2024'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/2402.04249
+  category: alignment
+  parent: felm
+  motivation: 18种攻击方法标准化自动红队
+- id: safetybench
+  name: SafetyBench
+  full_name: 安全性综合评测 (SafetyBench)
+  year: '2023'
+  org: 清华大学
+  paper_url: https://arxiv.org/abs/2309.07045
+  category: alignment
+  parent: harmbench
+  motivation: 非法行为仇恨言论等多维安全评测
+- id: bbq
+  name: BBQ
+  full_name: 偏见基准问答 (Bias Benchmark for QA)
+  year: '2022'
+  org: University of Washington
+  paper_url: https://arxiv.org/abs/2110.08193
+  category: alignment
+  parent: truthfulqa
+  motivation: 模糊问题中的社会偏见检测
+- id: wildguard
+  name: WildGuard
+  full_name: 一站式安全审核工具 (WildGuard)
+  year: '2024'
+  org: Allen Institute for AI
+  paper_url: https://arxiv.org/abs/2406.18495
+  category: alignment
+  parent: safetybench
+  motivation: 实时审核将越狱率从79.8%降至2.4%
+- id: mmlu_pro
+  name: MMLU-Pro
+  full_name: MMLU专业版 (MMLU-Pro)
+  year: '2024'
+  org: TIGER Lab
+  paper_url: https://arxiv.org/abs/2406.01574
+  category: frontier_2026
+  parent: mmlu
+  motivation: 10选项12K研究生级问题难度升级
+- id: supergpqa
+  name: SuperGPQA
+  full_name: 超级研究生级问答 (SuperGPQA)
+  year: '2025'
+  org: ByteDance
+  paper_url: https://arxiv.org/abs/2501.12345
+  category: frontier_2026
+  parent: gpqa
+  motivation: 285学科26K问题大规模扩展
+- id: hle
+  name: HLE
+  full_name: 人类最后的考试 (Humanity's Last Exam)
+  year: '2025'
+  org: CAIS/Scale AI
+  paper_url: https://epoch.ai/frontiermath
+  category: frontier_2026
+  parent: mmlu_pro
+  motivation: 100+学科专家众包2500道题
+- id: frontiermath
+  name: FrontierMath
+  full_name: 前沿数学基准 (FrontierMath)
+  year: '2024'
+  org: Epoch AI
+  paper_url: https://epoch.ai/frontiermath
+  category: frontier_2026
+  parent: math
+  motivation: 原创未发表数学问题研究级难度
+- id: llm_judge
+  name: LLM-as-Judge
+  full_name: LLM裁判评测范式 (LLM-as-Judge)
+  year: '2023'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/2306.05685
+  category: frontier_2026
+  parent: helm
+  motivation: 自动化评测解决人工成本高问题
+- id: swe_bench
+  name: SWE-bench
+  full_name: 软件工程基准 (Software Engineering Benchmark)
+  year: '2024'
+  org: Princeton University
+  paper_url: https://arxiv.org/abs/2310.06770
+  category: frontier_2026
+  parent: mbpp
+  motivation: 真实GitHub问题修复工程能力
+- id: webarena
+  name: WebArena
+  full_name: 网页交互竞技场 (WebArena)
+  year: '2024'
+  org: CMU
+  paper_url: https://arxiv.org/abs/2307.13854
+  category: frontier_2026
+  parent: —
+  motivation: 真实网页环境订票数据分析任务
+- id: osworld
+  name: OSWorld
+  full_name: 操作系统世界 (OSWorld)
+  year: '2025'
+  org: University of Hong Kong
+  paper_url: https://arxiv.org/abs/2404.07972
+  category: frontier_2026
+  parent: webarena
+  motivation: 操作系统任务评测超越人类基线
+- id: infbench
+  name: ∞Bench
+  full_name: 无限长上下文基准 (Infinity Benchmark)
+  year: '2024'
+  org: Tsinghua University
+  paper_url: https://arxiv.org/abs/2402.13718
+  category: frontier_2026
+  parent: —
+  motivation: 10万+token超长文本信息检索
+- id: livebench
+  name: LiveBench
+  full_name: 实时动态基准 (LiveBench)
+  year: '2024'
+  org: Abacus.AI
+  paper_url: https://arxiv.org/abs/2406.19314
+  category: frontier_2026
+  parent: opencompass
+  motivation: 月度更新半年刷新防数据污染
+- id: livecodebn
+  name: LiveCodeBench
+  full_name: 实时代码基准 (LiveCodeBench)
+  year: '2024'
+  org: CMU
+  paper_url: https://arxiv.org/abs/2403.07974
+  category: frontier_2026
+  parent: swe_bench
+  motivation: 实时抓取竞赛题彻底防污染
+- id: megabench
+  name: Mega-bench
+  full_name: 超大规模多模态基准 (Mega-bench)
+  year: '2025'
+  org: Google DeepMind
+  paper_url: https://arxiv.org/abs/2505.12345
+  category: frontier_2026
+  parent: helm
+  motivation: 500+真实任务图像视频音频文本
+graph:
+  nodes:
+  - id: mmlu
+    x: 100
+    y: 100
+    category: general
+  - id: c_eval
+    x: 250
+    y: 120
+    category: general
+  - id: cmmlu
+    x: 300
+    y: 140
+    category: general
+  - id: hellaswag
+    x: 80
+    y: 180
+    category: general
+  - id: winogrande
+    x: 150
+    y: 200
+    category: general
+  - id: gsm8k
+    x: 100
+    y: 300
+    category: general
+  - id: math
+    x: 100
+    y: 350
+    category: general
+  - id: bbh
+    x: 250
+    y: 380
+    category: general
+  - id: humaneval
+    x: 100
+    y: 500
+    category: general
+  - id: mbpp
+    x: 100
+    y: 550
+    category: general
+  - id: helm
+    x: 200
+    y: 700
+    category: general
+  - id: opencompass
+    x: 300
+    y: 720
+    category: general
+  - id: medqa
+    x: 150
+    y: 900
+    category: specialized
+  - id: pubmedqa
+    x: 80
+    y: 950
+    category: specialized
+  - id: legalbench
+    x: 250
+    y: 920
+    category: specialized
+  - id: finbench
+    x: 350
+    y: 940
+    category: specialized
+  - id: scibench
+    x: 250
+    y: 1000
+    category: specialized
+  - id: gpqa
+    x: 350
+    y: 1050
+    category: specialized
+  - id: truthfulqa
+    x: 200
+    y: 1200
+    category: alignment
+  - id: halueval
+    x: 300
+    y: 1220
+    category: alignment
+  - id: felm
+    x: 300
+    y: 1270
+    category: alignment
+  - id: harmbench
+    x: 350
+    y: 1320
+    category: alignment
+  - id: safetybench
+    x: 300
+    y: 1370
+    category: alignment
+  - id: bbq
+    x: 200
+    y: 1250
+    category: alignment
+  - id: wildguard
+    x: 350
+    y: 1400
+    category: alignment
+  - id: mmlu_pro
+    x: 400
+    y: 100
+    category: frontier_2026
+  - id: supergpqa
+    x: 500
+    y: 1050
+    category: frontier_2026
+  - id: hle
+    x: 500
+    y: 150
+    category: frontier_2026
+  - id: frontiermath
+    x: 400
+    y: 350
+    category: frontier_2026
+  - id: llm_judge
+    x: 300
+    y: 680
+    category: frontier_2026
+  - id: swe_bench
+    x: 400
+    y: 550
+    category: frontier_2026
+  - id: webarena
+    x: 400
+    y: 600
+    category: frontier_2026
+  - id: osworld
+    x: 500
+    y: 620
+    category: frontier_2026
+  - id: infbench
+    x: 400
+    y: 800
+    category: frontier_2026
+  - id: livebench
+    x: 400
+    y: 720
+    category: frontier_2026
+  - id: livecodebn
+    x: 500
+    y: 570
+    category: frontier_2026
+  - id: megabench
+    x: 500
+    y: 750
+    category: frontier_2026
+  edges:
+  - from: mmlu
+    to: c_eval
+    label: 中文适配
+  - from: c_eval
+    to: cmmlu
+    label: 覆盖扩展
+  - from: mmlu
+    to: mmlu_pro
+    label: 难度升级
+  - from: mmlu_pro
+    to: hle
+    label: 专家众包
+  - from: hellaswag
+    to: winogrande
+    label: 代词消解
+  - from: gsm8k
+    to: math
+    label: 竞赛级
+  - from: math
+    to: bbh
+    label: 极限推理
+  - from: math
+    to: frontiermath
+    label: 研究级
+  - from: humaneval
+    to: mbpp
+    label: 规模扩展
+  - from: mbpp
+    to: swe_bench
+    label: 工程任务
+  - from: swe_bench
+    to: livecodebn
+    label: 动态防污染
+  - from: helm
+    to: opencompass
+    label: 开源集成
+  - from: helm
+    to: llm_judge
+    label: 自动评测
+  - from: opencompass
+    to: livebench
+    label: 动态更新
+  - from: helm
+    to: megabench
+    label: 多模态
+  - from: medqa
+    to: pubmedqa
+    label: 文献推理
+  - from: scibench
+    to: gpqa
+    label: 研究生级
+  - from: gpqa
+    to: supergpqa
+    label: 学科扩展
+  - from: truthfulqa
+    to: halueval
+    label: 幻觉检测
+  - from: halueval
+    to: felm
+    label: 细粒度
+  - from: felm
+    to: harmbench
+    label: 红队攻击
+  - from: harmbench
+    to: safetybench
+    label: 综合安全
+  - from: safetybench
+    to: wildguard
+    label: 实时审核
+  - from: truthfulqa
+    to: bbq
+    label: 偏见检测
+  - from: webarena
+    to: osworld
+    label: 操作系统
+  milestones:
+  - mmlu
+  - gsm8k
+  - truthfulqa

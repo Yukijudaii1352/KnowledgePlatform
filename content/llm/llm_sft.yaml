@@ -1,0 +1,389 @@
+page_icon: 🎯
+page_title: LLM监督微调 算法总结
+page_subtitle: '{build_date} 版'
+page_desc: 概述从指令微调到参数高效微调(LoRA/QLoRA)的技术演进，涵盖经典方法与2026年最新进展
+hero_pills: 指令微调 · 参数高效微调 · LoRA系列 · 2026前沿
+count_pill: '{count} 个算法'
+categories:
+- key: instruction
+  label: 指令微调
+  color: '#3B82F6'
+- key: peft
+  label: 参数高效微调
+  color: '#10B981'
+- key: multitask
+  label: 多任务SFT
+  color: '#F59E0B'
+- key: frontier
+  label: 2026前沿进展
+  color: '#EF4444'
+algorithms:
+- id: flan
+  name: FLAN
+  full_name: 指令微调 (Finetuned Language Models)
+  year: '2021.09'
+  org: Google Research
+  paper_url: https://arxiv.org/abs/2109.01652
+  category: instruction
+  parent: —
+  motivation: 将60+任务转为指令模板实现零样本泛化
+- id: t0
+  name: T0
+  full_name: 多任务提示训练 (T0)
+  year: '2021.10'
+  org: BigScience
+  paper_url: https://arxiv.org/abs/2110.08207
+  category: instruction
+  parent: flan
+  motivation: PromptSource大规模提示训练
+- id: instructgpt
+  name: InstructGPT
+  full_name: 指令GPT (InstructGPT)
+  year: '2022.03'
+  org: OpenAI
+  paper_url: https://arxiv.org/abs/2203.02155
+  category: instruction
+  parent: flan
+  motivation: 引入RLHF框架对齐人类偏好
+- id: self_instruct
+  name: Self-Instruct
+  full_name: 自指令 (Self-Instruct)
+  year: '2022.12'
+  org: University of Washington
+  paper_url: https://arxiv.org/abs/2212.10560
+  category: instruction
+  parent: flan
+  motivation: 利用模型自身生成指令数据迭代微调
+- id: alpaca
+  name: Alpaca
+  full_name: 羊驼 (Alpaca)
+  year: '2023.03'
+  org: Stanford University
+  paper_url: https://github.com/tatsu-lab/stanford_alpaca
+  category: instruction
+  parent: self_instruct
+  motivation: 低成本(<$600)训练高性能指令模型
+- id: adapter
+  name: Adapter
+  full_name: 适配器 (Adapter)
+  year: '2019.06'
+  org: Google Research
+  paper_url: http://proceedings.mlr.press/v97/houlsby19a.html
+  category: peft
+  parent: —
+  motivation: 插入瓶颈层实现模块化迁移学习
+- id: prefix_tuning
+  name: Prefix-Tuning
+  full_name: 前缀调优 (Prefix-Tuning)
+  year: '2021.05'
+  org: Stanford University
+  paper_url: https://arxiv.org/abs/2101.00190
+  category: peft
+  parent: adapter
+  motivation: 优化连续前缀向量引导生成
+- id: prompt_tuning
+  name: Prompt Tuning
+  full_name: 提示调优 (Prompt Tuning)
+  year: '2021.09'
+  org: Google Research
+  paper_url: https://aclanthology.org/2021.emnlp-main.243/
+  category: peft
+  parent: prefix_tuning
+  motivation: 仅调优输入向量匹配全量微调性能
+- id: p_tuning
+  name: P-Tuning
+  full_name: P调优 (P-Tuning)
+  year: '2021'
+  org: Tsinghua University
+  paper_url: https://arxiv.org/abs/2103.10385
+  category: peft
+  parent: prefix_tuning
+  motivation: 连续嵌入替代离散提示优化
+- id: p_tuning_v2
+  name: P-Tuning v2
+  full_name: P调优v2 (P-Tuning v2)
+  year: '2022.05'
+  org: Tsinghua University
+  paper_url: https://aclanthology.org/2022.acl-short.8/
+  category: peft
+  parent: p_tuning
+  motivation: 跨规模通用NLU任务适配
+- id: lora
+  name: LoRA
+  full_name: 低秩适配 (Low-Rank Adaptation)
+  year: '2022.01'
+  org: Microsoft
+  paper_url: https://arxiv.org/abs/2106.09685
+  category: peft
+  parent: adapter
+  motivation: 低秩分解消除推理延迟大幅减少显存
+- id: adalora
+  name: AdaLoRA
+  full_name: 自适应低秩适配 (AdaLoRA)
+  year: '2023.03'
+  org: Georgia Tech
+  paper_url: https://arxiv.org/abs/2303.10512
+  category: peft
+  parent: lora
+  motivation: SVD动态分配参数预算优化性能
+- id: qlora
+  name: QLoRA
+  full_name: 量化低秩适配 (QLoRA)
+  year: '2023.05'
+  org: University of Washington
+  paper_url: https://arxiv.org/abs/2305.14314
+  category: peft
+  parent: lora
+  motivation: 4-bit量化实现单卡微调65B模型
+- id: dora
+  name: DoRA
+  full_name: 权重分解低秩适配 (DoRA)
+  year: '2024.02'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/2402.09353
+  category: peft
+  parent: lora
+  motivation: 幅值方向分解缩小与全参微调差距
+- id: galore
+  name: GaLore
+  full_name: 梯度低秩投影 (GaLore)
+  year: '2024.03'
+  org: UT Austin
+  paper_url: https://arxiv.org/abs/2403.03507
+  category: peft
+  parent: lora
+  motivation: 梯度投影减少80%优化器显存
+- id: vera
+  name: VeRA
+  full_name: 向量随机矩阵适配 (VeRA)
+  year: '2024.05'
+  org: University of Amsterdam
+  paper_url: https://arxiv.org/abs/2310.11454
+  category: peft
+  parent: lora
+  motivation: 冻结共享矩阵减少10倍参数量
+- id: flan_t5
+  name: FLAN-T5
+  full_name: 指令微调T5 (FLAN-T5)
+  year: '2023.02'
+  org: Google Research
+  paper_url: https://arxiv.org/abs/2210.11416
+  category: multitask
+  parent: flan
+  motivation: 1.8K任务+CoT数据混合训练
+- id: selective_reflection
+  name: Selective Reflection-Tuning
+  full_name: 选择性反思微调 (Selective Reflection-Tuning)
+  year: '2026.01'
+  org: Tsinghua University
+  paper_url: https://arxiv.org/abs/2402.10110
+  category: frontier
+  parent: self_instruct
+  motivation: 学生模型自主选择高质量数据
+- id: llamoco
+  name: Llamoco
+  full_name: 优化代码指令微调 (Llamoco)
+  year: '2026.01'
+  org: Peking University
+  paper_url: https://ieeexplore.ieee.org/abstract/document/11359290/
+  category: frontier
+  parent: flan_t5
+  motivation: 减少代码生成特征层面混淆
+- id: lora_e2
+  name: LoRA-E2
+  full_name: 高效低秩适配E2 (LoRA-E2)
+  year: '2026.01'
+  org: Alibaba
+  paper_url: https://dl.acm.org/doi/abs/10.1145/3774904.3792500
+  category: frontier
+  parent: dora
+  motivation: 正则化优化稳定训练超越DoRA
+- id: sfed_lora
+  name: SFed-LoRA
+  full_name: 联邦学习低秩适配 (SFed-LoRA)
+  year: '2026.03'
+  org: HKU
+  paper_url: https://arxiv.org/abs/2603.08058
+  category: frontier
+  parent: lora
+  motivation: 缩放因子缓解联邦学习秩不匹配
+- id: bladelora
+  name: BladeLoRA
+  full_name: 刀片式低秩适配 (BladeLoRA)
+  year: '2025.01'
+  org: ByteDance
+  paper_url: https://arxiv.org/abs/2501.02245
+  category: frontier
+  parent: adalora
+  motivation: 自适应秩选择与剪枝提升效率
+- id: lora2
+  name: LoRA2
+  full_name: 多尺度低秩近似 (LoRA2)
+  year: '2025.01'
+  org: Nanjing University
+  paper_url: https://www.sciencedirect.com/science/article/pii/S0925231225015310
+  category: frontier
+  parent: lora
+  motivation: 多尺度低秩应对复杂任务需求
+graph:
+  nodes:
+  - id: flan
+    x: 100
+    y: 50
+    category: instruction
+  - id: t0
+    x: 150
+    y: 80
+    category: instruction
+  - id: instructgpt
+    x: 200
+    y: 50
+    category: instruction
+  - id: self_instruct
+    x: 250
+    y: 80
+    category: instruction
+  - id: alpaca
+    x: 300
+    y: 100
+    category: instruction
+  - id: adapter
+    x: 50
+    y: 150
+    category: peft
+  - id: prefix_tuning
+    x: 120
+    y: 170
+    category: peft
+  - id: prompt_tuning
+    x: 150
+    y: 190
+    category: peft
+  - id: p_tuning
+    x: 130
+    y: 150
+    category: peft
+  - id: p_tuning_v2
+    x: 180
+    y: 150
+    category: peft
+  - id: lora
+    x: 180
+    y: 240
+    category: peft
+  - id: adalora
+    x: 280
+    y: 220
+    category: peft
+  - id: qlora
+    x: 300
+    y: 250
+    category: peft
+  - id: dora
+    x: 350
+    y: 230
+    category: peft
+  - id: galore
+    x: 350
+    y: 270
+    category: peft
+  - id: vera
+    x: 380
+    y: 250
+    category: peft
+  - id: flan_t5
+    x: 300
+    y: 50
+    category: multitask
+  - id: selective_reflection
+    x: 450
+    y: 80
+    category: frontier
+  - id: llamoco
+    x: 450
+    y: 50
+    category: frontier
+  - id: lora_e2
+    x: 480
+    y: 230
+    category: frontier
+  - id: sfed_lora
+    x: 500
+    y: 260
+    category: frontier
+  - id: bladelora
+    x: 450
+    y: 220
+    category: frontier
+  - id: lora2
+    x: 480
+    y: 280
+    category: frontier
+  edges:
+  - from: flan
+    to: t0
+    label: 提示工程
+  - from: flan
+    to: instructgpt
+    label: 引入RLHF
+  - from: flan
+    to: self_instruct
+    label: 自举生成
+  - from: self_instruct
+    to: alpaca
+    label: 低成本复现
+  - from: flan
+    to: flan_t5
+    label: 扩展任务
+  - from: adapter
+    to: prefix_tuning
+    label: 连续优化
+  - from: prefix_tuning
+    to: prompt_tuning
+    label: 简化结构
+  - from: prefix_tuning
+    to: p_tuning
+    label: 嵌入替代
+  - from: p_tuning
+    to: p_tuning_v2
+    label: 跨规模
+  - from: adapter
+    to: lora
+    label: 低秩分解
+  - from: lora
+    to: adalora
+    label: 动态秩
+  - from: lora
+    to: qlora
+    label: 量化压缩
+  - from: lora
+    to: dora
+    label: 权重分解
+  - from: lora
+    to: galore
+    label: 梯度投影
+  - from: lora
+    to: vera
+    label: 共享矩阵
+  - from: self_instruct
+    to: selective_reflection
+    label: 数据筛选
+  - from: flan_t5
+    to: llamoco
+    label: 代码优化
+  - from: dora
+    to: lora_e2
+    label: 正则优化
+  - from: lora
+    to: sfed_lora
+    label: 联邦适配
+  - from: adalora
+    to: bladelora
+    label: 剪枝加速
+  - from: lora
+    to: lora2
+    label: 多尺度
+  milestones:
+  - flan
+  - lora
+  - instructgpt

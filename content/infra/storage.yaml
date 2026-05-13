@@ -1,0 +1,476 @@
+domain: infra
+topic_id: storage
+topic_name: AI存储系统
+page_icon: 💾
+page_title: AI存储系统技术演进
+page_subtitle: '{build_date}版'
+page_desc: 从GFS奠基到大模型时代的存储优化——涵盖大规模训练数据存储、高速缓存、Checkpoint优化与分布式文件系统的技术演进
+hero_pills:
+- 🏷️ AI Storage
+- Checkpoint
+- Distributed FS
+- Data Loading
+count_pill: '{count}个算法'
+categories:
+  foundation:
+    label: 奠基系统
+    color: '#4A90D9'
+  distributed_fs:
+    label: 分布式文件系统
+    color: '#50C878'
+  object_storage:
+    label: 对象与云原生存储
+    color: '#9B59B6'
+  checkpoint:
+    label: 检查点优化
+    color: '#E74C3C'
+  cache:
+    label: 高速缓存与数据加载
+    color: '#F39C12'
+  emerging:
+    label: 2026前沿技术
+    color: '#1ABC9C'
+algorithms:
+- id: gfs
+  name: GFS
+  full_name: 谷歌文件系统 (Google File System)
+  year: '2003'
+  org: Google
+  paper_url: https://research.google/pubs/pub51/
+  category: foundation
+  parent: —
+  motivation: 大规模廉价硬件上的可靠存储
+- id: hdfs
+  name: HDFS
+  full_name: Hadoop分布式文件系统 (Hadoop Distributed File System)
+  year: '2006'
+  org: Apache
+  paper_url: https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/HdfsDesign.html
+  category: foundation
+  parent: gfs
+  motivation: GFS开源实现,批处理优化
+- id: colossus
+  name: Colossus
+  full_name: 谷歌下一代文件系统 (Google Colossus)
+  year: '2010'
+  org: Google
+  paper_url: https://cloud.google.com/blog/products/storage-data-transfer/a-peek-behind-colossus-googles-file-system
+  category: foundation
+  parent: gfs
+  motivation: 去中心化元数据,10EB+规模
+- id: tectonic
+  name: Tectonic
+  full_name: Meta统一文件系统 (Meta Tectonic)
+  year: '2021'
+  org: Meta
+  paper_url: https://www.usenix.org/conference/fast21/presentation/pan
+  category: foundation
+  parent: hdfs
+  motivation: 分层哈希分片,统一存储栈
+- id: lustre
+  name: Lustre
+  full_name: Lustre并行文件系统 (Lustre Parallel File System)
+  year: '2003'
+  org: 社区
+  paper_url: https://dl.acm.org/doi/abs/10.1145/3736583
+  category: distributed_fs
+  parent: —
+  motivation: HPC场景高并发I/O首选
+- id: ceph
+  name: Ceph
+  full_name: Ceph统一存储系统 (Ceph Unified Storage)
+  year: '2006'
+  org: UCSC
+  paper_url: https://ceph.io/en/news/blog/2006/ceph-a-scalable-high-performance-distributed-file-system/
+  category: distributed_fs
+  parent: —
+  motivation: 统一块/文件/对象存储
+- id: glusterfs
+  name: GlusterFS
+  full_name: GlusterFS分布式文件系统 (GlusterFS)
+  year: '2006'
+  org: Red Hat
+  paper_url: https://www.gluster.org/
+  category: distributed_fs
+  parent: —
+  motivation: 无元数据服务器,线性扩展
+- id: beegfs
+  name: BeeGFS
+  full_name: BeeGFS并行文件系统 (BeeGFS Parallel File System)
+  year: '2014'
+  org: ThinkParQ
+  paper_url: https://www.beegfs.io/docs/
+  category: distributed_fs
+  parent: lustre
+  motivation: BeeOND临时FS,GPUDirect支持
+- id: juicefs
+  name: JuiceFS
+  full_name: JuiceFS云原生文件系统 (JuiceFS Cloud-Native File System)
+  year: '2021'
+  org: Juicedata
+  paper_url: https://github.com/juicedata/juicefs
+  category: distributed_fs
+  parent: —
+  motivation: S3后端+Redis元数据,云原生
+- id: falconfs
+  name: FalconFS
+  full_name: FalconFS深度学习文件系统 (FalconFS)
+  year: '2025'
+  org: 学术研究
+  paper_url: https://arxiv.org/abs/2507.10367
+  category: distributed_fs
+  parent: lustre
+  motivation: 元数据负载均衡,DL管道优化
+- id: minio
+  name: MinIO
+  full_name: MinIO对象存储 (MinIO Object Storage)
+  year: '2014'
+  org: MinIO
+  paper_url: https://min.io/
+  category: object_storage
+  parent: —
+  motivation: S3兼容高性能对象存储
+- id: alluxio
+  name: Alluxio
+  full_name: Alluxio数据编排层 (Alluxio Data Orchestration)
+  year: '2014'
+  org: UC Berkeley
+  paper_url: https://www.alluxio.io/
+  category: object_storage
+  parent: —
+  motivation: 分布式缓存,存算分离桥梁
+- id: gds
+  name: GPUDirect Storage
+  full_name: NVIDIA GPUDirect存储 (GPUDirect Storage)
+  year: '2020'
+  org: NVIDIA
+  paper_url: https://developer.nvidia.com/gpudirect-storage
+  category: object_storage
+  parent: —
+  motivation: 绕过CPU直达GPU,降低50%延迟
+- id: deepfreeze
+  name: DeepFreeze
+  full_name: DeepFreeze异步检查点 (DeepFreeze)
+  year: '2020'
+  org: ANL
+  paper_url: https://ieeexplore.ieee.org/document/9139779
+  category: checkpoint
+  parent: —
+  motivation: VELOC多级持久化,HPC异步I/O
+- id: checkfreq
+  name: CheckFreq
+  full_name: CheckFreq动态检查点 (CheckFreq)
+  year: '2021'
+  org: MSR
+  paper_url: https://www.usenix.org/conference/fast21/presentation/mohan
+  category: checkpoint
+  parent: —
+  motivation: 两阶段机制,3.5%开销秒级恢复
+- id: checknrun
+  name: Check-N-Run
+  full_name: Check-N-Run差异检查点 (Check-N-Run)
+  year: '2022'
+  org: Meta
+  paper_url: https://www.usenix.org/conference/nsdi22/presentation/eisenman
+  category: checkpoint
+  parent: checkfreq
+  motivation: 差异化+量化,4-13倍压缩
+- id: bytecheckpoint
+  name: ByteCheckpoint
+  full_name: 字节检查点系统 (ByteCheckpoint)
+  year: '2025'
+  org: ByteDance
+  paper_url: https://www.usenix.org/conference/nsdi25/presentation/wan-borui
+  category: checkpoint
+  parent: checkfreq
+  motivation: 10TB/s带宽,统一大模型检查点
+- id: universal_ckpt
+  name: Universal Checkpointing
+  full_name: 原子检查点系统 (Universal Checkpointing)
+  year: '2025'
+  org: 学术研究
+  paper_url: https://www.usenix.org/conference/atc25/presentation/lian
+  category: checkpoint
+  parent: bytecheckpoint
+  motivation: 原子结构,动态并行策略
+- id: dali
+  name: DALI
+  full_name: NVIDIA数据加载库 (NVIDIA DALI)
+  year: '2018'
+  org: NVIDIA
+  paper_url: https://developer.nvidia.com/dali
+  category: cache
+  parent: —
+  motivation: GPU预处理,消除CPU瓶颈
+- id: aistore
+  name: AIStore
+  full_name: NVIDIA AIStore (AIStore)
+  year: '2019'
+  org: NVIDIA
+  paper_url: https://aiatscale.org/
+  category: cache
+  parent: —
+  motivation: 集成ETL,存储节点直接数据增强
+- id: quiver
+  name: Quiver
+  full_name: Quiver知情缓存 (Quiver)
+  year: '2020'
+  org: Microsoft
+  paper_url: https://www.usenix.org/conference/fast20/presentation/kumar
+  category: cache
+  parent: —
+  motivation: 内容哈希+可替代命中,跨作业重用
+- id: baleen
+  name: Baleen
+  full_name: Baleen ML缓存 (Baleen)
+  year: '2024'
+  org: CMU
+  paper_url: https://www.usenix.org/conference/fast24/presentation/wong
+  category: cache
+  parent: quiver
+  motivation: ML驱动准入与预取决策
+- id: cedar
+  name: cedar
+  full_name: cedar统一数据管道 (cedar)
+  year: '2024'
+  org: 学术研究
+  paper_url: https://arxiv.org/abs/2401.08895
+  category: cache
+  parent: dali
+  motivation: 统一ML输入管道优化框架
+- id: modyn
+  name: Modyn
+  full_name: Modyn数据流水线平台 (Modyn)
+  year: '2025'
+  org: 学术研究
+  paper_url: https://arxiv.org/abs/2312.06254
+  category: cache
+  parent: cedar
+  motivation: 动态数据集,端到端训练优化
+- id: learned_index
+  name: Learned Index
+  full_name: 学习索引 (Learned Index)
+  year: '2018'
+  org: Google
+  paper_url: https://dl.acm.org/doi/10.1145/3183713.3196909
+  category: emerging
+  parent: —
+  motivation: ML替代B+树,查询加速
+- id: nvmeof
+  name: NVMe-oF
+  full_name: NVMe over Fabrics (NVMe-oF)
+  year: '2016'
+  org: NVM Express
+  paper_url: https://nvmexpress.org/developers/nvme-of-specification/
+  category: emerging
+  parent: —
+  motivation: RDMA/TCP远程NVMe,DPU卸载
+- id: cxl
+  name: CXL Memory
+  full_name: CXL内存扩展 (Compute Express Link)
+  year: '2019'
+  org: Intel联盟
+  paper_url: https://www.computeexpresslink.org/
+  category: emerging
+  parent: —
+  motivation: 内存池化,利用率50%→85%
+- id: arcneural
+  name: ArcNeural
+  full_name: ArcNeural多模态数据库 (ArcNeural)
+  year: '2025'
+  org: 学术研究
+  paper_url: https://arxiv.org/abs/2506.09467
+  category: emerging
+  parent: —
+  motivation: 向量+图+文档统一存储
+graph:
+  nodes:
+  - id: gfs
+    x: 0
+    y: 10
+    category: foundation
+  - id: hdfs
+    x: 13
+    y: 10
+    category: foundation
+  - id: colossus
+    x: 30
+    y: 15
+    category: foundation
+  - id: tectonic
+    x: 78
+    y: 10
+    category: foundation
+  - id: lustre
+    x: 0
+    y: 30
+    category: distributed_fs
+  - id: ceph
+    x: 13
+    y: 35
+    category: distributed_fs
+  - id: glusterfs
+    x: 13
+    y: 25
+    category: distributed_fs
+  - id: beegfs
+    x: 48
+    y: 30
+    category: distributed_fs
+  - id: juicefs
+    x: 78
+    y: 35
+    category: distributed_fs
+  - id: falconfs
+    x: 96
+    y: 30
+    category: distributed_fs
+  - id: minio
+    x: 48
+    y: 50
+    category: object_storage
+  - id: alluxio
+    x: 48
+    y: 55
+    category: object_storage
+  - id: gds
+    x: 74
+    y: 50
+    category: object_storage
+  - id: deepfreeze
+    x: 74
+    y: 75
+    category: checkpoint
+  - id: checkfreq
+    x: 78
+    y: 70
+    category: checkpoint
+  - id: checknrun
+    x: 87
+    y: 75
+    category: checkpoint
+  - id: bytecheckpoint
+    x: 96
+    y: 70
+    category: checkpoint
+  - id: universal_ckpt
+    x: 96
+    y: 65
+    category: checkpoint
+  - id: dali
+    x: 65
+    y: 90
+    category: cache
+  - id: aistore
+    x: 70
+    y: 85
+    category: cache
+  - id: quiver
+    x: 74
+    y: 90
+    category: cache
+  - id: baleen
+    x: 91
+    y: 90
+    category: cache
+  - id: cedar
+    x: 91
+    y: 85
+    category: cache
+  - id: modyn
+    x: 96
+    y: 85
+    category: cache
+  - id: nvmeof
+    x: 57
+    y: 95
+    category: emerging
+  - id: learned_index
+    x: 65
+    y: 95
+    category: emerging
+  - id: cxl
+    x: 70
+    y: 95
+    category: emerging
+  - id: arcneural
+    x: 96
+    y: 95
+    category: emerging
+  edges:
+  - from: gfs
+    to: hdfs
+    label: 开源实现
+  - from: gfs
+    to: colossus
+    label: 去中心化
+  - from: hdfs
+    to: tectonic
+    label: 统一栈
+  - from: lustre
+    to: beegfs
+    label: 临时FS
+  - from: lustre
+    to: falconfs
+    label: DL优化
+  - from: hdfs
+    to: juicefs
+    label: 云原生
+  - from: hdfs
+    to: minio
+    label: S3兼容
+  - from: hdfs
+    to: alluxio
+    label: 数据编排
+  - from: minio
+    to: gds
+    label: GPU直连
+  - from: checkfreq
+    to: checknrun
+    label: 差异化
+  - from: checkfreq
+    to: bytecheckpoint
+    label: 大模型
+  - from: bytecheckpoint
+    to: universal_ckpt
+    label: 原子化
+  - from: quiver
+    to: baleen
+    label: ML驱动
+  - from: dali
+    to: cedar
+    label: 统一管道
+  - from: cedar
+    to: modyn
+    label: 动态数据
+  - from: gfs
+    to: lustre
+    label: HPC并行
+  - from: hdfs
+    to: checkfreq
+    label: 检查点
+  - from: alluxio
+    to: quiver
+    label: AI缓存
+  - from: gds
+    to: dali
+    label: GPU加速
+  - from: beegfs
+    to: gds
+    label: GPUDirect
+  - from: tectonic
+    to: bytecheckpoint
+    label: 大规模
+  - from: juicefs
+    to: arcneural
+    label: 多模态
+  - from: learned_index
+    to: arcneural
+    label: ML索引
+  - from: nvmeof
+    to: cxl
+    label: 内存扩展
+  milestones:
+  - gfs
+  - quiver
+  - bytecheckpoint

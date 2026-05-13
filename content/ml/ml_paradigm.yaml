@@ -1,0 +1,240 @@
+page_icon: 🧠
+page_title: 机器学习范式
+page_subtitle: '{build_date} 版'
+page_desc: 涵盖监督、无监督、半监督、自监督、强化学习五大核心范式的演化历程与前沿进展
+hero_pills:
+- 监督学习
+- 无监督学习
+- 半监督学习
+- 自监督学习
+- 强化学习
+count_pill: '{count} 个算法'
+categories:
+  foundation:
+    name: 奠基性算法
+    color: '#4A90D9'
+  core:
+    name: 核心范式算法
+    color: '#50C878'
+  frontier:
+    name: 前沿进展(2023-2026)
+    color: '#FF6B6B'
+algorithms:
+- id: backprop
+  name: 反向传播
+  full_name: Backpropagation
+  year: '1986'
+  org: UCSD/CMU
+  paper_url: https://www.nature.com/articles/323533a0
+  category: foundation
+  parent: —
+  motivation: 误差反向传播实现多层网络训练
+- id: svm
+  name: SVM
+  full_name: Support Vector Machine
+  year: '1995'
+  org: AT&T Bell Labs
+  paper_url: https://link.springer.com/article/10.1007/BF00994018
+  category: core
+  parent: —
+  motivation: 核函数与最大间隔分类理论
+- id: kmeans
+  name: K-means
+  full_name: K-means Clustering
+  year: '1967'
+  org: Bell Labs
+  paper_url: '-'
+  category: foundation
+  parent: —
+  motivation: 迭代优化最小化簇内方差
+- id: vae
+  name: VAE
+  full_name: Variational Autoencoder
+  year: '2014'
+  org: U Amsterdam
+  paper_url: https://arxiv.org/abs/1312.6114
+  category: core
+  parent: —
+  motivation: 变分推断框架的生成模型
+- id: pseudo_label
+  name: Pseudo-labeling
+  full_name: Pseudo-labeling
+  year: '2013'
+  org: NYU
+  paper_url: '-'
+  category: foundation
+  parent: —
+  motivation: 高置信度预测作为伪标签
+- id: fixmatch
+  name: FixMatch
+  full_name: FixMatch
+  year: '2020'
+  org: Google
+  paper_url: https://proceedings.neurips.cc/paper/2020/hash/06964dce9addb1c5cb5d6e3d9838f733-Abstract.html
+  category: core
+  parent: pseudo_label
+  motivation: 弱增强伪标签+强增强一致性
+- id: bert
+  name: BERT
+  full_name: Bidirectional Encoder Representations from Transformers
+  year: '2019'
+  org: Google
+  paper_url: https://aclanthology.org/N19-1423/
+  category: core
+  parent: —
+  motivation: 掩码语言模型实现双向理解
+- id: simclr
+  name: SimCLR
+  full_name: Simple Contrastive Learning of Representations
+  year: '2020'
+  org: Google
+  paper_url: https://arxiv.org/abs/2002.05709
+  category: core
+  parent: —
+  motivation: 对比学习框架强调大批量训练
+- id: mae
+  name: MAE
+  full_name: Masked Autoencoder
+  year: '2022'
+  org: Meta
+  paper_url: https://openaccess.thecvf.com/content/CVPR2022/html/He_Masked_Autoencoders_Are_Scalable_Vision_Learners_CVPR_2022_paper.html
+  category: frontier
+  parent: bert
+  motivation: 通过重建像素学习视觉特征
+- id: ijepa
+  name: I-JEPA
+  full_name: Image Joint-Embedding Predictive Architecture
+  year: '2023'
+  org: Meta
+  paper_url: https://openaccess.thecvf.com/content/CVPR2023/html/Assran_Self-Supervised_Learning_From_Images_With_a_Joint-Embedding_Predictive_Architecture_CVPR_2023_paper.html
+  category: frontier
+  parent: mae
+  motivation: 联合嵌入预测架构非生成式学习
+- id: dinov3
+  name: DINOv3
+  full_name: Self-Distillation with No Labels v3
+  year: '2026'
+  org: Meta
+  paper_url: https://arxiv.org/abs/2603.00160
+  category: frontier
+  parent: ijepa
+  motivation: Gram锚定损失解决长尾分布
+- id: dqn
+  name: DQN
+  full_name: Deep Q-Network
+  year: '2015'
+  org: DeepMind
+  paper_url: https://www.nature.com/articles/nature14236
+  category: core
+  parent: —
+  motivation: 深度Q网络实现人类水平游戏
+- id: ppo
+  name: PPO
+  full_name: Proximal Policy Optimization
+  year: '2017'
+  org: OpenAI
+  paper_url: https://arxiv.org/abs/1707.06347
+  category: core
+  parent: dqn
+  motivation: 裁剪目标函数约束策略更新
+- id: dpo
+  name: DPO
+  full_name: Direct Preference Optimization
+  year: '2023'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/2305.18290
+  category: frontier
+  parent: ppo
+  motivation: 无需奖励模型的偏好对齐
+- id: grpo
+  name: GRPO
+  full_name: Group Relative Policy Optimization
+  year: '2026'
+  org: DeepSeek
+  paper_url: https://arxiv.org/abs/2603.06623
+  category: frontier
+  parent: dpo
+  motivation: 组内相对奖励提升训练稳定性
+graph:
+  nodes:
+  - id: kmeans
+    x: 0
+    y: 35
+  - id: backprop
+    x: 15
+    y: 20
+  - id: svm
+    x: 25
+    y: 20
+  - id: pseudo_label
+    x: 40
+    y: 50
+  - id: vae
+    x: 42
+    y: 35
+  - id: dqn
+    x: 45
+    y: 80
+  - id: ppo
+    x: 52
+    y: 80
+  - id: bert
+    x: 60
+    y: 65
+  - id: simclr
+    x: 65
+    y: 65
+  - id: fixmatch
+    x: 68
+    y: 50
+  - id: mae
+    x: 75
+    y: 65
+  - id: ijepa
+    x: 85
+    y: 65
+  - id: dpo
+    x: 87
+    y: 80
+  - id: dinov3
+    x: 95
+    y: 65
+  - id: grpo
+    x: 100
+    y: 80
+  edges:
+  - from: pseudo_label
+    to: fixmatch
+    label: 一致性正则
+  - from: bert
+    to: mae
+    label: 视觉迁移
+  - from: mae
+    to: ijepa
+    label: 联合嵌入
+  - from: ijepa
+    to: dinov3
+    label: 规模扩展
+  - from: dqn
+    to: ppo
+    label: 策略梯度
+  - from: ppo
+    to: dpo
+    label: 偏好对齐
+  - from: dpo
+    to: grpo
+    label: 群体优化
+  - from: simclr
+    to: mae
+    label: 掩码学习
+  - from: backprop
+    to: bert
+    label: 深度学习
+  - from: vae
+    to: simclr
+    label: 表示学习
+  milestones:
+  - backprop
+  - bert
+  - ppo
+  - grpo

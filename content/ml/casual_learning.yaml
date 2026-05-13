@@ -1,0 +1,280 @@
+domain: ml
+topic_id: casual_learning
+topic_name: 因果学习与不确定性建模
+page_icon: 🔗
+page_title: 因果学习与不确定性建模
+page_subtitle: '{build_date} 版'
+page_desc: 涵盖因果推断、反事实学习、不确定性量化与可靠预测的核心算法与前沿进展
+hero_pills:
+- 因果推断
+- 反事实学习
+- 不确定性量化
+- 可靠预测
+count_pill: '{count} 个算法'
+categories:
+  causal_inference:
+    label: 因果推断
+    color: '#3B82F6'
+  counterfactual:
+    label: 反事实学习
+    color: '#8B5CF6'
+  uncertainty:
+    label: 不确定性量化
+    color: '#10B981'
+  robust_prediction:
+    label: 可靠预测
+    color: '#F59E0B'
+algorithms:
+- id: scm
+  name: SCM
+  full_name: 结构因果模型 (Structural Causal Model)
+  year: '2000'
+  org: 加州大学洛杉矶分校
+  paper_url: https://ftp.cs.ucla.edu/pub/stat_ser/r391.pdf
+  category: causal_inference
+  parent: —
+  motivation: 提出do-calculus理论，定义因果干预
+- id: pc
+  name: PC
+  full_name: PC算法 (PC Algorithm)
+  year: '1993'
+  org: 卡内基梅隆大学
+  paper_url: https://philpapers.org/rec/SPICPA
+  category: causal_inference
+  parent: —
+  motivation: 基于条件独立性检验的约束发现算法
+- id: ges
+  name: GES
+  full_name: 贪婪等价搜索 (Greedy Equivalence Search)
+  year: '2002'
+  org: 微软研究院
+  paper_url: https://www.jmlr.org/papers/volume3/chickering02b/chickering02b.pdf
+  category: causal_inference
+  parent: pc
+  motivation: 在等价类空间贪婪搜索，优化BIC得分
+- id: notears
+  name: NOTEARS
+  full_name: NOTEARS (DAGs with NO TEARS)
+  year: '2018'
+  org: 卡内基梅隆大学
+  paper_url: https://arxiv.org/abs/1803.01422
+  category: causal_inference
+  parent: scm
+  motivation: 将DAG约束转化为连续可微函数
+- id: psm
+  name: PSM
+  full_name: 倾向得分匹配 (Propensity Score Matching)
+  year: '1983'
+  org: 哈佛大学
+  paper_url: https://academic.oup.com/biomet/article/70/1/41/240877
+  category: causal_inference
+  parent: —
+  motivation: 通过估计处理概率进行样本匹配
+- id: cape
+  name: CAPE
+  full_name: 因果诱导位置编码 (Causality-Induced Positional Encoding)
+  year: '2025.12'
+  org: 纽约大学
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/e16657b9f07021c5554bf9661f18dfcc-Abstract-Conference.html
+  category: causal_inference
+  parent: —
+  motivation: 为Transformer引入因果拓扑编码
+- id: less_greedy_ges
+  name: Less Greedy GES
+  full_name: 非贪婪等价搜索 (Less Greedy GES)
+  year: '2025.12'
+  org: 哥伦比亚大学
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/b26dfe705b549365ccbdbfdec74b1117-Abstract-Conference.html
+  category: causal_inference
+  parent: ges
+  motivation: 非贪婪搜索克服局部最优
+- id: pfn_ges
+  name: PFN-GES
+  full_name: 先验拟合网络GES (PFN-GES)
+  year: '2026.07'
+  org: 华沙大学
+  paper_url: https://icml.cc/virtual/2026/papers.html
+  category: causal_inference
+  parent: less_greedy_ges
+  motivation: 利用PFN加速得分搜索
+- id: causal_llm
+  name: Causal-LLM
+  full_name: 因果大语言模型框架 (Causal-LLM Framework)
+  year: '2026.05'
+  org: 亚马逊
+  paper_url: https://dl.acm.org/doi/abs/10.1145/3801228.3801315
+  category: causal_inference
+  parent: scm
+  motivation: 自动化因果发现与LLM结合
+- id: counterfactual_explanation
+  name: CFE
+  full_name: 反事实解释 (Counterfactual Explanations)
+  year: '2017'
+  org: 牛津大学
+  paper_url: https://arxiv.org/abs/1711.00399
+  category: counterfactual
+  parent: —
+  motivation: 寻找最小特征扰动改变模型决策
+- id: counterfactual_fairness
+  name: CF-Fairness
+  full_name: 反事实公平性 (Counterfactual Fairness)
+  year: '2017'
+  org: 伦敦大学学院
+  paper_url: https://arxiv.org/abs/1703.06856
+  category: counterfactual
+  parent: scm
+  motivation: 改变敏感属性时预测保持不变
+- id: bbb
+  name: BBB
+  full_name: 权重不确定性反向传播 (Bayes by Backprop)
+  year: '2015'
+  org: DeepMind
+  paper_url: https://arxiv.org/abs/1505.05424
+  category: uncertainty
+  parent: —
+  motivation: 将神经网络权重表示为概率分布
+- id: mc_dropout
+  name: MC Dropout
+  full_name: 蒙特卡洛Dropout (Monte Carlo Dropout)
+  year: '2016'
+  org: 剑桥大学
+  paper_url: https://arxiv.org/abs/1506.02142
+  category: uncertainty
+  parent: bbb
+  motivation: 测试期开启Dropout等价贝叶斯近似
+- id: deep_ensembles
+  name: Deep Ensembles
+  full_name: 深度集成 (Deep Ensembles)
+  year: '2017'
+  org: DeepMind
+  paper_url: https://arxiv.org/abs/1612.01474
+  category: uncertainty
+  parent: mc_dropout
+  motivation: 训练多模型聚合预测方差
+- id: temperature_scaling
+  name: Temp Scaling
+  full_name: 温度缩放 (Temperature Scaling)
+  year: '2017'
+  org: 康奈尔大学
+  paper_url: https://arxiv.org/abs/1706.04599
+  category: uncertainty
+  parent: —
+  motivation: 单一温度参数校准Softmax输出
+- id: conformal_prediction
+  name: CP
+  full_name: 共形预测 (Conformal Prediction)
+  year: '2005'
+  org: 伦敦大学皇家霍洛威学院
+  paper_url: https://www.jmlr.org/papers/volume9/shafer08a/shafer08a.pdf
+  category: uncertainty
+  parent: —
+  motivation: 提供有限样本覆盖保证的预测区间
+- id: geometry_cp
+  name: Geometry CP
+  full_name: 几何感知共形预测 (Geometry-Aware Conformal Prediction)
+  year: '2026.02'
+  org: 斯坦福大学
+  paper_url: https://arxiv.org/abs/2602.16015
+  category: uncertainty
+  parent: conformal_prediction
+  motivation: 解决黎曼流形上的校准失效问题
+- id: irm
+  name: IRM
+  full_name: 不变风险最小化 (Invariant Risk Minimization)
+  year: '2019'
+  org: Facebook AI Research
+  paper_url: https://arxiv.org/abs/1907.02893
+  category: robust_prediction
+  parent: scm
+  motivation: 学习跨环境稳定的特征表示
+graph:
+  nodes:
+  - id: pc
+    x: 100
+    y: 100
+  - id: psm
+    x: 100
+    y: 300
+  - id: scm
+    x: 200
+    y: 200
+  - id: ges
+    x: 300
+    y: 100
+  - id: bbb
+    x: 300
+    y: 500
+  - id: conformal_prediction
+    x: 300
+    y: 600
+  - id: mc_dropout
+    x: 400
+    y: 500
+  - id: counterfactual_explanation
+    x: 400
+    y: 350
+  - id: counterfactual_fairness
+    x: 400
+    y: 250
+  - id: temperature_scaling
+    x: 400
+    y: 650
+  - id: deep_ensembles
+    x: 500
+    y: 500
+  - id: notears
+    x: 500
+    y: 200
+  - id: irm
+    x: 500
+    y: 300
+  - id: less_greedy_ges
+    x: 600
+    y: 100
+  - id: cape
+    x: 600
+    y: 50
+  - id: causal_llm
+    x: 650
+    y: 200
+  - id: geometry_cp
+    x: 650
+    y: 600
+  - id: pfn_ges
+    x: 750
+    y: 100
+  edges:
+  - from: scm
+    to: notears
+    label: 连续优化
+  - from: scm
+    to: irm
+    label: 因果不变性
+  - from: scm
+    to: counterfactual_fairness
+    label: 公平性定义
+  - from: scm
+    to: causal_llm
+    label: LLM融合
+  - from: pc
+    to: ges
+    label: 评分搜索
+  - from: ges
+    to: less_greedy_ges
+    label: 非贪婪
+  - from: less_greedy_ges
+    to: pfn_ges
+    label: PFN加速
+  - from: bbb
+    to: mc_dropout
+    label: 简化采样
+  - from: mc_dropout
+    to: deep_ensembles
+    label: 多模型
+  - from: conformal_prediction
+    to: geometry_cp
+    label: 流形扩展
+  milestones:
+  - scm
+  - notears
+  - conformal_prediction

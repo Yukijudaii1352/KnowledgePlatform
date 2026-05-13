@@ -76,9 +76,12 @@ def peek_front_matter(path: Path):
 def split_sections(body: str):
     parts = {}
     current_title, current_buf = None, []
+    in_fence = False
     for line in body.splitlines():
+        if re.match(r"^```", line):
+            in_fence = not in_fence
         m = re.match(r"^##\s+(.+?)\s*$", line)
-        if m and not line.startswith("###"):
+        if m and not in_fence and not line.startswith("###"):
             if current_title is not None:
                 parts[current_title] = "\n".join(current_buf).strip()
             current_title = m.group(1).strip()
@@ -98,9 +101,12 @@ def parse_overview(md_body: str):
         err("`## 领域综述` 板块为空")
     out = []
     current_title, current_buf = None, []
+    in_fence = False
     for line in md_body.splitlines():
+        if re.match(r"^```", line):
+            in_fence = not in_fence
         m = re.match(r"^###\s+(.+?)\s*$", line)
-        if m:
+        if m and not in_fence:
             if current_title is not None:
                 out.append({"title": current_title,
                             "body_html": md_to_html("\n".join(current_buf))})
@@ -152,12 +158,27 @@ ALGO_SECTION_TITLES = {
 }
 
 
+def _normalize_quiz_answer(value) -> int:
+    if isinstance(value, int):
+        return value
+    s = str(value).strip()
+    if len(s) == 1 and s.upper() in "ABCD":
+        return ord(s.upper()) - ord("A")
+    try:
+        return int(s)
+    except (TypeError, ValueError):
+        return 0
+
+
 def parse_algorithms(md_body: str, image_base: str, categories_keys):
     algo_chunks = []
     current_header, buf = None, []
+    in_fence = False
     for line in md_body.splitlines():
+        if re.match(r"^```", line):
+            in_fence = not in_fence
         m = re.match(r"^###\s+(.+?)\s*$", line)
-        if m:
+        if m and not in_fence:
             if current_header is not None:
                 algo_chunks.append((current_header, "\n".join(buf)))
             current_header = m.group(1).strip()
@@ -229,7 +250,7 @@ def parse_single_algo(header: str, body: str, image_base: str, categories_keys):
 
     if "keypoints" not in subs:
         err(f"算法 {algo['id']} 缺少 `#### 🎯 核心要点`")
-    kp_lines = [l.strip()[2:].strip() for l in subs["keypoints"].splitlines()
+    kp_lines = [md_inline_to_html(l.strip()[2:].strip()) for l in subs["keypoints"].splitlines()
                 if l.strip().startswith("- ") or l.strip().startswith("* ")]
     algo["keyPoints"] = kp_lines
 
@@ -239,11 +260,18 @@ def parse_single_algo(header: str, body: str, image_base: str, categories_keys):
     if "quiz" in subs:
         q_yaml_match = YAML_CODE_RE.search(subs["quiz"])
         if q_yaml_match:
-            q = yaml.safe_load(q_yaml_match.group(1)) or {}
+            try:
+                q = yaml.safe_load(q_yaml_match.group(1)) or {}
+            except yaml.YAMLError:
+                q = {}
+            if isinstance(q, list):
+                q = q[0] if q and isinstance(q[0], dict) else {}
+            if not isinstance(q, dict):
+                q = {}
             algo["quiz"] = {
                 "q":       q.get("question", ""),
                 "options": q.get("options", []),
-                "answer":  int(q.get("answer", 0)),
+                "answer":  _normalize_quiz_answer(q.get("answer", 0)),
                 "explain": q.get("explain", ""),
             }
 
@@ -253,14 +281,105 @@ def parse_single_algo(header: str, body: str, image_base: str, categories_keys):
 # ============ Markdown → HTML ============
 
 MD_EXTS = ["fenced_code", "tables", "attr_list", "def_list"]
+INLINE_MATH_RE = re.compile(r"\\\((.+?)\\\)", re.DOTALL)
+BRACKET_MATH_RE = re.compile(r"\\\[(.+?)\\\]", re.DOTALL)
+BLOCK_MATH_RE = re.compile(r"\$\$(.+?)\$\$", re.DOTALL)
+
+
+def _protect_math_spans(md: str):
+    """在 markdown 解析前先保护数学公式，避免 `_` 被当成强调语法。"""
+    stash: dict[str, str] = {}
+    counter = 0
+
+    def _repl_factory(wrapper: str):
+        def _repl(m):
+            nonlocal counter
+            token = f"@@MATH_{counter}@@"
+            counter += 1
+            stash[token] = wrapper.format(body=m.group(1))
+            return token
+        return _repl
+
+    protected = md
+    protected = BLOCK_MATH_RE.sub(_repl_factory("$${body}$$"), protected)
+    protected = BRACKET_MATH_RE.sub(_repl_factory(r"\[{body}\]"), protected)
+    protected = INLINE_MATH_RE.sub(_repl_factory(r"\({body}\)"), protected)
+    return protected, stash
+
+
+def _restore_math_spans(html: str, stash: dict[str, str]) -> str:
+    for token, original in stash.items():
+        html = html.replace(token, original)
+    return html
+
+
+def md_inline_to_html(md: str) -> str:
+    """把单行 markdown 转成适合嵌入列表项的 HTML。"""
+    protected_md, math_stash = _protect_math_spans(md)
+    html = markdown.markdown(protected_md, extensions=MD_EXTS).strip()
+    html = _restore_math_spans(html, math_stash)
+    if html.startswith("<p>") and html.endswith("</p>"):
+        html = html[3:-4]
+    return html
+
+
+TABLE_SEP_RE = re.compile(r"^\s*\|?(?:\s*:?-{3,}:?\s*\|)+\s*:?-{3,}:?\s*\|?\s*$")
+
+
+def _looks_like_table_row(line: str) -> bool:
+    s = line.strip()
+    return bool(s) and "|" in s and not s.startswith("```")
+
+
+def _normalize_pipe_tables(md: str) -> str:
+    """给 markdown pipe table 前后补空行，提升 python-markdown 的识别稳定性。"""
+    lines = md.splitlines()
+    out: list[str] = []
+    i = 0
+    in_fence = False
+    while i < len(lines):
+        line = lines[i]
+        if line.strip().startswith("```"):
+            in_fence = not in_fence
+            out.append(line)
+            i += 1
+            continue
+
+        if (
+            not in_fence
+            and i + 1 < len(lines)
+            and _looks_like_table_row(line)
+            and TABLE_SEP_RE.match(lines[i + 1] or "")
+        ):
+            if out and out[-1].strip():
+                out.append("")
+            while i < len(lines) and _looks_like_table_row(lines[i]):
+                out.append(lines[i])
+                i += 1
+            if i < len(lines) and lines[i].strip():
+                out.append("")
+            continue
+
+        out.append(line)
+        i += 1
+    return "\n".join(out)
 
 
 def md_to_html(md: str, image_base: str = "") -> str:
-    html = markdown.markdown(md, extensions=MD_EXTS)
+    md = _normalize_pipe_tables(md)
+    protected_md, math_stash = _protect_math_spans(md)
+    html = markdown.markdown(protected_md, extensions=MD_EXTS)
+    html = _restore_math_spans(html, math_stash)
     html = re.sub(r"<blockquote>\s*<p>💡\s*(.*?)</p>\s*</blockquote>",
                   r'<div class="key-point">💡 \1</div>', html, flags=re.DOTALL)
     html = re.sub(r"<blockquote>\s*<p>⚠️\s*(.*?)</p>\s*</blockquote>",
                   r'<div class="warn-box">⚠️ \1</div>', html, flags=re.DOTALL)
+    html = re.sub(
+        r"(<table>.*?</table>)",
+        r'<div class="table-wrap">\1</div>',
+        html,
+        flags=re.DOTALL,
+    )
     if image_base:
         def _img_sub(m):
             alt, src = m.group(1), m.group(2)

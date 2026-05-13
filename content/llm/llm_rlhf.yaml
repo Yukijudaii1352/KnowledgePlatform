@@ -1,0 +1,349 @@
+domain: llm
+topic_id: llm_rlhf
+topic_name: LLM人类偏好对齐
+page_icon: 🎯
+page_title: LLM人类偏好对齐技术演进图谱
+page_subtitle: 2026-05-12 版
+page_description: 涵盖RLHF、DPO、Constitutional AI等对齐方法的原理与实践，以及2026年最新研究进展
+count_pill: 24 个算法
+tags:
+- RLHF
+- DPO
+- Constitutional AI
+- 偏好对齐
+- Token级优化
+- 多模态对齐
+categories:
+- id: foundational
+  name: 奠基算法
+  description: 建立人类偏好对齐基本范式
+  color: '#3b82f6'
+- id: rl_based
+  name: 基于RL的对齐
+  description: 采用强化学习框架的对齐方法
+  color: '#10b981'
+- id: direct_preference
+  name: 直接偏好优化
+  description: 绕过RL的离线偏好优化方法
+  color: '#8b5cf6'
+- id: token_multimodal
+  name: Token级与多模态
+  description: 精细化优化与跨模态扩展
+  color: '#f59e0b'
+algorithms:
+- id: rlhf
+  full_name: 基于人类反馈的强化学习 (RLHF)
+  year: '2017'
+  paper_url: https://arxiv.org/abs/1706.03741
+  motivation: 三阶段流程，PPO+奖励模型对齐
+  parent: —
+  category: foundational
+- id: instructgpt
+  full_name: InstructGPT
+  year: '2022'
+  paper_url: https://arxiv.org/abs/2203.02155
+  motivation: RLHF工业化，指令遵循能力突破
+  parent: rlhf
+  category: rl_based
+- id: constitutional_ai
+  full_name: 宪法AI (Constitutional AI)
+  year: '2022'
+  paper_url: https://arxiv.org/abs/2212.08073
+  motivation: 宪法原则驱动的自我修订机制
+  parent: rlhf
+  category: rl_based
+- id: rlaif
+  full_name: 基于AI反馈的强化学习 (RLAIF)
+  year: '2023'
+  paper_url: https://arxiv.org/abs/2309.00267
+  motivation: AI反馈替代人工偏好标注
+  parent: constitutional_ai
+  category: rl_based
+- id: dpo
+  full_name: 直接偏好优化 (DPO)
+  year: '2023'
+  paper_url: https://arxiv.org/abs/2305.18290
+  motivation: 去除奖励模型，直接偏好分类优化
+  parent: rlhf
+  category: direct_preference
+- id: ipo
+  full_name: 身份偏好优化 (IPO)
+  year: '2024'
+  paper_url: https://arxiv.org/abs/2310.12036
+  motivation: MSE正则化解决DPO过拟合
+  parent: dpo
+  category: direct_preference
+- id: kto
+  full_name: Kahneman-Tversky优化 (KTO)
+  year: '2024'
+  paper_url: https://arxiv.org/abs/2402.01306
+  motivation: 前景理论，仅需二元好坏反馈
+  parent: dpo
+  category: direct_preference
+- id: orpo
+  full_name: 比值比偏好优化 (ORPO)
+  year: '2024'
+  paper_url: https://arxiv.org/abs/2403.07691
+  motivation: 单阶段对齐，无需参考模型
+  parent: dpo
+  category: direct_preference
+- id: simpo
+  full_name: 简单偏好优化 (SimPO)
+  year: '2024'
+  paper_url: https://arxiv.org/abs/2405.14734
+  motivation: 长度归一化奖励，去参考模型
+  parent: dpo
+  category: direct_preference
+- id: tdpo
+  full_name: Token级直接偏好优化 (TDPO)
+  year: '2024'
+  paper_url: https://proceedings.mlr.press/v235/zeng24b.html
+  motivation: Token级前向KL约束保持多样性
+  parent: dpo
+  category: token_multimodal
+- id: spac
+  full_name: 自博弈对抗Critic (SPAC)
+  year: '2024'
+  paper_url: https://arxiv.org/abs/2406.04274
+  motivation: 自博弈对抗Critic离线对齐
+  parent: dpo
+  category: direct_preference
+- id: grpo
+  full_name: 组相对策略优化 (GRPO)
+  year: '2025'
+  paper_url: https://arxiv.org/abs/2501.12948
+  motivation: 组相对评分取代Critic模型
+  parent: rlhf
+  category: rl_based
+- id: rto
+  full_name: 强化Token优化 (RTO)
+  year: '2025'
+  paper_url: https://arxiv.org/abs/2505.11058
+  motivation: MDP建模提取Token级奖励
+  parent: tdpo
+  category: token_multimodal
+- id: sepo
+  full_name: 选择性偏好优化 (SePO)
+  year: '2025'
+  paper_url: https://aclanthology.org/2025.emnlp-main.359/
+  motivation: 选择性优化关键Token降低成本
+  parent: tdpo
+  category: token_multimodal
+- id: llmdoctor
+  full_name: LLM医生 (LLMdoctor)
+  year: '2026.01'
+  paper_url: https://arxiv.org/abs/2601.10416
+  motivation: 流引导Token级测试时对齐
+  parent: tdpo
+  category: token_multimodal
+- id: triplay_rl
+  full_name: 三角色自博弈RL (TriPlay-RL)
+  year: '2026.01'
+  paper_url: https://arxiv.org/abs/2601.18292
+  motivation: 多角色自博弈安全对齐
+  parent: grpo
+  category: rl_based
+- id: light_alignment
+  full_name: 轻量对齐 (Light Alignment)
+  year: '2026.02'
+  paper_url: https://arxiv.org/abs/2602.02027
+  motivation: 单神经元安全专家自反射
+  parent: grpo
+  category: rl_based
+- id: f_grpo
+  full_name: f散度GRPO (f-GRPO)
+  year: '2026.02'
+  paper_url: https://arxiv.org/abs/2602.05946
+  motivation: 散度泛化的GRPO改进
+  parent: grpo
+  category: rl_based
+- id: bees
+  full_name: 蜂群数据选择 (BeeS)
+  year: '2026.02'
+  paper_url: https://arxiv.org/abs/2502.06648
+  motivation: 边际最大化数据选择改进DPO
+  parent: dpo
+  category: direct_preference
+- id: bidpo
+  full_name: 双向DPO (BiDPO)
+  year: '2026.02'
+  paper_url: https://arxiv.org/abs/2602.10234
+  motivation: 双向Token级VLM偏好优化
+  parent: tdpo
+  category: token_multimodal
+- id: tab_po
+  full_name: Token自适应屏障PO (TAB-PO)
+  year: '2026.03'
+  paper_url: https://arxiv.org/abs/2603.00025
+  motivation: 自适应屏障保护关键Token
+  parent: tdpo
+  category: token_multimodal
+- id: tlpo
+  full_name: Token级策略优化 (TLPO)
+  year: '2026.04'
+  paper_url: https://arxiv.org/abs/2604.26553
+  motivation: Token级策略优化缓解语言混淆
+  parent: tdpo
+  category: token_multimodal
+- id: mm_dpo
+  full_name: 多模态DPO (MM-DPO)
+  year: '2026'
+  paper_url: https://mm-rlhf.github.io/
+  motivation: 动态奖励缩放多模态对齐
+  parent: dpo
+  category: token_multimodal
+- id: onpo
+  full_name: 乐观Nash策略优化 (ONPO)
+  year: '2026'
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/eab6ea376caf12d786adbb0a090fb842-Abstract-Conference.html
+  motivation: 乐观Nash策略在线对齐
+  parent: dpo
+  category: direct_preference
+graph:
+  nodes:
+  - id: rlhf
+    x: 2017.0
+    y: 0
+  - id: instructgpt
+    x: 2022.0
+    y: 1
+  - id: constitutional_ai
+    x: 2022.0
+    y: 1
+  - id: rlaif
+    x: 2023.0
+    y: 1
+  - id: dpo
+    x: 2023.0
+    y: 2
+  - id: ipo
+    x: 2024.0
+    y: 2
+  - id: kto
+    x: 2024.0
+    y: 2
+  - id: orpo
+    x: 2024.0
+    y: 2
+  - id: simpo
+    x: 2024.0
+    y: 2
+  - id: tdpo
+    x: 2024.0
+    y: 3
+  - id: spac
+    x: 2024.0
+    y: 2
+  - id: grpo
+    x: 2025.0
+    y: 1
+  - id: rto
+    x: 2025.0
+    y: 3
+  - id: sepo
+    x: 2025.0
+    y: 3
+  - id: llmdoctor
+    x: 2026.08
+    y: 3
+  - id: triplay_rl
+    x: 2026.08
+    y: 1
+  - id: light_alignment
+    x: 2026.17
+    y: 1
+  - id: f_grpo
+    x: 2026.17
+    y: 1
+  - id: bees
+    x: 2026.17
+    y: 2
+  - id: bidpo
+    x: 2026.17
+    y: 3
+  - id: tab_po
+    x: 2026.25
+    y: 3
+  - id: tlpo
+    x: 2026.33
+    y: 3
+  - id: mm_dpo
+    x: 2026.0
+    y: 3
+  - id: onpo
+    x: 2026.0
+    y: 2
+  edges:
+  - from: rlhf
+    to: instructgpt
+    label: 工业化应用
+  - from: rlhf
+    to: constitutional_ai
+    label: 原则驱动
+  - from: rlhf
+    to: dpo
+    label: 去除RL
+  - from: rlhf
+    to: grpo
+    label: 组相对优化
+  - from: constitutional_ai
+    to: rlaif
+    label: AI反馈
+  - from: dpo
+    to: ipo
+    label: 正则化改进
+  - from: dpo
+    to: kto
+    label: 二元反馈
+  - from: dpo
+    to: orpo
+    label: 去参考模型
+  - from: dpo
+    to: simpo
+    label: 长度归一化
+  - from: dpo
+    to: tdpo
+    label: Token级扩展
+  - from: dpo
+    to: spac
+    label: 自博弈对抗
+  - from: dpo
+    to: mm_dpo
+    label: 多模态扩展
+  - from: dpo
+    to: bees
+    label: 数据选择
+  - from: dpo
+    to: onpo
+    label: 在线Nash
+  - from: grpo
+    to: triplay_rl
+    label: 多角色博弈
+  - from: grpo
+    to: light_alignment
+    label: 单神经元专家
+  - from: grpo
+    to: f_grpo
+    label: 散度泛化
+  - from: tdpo
+    to: rto
+    label: MDP建模
+  - from: tdpo
+    to: sepo
+    label: 选择性优化
+  - from: tdpo
+    to: llmdoctor
+    label: 测试时对齐
+  - from: tdpo
+    to: tlpo
+    label: 语言混淆
+  - from: tdpo
+    to: tab_po
+    label: 自适应屏障
+  - from: tdpo
+    to: bidpo
+    label: VLM扩展
+  milestones:
+  - rlhf
+  - dpo
+  - grpo

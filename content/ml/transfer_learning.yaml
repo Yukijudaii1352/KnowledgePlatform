@@ -1,0 +1,298 @@
+page_icon: 🔄
+page_title: 迁移学习 算法总结
+page_subtitle: '{build_date} 版'
+page_desc: 从样本加权到特征对齐，从对抗博弈到预训练-微调，迁移学习打破了独立同分布假设，使知识在域、任务与模态间流动。本文梳理领域自适应、跨任务迁移与预训练范式三大技术脉络，涵盖 2006 年 KMM 至 2026 年扩散式域自适应与参数高效微调的完整演进。
+hero_pills:
+- 🏷️ Domain Adaptation · Cross-task Transfer · Pre-training Paradigm
+count_pill: '{count} 个算法'
+categories:
+  domain_adapt:
+    label: 领域自适应
+    color: '#4A90D9'
+  cross_task:
+    label: 跨任务迁移
+    color: '#50C878'
+  pretrain:
+    label: 预训练范式
+    color: '#9B59B6'
+algorithms:
+- id: kmm
+  name: KMM
+  full_name: 核均值匹配 (Kernel Mean Matching)
+  year: '2006'
+  org: 马普研究所
+  paper_url: https://proceedings.neurips.cc/paper/2006/file/a2186aa7c086b46ad4e8bf81e2a3a19b-Paper.pdf
+  category: domain_adapt
+  parent: '—'
+  motivation: 核空间匹配分布均值估计样本权重
+- id: tca
+  name: TCA
+  full_name: 迁移成分分析 (Transfer Component Analysis)
+  year: '2011'
+  org: 香港科技大学
+  paper_url: https://ieeexplore.ieee.org/document/5640675/
+  category: domain_adapt
+  parent: kmm
+  motivation: MMD核空间提取公共迁移成分
+- id: dan
+  name: DAN
+  full_name: 深度自适应网络 (Deep Adaptation Networks)
+  year: '2015'
+  org: 清华大学
+  paper_url: https://arxiv.org/abs/1502.02791
+  category: domain_adapt
+  parent: tca
+  motivation: 多核MK-MMD多层深度分布对齐
+- id: dann
+  name: DANN
+  full_name: 领域对抗神经网络 (Domain-Adversarial Neural Networks)
+  year: '2016'
+  org: Skoltech/MILA
+  paper_url: https://arxiv.org/abs/1505.07818
+  category: domain_adapt
+  parent: '—'
+  motivation: 梯度反转层对抗学习域不变特征
+- id: cdan
+  name: CDAN
+  full_name: 条件对抗域适应 (Conditional Adversarial Domain Adaptation)
+  year: '2018'
+  org: 清华大学
+  paper_url: https://papers.nips.cc/paper/2018/hash/ab88b15733f543179858d1962a855039-Abstract.html
+  category: domain_adapt
+  parent: dann
+  motivation: 条件对抗+多线性映射对齐联合分布
+- id: swd
+  name: SWD
+  full_name: 切片Wasserstein域适应 (Sliced Wasserstein Discrepancy)
+  year: '2019'
+  org: Apple
+  paper_url: https://openaccess.thecvf.com/content_CVPR_2019/papers/Lee_Sliced_Wasserstein_Discrepancy_for_Unsupervised_Domain_Adaptation_CVPR_2019_paper.pdf
+  category: domain_adapt
+  parent: dan
+  motivation: 切片Wasserstein距离度量域间差异
+- id: diffgda
+  name: DiffGDA
+  full_name: 扩散图域自适应 (Diffusion-based Graph Domain Adaptation)
+  year: '2026'
+  org: 北京航空航天大学
+  paper_url: https://arxiv.org/abs/2602.10506
+  category: domain_adapt
+  parent: swd
+  motivation: SDE建模域演化轨迹实现连续对齐
+- id: tell2adapt
+  name: Tell2Adapt
+  full_name: 视觉基础模型无源域自适应 (Source-Free UDA via Vision Foundation Model)
+  year: '2026'
+  org: 大连理工大学
+  paper_url: https://arxiv.org/abs/2603.05012
+  category: domain_adapt
+  parent: dann
+  motivation: 文本提示引导VFM实现无源域自适应
+- id: kd
+  name: KD
+  full_name: 知识蒸馏 (Knowledge Distillation)
+  year: '2015'
+  org: Google
+  paper_url: https://arxiv.org/abs/1503.02531
+  category: cross_task
+  parent: '—'
+  motivation: 温度软标签实现教师到学生知识迁移
+- id: maml
+  name: MAML
+  full_name: 模型无关元学习 (Model-Agnostic Meta-Learning)
+  year: '2017'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/1703.03400
+  category: cross_task
+  parent: '—'
+  motivation: 学习最优初始化实现少样本快速适配
+- id: adapter
+  name: Adapter
+  full_name: 参数高效适配器 (Parameter-Efficient Adapter)
+  year: '2019'
+  org: Google
+  paper_url: https://arxiv.org/abs/1902.00751
+  category: cross_task
+  parent: '—'
+  motivation: 冻结主干插入瓶颈模块高效迁移
+- id: lora
+  name: LoRA
+  full_name: 低秩自适应 (Low-Rank Adaptation)
+  year: '2022'
+  org: 微软
+  paper_url: https://arxiv.org/abs/2106.09685
+  category: cross_task
+  parent: adapter
+  motivation: 低秩矩阵分解近似权重更新零推理延迟
+- id: dvora
+  name: DVoRA
+  full_name: 动态容量感知低秩自适应 (Dynamic Volume-aware LoRA)
+  year: '2026'
+  org: NVIDIA
+  paper_url: —
+  category: cross_task
+  parent: lora
+  motivation: 微分适配矩阵动态分配秩加速推理
+- id: com
+  name: CoM
+  full_name: 链式模型合并 (Chain-of-Merging)
+  year: '2026'
+  org: A*STAR/西安交大
+  paper_url: https://arxiv.org/abs/2508.21421
+  category: cross_task
+  parent: lora
+  motivation: 递归更新统计量解决合并协变量偏移
+- id: mlm
+  name: MLM
+  full_name: 掩码语言模型预训练 (Masked Language Modeling)
+  year: '2019'
+  org: Google
+  paper_url: https://arxiv.org/abs/1810.04805
+  category: pretrain
+  parent: '—'
+  motivation: 掩码预测实现深度双向语言预训练
+- id: moco
+  name: MoCo
+  full_name: 动量对比学习 (Momentum Contrast)
+  year: '2020'
+  org: Meta AI
+  paper_url: https://arxiv.org/abs/1911.05722
+  category: pretrain
+  parent: '—'
+  motivation: 动量编码器+队列构建大规模对比字典
+- id: mae
+  name: MAE
+  full_name: 掩码自编码器 (Masked Autoencoders)
+  year: '2022'
+  org: Meta AI
+  paper_url: https://arxiv.org/abs/2111.06377
+  category: pretrain
+  parent: mlm
+  motivation: 高比例掩码图像块重建学习视觉特征
+- id: lap
+  name: LAP
+  full_name: 语言-动作预训练 (Language-Action Pre-training)
+  year: '2026'
+  org: 多机构联合
+  paper_url: https://arxiv.org/abs/2602.10556
+  category: pretrain
+  parent: mae
+  motivation: 自然语言表示动作实现跨具身零样本迁移
+graph:
+  nodes:
+  - id: kmm
+    x: 5
+    y: 20
+    category: domain_adapt
+  - id: tca
+    x: 18
+    y: 20
+    category: domain_adapt
+  - id: dan
+    x: 30
+    y: 20
+    category: domain_adapt
+  - id: dann
+    x: 33
+    y: 20
+    category: domain_adapt
+  - id: cdan
+    x: 42
+    y: 20
+    category: domain_adapt
+  - id: swd
+    x: 48
+    y: 20
+    category: domain_adapt
+  - id: diffgda
+    x: 88
+    y: 20
+    category: domain_adapt
+  - id: tell2adapt
+    x: 92
+    y: 20
+    category: domain_adapt
+  - id: kd
+    x: 30
+    y: 50
+    category: cross_task
+  - id: maml
+    x: 36
+    y: 50
+    category: cross_task
+  - id: adapter
+    x: 48
+    y: 50
+    category: cross_task
+  - id: lora
+    x: 60
+    y: 50
+    category: cross_task
+  - id: dvora
+    x: 88
+    y: 50
+    category: cross_task
+  - id: com
+    x: 92
+    y: 50
+    category: cross_task
+  - id: mlm
+    x: 46
+    y: 80
+    category: pretrain
+  - id: moco
+    x: 50
+    y: 80
+    category: pretrain
+  - id: mae
+    x: 60
+    y: 80
+    category: pretrain
+  - id: lap
+    x: 90
+    y: 80
+    category: pretrain
+  edges:
+  - from: kmm
+    to: tca
+    label: 核空间变换
+  - from: tca
+    to: dan
+    label: 深度化MMD
+  - from: dan
+    to: swd
+    label: 最优传输度量
+  - from: dann
+    to: cdan
+    label: 条件化对抗
+  - from: swd
+    to: diffgda
+    label: 扩散式对齐
+  - from: dann
+    to: tell2adapt
+    label: VFM无源适配
+  - from: adapter
+    to: lora
+    label: 低秩分解
+  - from: lora
+    to: dvora
+    label: 动态秩分配
+  - from: lora
+    to: com
+    label: 模型合并
+  - from: mlm
+    to: mae
+    label: 掩码迁移至CV
+  - from: mae
+    to: lap
+    label: 跨具身预训练
+  - from: dan
+    to: cdan
+    label: 联合分布
+  - from: kd
+    to: adapter
+    label: 轻量化迁移
+  milestones:
+  - dann
+  - lora
+  - mlm

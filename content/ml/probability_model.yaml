@@ -1,0 +1,236 @@
+page_icon: 🎲
+page_title: 概率模型技术演进
+page_subtitle: '{build_date} 版'
+page_desc: 从经典概率图模型到现代深度生成模型的演进脉络，涵盖贝叶斯网络、隐马尔可夫、变分推断等核心方法
+hero_pills: 🏷️ Bayesian · Graphical Models · Variational Inference
+count_pill: '{count} 个算法'
+categories:
+  foundation:
+    label: 奠基理论
+    color: '#22a06b'
+  core:
+    label: 核心框架
+    color: '#5b63d3'
+  specialized:
+    label: 前沿进展
+    color: '#e8820c'
+algorithms:
+- id: gmm
+  name: GMM
+  full_name: 高斯混合模型 (Gaussian Mixture Model)
+  year: '1894'
+  org: Karl Pearson
+  paper_url: https://royalsocietypublishing.org/doi/10.1098/rsta.1894.0003
+  category: foundation
+  parent: —
+  motivation: 多分布组合建模复杂数据分布
+- id: mcmc
+  name: MCMC
+  full_name: 马尔可夫链蒙特卡洛 (Markov Chain Monte Carlo)
+  year: '1953'
+  org: Los Alamos
+  paper_url: https://pubs.aip.org/jcp/article/21/6/1087/201161
+  category: foundation
+  parent: —
+  motivation: 高维空间高效随机采样
+- id: hmm
+  name: HMM
+  full_name: 隐马尔可夫模型 (Hidden Markov Model)
+  year: '1970'
+  org: IDA
+  paper_url: https://projecteuclid.org/journals/annals-of-mathematical-statistics/volume-41/issue-1/A-Maximization-Technique-Occurring-in-the-Statistical-Analysis-of-Probabilistic/10.1214/aoms/1177697196.full
+  category: foundation
+  parent: —
+  motivation: 隐状态序列统计推断建模
+- id: em
+  name: EM
+  full_name: 期望最大化算法 (Expectation-Maximization)
+  year: '1977'
+  org: Harvard
+  paper_url: https://academic.oup.com/jrsssb/article/39/1/1/7033013
+  category: foundation
+  parent: gmm
+  motivation: 隐变量下迭代极大化似然
+- id: mrf
+  name: MRF
+  full_name: 马尔可夫随机场 (Markov Random Field)
+  year: '1984'
+  org: Brown Univ.
+  paper_url: https://ieeexplore.ieee.org/abstract/document/4767596/
+  category: core
+  parent: mcmc
+  motivation: 无向图建模空间相关性
+- id: bn
+  name: BN
+  full_name: 贝叶斯网络 (Bayesian Network)
+  year: '1988'
+  org: UCLA
+  paper_url: http://bayes.cs.ucla.edu/jp_home.html
+  category: foundation
+  parent: —
+  motivation: 有向图表达因果依赖关系
+- id: vi
+  name: VI
+  full_name: 变分推断 (Variational Inference)
+  year: '1999'
+  org: UC Berkeley
+  paper_url: https://www.jmlr.org/papers/volume3/blei03a/blei03a.pdf
+  category: core
+  parent: em
+  motivation: 将推断问题转化为优化问题
+- id: crf
+  name: CRF
+  full_name: 条件随机场 (Conditional Random Field)
+  year: '2001'
+  org: CMU
+  paper_url: https://repository.upenn.edu/handle/20.500.14332/6188
+  category: core
+  parent: hmm
+  motivation: 判别式建模克服标签偏置
+- id: vae
+  name: VAE
+  full_name: 变分自编码器 (Variational Autoencoder)
+  year: '2013'
+  org: Univ. Amsterdam
+  paper_url: https://arxiv.org/abs/1312.6114
+  category: core
+  parent: vi
+  motivation: 深度学习与变分推断端到端结合
+- id: score_matching
+  name: Score Matching
+  full_name: 分数匹配 (Score Matching)
+  year: '2019'
+  org: Stanford
+  paper_url: https://neurips.cc/virtual/2019/poster/6392
+  category: specialized
+  parent: vi
+  motivation: 估计数据分布的梯度场
+- id: ddpm
+  name: DDPM
+  full_name: 去噪扩散概率模型 (Denoising Diffusion)
+  year: '2020'
+  org: UC Berkeley
+  paper_url: https://proceedings.neurips.cc/paper/2020/hash/4c5bcfec8584af0d967f1ab10179ca4b-Abstract.html
+  category: specialized
+  parent: score_matching
+  motivation: 迭代去噪生成高质量样本
+- id: flow_matching
+  name: Flow Matching
+  full_name: 流匹配 (Flow Matching)
+  year: '2024'
+  org: Meta AI
+  paper_url: https://arxiv.org/abs/2210.02747
+  category: specialized
+  parent: ddpm
+  motivation: 直线轨迹大幅提升采样效率
+- id: brain_vi
+  name: Brain-like VI
+  full_name: 类脑变分推断 (Brain-like VI)
+  year: '2026'
+  org: UC Irvine
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/efa0939caa8a906fd0a61a9c60e46e8b-Abstract-Conference.html
+  category: specialized
+  parent: vi
+  motivation: 脉冲神经网络实现生物推断
+- id: bnn_scale
+  name: Large-scale BNN
+  full_name: 大规模贝叶斯神经网络 (Large-scale BNN)
+  year: '2026'
+  org: KAIST
+  paper_url: https://arxiv.org/abs/2602.05873
+  category: specialized
+  parent: bn
+  motivation: 深度网络不确定性精确量化
+graph:
+  nodes:
+  - id: gmm
+    x: 100
+    y: 100
+    category: foundation
+  - id: mcmc
+    x: 250
+    y: 250
+    category: foundation
+  - id: hmm
+    x: 300
+    y: 400
+    category: foundation
+  - id: em
+    x: 400
+    y: 100
+    category: foundation
+  - id: mrf
+    x: 450
+    y: 250
+    category: core
+  - id: bn
+    x: 500
+    y: 100
+    category: foundation
+  - id: vi
+    x: 650
+    y: 250
+    category: core
+  - id: crf
+    x: 700
+    y: 400
+    category: core
+  - id: vae
+    x: 850
+    y: 250
+    category: core
+  - id: score_matching
+    x: 1000
+    y: 250
+    category: specialized
+  - id: ddpm
+    x: 1100
+    y: 250
+    category: specialized
+  - id: flow_matching
+    x: 1250
+    y: 250
+    category: specialized
+  - id: brain_vi
+    x: 1350
+    y: 150
+    category: specialized
+  - id: bnn_scale
+    x: 1350
+    y: 100
+    category: specialized
+  edges:
+  - from: gmm
+    to: em
+    label: 参数估计
+  - from: em
+    to: vi
+    label: 优化视角
+  - from: vi
+    to: vae
+    label: 深度化
+  - from: vi
+    to: score_matching
+    label: 分数估计
+  - from: score_matching
+    to: ddpm
+    label: 扩散过程
+  - from: ddpm
+    to: flow_matching
+    label: 确定轨迹
+  - from: hmm
+    to: crf
+    label: 判别式
+  - from: mcmc
+    to: mrf
+    label: Gibbs采样
+  - from: vi
+    to: brain_vi
+    label: 类脑化
+  - from: bn
+    to: bnn_scale
+    label: 深度扩展
+  milestones:
+  - bn
+  - vae
+  - ddpm

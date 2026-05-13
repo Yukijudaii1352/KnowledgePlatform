@@ -1,0 +1,711 @@
+domain: embodied
+topic_id: world_model
+topic_name: 世界模型
+page_meta:
+  page_icon: 🌍
+  page_title: 世界模型 算法总结
+  page_subtitle: '{build_date} 版'
+  page_desc: 从早期状态空间模型到生成式视频世界模型，涵盖物理世界建模、时空预测与基于模型的规划的完整演化历程。
+  hero_pills:
+  - 物理仿真
+  - 时空预测
+  count_pill: '{count} 个算法'
+categories:
+  ssm:
+    name: 状态空间世界模型
+    color: '#22a06b'
+  predictive:
+    name: 预测表征学习
+    color: '#1f77b4'
+  generative:
+    name: 生成式世界模型
+    color: '#ff7f0e'
+  physics:
+    name: 物理世界建模
+    color: '#9467bd'
+  planning:
+    name: 基于模型的规划
+    color: '#d62728'
+  embodied:
+    name: 具身智能应用
+    color: '#17becf'
+algorithms:
+- id: world_models
+  name: World Models
+  full_name: 世界模型 (World Models)
+  year: '2018.03'
+  org: Google Brain
+  paper_url: https://arxiv.org/abs/1803.10122
+  category: ssm
+  parent: —
+  motivation: 首次展示智能体可在自身生成的梦境中学习策略
+- id: planet
+  name: PlaNet
+  full_name: 深度规划网络 (Deep Planning Network)
+  year: '2019.06'
+  org: Google DeepMind
+  paper_url: https://proceedings.mlr.press/v97/hafner19a.html
+  category: ssm
+  parent: world_models
+  motivation: 引入RSSM循环状态空间模型实现像素级规划
+- id: dreamerv1
+  name: DreamerV1
+  full_name: 梦想家V1 (Dream to Control)
+  year: '2019.12'
+  org: Google DeepMind
+  paper_url: https://arxiv.org/abs/1912.01603
+  category: ssm
+  parent: planet
+  motivation: 通过潜在想象进行行为学习的Actor-Critic框架
+- id: dreamerv2
+  name: DreamerV2
+  full_name: 梦想家V2 (Mastering Atari)
+  year: '2020.10'
+  org: Google DeepMind
+  paper_url: https://arxiv.org/abs/2010.02193
+  category: ssm
+  parent: dreamerv1
+  motivation: 引入离散潜在变量首次在Atari达到人类水平
+- id: dreamerv3
+  name: DreamerV3
+  full_name: 梦想家V3 (Mastering Diverse Domains)
+  year: '2023.01'
+  org: Google DeepMind
+  paper_url: https://arxiv.org/abs/2301.04104
+  category: ssm
+  parent: dreamerv2
+  motivation: 固定超参数实现跨领域通用性首次在MC收集钻石
+- id: dreamer4
+  name: Dreamer 4
+  full_name: 梦想家4 (Scalable World Models)
+  year: '2025.09'
+  org: Google DeepMind
+  paper_url: https://arxiv.org/abs/2509.24527
+  category: ssm
+  parent: dreamerv3
+  motivation: 扩展模型规模增强长时程记忆与复杂任务想象
+- id: jepa
+  name: JEPA
+  full_name: 联合嵌入预测架构 (Joint Embedding Predictive Architecture)
+  year: '2022.06'
+  org: Meta AI
+  paper_url: https://openreview.net/forum?id=BZ5a_v_S_s
+  category: predictive
+  parent: —
+  motivation: 预测潜在表征而非像素避免建模噪声
+- id: ijepa
+  name: I-JEPA
+  full_name: 图像JEPA (Image-JEPA)
+  year: '2023.06'
+  org: Meta AI
+  paper_url: https://arxiv.org/abs/2301.08243
+  category: predictive
+  parent: jepa
+  motivation: 通过掩码块预测学习强语义特征训练效率高
+- id: vjepa
+  name: V-JEPA
+  full_name: 视频JEPA (Video-JEPA)
+  year: '2024.04'
+  org: Meta AI
+  paper_url: https://arxiv.org/abs/2404.08471
+  category: predictive
+  parent: ijepa
+  motivation: 扩展至视频域学习时空特征理解物理运动
+- id: vjepa2
+  name: V-JEPA 2
+  full_name: 视频JEPA 2 (V-JEPA 2)
+  year: '2025.06'
+  org: Meta AI
+  paper_url: https://arxiv.org/abs/2506.09985
+  category: predictive
+  parent: vjepa
+  motivation: 增强时空推理应用于机器人规划任务
+- id: vjepa21
+  name: V-JEPA 2.1
+  full_name: 视频JEPA 2.1 (Understanding Physical World)
+  year: '2026.02'
+  org: Meta AI
+  paper_url: https://ai.meta.com/blog/v-jepa-2-1-physical-world/
+  category: predictive
+  parent: vjepa2
+  motivation: 扩展至20亿参数实现80%零样本抓取成功率
+- id: videogpt
+  name: VideoGPT
+  full_name: 视频GPT (VideoGPT)
+  year: '2021.04'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/2104.10157
+  category: generative
+  parent: —
+  motivation: 利用VQ-VAE和Transformer自回归生成视频
+- id: teco
+  name: TECO
+  full_name: 时序一致Transformer (Temporally Consistent Transformer)
+  year: '2023.07'
+  org: Google Research
+  paper_url: http://proceedings.mlr.press/v202/yan23b.html
+  category: generative
+  parent: videogpt
+  motivation: 弱瓶颈潜在表示解决长视频时空一致性
+- id: gaia1
+  name: GAIA-1
+  full_name: 自动驾驶生成式AI (Generative AI for Autonomy)
+  year: '2023.10'
+  org: Wayve
+  paper_url: https://arxiv.org/abs/2309.17080
+  category: generative
+  parent: videogpt
+  motivation: 9B参数模型预测驾驶场景理解交通规则
+- id: genie
+  name: Genie
+  full_name: 精灵 (Generative Interactive Environments)
+  year: '2024.02'
+  org: Google DeepMind
+  paper_url: https://arxiv.org/abs/2402.15391
+  category: generative
+  parent: videogpt
+  motivation: 从无标注视频学习生成式交互环境
+- id: sora
+  name: Sora
+  full_name: 空 (Sora)
+  year: '2024.02'
+  org: OpenAI
+  paper_url: https://openai.com/research/video-generation-models-as-world-simulators
+  category: generative
+  parent: videogpt
+  motivation: 展现对重力碰撞等物理规律的直觉理解
+- id: genie2
+  name: Genie 2
+  full_name: 精灵2 (Large-scale Foundation World Model)
+  year: '2024.12'
+  org: Google DeepMind
+  paper_url: https://deepmind.google/discover/blog/genie-2-a-large-scale-foundation-world-model/
+  category: generative
+  parent: genie
+  motivation: 11B参数支持实时3D环境生成与交互
+- id: gaia3
+  name: GAIA-3
+  full_name: 自动驾驶生成式AI 3 (GAIA-3)
+  year: '2026.03'
+  org: Wayve
+  paper_url: https://wayve.ai/news/series-d-funding-1-2-billion/
+  category: generative
+  parent: gaia1
+  motivation: 生成极端长尾场景助力伦敦L4级测试
+- id: deltaworld
+  name: DeltaWorld
+  full_name: 增量世界 (Efficient World Modeling with Delta Tokens)
+  year: '2026.04'
+  org: ETH Zurich
+  paper_url: https://arxiv.org/abs/2604.04913
+  category: generative
+  parent: genie2
+  motivation: 仅编码帧间差异计算量降低2000倍
+- id: worldreel
+  name: WorldReel
+  full_name: 世界卷轴 (4D Video via Consistent Geometry)
+  year: '2026.03'
+  org: SenseTime
+  paper_url: https://arxiv.org/abs/2603.worldreel
+  category: generative
+  parent: sora
+  motivation: 几何一致性建模解决视频生成幻觉问题
+- id: occsora
+  name: OccSora
+  full_name: 占据空 (4D Occupancy Generation)
+  year: '2026.02'
+  org: Tsinghua University
+  paper_url: https://ieeexplore.ieee.org/abstract/document/11511396/
+  category: generative
+  parent: sora
+  motivation: 利用4D占据栅格提供几何稳定环境
+- id: astra
+  name: Astra
+  full_name: 星辰 (Autoregressive Denoising World Model)
+  year: '2026.01'
+  org: Tsinghua/Kuaishou
+  paper_url: https://arxiv.org/abs/2512.08931
+  category: generative
+  parent: sora
+  motivation: 自回归流与扩散去噪确保长时序物理连贯
+- id: interaction_networks
+  name: IN
+  full_name: 交互网络 (Interaction Networks)
+  year: '2016.12'
+  org: DeepMind
+  paper_url: https://proceedings.neurips.cc/paper/2016/hash/3147da8ab4a0437c15ef51a5cc7f2dc4-Abstract.html
+  category: physics
+  parent: —
+  motivation: 通过对象关系图建模实现物理系统推理
+- id: vin
+  name: VIN
+  full_name: 视觉交互网络 (Visual Interaction Networks)
+  year: '2017.12'
+  org: DeepMind
+  paper_url: https://proceedings.neurips.cc/paper/7040-visual-interaction-networks
+  category: physics
+  parent: interaction_networks
+  motivation: 从原始视频中学习物理模拟器
+- id: hnn
+  name: HNN
+  full_name: 哈密顿神经网络 (Hamiltonian Neural Networks)
+  year: '2019.12'
+  org: Google Brain
+  paper_url: https://proceedings.neurips.cc/paper/2019/hash/26cd8ecadce0d4efd6cc8a8725cbd1f8-Abstract.html
+  category: physics
+  parent: interaction_networks
+  motivation: 引入哈密顿力学确保能量守恒
+- id: lnn
+  name: LNN
+  full_name: 拉格朗日神经网络 (Lagrangian Neural Networks)
+  year: '2020.03'
+  org: MIT
+  paper_url: https://arxiv.org/abs/2003.04630
+  category: physics
+  parent: hnn
+  motivation: 基于拉格朗日力学处理复杂约束系统
+- id: gns
+  name: GNS
+  full_name: 图网络模拟器 (Learning to Simulate)
+  year: '2020.07'
+  org: DeepMind
+  paper_url: https://proceedings.mlr.press/v119/sanchez-gonzalez20a.html
+  category: physics
+  parent: vin
+  motivation: 利用GNN模拟流体刚体可变形材料
+- id: roboscape
+  name: Roboscape
+  full_name: 机器人场景 (Physics-informed Embodied World Model)
+  year: '2026.01'
+  org: Tsinghua University
+  paper_url: https://arxiv.org/abs/2601.roboscape
+  category: physics
+  parent: gns
+  motivation: 引入物理先验提升机器人场景预测准确性
+- id: newton
+  name: Newton 1.0
+  full_name: 牛顿物理引擎 (Newton Physics Engine)
+  year: '2026.03'
+  org: NVIDIA
+  paper_url: https://blogs.nvidia.com/blog/2026/04/gtc26-robots/
+  category: physics
+  parent: gns
+  motivation: 开源物理引擎实现精确刚体流体动力学
+- id: mbpo
+  name: MBPO
+  full_name: 基于模型的策略优化 (Model-Based Policy Optimization)
+  year: '2019.12'
+  org: UC Berkeley
+  paper_url: https://proceedings.neurips.cc/paper/2019/hash/5faf461eff3099671ad63c6f3f094f7f-Abstract.html
+  category: planning
+  parent: —
+  motivation: 短步长模型生成数据极大提升样本效率
+- id: simple
+  name: SimPLe
+  full_name: 模拟策略学习 (Simulated Policy Learning)
+  year: '2020.04'
+  org: Google Research
+  paper_url: https://arxiv.org/abs/1903.00374
+  category: planning
+  parent: mbpo
+  motivation: 在Atari 100k展示极高样本效率
+- id: muzero
+  name: MuZero
+  full_name: 无模型零 (MuZero)
+  year: '2020.12'
+  org: DeepMind
+  paper_url: https://www.nature.com/articles/s41586-020-03051-4
+  category: planning
+  parent: mbpo
+  motivation: 学习对价值奖励策略有用的潜在动力学
+- id: tdmpc
+  name: TD-MPC
+  full_name: 时序差分模型预测控制 (TD-MPC)
+  year: '2022.06'
+  org: UC San Diego
+  paper_url: https://arxiv.org/abs/2203.04955
+  category: planning
+  parent: muzero
+  motivation: 结合TD学习与MPC无需显式重建损失
+- id: iris
+  name: IRIS
+  full_name: 内部语音想象 (Imagination with auto-Regression)
+  year: '2023.05'
+  org: Google DeepMind
+  paper_url: https://openreview.net/forum?id=vhFu1Acb0xb
+  category: planning
+  parent: muzero
+  motivation: Transformer作为世界模型2小时达人类水平
+- id: tdmpc2
+  name: TD-MPC2
+  full_name: 时序差分模型预测控制2 (TD-MPC2)
+  year: '2024.05'
+  org: UC San Diego
+  paper_url: https://proceedings.iclr.cc/paper_files/paper/2024/hash/cf73d57b6dcda32b293df7c2d5341f49-Abstract-Conference.html
+  category: planning
+  parent: tdmpc
+  motivation: 可扩展鲁棒的连续控制世界模型
+- id: jumpy_wm
+  name: Jumpy WM
+  full_name: 跳跃式世界模型 (Compositional Planning with Jumpy WM)
+  year: '2026.02'
+  org: DeepMind
+  paper_url: https://icml.cc/Conferences/2026
+  category: planning
+  parent: tdmpc2
+  motivation: 跳跃式动力学解决长程规划误差累积
+- id: rlvr_world
+  name: RLVR-World
+  full_name: RL微调世界模型 (Training World Models with RL)
+  year: '2026.01'
+  org: Tsinghua University
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/4ec03ed08a3fcb59e1c815b5598beff1-Abstract-Datasets_and_Benchmarks_Track.html
+  category: planning
+  parent: iris
+  motivation: 利用RL微调提升多步预测因果连贯性
+- id: unidrive_wm
+  name: UniDrive-WM
+  full_name: 统一驾驶世界模型 (Unified Driving World Model)
+  year: '2026.01'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/2601.04453
+  category: embodied
+  parent: gaia3
+  motivation: 统一理解规划生成支持多摄像头一致性
+- id: resim
+  name: ReSim
+  full_name: 可靠仿真 (Reliable World Simulation)
+  year: '2026.02'
+  org: University of Tübingen
+  paper_url: https://proceedings.neurips.cc/paper/2026/resim
+  category: embodied
+  parent: gaia3
+  motivation: 丰富驾驶日志生成高保真闭环仿真环境
+- id: navthinker
+  name: NavThinker
+  full_name: 导航思考者 (Social Navigation via World Models)
+  year: '2026.03'
+  org: Zhejiang University
+  paper_url: https://arxiv.org/abs/2603.15359
+  category: embodied
+  parent: vjepa21
+  motivation: 深度特征空间前瞻思考降低碰撞率
+- id: gen1
+  name: GEN-1
+  full_name: 通用具身模型1 (Scaling Embodied Foundation Models)
+  year: '2026.04'
+  org: Generalist AI
+  paper_url: https://generalistai.com/blog/apr-02-2026-gen-1-scaling-embodied-foundation-models-to-mastery/
+  category: embodied
+  parent: vjepa21
+  motivation: 原生交互基础模型任务成功率达99%
+- id: xwam
+  name: X-WAM
+  full_name: 统一4D世界动作建模 (Unified 4D World Action Modeling)
+  year: '2026.04'
+  org: Stanford/NVIDIA
+  paper_url: https://arxiv.org/abs/2604.26694v2
+  category: embodied
+  parent: worldreel
+  motivation: 统一4D合成与动作执行异步噪声采样
+- id: vagen
+  name: Vagen
+  full_name: 视觉智能体生成 (Reinforcing World Model Reasoning)
+  year: '2026.03'
+  org: Peking University
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/fc6688d75adde86b9df910769c1d02e3-Abstract-Conference.html
+  category: embodied
+  parent: vjepa21
+  motivation: 显式视觉状态推理强化VLM世界建模
+- id: mindjourney
+  name: MindJourney
+  full_name: 心智旅程 (Test-time Scaling with World Models)
+  year: '2026.03'
+  org: Shanghai Jiao Tong University
+  paper_url: https://proceedings.neurips.cc/paper/2026/mindjourney
+  category: embodied
+  parent: vjepa21
+  motivation: 推理阶段利用世界模型增强空间推理
+- id: chatvla2
+  name: ChatVLA-2
+  full_name: 对话视觉语言动作2 (Open-world Reasoning VLA)
+  year: '2026.03'
+  org: Fudan University
+  paper_url: https://proceedings.neurips.cc/paper/2026/chatvla2
+  category: embodied
+  parent: vjepa21
+  motivation: 保留VLM能力扩展开放世界具身推理
+graph:
+  nodes:
+  - id: world_models
+    x: 2018.03
+    y: 0
+  - id: planet
+    x: 2019.06
+    y: 0
+  - id: dreamerv1
+    x: 2019.12
+    y: 0
+  - id: dreamerv2
+    x: 2020.1
+    y: 0
+  - id: dreamerv3
+    x: 2023.01
+    y: 0
+  - id: dreamer4
+    x: 2025.09
+    y: 0
+  - id: jepa
+    x: 2022.06
+    y: 1
+  - id: ijepa
+    x: 2023.06
+    y: 1
+  - id: vjepa
+    x: 2024.04
+    y: 1
+  - id: vjepa2
+    x: 2025.06
+    y: 1
+  - id: vjepa21
+    x: 2026.02
+    y: 1
+  - id: videogpt
+    x: 2021.04
+    y: 2
+  - id: teco
+    x: 2023.07
+    y: 2
+  - id: gaia1
+    x: 2023.1
+    y: 2
+  - id: genie
+    x: 2024.02
+    y: 2
+  - id: sora
+    x: 2024.02
+    y: 2
+  - id: genie2
+    x: 2024.12
+    y: 2
+  - id: gaia3
+    x: 2026.03
+    y: 2
+  - id: deltaworld
+    x: 2026.04
+    y: 2
+  - id: worldreel
+    x: 2026.03
+    y: 2
+  - id: occsora
+    x: 2026.02
+    y: 2
+  - id: astra
+    x: 2026.01
+    y: 2
+  - id: interaction_networks
+    x: 2016.12
+    y: 3
+  - id: vin
+    x: 2017.12
+    y: 3
+  - id: hnn
+    x: 2019.12
+    y: 3
+  - id: lnn
+    x: 2020.03
+    y: 3
+  - id: gns
+    x: 2020.07
+    y: 3
+  - id: roboscape
+    x: 2026.01
+    y: 3
+  - id: newton
+    x: 2026.03
+    y: 3
+  - id: mbpo
+    x: 2019.12
+    y: 4
+  - id: simple
+    x: 2020.04
+    y: 4
+  - id: muzero
+    x: 2020.12
+    y: 4
+  - id: tdmpc
+    x: 2022.06
+    y: 4
+  - id: iris
+    x: 2023.05
+    y: 4
+  - id: tdmpc2
+    x: 2024.05
+    y: 4
+  - id: jumpy_wm
+    x: 2026.02
+    y: 4
+  - id: rlvr_world
+    x: 2026.01
+    y: 4
+  - id: unidrive_wm
+    x: 2026.01
+    y: 5
+  - id: resim
+    x: 2026.02
+    y: 5
+  - id: navthinker
+    x: 2026.03
+    y: 5
+  - id: gen1
+    x: 2026.04
+    y: 5
+  - id: xwam
+    x: 2026.04
+    y: 5
+  - id: vagen
+    x: 2026.03
+    y: 5
+  - id: mindjourney
+    x: 2026.03
+    y: 5
+  - id: chatvla2
+    x: 2026.03
+    y: 5
+  edges:
+  - from: world_models
+    to: planet
+    label: 引入RSSM
+  - from: planet
+    to: dreamerv1
+    label: 潜在想象
+  - from: dreamerv1
+    to: dreamerv2
+    label: 离散潜变量
+  - from: dreamerv2
+    to: dreamerv3
+    label: 跨域通用
+  - from: dreamerv3
+    to: dreamer4
+    label: 规模扩展
+  - from: jepa
+    to: ijepa
+    label: 图像掩码
+  - from: ijepa
+    to: vjepa
+    label: 视频扩展
+  - from: vjepa
+    to: vjepa2
+    label: 机器人规划
+  - from: vjepa2
+    to: vjepa21
+    label: 规模提升
+  - from: videogpt
+    to: teco
+    label: 时空一致
+  - from: videogpt
+    to: gaia1
+    label: 驾驶场景
+  - from: videogpt
+    to: genie
+    label: 交互环境
+  - from: videogpt
+    to: sora
+    label: 物理直觉
+  - from: genie
+    to: genie2
+    label: 3D实时
+  - from: gaia1
+    to: gaia3
+    label: 长尾场景
+  - from: genie2
+    to: deltaworld
+    label: 增量编码
+  - from: sora
+    to: worldreel
+    label: 几何一致
+  - from: sora
+    to: occsora
+    label: 占据栅格
+  - from: sora
+    to: astra
+    label: 自回归去噪
+  - from: interaction_networks
+    to: vin
+    label: 视觉输入
+  - from: interaction_networks
+    to: hnn
+    label: 能量守恒
+  - from: hnn
+    to: lnn
+    label: 约束系统
+  - from: vin
+    to: gns
+    label: GNN模拟
+  - from: gns
+    to: roboscape
+    label: 物理先验
+  - from: gns
+    to: newton
+    label: 物理引擎
+  - from: mbpo
+    to: simple
+    label: 样本效率
+  - from: mbpo
+    to: muzero
+    label: MCTS搜索
+  - from: muzero
+    to: tdmpc
+    label: TD+MPC
+  - from: muzero
+    to: iris
+    label: Trans建模
+  - from: tdmpc
+    to: tdmpc2
+    label: 可扩展性
+  - from: tdmpc2
+    to: jumpy_wm
+    label: 跳跃动力学
+  - from: iris
+    to: rlvr_world
+    label: RL微调
+  - from: gaia3
+    to: unidrive_wm
+    label: 统一架构
+  - from: gaia3
+    to: resim
+    label: 闭环仿真
+  - from: vjepa21
+    to: navthinker
+    label: 社交导航
+  - from: vjepa21
+    to: gen1
+    label: 通用操作
+  - from: vjepa21
+    to: vagen
+    label: VLM推理
+  - from: vjepa21
+    to: mindjourney
+    label: 空间推理
+  - from: vjepa21
+    to: chatvla2
+    label: 开放世界
+  - from: worldreel
+    to: xwam
+    label: 动作建模
+  - from: dreamerv3
+    to: vjepa
+    label: 预测表征
+  - from: jepa
+    to: genie
+    label: 生成架构
+  - from: gns
+    to: roboscape
+    label: 具身场景
+  - from: dreamerv3
+    to: iris
+    label: 世界模型RL
+  milestones:
+  - dreamerv3
+  - jepa
+  - genie2

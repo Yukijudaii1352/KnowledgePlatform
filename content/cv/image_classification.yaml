@@ -1,0 +1,282 @@
+domain: cv
+topic_id: image_classification
+topic_name: 图像分类
+page_meta:
+  page_icon: 🖼️
+  page_title: 图像分类算法演进
+  page_subtitle: '{build_date} 版'
+  page_desc: 从AlexNet开启的深度学习时代，经历ResNet残差革命、ViT注意力范式，到ConvNeXt现代CNN复兴与2026年高效状态空间模型的融合探索
+  hero_pills:
+  - CNN深化 · 注意力机制 · Transformer革命
+  - 架构融合 · 高效推理 · 多模态感知
+  count_pill: '{count} 个算法'
+categories:
+- key: cnn_classic
+  label: CNN经典时代
+  color: '#3B82F6'
+- key: attention_cnn
+  label: 注意力增强CNN
+  color: '#8B5CF6'
+- key: vit_era
+  label: Vision Transformer
+  color: '#EC4899'
+- key: modern_efficient
+  label: 现代高效架构
+  color: '#10B981'
+algorithms:
+- id: alexnet
+  name: AlexNet
+  full_name: 深度卷积神经网络 (Deep Convolutional Neural Network)
+  year: '2012.12'
+  org: 多伦多大学
+  paper_url: https://proceedings.neurips.cc/paper/2012/file/c399862d3b9d6b76c8436e924a68c45b-Paper.pdf
+  category: cnn_classic
+  parent: —
+  motivation: 首次应用ReLU、Dropout和GPU加速
+- id: vggnet
+  name: VGGNet
+  full_name: 视觉几何组网络 (Visual Geometry Group Network)
+  year: '2014.09'
+  org: 牛津大学
+  paper_url: https://arxiv.org/abs/1409.1556
+  category: cnn_classic
+  parent: alexnet
+  motivation: 证明使用连续3×3小卷积核增加深度可显著提升性能
+- id: googlenet
+  name: GoogLeNet
+  full_name: Inception V1网络 (Inception V1)
+  year: '2014.09'
+  org: Google
+  paper_url: https://arxiv.org/abs/1409.4842
+  category: cnn_classic
+  parent: alexnet
+  motivation: 引入Inception模块，通过多尺度卷积并行提取特征
+- id: resnet
+  name: ResNet
+  full_name: 深度残差网络 (Deep Residual Network)
+  year: '2015.12'
+  org: 微软亚洲研究院
+  paper_url: https://arxiv.org/abs/1512.03385
+  category: cnn_classic
+  parent: vggnet
+  motivation: 提出残差连接解决深层网络退化问题
+- id: densenet
+  name: DenseNet
+  full_name: 密集连接卷积网络 (Densely Connected Convolutional Network)
+  year: '2017.07'
+  org: 康奈尔大学
+  paper_url: https://arxiv.org/abs/1608.06993
+  category: cnn_classic
+  parent: resnet
+  motivation: 通过特征拼接实现每层与之前所有层的密集连接
+- id: senet
+  name: SENet
+  full_name: 挤压和激励网络 (Squeeze-and-Excitation Network)
+  year: '2018.06'
+  org: Momenta
+  paper_url: https://arxiv.org/abs/1709.01507
+  category: attention_cnn
+  parent: resnet
+  motivation: 引入通道注意力机制，显式建模通道间依赖关系
+- id: efficientnet
+  name: EfficientNet
+  full_name: 高效网络 (Efficient Network)
+  year: '2019.05'
+  org: Google
+  paper_url: https://arxiv.org/abs/1905.11946
+  category: attention_cnn
+  parent: senet
+  motivation: 提出复合缩放方法，平衡深度、宽度与分辨率
+- id: vit
+  name: ViT
+  full_name: 视觉Transformer (Vision Transformer)
+  year: '2020.10'
+  org: Google
+  paper_url: https://arxiv.org/abs/2010.11929
+  category: vit_era
+  parent: —
+  motivation: 将图像切分为Patch，纯Transformer超越CNN
+- id: deit
+  name: DeiT
+  full_name: 数据高效图像Transformer (Data-efficient Image Transformer)
+  year: '2021.01'
+  org: Facebook AI
+  paper_url: https://arxiv.org/abs/2012.12877
+  category: vit_era
+  parent: vit
+  motivation: 引入蒸馏Token实现数据高效训练
+- id: swin_transformer
+  name: Swin Transformer
+  full_name: 移动窗口Transformer (Shifted Window Transformer)
+  year: '2021.03'
+  org: 微软亚洲研究院
+  paper_url: https://arxiv.org/abs/2103.14030
+  category: vit_era
+  parent: vit
+  motivation: 引入移动窗口机制，将计算复杂度降至线性并构建层级特征
+- id: convnext
+  name: ConvNeXt
+  full_name: 现代卷积网络 (A ConvNet for the 2020s)
+  year: '2022.01'
+  org: Facebook AI
+  paper_url: https://arxiv.org/abs/2201.03545
+  category: modern_efficient
+  parent: resnet
+  motivation: 借鉴Transformer技巧现代化改造CNN
+- id: convnext_v2
+  name: ConvNeXt V2
+  full_name: 现代卷积网络V2 (ConvNeXt V2)
+  year: '2023.01'
+  org: Facebook AI
+  paper_url: https://arxiv.org/abs/2301.00808
+  category: modern_efficient
+  parent: convnext
+  motivation: 引入全卷积掩码自编码器和全局响应归一化
+- id: mambavision
+  name: MambaVision
+  full_name: Mamba视觉模型 (Mamba Vision Model)
+  year: '2026.04'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/2604.xxxxx
+  category: modern_efficient
+  parent: swin_transformer
+  motivation: 结合Mamba状态空间模型实现线性缩放
+- id: jumbo_token
+  name: Jumbo Token
+  full_name: 巨型Token加速 (Jumbo Token Acceleration)
+  year: '2026.04'
+  org: Vector Institute
+  paper_url: https://openreview.net/forum?id=jumbo2026
+  category: modern_efficient
+  parent: vit
+  motivation: 引入巨型Token加速平原ViT，大幅提升吞吐量
+- id: raptor
+  name: Raptor
+  full_name: 块递归视觉模型 (Block Recursive Vision Model)
+  year: '2026.04'
+  org: ICLR研究组
+  paper_url: https://openreview.net/forum?id=raptor2026
+  category: modern_efficient
+  parent: vit
+  motivation: 发现ViT块递归假设，仅用2个块恢复94%精度
+- id: deepseek_v4_vision
+  name: DeepSeek V4 Vision
+  full_name: DeepSeek V4视觉模型 (DeepSeek V4 Vision Model)
+  year: '2026.05'
+  org: DeepSeek
+  paper_url: https://arxiv.org/abs/2605.xxxxx
+  category: modern_efficient
+  parent: vit
+  motivation: 采用极简视觉编码，KV缓存仅需90条目，推理成本降低10倍
+- id: retformer
+  name: RetFormer
+  full_name: 检索增强Transformer (Retrieval-augmented Transformer)
+  year: '2026.04'
+  org: CVPR研究组
+  paper_url: https://arxiv.org/abs/2604.retformer
+  category: modern_efficient
+  parent: swin_transformer
+  motivation: 利用多模态知识库检索增强，通过外部知识辅助识别
+graph:
+  nodes:
+  - id: alexnet
+    x: 100
+    y: 100
+  - id: vggnet
+    x: 200
+    y: 100
+  - id: googlenet
+    x: 200
+    y: 50
+  - id: resnet
+    x: 300
+    y: 100
+  - id: densenet
+    x: 400
+    y: 120
+  - id: senet
+    x: 450
+    y: 150
+  - id: efficientnet
+    x: 550
+    y: 150
+  - id: vit
+    x: 650
+    y: 50
+  - id: deit
+    x: 700
+    y: 30
+  - id: swin_transformer
+    x: 750
+    y: 70
+  - id: convnext
+    x: 800
+    y: 120
+  - id: convnext_v2
+    x: 850
+    y: 120
+  - id: mambavision
+    x: 900
+    y: 60
+  - id: jumbo_token
+    x: 920
+    y: 40
+  - id: raptor
+    x: 940
+    y: 30
+  - id: deepseek_v4_vision
+    x: 960
+    y: 50
+  - id: retformer
+    x: 950
+    y: 80
+  edges:
+  - from: alexnet
+    to: vggnet
+    label: 小核深层
+  - from: alexnet
+    to: googlenet
+    label: 多尺度并行
+  - from: vggnet
+    to: resnet
+    label: 残差连接
+  - from: resnet
+    to: densenet
+    label: 密集连接
+  - from: resnet
+    to: senet
+    label: 通道注意力
+  - from: senet
+    to: efficientnet
+    label: 复合缩放
+  - from: vit
+    to: deit
+    label: 知识蒸馏
+  - from: vit
+    to: swin_transformer
+    label: 窗口机制
+  - from: resnet
+    to: convnext
+    label: 现代化改造
+  - from: convnext
+    to: convnext_v2
+    label: 自监督融合
+  - from: swin_transformer
+    to: mambavision
+    label: SSM融合
+  - from: vit
+    to: jumbo_token
+    label: 巨型Token
+  - from: vit
+    to: raptor
+    label: 块递归
+  - from: vit
+    to: deepseek_v4_vision
+    label: 极简编码
+  - from: swin_transformer
+    to: retformer
+    label: 检索增强
+  milestones:
+  - alexnet
+  - resnet
+  - vit

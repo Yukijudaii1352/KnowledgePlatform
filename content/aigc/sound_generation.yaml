@@ -1,0 +1,493 @@
+page_icon: 🔊
+page_title: AI音频生成技术演化图谱
+page_subtitle: 2026-05-12 版
+page_desc: 从WaveNet自回归波形生成到Diffusion Transformer统一框架，AI音频生成经历了自回归时代、GAN时代、扩散模型时代和统一大模型时代四个阶段，涵盖TTS、语音克隆、音效生成、神经编解码器与音乐生成五大技术方向。
+hero_pills:
+- 文本到语音
+- 语音克隆
+- 音效生成
+- 神经编解码器
+- 音乐生成
+- Diffusion Transformer
+- 零样本克隆
+- 实时推理
+categories:
+- key: tts
+  label: 文本到语音合成
+  color: '#3B82F6'
+- key: vocoder
+  label: 神经网络声码器
+  color: '#10B981'
+- key: voice_clone
+  label: 语音克隆
+  color: '#8B5CF6'
+- key: audio_effect
+  label: 音效生成
+  color: '#F97316'
+- key: neural_codec
+  label: 神经编解码器
+  color: '#EF4444'
+- key: music_gen
+  label: 音乐生成
+  color: '#06B6D4'
+algorithms:
+- id: wavenet
+  name: WaveNet
+  full_name: 'WaveNet: 生成式原始音频模型 (WaveNet: A Generative Model for Raw Audio)'
+  year: '2016'
+  org: DeepMind
+  paper_url: https://arxiv.org/abs/1609.03499
+  category: tts
+  parent: —
+  motivation: 空洞因果卷积自回归生成原始波形
+- id: tacotron
+  name: Tacotron
+  full_name: 'Tacotron: 端到端语音合成 (Tacotron: Towards End-to-End Speech Synthesis)'
+  year: '2017'
+  org: Google
+  paper_url: https://arxiv.org/abs/1703.10135
+  category: tts
+  parent: wavenet
+  motivation: Seq2Seq注意力机制端到端合成
+- id: tacotron2
+  name: Tacotron 2
+  full_name: 'Tacotron 2: 自然TTS合成 (Natural TTS Synthesis by Conditioning WaveNet on Mel Spectrogram)'
+  year: '2018'
+  org: Google
+  paper_url: https://arxiv.org/abs/1712.05884
+  category: tts
+  parent: tacotron
+  motivation: Mel谱预测+WaveNet声码器
+- id: fastspeech
+  name: FastSpeech
+  full_name: 'FastSpeech: 快速鲁棒的TTS (FastSpeech: Fast, Robust and Controllable Text to Speech)'
+  year: '2019'
+  org: Microsoft
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2019/hash/f63f65b5870931065885e0afa52ad6a8-Abstract.html
+  category: tts
+  parent: tacotron2
+  motivation: 非自回归并行合成+长度预测器
+- id: fastspeech2
+  name: FastSpeech 2
+  full_name: 'FastSpeech 2: 快速高质量TTS (FastSpeech 2: Fast and High-Quality End-to-End Text to Speech)'
+  year: '2020'
+  org: Microsoft
+  paper_url: https://arxiv.org/abs/2006.04558
+  category: tts
+  parent: fastspeech
+  motivation: 方差适配器改进韵律建模
+- id: hifigan
+  name: HiFi-GAN
+  full_name: 'HiFi-GAN: 高保真语音合成GAN (HiFi-GAN: Generative Adversarial Networks for Efficient and High Fidelity Speech Synthesis)'
+  year: '2020'
+  org: Kakao
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2020/hash/c5d736809766d46260d816d8dbc9eb44-Abstract.html
+  category: vocoder
+  parent: —
+  motivation: MSD+MPD多尺度判别器声码器
+- id: vits
+  name: VITS
+  full_name: 'VITS: 条件变分自编码器端到端TTS (Conditional Variational Autoencoder with Adversarial Learning for End-to-End TTS)'
+  year: '2021'
+  org: Kakao
+  paper_url: https://proceedings.mlr.press/v139/kim21f.html
+  category: tts
+  parent: fastspeech2
+  motivation: VAE+Flow+GAN端到端合成
+- id: soundstream
+  name: SoundStream
+  full_name: 'SoundStream: 端到端神经音频编解码器 (SoundStream: An End-to-End Neural Audio Codec)'
+  year: '2021'
+  org: Google
+  paper_url: https://arxiv.org/abs/2107.03312
+  category: neural_codec
+  parent: —
+  motivation: RVQ神经音频编码框架
+- id: bigvgan
+  name: BigVGAN
+  full_name: 'BigVGAN: 通用神经声码器 (BigVGAN: A Universal Neural Vocoder with Large-Scale Training)'
+  year: '2022'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/2206.04658
+  category: vocoder
+  parent: hifigan
+  motivation: Snake激活大规模通用声码器
+- id: encodec
+  name: EnCodec
+  full_name: 'EnCodec: 高保真神经音频压缩 (High Fidelity Neural Audio Compression)'
+  year: '2022'
+  org: Meta
+  paper_url: https://arxiv.org/abs/2210.13438
+  category: neural_codec
+  parent: soundstream
+  motivation: 高效音频压缩与Token化
+- id: yourtts
+  name: YourTTS
+  full_name: 'YourTTS: 零样本多说话人TTS (YourTTS: Towards Zero-Shot Multi-Speaker TTS)'
+  year: '2022'
+  org: Coqui
+  paper_url: https://proceedings.mlr.press/v162/casanova22a.html
+  category: voice_clone
+  parent: vits
+  motivation: 多语言零样本VITS克隆
+- id: audioldm
+  name: AudioLDM
+  full_name: 'AudioLDM: 文本到音频生成 (AudioLDM: Text-to-Audio Generation with Latent Diffusion Models)'
+  year: '2023'
+  org: Surrey
+  paper_url: https://arxiv.org/abs/2301.12503
+  category: audio_effect
+  parent: —
+  motivation: 潜在扩散+CLAP对齐音效生成
+- id: valle
+  name: VALL-E
+  full_name: 'VALL-E: 神经编解码语言模型 (Neural Codec Language Models are Zero-Shot Text to Speech Synthesizers)'
+  year: '2023'
+  org: Microsoft
+  paper_url: https://arxiv.org/abs/2301.02111
+  category: voice_clone
+  parent: encodec
+  motivation: 神经编解码语言模型TTS范式
+- id: musicgen
+  name: MusicGen
+  full_name: 'MusicGen: 简单可控音乐生成 (Simple and Controllable Music Generation)'
+  year: '2023'
+  org: Meta
+  paper_url: https://arxiv.org/abs/2306.05284
+  category: music_gen
+  parent: encodec
+  motivation: 单Transformer可控音乐生成
+- id: tango
+  name: TANGO
+  full_name: 'TANGO: 文本到音频生成 (Text-to-Audio Generation using Instruction Guided Latent Diffusion Model)'
+  year: '2023'
+  org: 多机构
+  paper_url: https://arxiv.org/abs/2304.13731
+  category: audio_effect
+  parent: audioldm
+  motivation: 指令微调潜在扩散音效生成
+- id: megatts
+  name: Mega-TTS
+  full_name: 'Mega-TTS: 零样本大规模TTS (Mega-TTS: Zero-Shot Text-to-Speech at Scale)'
+  year: '2023'
+  org: 多机构
+  paper_url: https://arxiv.org/abs/2306.03509
+  category: voice_clone
+  parent: valle
+  motivation: 扩散韵律建模长文本合成
+- id: audioldm2
+  name: AudioLDM 2
+  full_name: 'AudioLDM 2: 通用音频生成 (AudioLDM 2: Learning Holistic Audio Generation with Self-supervised Pretraining)'
+  year: '2024'
+  org: Surrey
+  paper_url: https://arxiv.org/abs/2308.05734
+  category: audio_effect
+  parent: audioldm
+  motivation: 自监督音频语言表示学习
+- id: valle2
+  name: VALL-E 2
+  full_name: 'VALL-E 2: 人类水平零样本TTS (VALL-E 2: Neural Codec Language Models are Human Parity Zero-Shot Text to Speech Synthesizers)'
+  year: '2024'
+  org: Microsoft
+  paper_url: https://www.microsoft.com/en-us/research/project/vall-e-x/vall-e-2/
+  category: voice_clone
+  parent: valle
+  motivation: 重复感知采样达人类水平TTS
+- id: tfoley
+  name: T-Foley
+  full_name: 'T-Foley: 可控波形域扩散Foley (T-Foley: A Controllable Waveform-Domain Diffusion Model)'
+  year: '2024'
+  org: 多机构
+  paper_url: https://ieeexplore.ieee.org/abstract/document/10447380/
+  category: audio_effect
+  parent: tango
+  motivation: 时间事件引导扩散Foley合成
+- id: wavtokenizer
+  name: WavTokenizer
+  full_name: 'WavTokenizer: 高效声学离散编解码器 (WavTokenizer: An Efficient Acoustic Discrete Codec Tokenizer)'
+  year: '2025'
+  org: 多机构
+  paper_url: https://proceedings.iclr.cc/paper_files/paper/2025/hash/ea1f5f0878d43ff4fb8bf64ef4a2326c-Abstract-Conference.html
+  category: neural_codec
+  parent: encodec
+  motivation: 单层Codebook高效Token化
+- id: f5tts
+  name: F5-TTS
+  full_name: 'F5-TTS: Flow Matching扩散TTS (F5-TTS: A Fairytaler that Fakes Fluent and Faithful Speech with Flow Matching)'
+  year: '2025'
+  org: 多机构
+  paper_url: https://arxiv.org/abs/2410.06885
+  category: tts
+  parent: vits
+  motivation: Flow Matching+DiT非自回归
+- id: dittotts
+  name: DiTTo-TTS
+  full_name: 'DiTTo-TTS: 扩散Transformer TTS (DiTTo-TTS: Efficient and Scalable Zero-Shot Text-to-Speech with Diffusion Transformer)'
+  year: '2025'
+  org: KRAFTON/NVIDIA
+  paper_url: https://arxiv.org/abs/2406.11427
+  category: tts
+  parent: f5tts
+  motivation: 无音素扩散Transformer零样本
+- id: cosyvoice3
+  name: CosyVoice 3
+  full_name: 'CosyVoice 3: 可扩展多语言多任务语音生成 (CosyVoice 3: Scalable Multilingual and Multitask Speech Generation)'
+  year: '2026.01'
+  org: 阿里巴巴
+  paper_url: https://github.com/FunAudioLLM/CosyVoice
+  category: tts
+  parent: f5tts
+  motivation: RL优化双向流式多语言TTS
+- id: xvoice
+  name: X-Voice
+  full_name: 'X-Voice: 30语言零样本克隆 (X-Voice: Enabling Everyone to Speak 30 Languages via Zero-Shot Cross-Lingual Voice Cloning)'
+  year: '2026.05'
+  org: 多机构
+  paper_url: https://arxiv.org/abs/2605.05611
+  category: voice_clone
+  parent: valle2
+  motivation: 30语言零样本跨语言克隆
+- id: marcovoice
+  name: Marco-Voice
+  full_name: 'Marco-Voice: 统一表达性语音合成 (Marco-Voice: A Unified Framework for Expressive Speech Synthesis)'
+  year: '2026'
+  org: 多机构
+  paper_url: https://ieeexplore.ieee.org/abstract/document/11463753/
+  category: voice_clone
+  parent: valle2
+  motivation: 统一表达性语音合成框架
+- id: audiox
+  name: AudioX
+  full_name: 'AudioX: 万物转音频 (AudioX: Diffusion Transformer for Anything-to-Audio Generation)'
+  year: '2026.03'
+  org: 多机构
+  paper_url: https://arxiv.org/abs/2503.10522
+  category: audio_effect
+  parent: audioldm2
+  motivation: DiT万物转音频多模态生成
+- id: audiogenomni
+  name: AudioGen-Omni
+  full_name: 'AudioGen-Omni: 统一多模态音频生成 (AudioGen-Omni: A Unified Multimodal Diffusion Transformer)'
+  year: '2026'
+  org: 多机构
+  paper_url: https://ieeexplore.ieee.org/abstract/document/11461581/
+  category: audio_effect
+  parent: audiox
+  motivation: MM-DiT统一多模态音频生成
+- id: omnicodec
+  name: OmniCodec
+  full_name: 'OmniCodec: 低帧率通用编解码器 (OmniCodec: Low Frame Rate Universal Audio Codec with Semantic-Acoustic Disentanglement)'
+  year: '2026.03'
+  org: 多机构
+  paper_url: https://arxiv.org/abs/2603.20638
+  category: neural_codec
+  parent: wavtokenizer
+  motivation: 低帧率语义声学解耦编解码
+- id: uniaudio2
+  name: UniAudio 2.0
+  full_name: 'UniAudio 2.0: 统一音频语言模型 (UniAudio 2.0: A Unified Audio Language Model)'
+  year: '2026.02'
+  org: 字节跳动
+  paper_url: https://arxiv.org/abs/2602.04683
+  category: tts
+  parent: valle2
+  motivation: 因子化Token统一音频框架
+- id: fishaudio_s2
+  name: Fish Audio S2
+  full_name: 'Fish Audio S2: 高保真情感TTS (Fish Audio S2: High-Fidelity Emotional Text-to-Speech)'
+  year: '2026'
+  org: Fish Audio
+  paper_url: https://github.com/fishaudio/fish-speech
+  category: tts
+  parent: f5tts
+  motivation: 50+情感标签高保真TTS
+- id: stableaudio25
+  name: Stable Audio 2.5
+  full_name: 'Stable Audio 2.5: 企业级音频生成 (Stable Audio 2.5: Enterprise Sound Production)'
+  year: '2026'
+  org: Stability AI
+  paper_url: https://www.stability.ai/news/stable-audio-2-5-enterprise-sound-production
+  category: music_gen
+  parent: musicgen
+  motivation: ARC快速立体声音乐生成
+graph:
+  nodes:
+  - id: wavenet
+    x: 100
+    y: 100
+  - id: tacotron
+    x: 200
+    y: 100
+  - id: tacotron2
+    x: 300
+    y: 100
+  - id: fastspeech
+    x: 400
+    y: 100
+  - id: fastspeech2
+    x: 500
+    y: 100
+  - id: vits
+    x: 600
+    y: 100
+  - id: f5tts
+    x: 700
+    y: 100
+  - id: dittotts
+    x: 800
+    y: 100
+  - id: cosyvoice3
+    x: 900
+    y: 80
+  - id: fishaudio_s2
+    x: 900
+    y: 120
+  - id: uniaudio2
+    x: 900
+    y: 160
+  - id: hifigan
+    x: 500
+    y: 250
+  - id: bigvgan
+    x: 650
+    y: 250
+  - id: yourtts
+    x: 650
+    y: 350
+  - id: valle
+    x: 750
+    y: 350
+  - id: megatts
+    x: 800
+    y: 380
+  - id: valle2
+    x: 850
+    y: 350
+  - id: xvoice
+    x: 950
+    y: 330
+  - id: marcovoice
+    x: 950
+    y: 370
+  - id: audioldm
+    x: 750
+    y: 500
+  - id: tango
+    x: 800
+    y: 500
+  - id: audioldm2
+    x: 850
+    y: 500
+  - id: tfoley
+    x: 850
+    y: 540
+  - id: audiox
+    x: 950
+    y: 500
+  - id: audiogenomni
+    x: 1000
+    y: 500
+  - id: soundstream
+    x: 600
+    y: 650
+  - id: encodec
+    x: 700
+    y: 650
+  - id: wavtokenizer
+    x: 800
+    y: 650
+  - id: omnicodec
+    x: 950
+    y: 650
+  - id: musicgen
+    x: 750
+    y: 800
+  - id: stableaudio25
+    x: 950
+    y: 800
+  edges:
+  - from: wavenet
+    to: tacotron
+    label: 端到端架构
+  - from: tacotron
+    to: tacotron2
+    label: Mel谱+声码器
+  - from: tacotron2
+    to: fastspeech
+    label: 非自回归
+  - from: fastspeech
+    to: fastspeech2
+    label: 方差适配器
+  - from: fastspeech2
+    to: vits
+    label: VAE+Flow
+  - from: vits
+    to: f5tts
+    label: Flow Matching
+  - from: f5tts
+    to: dittotts
+    label: DiT架构
+  - from: f5tts
+    to: cosyvoice3
+    label: RL优化
+  - from: f5tts
+    to: fishaudio_s2
+    label: 情感建模
+  - from: hifigan
+    to: bigvgan
+    label: 大规模训练
+  - from: vits
+    to: yourtts
+    label: 零样本克隆
+  - from: encodec
+    to: valle
+    label: 语言模型范式
+  - from: valle
+    to: megatts
+    label: 扩散韵律
+  - from: valle
+    to: valle2
+    label: 重复感知
+  - from: valle2
+    to: xvoice
+    label: 多语言扩展
+  - from: valle2
+    to: marcovoice
+    label: 表达性统一
+  - from: valle2
+    to: uniaudio2
+    label: 统一框架
+  - from: audioldm
+    to: tango
+    label: 指令微调
+  - from: audioldm
+    to: audioldm2
+    label: 自监督学习
+  - from: tango
+    to: tfoley
+    label: Foley合成
+  - from: audioldm2
+    to: audiox
+    label: DiT架构
+  - from: audiox
+    to: audiogenomni
+    label: MM-DiT
+  - from: soundstream
+    to: encodec
+    label: 高效压缩
+  - from: encodec
+    to: wavtokenizer
+    label: 单层Codebook
+  - from: wavtokenizer
+    to: omnicodec
+    label: 语义解耦
+  - from: encodec
+    to: musicgen
+    label: 音乐生成
+  - from: musicgen
+    to: stableaudio25
+    label: ARC加速
+  milestones:
+  - wavenet
+  - vits
+  - valle

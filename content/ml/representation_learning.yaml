@@ -1,0 +1,306 @@
+page:
+  domain: ml
+  topic_id: representation_learning
+  topic_name: 表示学习
+  page_icon: 🧠
+  page_title: 表示学习 技术演进
+  page_subtitle: '{build_date} 版'
+  page_desc: 从特征工程到深度表示学习，探讨数据的有效表达方式
+  hero_pills:
+  - 特征提取
+  - 自监督学习
+  count_pill: '{count} 个算法'
+categories:
+- key: manifold
+  label: 流形与降维
+  color: '#10B981'
+- key: deep_rep
+  label: 深度表示学习
+  color: '#3B82F6'
+- key: self_supervised
+  label: 自监督学习
+  color: '#8B5CF6'
+- key: multimodal
+  label: 多模态表示
+  color: '#F59E0B'
+- key: graph_rep
+  label: 图表示学习
+  color: '#EC4899'
+algorithms:
+- id: pca
+  name: PCA
+  full_name: 主成分分析 (Principal Component Analysis)
+  year: '1901'
+  org: Karl Pearson
+  paper_url: —
+  category: manifold
+  parent: —
+  motivation: 无监督线性降维奠基方法
+- id: tsne
+  name: t-SNE
+  full_name: t-分布随机邻域嵌入 (t-distributed Stochastic Neighbor Embedding)
+  year: '2008'
+  org: Hinton Lab
+  paper_url: https://www.jmlr.org/papers/v9/vandermaaten08a.html
+  category: manifold
+  parent: pca
+  motivation: 高维数据非线性可视化
+- id: lstm
+  name: LSTM
+  full_name: 长短期记忆网络 (Long Short-Term Memory)
+  year: '1997'
+  org: Hochreiter & Schmidhuber
+  paper_url: —
+  category: deep_rep
+  parent: —
+  motivation: 门控机制解决长程依赖
+- id: alexnet
+  name: AlexNet
+  full_name: AlexNet
+  year: '2012'
+  org: Hinton Lab
+  paper_url: —
+  category: deep_rep
+  parent: —
+  motivation: 深度CNN视觉表示突破
+- id: word2vec
+  name: Word2Vec
+  full_name: Word2Vec
+  year: '2013'
+  org: Google
+  paper_url: https://arxiv.org/abs/1301.3781
+  category: deep_rep
+  parent: —
+  motivation: CBOW/Skip-gram高效词嵌入
+- id: vae
+  name: VAE
+  full_name: 变分自编码器 (Variational Autoencoder)
+  year: '2013'
+  org: Kingma & Welling
+  paper_url: https://arxiv.org/abs/1312.6114
+  category: deep_rep
+  parent: —
+  motivation: 重参数化技巧实现变分推断
+- id: resnet
+  name: ResNet
+  full_name: 残差网络 (Deep Residual Network)
+  year: '2016'
+  org: Microsoft Research
+  paper_url: https://arxiv.org/abs/1512.03385
+  category: deep_rep
+  parent: alexnet
+  motivation: 残差连接解决深层网络退化
+- id: transformer
+  name: Transformer
+  full_name: Transformer
+  year: '2017'
+  org: Google Brain
+  paper_url: https://arxiv.org/abs/1706.03762
+  category: deep_rep
+  parent: lstm
+  motivation: 自注意力机制并行化表示
+- id: gat
+  name: GAT
+  full_name: 图注意力网络 (Graph Attention Network)
+  year: '2018'
+  org: DeepMind
+  paper_url: https://arxiv.org/abs/1710.10903
+  category: graph_rep
+  parent: —
+  motivation: 注意力机制引入图神经网络
+- id: bert
+  name: BERT
+  full_name: 双向编码器表示 (Bidirectional Encoder Representations)
+  year: '2018'
+  org: Google AI
+  paper_url: https://arxiv.org/abs/1810.04805
+  category: self_supervised
+  parent: transformer
+  motivation: 深度双向Transformer预训练
+- id: simclr
+  name: SimCLR
+  full_name: SimCLR
+  year: '2020'
+  org: Google Research
+  paper_url: https://arxiv.org/abs/2002.05709
+  category: self_supervised
+  parent: resnet
+  motivation: 简化对比学习框架
+- id: moco
+  name: MoCo
+  full_name: 动量对比 (Momentum Contrast)
+  year: '2020'
+  org: Meta AI
+  paper_url: https://arxiv.org/abs/1911.05722
+  category: self_supervised
+  parent: resnet
+  motivation: 动量对比学习队列机制
+- id: mae
+  name: MAE
+  full_name: 掩码自编码器 (Masked Autoencoder)
+  year: '2022'
+  org: Meta AI
+  paper_url: https://arxiv.org/abs/2111.06377
+  category: self_supervised
+  parent: bert
+  motivation: 高掩码率图像重建预训练
+- id: mrl
+  name: MRL
+  full_name: Matryoshka表示学习 (Matryoshka Representation Learning)
+  year: '2022'
+  org: UMich
+  paper_url: https://arxiv.org/abs/2205.13147
+  category: deep_rep
+  parent: bert
+  motivation: 灵活维度嵌入截断表示
+- id: vjepa
+  name: V-JEPA
+  full_name: 视频联合嵌入预测架构 (Video Joint-Embedding Predictive Architecture)
+  year: '2024'
+  org: Meta AI
+  paper_url: https://arxiv.org/abs/2402.09379
+  category: self_supervised
+  parent: mae
+  motivation: 潜空间预测视频世界模型
+- id: dinov3
+  name: DINOv3
+  full_name: DINOv3
+  year: '2025.08'
+  org: Meta AI
+  paper_url: —
+  category: self_supervised
+  parent: moco
+  motivation: Gram锚定解决密集特征退化
+- id: gemini_emb
+  name: Gemini Embedding 2
+  full_name: Gemini Embedding 2
+  year: '2026.03'
+  org: Google
+  paper_url: —
+  category: multimodal
+  parent: bert
+  motivation: 原生多模态3072维统一空间
+- id: wave
+  name: WAVE
+  full_name: 统一音视频嵌入 (Unified Audio-Visual Embeddings)
+  year: '2026.05'
+  org: ICLR 2026
+  paper_url: —
+  category: multimodal
+  parent: bert
+  motivation: 首个LLM统一音视频嵌入
+graph:
+  nodes:
+  - id: pca
+    x: 1901
+    y: 1
+    category: manifold
+  - id: lstm
+    x: 1997
+    y: 2
+    category: deep_rep
+  - id: tsne
+    x: 2008
+    y: 1
+    category: manifold
+  - id: alexnet
+    x: 2012
+    y: 2
+    category: deep_rep
+  - id: word2vec
+    x: 2013
+    y: 2
+    category: deep_rep
+  - id: vae
+    x: 2013
+    y: 2.5
+    category: deep_rep
+  - id: resnet
+    x: 2016
+    y: 2
+    category: deep_rep
+  - id: transformer
+    x: 2017
+    y: 2
+    category: deep_rep
+  - id: gat
+    x: 2018
+    y: 5
+    category: graph_rep
+  - id: bert
+    x: 2018
+    y: 3
+    category: self_supervised
+  - id: simclr
+    x: 2020
+    y: 3
+    category: self_supervised
+  - id: moco
+    x: 2020
+    y: 3.5
+    category: self_supervised
+  - id: mae
+    x: 2022
+    y: 3
+    category: self_supervised
+  - id: mrl
+    x: 2022
+    y: 2
+    category: deep_rep
+  - id: vjepa
+    x: 2024
+    y: 3
+    category: self_supervised
+  - id: dinov3
+    x: 2025.08
+    y: 3.5
+    category: self_supervised
+  - id: gemini_emb
+    x: 2026.03
+    y: 4
+    category: multimodal
+  - id: wave
+    x: 2026.05
+    y: 4
+    category: multimodal
+  edges:
+  - from: pca
+    to: tsne
+    label: 非线性扩展
+  - from: alexnet
+    to: resnet
+    label: 深度突破
+  - from: lstm
+    to: transformer
+    label: 并行化
+  - from: resnet
+    to: simclr
+    label: 对比学习
+  - from: resnet
+    to: moco
+    label: 动量队列
+  - from: transformer
+    to: bert
+    label: 双向预训练
+  - from: bert
+    to: mae
+    label: 掩码重建
+  - from: bert
+    to: mrl
+    label: 灵活维度
+  - from: bert
+    to: gemini_emb
+    label: 多模态
+  - from: bert
+    to: wave
+    label: 音视频
+  - from: mae
+    to: vjepa
+    label: 潜空间
+  - from: moco
+    to: dinov3
+    label: Gram锚定
+  milestones:
+  - word2vec
+  - transformer
+  - bert

@@ -1,0 +1,295 @@
+page_icon: 🛡️
+page_title: 可信机器学习技术演进图谱
+page_subtitle: '{build_date} 版'
+page_desc: 涵盖鲁棒性、公平性、可解释性与隐私保护四大维度的经典算法与2026年最新进展
+hero_pills: 🏷️ Robustness · Fairness · Interpretability · Privacy
+count_pill: '{count} 个算法'
+categories:
+  robustness:
+    label: 鲁棒性优化
+    color: '#e8820c'
+  fairness:
+    label: 公平性学习
+    color: '#9b59b6'
+  interpretability:
+    label: 可解释性
+    color: '#27ae60'
+  privacy:
+    label: 隐私保护
+    color: '#3498db'
+algorithms:
+- id: fgsm
+  name: FGSM
+  full_name: 快速梯度符号法 (Fast Gradient Sign Method)
+  year: '2015'
+  org: Google
+  paper_url: https://arxiv.org/abs/1412.6572
+  category: robustness
+  parent: —
+  motivation: 首次揭示梯度方向单步扰动即可欺骗模型
+- id: pgd
+  name: PGD
+  full_name: 投影梯度下降攻击 (Projected Gradient Descent)
+  year: '2018'
+  org: MIT
+  paper_url: https://arxiv.org/abs/1706.06083
+  category: robustness
+  parent: fgsm
+  motivation: 多步迭代优化使对抗训练成为标准防御范式
+- id: trades
+  name: TRADES
+  full_name: 鲁棒性权衡优化 (Theoretically Principled Trade-off)
+  year: '2019'
+  org: CMU/PKU
+  paper_url: https://arxiv.org/abs/1901.08573
+  category: robustness
+  parent: pgd
+  motivation: 用KL散度权衡清洁准确率与对抗鲁棒性
+- id: rs
+  name: RS
+  full_name: 随机平滑 (Randomized Smoothing)
+  year: '2019'
+  org: CMU
+  paper_url: https://proceedings.mlr.press/v97/cohen19c.html
+  category: robustness
+  parent: —
+  motivation: 首个可认证L2范数鲁棒性的防御方法
+- id: autoattack
+  name: AutoAttack
+  full_name: 自动攻击评估 (AutoAttack)
+  year: '2020'
+  org: Tübingen
+  paper_url: https://proceedings.mlr.press/v119/croce20b.html
+  category: robustness
+  parent: pgd
+  motivation: 集成无参数攻击成为鲁棒性评估行业标准
+- id: et3
+  name: ET3
+  full_name: 能量引导测试时防御 (Energy-guided Test-Time Defense)
+  year: '2026'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2603.26984
+  category: robustness
+  parent: autoattack
+  motivation: 无需重训练即可提升VLM对抗鲁棒性
+- id: lfr
+  name: LFR
+  full_name: 公平表示学习 (Learning Fair Representations)
+  year: '2013'
+  org: Toronto
+  paper_url: https://proceedings.mlr.press/v28/zemel13.html
+  category: fairness
+  parent: —
+  motivation: 首创通过中间表示空间消除敏感属性
+- id: vfae
+  name: VFAE
+  full_name: 变分公平自编码器 (Variational Fair Autoencoder)
+  year: '2015'
+  org: Amsterdam
+  paper_url: https://arxiv.org/abs/1511.00830
+  category: fairness
+  parent: lfr
+  motivation: 用变分推断学习与敏感变量解耦的表示
+- id: eqopp
+  name: EqOpp
+  full_name: 机会均等 (Equality of Opportunity)
+  year: '2016'
+  org: Google/UT Austin
+  paper_url: https://proceedings.neurips.cc/paper/2016/hash/6a9659feb1216f14f7384ba499518b38-Abstract.html
+  category: fairness
+  parent: lfr
+  motivation: 提出针对正类别的均等机会公平准则
+- id: arl
+  name: ARL
+  full_name: 对抗重加权学习 (Adversarially Reweighted Learning)
+  year: '2020'
+  org: Google
+  paper_url: https://proceedings.neurips.cc/paper/2020/hash/07fc15c9d169ee48573edd749d25945d-Abstract.html
+  category: fairness
+  parent: eqopp
+  motivation: 无人口统计标签下自动识别受损群体
+- id: silencer
+  name: Silencer
+  full_name: 自偏见消除器 (Self-Bias Mitigation)
+  year: '2026'
+  org: NeurIPS
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/bc24200f4ed9a5bbf821c0ad18e605da-Abstract-Conference.html
+  category: fairness
+  parent: arl
+  motivation: 抑制LLM作为评估基准生成器时的自偏见
+- id: lime
+  name: LIME
+  full_name: 局部可解释模型无关解释 (Local Interpretable Model-agnostic Explanations)
+  year: '2016'
+  org: UW
+  paper_url: https://arxiv.org/abs/1602.04938
+  category: interpretability
+  parent: —
+  motivation: 通过局部线性近似解释任意黑盒模型
+- id: shap
+  name: SHAP
+  full_name: 博弈论特征归因 (SHapley Additive exPlanations)
+  year: '2017'
+  org: UW
+  paper_url: https://proceedings.neurips.cc/paper/2017/hash/8a20a862115ef7d44bc9700354440003-Abstract.html
+  category: interpretability
+  parent: lime
+  motivation: 基于Shapley值提供统一的特征贡献解释
+- id: gradcam
+  name: Grad-CAM
+  full_name: 梯度加权类激活映射 (Gradient-weighted Class Activation Mapping)
+  year: '2017'
+  org: Georgia Tech
+  paper_url: https://arxiv.org/abs/1610.02391
+  category: interpretability
+  parent: —
+  motivation: 可视化CNN关注的图像区域实现视觉解释
+- id: cbm
+  name: CBM
+  full_name: 概念瓶颈模型 (Concept Bottleneck Models)
+  year: '2020'
+  org: Stanford
+  paper_url: https://proceedings.mlr.press/v119/koh20a.html
+  category: interpretability
+  parent: lime
+  motivation: 嵌入人类概念层实现可干预的透明预测
+- id: sae
+  name: SAE
+  full_name: 稀疏自编码器解释 (Sparse Autoencoder Interpretability)
+  year: '2026'
+  org: Anthropic
+  paper_url: https://arxiv.org/abs/2602.11180
+  category: interpretability
+  parent: cbm
+  motivation: 分解Transformer隐层定位特定功能电路
+- id: protosure
+  name: ProtoSurE
+  full_name: 原型解释框架 (Prototype-based Surrogate Explanations)
+  year: '2026'
+  org: AAAI
+  paper_url: https://ojs.aaai.org/index.php/AAAI/article/view/39892
+  category: interpretability
+  parent: cbm
+  motivation: 将LLM行为蒸馏为语义原型实现稳定解释
+- id: dp_sgd
+  name: DP-SGD
+  full_name: 差分隐私随机梯度下降 (Differential Privacy SGD)
+  year: '2016'
+  org: Google
+  paper_url: https://arxiv.org/abs/1607.00133
+  category: privacy
+  parent: —
+  motivation: 梯度裁剪加噪提供严谨的隐私数学保证
+- id: fedavg
+  name: FedAvg
+  full_name: 联邦平均 (Federated Averaging)
+  year: '2017'
+  org: Google
+  paper_url: https://proceedings.mlr.press/v54/mcmahan17a.html
+  category: privacy
+  parent: dp_sgd
+  motivation: 数据不动模型动实现分布式协作学习
+- id: pate
+  name: PATE
+  full_name: 教师集成隐私聚合 (Private Aggregation of Teacher Ensembles)
+  year: '2017'
+  org: Google/Penn
+  paper_url: https://arxiv.org/abs/1610.05755
+  category: privacy
+  parent: dp_sgd
+  motivation: 通过教师投票噪声保护训练数据成员隐私
+- id: diffushield
+  name: DiffuShield
+  full_name: 扩散隐私合成 (Diffusion-based Privacy Shield)
+  year: '2026'
+  org: Information Fusion
+  paper_url: https://www.sciencedirect.com/science/article/pii/S156625352500524X
+  category: privacy
+  parent: fedavg
+  motivation: 生成可配置隐私的合成人脸数据
+- id: fedfm
+  name: FedFM
+  full_name: 联邦基础模型 (Federated Foundation Models)
+  year: '2026'
+  org: IEEE
+  paper_url: https://ieeexplore.ieee.org/abstract/document/10930890/
+  category: privacy
+  parent: fedavg
+  motivation: 联邦学习成为获取私域数据训练大模型关键路径
+graph:
+  nodes:
+  - id: fgsm
+  - id: pgd
+  - id: trades
+  - id: rs
+  - id: autoattack
+  - id: et3
+  - id: lfr
+  - id: vfae
+  - id: eqopp
+  - id: arl
+  - id: silencer
+  - id: lime
+  - id: shap
+  - id: gradcam
+  - id: cbm
+  - id: sae
+  - id: protosure
+  - id: dp_sgd
+  - id: fedavg
+  - id: pate
+  - id: diffushield
+  - id: fedfm
+  edges:
+  - from: fgsm
+    to: pgd
+    label: 多步迭代
+  - from: pgd
+    to: trades
+    label: 权衡优化
+  - from: pgd
+    to: autoattack
+    label: 标准化评估
+  - from: autoattack
+    to: et3
+    label: 测试时防御
+  - from: lfr
+    to: vfae
+    label: 变分解耦
+  - from: lfr
+    to: eqopp
+    label: 统计准则
+  - from: eqopp
+    to: arl
+    label: 无监督公平
+  - from: arl
+    to: silencer
+    label: LLM对齐
+  - from: lime
+    to: shap
+    label: 统一归因
+  - from: lime
+    to: cbm
+    label: 概念嵌入
+  - from: cbm
+    to: sae
+    label: 机械解释
+  - from: cbm
+    to: protosure
+    label: 原型蒸馏
+  - from: dp_sgd
+    to: fedavg
+    label: 分布式隐私
+  - from: dp_sgd
+    to: pate
+    label: 知识迁移
+  - from: fedavg
+    to: diffushield
+    label: 隐私合成
+  - from: fedavg
+    to: fedfm
+    label: 大模型协作
+  milestones:
+  - pgd
+  - shap
+  - fedavg

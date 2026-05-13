@@ -1,0 +1,324 @@
+page_icon: 👁️
+page_title: 视觉基础模型技术演进
+page_subtitle: '{build_date} 版'
+page_desc: 梳理从ViT到SAM的视觉表征学习演进历程，涵盖架构创新、自监督学习与通用视觉分割三大技术脉络
+hero_pills: 🏷️ CV · Foundation Models · Visual Representation
+count_pill: '{count} 个算法'
+categories:
+  foundation:
+    label: 奠基性架构
+    color: '#4A90D9'
+  representation:
+    label: 通用表征学习
+    color: '#50C878'
+  segmentation:
+    label: 视觉分割模型
+    color: '#FF6B6B'
+  multimodal:
+    label: 多模态与前沿
+    color: '#9B59B6'
+algorithms:
+- id: vit
+  name: ViT
+  full_name: 视觉Transformer (Vision Transformer)
+  year: '2020.10'
+  org: Google Research
+  paper_url: https://arxiv.org/abs/2010.11929
+  category: foundation
+  parent: —
+  motivation: 纯Transformer首次超越CNN
+- id: deit
+  name: DeiT
+  full_name: 数据高效图像Transformer (Data-efficient Image Transformers)
+  year: '2021.01'
+  org: Meta AI
+  paper_url: https://proceedings.mlr.press/v139/touvron21a
+  category: foundation
+  parent: vit
+  motivation: 知识蒸馏解决数据依赖
+- id: swin
+  name: Swin Transformer
+  full_name: 移动窗口层级Transformer (Swin Transformer)
+  year: '2021.03'
+  org: Microsoft Research Asia
+  paper_url: https://openaccess.thecvf.com/content/ICCV2021/html/Liu_Swin_Transformer_Hierarchical_Vision_Transformer_Using_Shifted_Windows_ICCV_2021_paper
+  category: foundation
+  parent: vit
+  motivation: 层级特征+线性复杂度
+- id: clip
+  name: CLIP
+  full_name: 对比语言-图像预训练 (Contrastive Language-Image Pre-training)
+  year: '2021.01'
+  org: OpenAI
+  paper_url: https://openai.com/research/clip
+  category: multimodal
+  parent: vit
+  motivation: 视觉语言对齐开创零样本
+- id: dino
+  name: DINO
+  full_name: 无标签自蒸馏 (Self-Distillation with No Labels)
+  year: '2021.04'
+  org: Meta AI
+  paper_url: https://openaccess.thecvf.com/content/ICCV2021/html/Caron_Emerging_Properties_in_Self-Supervised_Vision_Transformers_ICCV_2021_paper
+  category: representation
+  parent: vit
+  motivation: 自蒸馏涌现语义分割
+- id: beit
+  name: BEiT
+  full_name: BERT式图像Transformer预训练 (BERT Pre-Training of Image Transformers)
+  year: '2021.06'
+  org: Microsoft Research
+  paper_url: https://arxiv.org/abs/2106.08254
+  category: representation
+  parent: vit
+  motivation: 首创掩码图像建模
+- id: mae
+  name: MAE
+  full_name: 掩码自编码器 (Masked Autoencoders)
+  year: '2021.11'
+  org: Meta AI
+  paper_url: https://openaccess.thecvf.com/content/CVPR2022/html/He_Masked_Autoencoders_Are_Scalable_Vision_Learners_CVPR_2022_paper
+  category: representation
+  parent: beit
+  motivation: 75%掩码率极简高效
+- id: convnext
+  name: ConvNeXt
+  full_name: 2020年代的卷积网络 (A ConvNet for the 2020s)
+  year: '2022.01'
+  org: Meta AI
+  paper_url: https://openaccess.thecvf.com/content/CVPR2022/html/Liu_A_ConvNet_for_the_2020s_CVPR_2022_paper.html
+  category: foundation
+  parent: swin
+  motivation: 现代化CNN媲美Transformer
+- id: eva
+  name: EVA
+  full_name: 探索视觉表征学习极限 (Exploring Visual Representation)
+  year: '2022.11'
+  org: 智源研究院
+  paper_url: https://arxiv.org/abs/2211.07636
+  category: representation
+  parent: mae
+  motivation: 重建CLIP特征引入语义
+- id: internimage
+  name: InternImage
+  full_name: 可变形卷积视觉基础模型 (InternImage)
+  year: '2022.11'
+  org: 上海AI实验室
+  paper_url: https://openaccess.thecvf.com/content/CVPR2023/html/Wang_InternImage_Exploring_Large-Scale_Vision_Foundation_Models_With_Deformable_Convolutions_CVPR_2023_paper.html
+  category: foundation
+  parent: convnext
+  motivation: 可变形卷积扩展至10亿参数
+- id: dinov2
+  name: DINOv2
+  full_name: 无监督鲁棒视觉特征学习 (DINOv2)
+  year: '2023.04'
+  org: Meta AI
+  paper_url: https://arxiv.org/abs/2304.07193
+  category: representation
+  parent: dino
+  motivation: 1.42亿图像通用视觉特征
+- id: sam
+  name: SAM
+  full_name: 分割一切模型 (Segment Anything Model)
+  year: '2023.04'
+  org: Meta AI
+  paper_url: http://openaccess.thecvf.com/content/ICCV2023/html/Kirillov_Segment_Anything_ICCV_2023_paper.html
+  category: segmentation
+  parent: vit
+  motivation: 可提示分割定义新范式
+- id: florence2
+  name: Florence-2
+  full_name: 统一视觉任务表征 (Florence-2)
+  year: '2024'
+  org: Microsoft Research
+  paper_url: http://openaccess.thecvf.com/content/CVPR2024/html/Xiao_Florence-2_Advancing_a_Unified_Representation_for_a_Variety_of_Vision_CVPR_2024_paper.html
+  category: multimodal
+  parent: clip
+  motivation: 统一Prompt处理多粒度任务
+- id: sam2
+  name: SAM 2
+  full_name: 分割一切模型2 (Segment Anything Model 2)
+  year: '2024.07'
+  org: Meta AI
+  paper_url: https://ai.meta.com/blog/segment-anything-2/
+  category: segmentation
+  parent: sam
+  motivation: 统一图像视频分割
+- id: vision_mamba
+  name: Vision Mamba
+  full_name: 视觉状态空间模型 (Vision Mamba)
+  year: '2026.01'
+  org: 多机构
+  paper_url: https://arxiv.org/abs/2601.xxxxx
+  category: foundation
+  parent: swin
+  motivation: SSM架构线性复杂度
+- id: lookwhere
+  name: LookWhere
+  full_name: 自适应视觉识别 (LookWhere)
+  year: '2026.01'
+  org: Meta AI
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/7dd74dcef03c8f88a58d18a9d49d7a10-Abstract-Conference.html
+  category: representation
+  parent: dinov2
+  motivation: 自适应计算动态分配
+- id: xsam
+  name: X-SAM
+  full_name: 任意分割模型 (X-SAM)
+  year: '2026.02'
+  org: 多机构
+  paper_url: https://ojs.aaai.org/index.php/AAAI/article/view/39822
+  category: segmentation
+  parent: sam2
+  motivation: 任意分割交互式全实例
+- id: unipixel
+  name: UniPixel
+  full_name: 统一像素级推理 (UniPixel)
+  year: '2026.01'
+  org: 多机构
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/b783c44ba9adbc30344473dc633b4869-Abstract-Conference.html
+  category: multimodal
+  parent: florence2
+  motivation: 像素推理融合MLLM
+- id: rynnbrain
+  name: RynnBrain
+  full_name: 开源具身基础模型 (RynnBrain)
+  year: '2026.02'
+  org: 多机构
+  paper_url: https://arxiv.org/abs/2602.14979
+  category: multimodal
+  parent: dinov2
+  motivation: 开源具身感知基础模型
+- id: videoloom
+  name: VideoLoom
+  full_name: 视频大语言模型 (VideoLoom)
+  year: '2026.01'
+  org: 多机构
+  paper_url: https://arxiv.org/abs/2601.07290
+  category: multimodal
+  parent: sam2
+  motivation: 长视频时空联合理解
+graph:
+  nodes:
+  - id: vit
+    x: 100
+    y: 100
+  - id: deit
+    x: 200
+    y: 100
+  - id: swin
+    x: 220
+    y: 100
+  - id: clip
+    x: 200
+    y: 550
+  - id: dino
+    x: 230
+    y: 250
+  - id: beit
+    x: 240
+    y: 250
+  - id: mae
+    x: 260
+    y: 250
+  - id: convnext
+    x: 300
+    y: 100
+  - id: eva
+    x: 340
+    y: 250
+  - id: internimage
+    x: 340
+    y: 100
+  - id: dinov2
+    x: 400
+    y: 250
+  - id: sam
+    x: 400
+    y: 400
+  - id: florence2
+    x: 500
+    y: 550
+  - id: sam2
+    x: 520
+    y: 400
+  - id: vision_mamba
+    x: 650
+    y: 100
+  - id: lookwhere
+    x: 650
+    y: 250
+  - id: xsam
+    x: 670
+    y: 400
+  - id: unipixel
+    x: 650
+    y: 550
+  - id: rynnbrain
+    x: 670
+    y: 550
+  - id: videoloom
+    x: 650
+    y: 550
+  edges:
+  - from: vit
+    to: deit
+    label: 数据高效
+  - from: vit
+    to: swin
+    label: 层级化
+  - from: vit
+    to: clip
+    label: 多模态对齐
+  - from: vit
+    to: dino
+    label: 自监督
+  - from: vit
+    to: beit
+    label: 掩码建模
+  - from: vit
+    to: sam
+    label: 可提示
+  - from: beit
+    to: mae
+    label: 高掩码率
+  - from: mae
+    to: eva
+    label: 语义重建
+  - from: swin
+    to: convnext
+    label: CNN回归
+  - from: convnext
+    to: internimage
+    label: 可变形
+  - from: dino
+    to: dinov2
+    label: 大规模
+  - from: clip
+    to: florence2
+    label: 统一任务
+  - from: sam
+    to: sam2
+    label: 视频扩展
+  - from: swin
+    to: vision_mamba
+    label: SSM架构
+  - from: dinov2
+    to: lookwhere
+    label: 自适应
+  - from: sam2
+    to: xsam
+    label: 任意分割
+  - from: florence2
+    to: unipixel
+    label: 像素推理
+  - from: dinov2
+    to: rynnbrain
+    label: 具身智能
+  - from: sam2
+    to: videoloom
+    label: 长视频
+  milestones:
+  - vit
+  - clip
+  - sam

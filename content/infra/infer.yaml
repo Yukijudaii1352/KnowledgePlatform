@@ -1,0 +1,809 @@
+domain: infra
+topic_id: infer
+topic_name: 推理加速
+page_icon: ⚡
+page_title: 推理加速算法总结
+page_subtitle: 2026-05-12 版
+page_desc: 回顾从FlashAttention到PagedAttention，以及投机解码、KV Cache优化、推理引擎的演进历程，涵盖2026年最新的Blackwell架构适配与分布式推理突破。
+hero_pills:
+- 🏷️ KV Cache · 投机解码 · 推理引擎
+count_pill: 52 个算法
+categories:
+  kv_cache:
+    label: KV Cache优化
+    color: '#22a06b'
+  spec_decode:
+    label: 投机解码
+    color: '#e56910'
+  attention:
+    label: 注意力优化
+    color: '#0065ff'
+  engine:
+    label: 推理引擎与系统
+    color: '#8270db'
+  quantize:
+    label: 模型压缩与量化
+    color: '#e34935'
+  linear_attn:
+    label: 线性/高效架构
+    color: '#1d7f8c'
+algorithms:
+- id: mqa
+  name: MQA
+  full_name: 多查询注意力 (Multi-Query Attention)
+  year: '2019'
+  org: Google
+  paper_url: https://arxiv.org/abs/1911.02150
+  category: kv_cache
+  parent: —
+  motivation: 共享Key/Value头减少带宽压力
+- id: gqa
+  name: GQA
+  full_name: 分组查询注意力 (Grouped-Query Attention)
+  year: '2023'
+  org: Google
+  paper_url: https://aclanthology.org/2023.emnlp-main.298/
+  category: kv_cache
+  parent: mqa
+  motivation: MHA与MQA的折中兼顾速度与精度
+- id: pagedattn
+  name: PagedAttention
+  full_name: 分页注意力 (PagedAttention)
+  year: '2023'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/2309.06180
+  category: kv_cache
+  parent: —
+  motivation: 引入虚拟内存分页解决显存碎片化
+- id: h2o
+  name: H2O
+  full_name: 重击者预言机 (Heavy-Hitter Oracle)
+  year: '2023'
+  org: Texas A&M
+  paper_url: https://arxiv.org/abs/2306.14048
+  category: kv_cache
+  parent: —
+  motivation: 动态保留高权重标记剔除冗余缓存
+- id: scissorhands
+  name: Scissorhands
+  full_name: 剪刀手 (Scissorhands)
+  year: '2023'
+  org: Rice Univ
+  paper_url: https://arxiv.org/abs/2305.17118
+  category: kv_cache
+  parent: —
+  motivation: 基于重要性持久化假设压缩缓存
+- id: streamingllm
+  name: StreamingLLM
+  full_name: 流式大模型 (StreamingLLM)
+  year: '2023'
+  org: MIT
+  paper_url: https://arxiv.org/abs/2309.17453
+  category: kv_cache
+  parent: —
+  motivation: 利用注意力汇实现无限长度流式推理
+- id: kivi
+  name: KIVI
+  full_name: KIVI量化 (KIVI)
+  year: '2024'
+  org: Rice Univ
+  paper_url: https://arxiv.org/abs/2402.02750
+  category: kv_cache
+  parent: —
+  motivation: 无需微调的非对称2-bit缓存量化
+- id: gear
+  name: GEAR
+  full_name: GEAR压缩框架 (GEAR)
+  year: '2024'
+  org: Georgia Tech
+  paper_url: https://arxiv.org/abs/2403.05527
+  category: kv_cache
+  parent: —
+  motivation: 结合量化与误差补偿的高倍率压缩
+- id: cachegen
+  name: CacheGen
+  full_name: 缓存生成 (CacheGen)
+  year: '2023'
+  org: Univ of Chicago
+  paper_url: https://arxiv.org/abs/2310.07240
+  category: kv_cache
+  parent: —
+  motivation: 通过流式传输与张量编码降低TTFT
+- id: turboquant
+  name: TurboQuant
+  full_name: 涡轮量化 (TurboQuant)
+  year: '2026'
+  org: Google Research
+  paper_url: https://arxiv.org/abs/2501.06425
+  category: kv_cache
+  parent: kivi
+  motivation: PolarQuant+QJL实现3-bit KV压缩
+- id: bitdecoding
+  name: BitDecoding
+  full_name: 比特解码 (BitDecoding)
+  year: '2026'
+  org: 爱丁堡大学/微软
+  paper_url: https://arxiv.org/abs/2503.18773
+  category: kv_cache
+  parent: kivi
+  motivation: 解锁Tensor Core处理低比特KV解码
+- id: chunkkv
+  name: ChunkKV
+  full_name: 语义分块缓存 (ChunkKV)
+  year: '2026'
+  org: X Liu等
+  paper_url: https://arxiv.org/abs/2603.20397
+  category: kv_cache
+  parent: h2o
+  motivation: 保留Token间语义关系的KV压缩
+- id: spec_leviathan
+  name: Speculative Decoding
+  full_name: 经典投机解码 (Speculative Decoding)
+  year: '2023'
+  org: Google
+  paper_url: https://arxiv.org/abs/2211.17192
+  category: spec_decode
+  parent: —
+  motivation: 草稿-验证范式实现无损推理加速
+- id: spec_chen
+  name: Speculative Sampling
+  full_name: 投机采样 (Speculative Sampling)
+  year: '2023'
+  org: DeepMind
+  paper_url: https://arxiv.org/abs/2302.01318
+  category: spec_decode
+  parent: —
+  motivation: 严谨数学证明的拒绝采样加速方案
+- id: medusa
+  name: Medusa
+  full_name: 美杜莎 (Medusa)
+  year: '2024'
+  org: Together AI
+  paper_url: https://arxiv.org/abs/2401.10774
+  category: spec_decode
+  parent: spec_leviathan
+  motivation: 增加并行解码头消除草稿模型依赖
+- id: eagle
+  name: EAGLE
+  full_name: 鹰 (EAGLE)
+  year: '2024'
+  org: PKU
+  paper_url: https://arxiv.org/abs/2401.15077
+  category: spec_decode
+  parent: spec_leviathan
+  motivation: 在特征空间投机解决标记预测不确定性
+- id: eagle_v2
+  name: EAGLE-2
+  full_name: 鹰2代 (EAGLE-2)
+  year: '2024'
+  org: PKU
+  paper_url: https://aclanthology.org/2024.emnlp-main.422/
+  category: spec_decode
+  parent: eagle
+  motivation: 引入动态草稿树根据置信度调整路径
+- id: lookahead
+  name: Lookahead Decoding
+  full_name: 展望解码 (Lookahead Decoding)
+  year: '2024'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/2402.02057
+  category: spec_decode
+  parent: —
+  motivation: 基于Jacobi迭代的并行解码无需微调
+- id: eagle_v3
+  name: EAGLE-3
+  full_name: 鹰3代 (EAGLE-3)
+  year: '2025.03'
+  org: PKU/SafeAI Lab
+  paper_url: https://arxiv.org/abs/2503.01840
+  category: spec_decode
+  parent: eagle_v2
+  motivation: 直接Token预测+三层特征融合
+- id: p_eagle
+  name: P-EAGLE
+  full_name: 并行鹰 (P-EAGLE)
+  year: '2026.02'
+  org: Amazon
+  paper_url: https://arxiv.org/abs/2602.01469
+  category: spec_decode
+  parent: eagle_v3
+  motivation: 并行草稿单次前向生成K个draft
+- id: ssd
+  name: SSD
+  full_name: 异步投机解码 (SSD)
+  year: '2026.03'
+  org: Stanford/Together AI
+  paper_url: https://arxiv.org/abs/2603.03251
+  category: spec_decode
+  parent: spec_leviathan
+  motivation: 异步草稿验证+几何扇出策略
+- id: flashattn
+  name: FlashAttention
+  full_name: 闪电注意力 (FlashAttention)
+  year: '2022'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/2205.14135
+  category: attention
+  parent: —
+  motivation: IO感知的分块计算减少内存访问
+- id: flashattn_v2
+  name: FlashAttention-2
+  full_name: 闪电注意力2代 (FlashAttention-2)
+  year: '2023'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/2307.08691
+  category: attention
+  parent: flashattn
+  motivation: 优化并行策略提升硬件利用率
+- id: flash_decoding
+  name: Flash-Decoding
+  full_name: 闪电解码 (Flash-Decoding)
+  year: '2023'
+  org: Stanford
+  paper_url: https://crfm.stanford.edu/2023/10/12/flash-decoding.html
+  category: attention
+  parent: flashattn_v2
+  motivation: 沿序列维度切分并行加速长文本解码
+- id: flashattn_v3
+  name: FlashAttention-3
+  full_name: 闪电注意力3代 (FlashAttention-3)
+  year: '2024'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/2407.08691
+  category: attention
+  parent: flashattn_v2
+  motivation: 针对Hopper架构实现异步计算重叠
+- id: mla
+  name: MLA
+  full_name: 多头潜在注意力 (Multi-Head Latent Attention)
+  year: '2024.05'
+  org: DeepSeek
+  paper_url: https://arxiv.org/abs/2405.04434
+  category: attention
+  parent: gqa
+  motivation: KV低秩压缩大幅降低缓存显存占用
+- id: ring_attn
+  name: Ring Attention
+  full_name: 环形注意力 (Ring Attention)
+  year: '2023'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/2310.01802
+  category: attention
+  parent: flashattn
+  motivation: 分布式环形通信支持近乎无限上下文
+- id: striped_attn
+  name: Striped Attention
+  full_name: 条纹注意力 (Striped Attention)
+  year: '2023'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/2311.09431
+  category: attention
+  parent: ring_attn
+  motivation: 交错分配标记解决因果掩码负载不均
+- id: flashmla
+  name: FlashMLA
+  full_name: 闪电MLA内核 (FlashMLA)
+  year: '2025.02'
+  org: DeepSeek
+  paper_url: https://github.com/deepseek-ai/FlashMLA
+  category: attention
+  parent: mla
+  motivation: 针对Hopper优化的MLA高效解码内核
+- id: flashattn_v4
+  name: FlashAttention-4
+  full_name: 闪电注意力4代 (FlashAttention-4)
+  year: '2026.03'
+  org: Tri Dao
+  paper_url: https://arxiv.org/abs/2603.05451
+  category: attention
+  parent: flashattn_v3
+  motivation: 算法与内核协同设计适配Blackwell
+- id: nsa
+  name: NSA
+  full_name: 原生稀疏注意力 (Native Sparse Attention)
+  year: '2025'
+  org: DeepSeek
+  paper_url: https://arxiv.org/abs/2502.11089
+  category: attention
+  parent: flashattn_v2
+  motivation: 硬件对齐的原生可训练稀疏注意力
+- id: dsa
+  name: DSA
+  full_name: DeepSeek稀疏注意力 (DeepSeek Sparse Attention)
+  year: '2026'
+  org: DeepSeek
+  paper_url: https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro
+  category: attention
+  parent: nsa
+  motivation: 混合架构减90%KV缓存
+- id: hisa
+  name: HISA
+  full_name: 层次化索引稀疏注意力 (HISA)
+  year: '2026'
+  org: Y Xu等
+  paper_url: https://arxiv.org/abs/2603.28458
+  category: attention
+  parent: nsa
+  motivation: 层次化索引实现细粒度稀疏注意力
+- id: orca
+  name: Orca
+  full_name: 虎鲸 (Orca)
+  year: '2022'
+  org: SNU
+  paper_url: https://www.usenix.org/conference/osdi22/presentation/yu
+  category: engine
+  parent: —
+  motivation: 首次提出迭代级调度实现连续批处理
+- id: deepspeed_infer
+  name: DeepSpeed-Inference
+  full_name: DeepSpeed推理 (DeepSpeed-Inference)
+  year: '2022'
+  org: Microsoft
+  paper_url: https://arxiv.org/abs/2207.00032
+  category: engine
+  parent: —
+  motivation: 异构存储卸载支持万亿参数模型推理
+- id: vllm
+  name: vLLM
+  full_name: vLLM引擎 (vLLM)
+  year: '2023'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/2309.06180
+  category: engine
+  parent: pagedattn
+  motivation: 集成PagedAttention的高吞吐引擎
+- id: trt_llm
+  name: TensorRT-LLM
+  full_name: TensorRT推理库 (TensorRT-LLM)
+  year: '2024'
+  org: NVIDIA
+  paper_url: https://github.com/NVIDIA/TensorRT-LLM
+  category: engine
+  parent: —
+  motivation: 深度适配NVIDIA硬件的极致性能库
+- id: sglang
+  name: SGLang
+  full_name: 结构化语言引擎 (SGLang)
+  year: '2023'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/2312.07104
+  category: engine
+  parent: vllm
+  motivation: RadixAttention实现前缀缓存自动复用
+- id: dynamo
+  name: Dynamo
+  full_name: NVIDIA Dynamo (Dynamo)
+  year: '2026.03'
+  org: NVIDIA
+  paper_url: https://github.com/ai-dynamo/dynamo
+  category: engine
+  parent: trt_llm
+  motivation: 开源分布式推理框架支持PD物理解耦
+- id: flashinfer
+  name: FlashInfer
+  full_name: FlashInfer (FlashInfer)
+  year: '2026'
+  org: CMU/Dao-AILab
+  paper_url: https://arxiv.org/abs/2601.00227
+  category: engine
+  parent: flashattn
+  motivation: AI驱动的GPU注意力内核生成框架
+- id: vllm_v1
+  name: vLLM v1
+  full_name: vLLM v1 (vLLM v1)
+  year: '2026'
+  org: vLLM社区
+  paper_url: https://github.com/vllm-project/vllm
+  category: engine
+  parent: vllm
+  motivation: V2架构零泡沫异步调度
+- id: sglang_v05
+  name: SGLang v0.5
+  full_name: SGLang v0.5 (SGLang v0.5)
+  year: '2026'
+  org: UC Berkeley
+  paper_url: https://github.com/sgl-project/sglang
+  category: engine
+  parent: sglang
+  motivation: 弹性专家并行+GPU Staging Buffer
+- id: gptq
+  name: GPTQ
+  full_name: GPT量化 (GPTQ)
+  year: '2022'
+  org: IST Austria
+  paper_url: https://arxiv.org/abs/2210.17323
+  category: quantize
+  parent: —
+  motivation: 高效二阶权重补偿实现4-bit无损量化
+- id: smoothquant
+  name: SmoothQuant
+  full_name: 平滑量化 (SmoothQuant)
+  year: '2022'
+  org: MIT
+  paper_url: https://arxiv.org/abs/2211.10438
+  category: quantize
+  parent: —
+  motivation: 迁移激活值量化难度实现W8A8推理
+- id: sparsegpt
+  name: SparseGPT
+  full_name: 稀疏GPT (SparseGPT)
+  year: '2023'
+  org: IST Austria
+  paper_url: https://arxiv.org/abs/2301.00774
+  category: quantize
+  parent: gptq
+  motivation: 一步式无结构剪枝支持千亿参数模型
+- id: awq
+  name: AWQ
+  full_name: 激活感知权重量化 (AWQ)
+  year: '2023'
+  org: MIT
+  paper_url: https://arxiv.org/abs/2306.00978
+  category: quantize
+  parent: smoothquant
+  motivation: 保护显著权重通道提升低比特量化精度
+- id: wanda
+  name: Wanda
+  full_name: 权重与激活剪枝 (Wanda)
+  year: '2023'
+  org: CMU
+  paper_url: https://arxiv.org/abs/2306.11695
+  category: quantize
+  parent: —
+  motivation: 极简剪枝准则无需二阶信息计算
+- id: nvfp4
+  name: NVFP4
+  full_name: NVIDIA FP4 (NVFP4)
+  year: '2026'
+  org: NVIDIA
+  paper_url: https://developer.nvidia.com/blog/nvfp4-blackwell-inference/
+  category: quantize
+  parent: smoothquant
+  motivation: E2M1双层微缩放实现硬件原生FP4推理
+- id: bitnet_b158
+  name: BitNet b1.58
+  full_name: 比特网 (BitNet b1.58)
+  year: '2024'
+  org: 微软
+  paper_url: https://arxiv.org/abs/2402.17764
+  category: quantize
+  parent: gptq
+  motivation: 三值化权重消除浮点乘法
+- id: mc_sharp
+  name: MC#
+  full_name: 混合压缩器 (MC#)
+  year: '2026'
+  org: IEEE TPAMI
+  paper_url: https://ieeexplore.ieee.org/document/10884444/
+  category: quantize
+  parent: awq
+  motivation: 自适应混合精度量化+在线剪枝压缩MoE
+- id: retnet
+  name: RetNet
+  full_name: 保留网络 (Retentive Network)
+  year: '2023'
+  org: Microsoft
+  paper_url: https://arxiv.org/abs/2307.08621
+  category: linear_attn
+  parent: —
+  motivation: 三种范式统一实现线性推理复杂度
+- id: mamba
+  name: Mamba
+  full_name: 曼巴 (Mamba)
+  year: '2023'
+  org: CMU/Princeton
+  paper_url: https://arxiv.org/abs/2312.00752
+  category: linear_attn
+  parent: —
+  motivation: 选择性状态空间模型线性时间扩展
+graph:
+  nodes:
+  - id: mqa
+    x: 50
+    y: 80
+    category: kv_cache
+  - id: pagedattn
+    x: 350
+    y: 50
+    category: kv_cache
+  - id: gqa
+    x: 350
+    y: 100
+    category: kv_cache
+  - id: h2o
+    x: 350
+    y: 150
+    category: kv_cache
+  - id: scissorhands
+    x: 350
+    y: 200
+    category: kv_cache
+  - id: streamingllm
+    x: 380
+    y: 75
+    category: kv_cache
+  - id: cachegen
+    x: 380
+    y: 125
+    category: kv_cache
+  - id: kivi
+    x: 500
+    y: 80
+    category: kv_cache
+  - id: gear
+    x: 500
+    y: 140
+    category: kv_cache
+  - id: turboquant
+    x: 750
+    y: 60
+    category: kv_cache
+  - id: bitdecoding
+    x: 750
+    y: 110
+    category: kv_cache
+  - id: chunkkv
+    x: 750
+    y: 160
+    category: kv_cache
+  - id: spec_leviathan
+    x: 350
+    y: 240
+    category: spec_decode
+  - id: spec_chen
+    x: 350
+    y: 290
+    category: spec_decode
+  - id: medusa
+    x: 500
+    y: 220
+    category: spec_decode
+  - id: eagle
+    x: 500
+    y: 270
+    category: spec_decode
+  - id: lookahead
+    x: 500
+    y: 320
+    category: spec_decode
+  - id: eagle_v2
+    x: 500
+    y: 370
+    category: spec_decode
+  - id: eagle_v3
+    x: 620
+    y: 250
+    category: spec_decode
+  - id: p_eagle
+    x: 750
+    y: 230
+    category: spec_decode
+  - id: ssd
+    x: 750
+    y: 290
+    category: spec_decode
+  - id: flashattn
+    x: 200
+    y: 420
+    category: attention
+  - id: flashattn_v2
+    x: 350
+    y: 400
+    category: attention
+  - id: flash_decoding
+    x: 350
+    y: 450
+    category: attention
+  - id: ring_attn
+    x: 350
+    y: 500
+    category: attention
+  - id: striped_attn
+    x: 350
+    y: 540
+    category: attention
+  - id: mla
+    x: 500
+    y: 420
+    category: attention
+  - id: flashattn_v3
+    x: 500
+    y: 460
+    category: attention
+  - id: nsa
+    x: 620
+    y: 390
+    category: attention
+  - id: flashmla
+    x: 620
+    y: 440
+    category: attention
+  - id: flashattn_v4
+    x: 750
+    y: 380
+    category: attention
+  - id: dsa
+    x: 750
+    y: 430
+    category: attention
+  - id: hisa
+    x: 750
+    y: 480
+    category: attention
+  - id: orca
+    x: 200
+    y: 580
+    category: engine
+  - id: deepspeed_infer
+    x: 200
+    y: 630
+    category: engine
+  - id: vllm
+    x: 350
+    y: 590
+    category: engine
+  - id: sglang
+    x: 350
+    y: 640
+    category: engine
+  - id: trt_llm
+    x: 500
+    y: 570
+    category: engine
+  - id: flashinfer
+    x: 750
+    y: 560
+    category: engine
+  - id: dynamo
+    x: 750
+    y: 610
+    category: engine
+  - id: vllm_v1
+    x: 750
+    y: 660
+    category: engine
+  - id: sglang_v05
+    x: 750
+    y: 710
+    category: engine
+  - id: gptq
+    x: 200
+    y: 750
+    category: quantize
+  - id: smoothquant
+    x: 200
+    y: 800
+    category: quantize
+  - id: sparsegpt
+    x: 350
+    y: 740
+    category: quantize
+  - id: awq
+    x: 350
+    y: 790
+    category: quantize
+  - id: wanda
+    x: 350
+    y: 840
+    category: quantize
+  - id: bitnet_b158
+    x: 500
+    y: 760
+    category: quantize
+  - id: nvfp4
+    x: 750
+    y: 750
+    category: quantize
+  - id: mc_sharp
+    x: 750
+    y: 810
+    category: quantize
+  - id: retnet
+    x: 350
+    y: 920
+    category: linear_attn
+  - id: mamba
+    x: 350
+    y: 980
+    category: linear_attn
+  edges:
+  - from: mqa
+    to: gqa
+    label: 分组折中
+  - from: flashattn
+    to: flashattn_v2
+    label: 优化并行
+  - from: flashattn_v2
+    to: flash_decoding
+    label: 序列维并行
+  - from: flashattn_v2
+    to: flashattn_v3
+    label: Hopper异步
+  - from: flashattn
+    to: ring_attn
+    label: 分布式扩展
+  - from: ring_attn
+    to: striped_attn
+    label: 负载均衡
+  - from: gqa
+    to: mla
+    label: 低秩压缩
+  - from: mla
+    to: flashmla
+    label: 内核优化
+  - from: spec_leviathan
+    to: medusa
+    label: 无草稿模型
+  - from: spec_leviathan
+    to: eagle
+    label: 特征投机
+  - from: eagle
+    to: eagle_v2
+    label: 动态树
+  - from: pagedattn
+    to: vllm
+    label: 引擎集成
+  - from: vllm
+    to: sglang
+    label: 前缀缓存
+  - from: gptq
+    to: sparsegpt
+    label: 结构剪枝
+  - from: smoothquant
+    to: awq
+    label: 通道保护
+  - from: flashattn_v2
+    to: nsa
+    label: 稀疏化演进
+  - from: kivi
+    to: turboquant
+    label: 向量量化
+  - from: kivi
+    to: bitdecoding
+    label: 硬件加速
+  - from: h2o
+    to: chunkkv
+    label: 语义感知
+  - from: eagle_v2
+    to: eagle_v3
+    label: 预测范式
+  - from: eagle_v3
+    to: p_eagle
+    label: 并行化
+  - from: spec_leviathan
+    to: ssd
+    label: 异步化
+  - from: flashattn_v3
+    to: flashattn_v4
+    label: 架构适配
+  - from: nsa
+    to: dsa
+    label: 工业级压缩
+  - from: nsa
+    to: hisa
+    label: 索引精细化
+  - from: trt_llm
+    to: dynamo
+    label: 分布式解耦
+  - from: flashattn
+    to: flashinfer
+    label: 内核生成
+  - from: vllm
+    to: vllm_v1
+    label: 调度架构
+  - from: sglang
+    to: sglang_v05
+    label: 通信优化
+  - from: smoothquant
+    to: nvfp4
+    label: 硬件原生
+  - from: gptq
+    to: bitnet_b158
+    label: 极低比特
+  - from: awq
+    to: mc_sharp
+    label: MoE压缩
+  milestones:
+  - flashattn
+  - vllm
+  - flashattn_v4

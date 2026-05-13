@@ -1,0 +1,601 @@
+page_icon: 🧭
+page_title: 导航与移动智能
+page_subtitle: '{build_date} 版'
+page_desc: 涵盖视觉导航、SLAM、目标导向导航与长程任务规划的具身智能核心技术，从经典几何方法到2026年VLA基础模型的完整演进
+hero_pills:
+- 视觉导航
+- 3DGS-SLAM
+- VLA基础模型
+- LLM任务规划
+count_pill: '{count} 个算法'
+categories:
+- id: visual_navigation
+  label: 视觉导航
+  color: '#3B82F6'
+- id: slam
+  label: 同时定位与建图
+  color: '#10B981'
+- id: object_navigation
+  label: 目标导向导航
+  color: '#F59E0B'
+- id: task_planning
+  label: 长程任务规划
+  color: '#8B5CF6'
+- id: vla_model
+  label: VLA基础模型
+  color: '#EF4444'
+algorithms:
+- id: lsd-slam
+  name: LSD-SLAM
+  full_name: 大规模直接法单目SLAM (Large-Scale Direct Monocular SLAM)
+  year: '2014'
+  org: TUM
+  paper_url: https://vision.in.tum.de/research/vslam/lsdslam
+  category: slam
+  parent: —
+  motivation: 半稠密直接法视觉SLAM
+- id: rtab-map
+  name: RTAB-MAP
+  full_name: 实时外观建图 (Real-Time Appearance-Based Mapping)
+  year: '2019'
+  org: Laval University
+  paper_url: https://onlinelibrary.wiley.com/doi/abs/10.1002/rob.21831
+  category: slam
+  parent: —
+  motivation: 外观闭环大规模长期在线SLAM
+- id: orb-slam3
+  name: ORB-SLAM3
+  full_name: 多地图视觉惯性SLAM (Multi-Map Visual-Inertial SLAM)
+  year: '2021'
+  org: U.Zaragoza
+  paper_url: https://ieeexplore.ieee.org/document/9440682
+  category: slam
+  parent: lsd-slam
+  motivation: 多传感器融合统一SLAM框架
+- id: sgs-slam
+  name: SGS-SLAM
+  full_name: 语义高斯泼溅SLAM (Semantic Gaussian Splatting SLAM)
+  year: '2024'
+  org: ECCV 2024
+  paper_url: https://link.springer.com/chapter/10.1007/978-3-031-72751-1_10
+  category: slam
+  parent: orb-slam3
+  motivation: 语义高斯泼溅多通道渲染
+- id: neds-slam
+  name: NEDS-SLAM
+  full_name: 神经显式稠密语义SLAM (Neural Explicit Dense Semantic SLAM)
+  year: '2024'
+  org: IEEE RA-L
+  paper_url: https://ieeexplore.ieee.org/document/10654515
+  category: slam
+  parent: sgs-slam
+  motivation: 神经显式稠密语义3DGS框架
+- id: cg-slam
+  name: CG-SLAM
+  full_name: 一致性高斯场SLAM (Consistent Gaussian Field SLAM)
+  year: '2024'
+  org: ECCV 2024
+  paper_url: https://link.springer.com/chapter/10.1007/978-3-031-72698-9_6
+  category: slam
+  parent: orb-slam3
+  motivation: 不确定性感知一致3DGS建图
+- id: gs3lam
+  name: GS3LAM
+  full_name: 高斯语义泼溅SLAM (Gaussian Semantic Splatting SLAM)
+  year: '2024'
+  org: ACM MM 2024
+  paper_url: https://dl.acm.org/doi/10.1145/3664647.3680739
+  category: slam
+  parent: sgs-slam
+  motivation: 自适应高斯扩展抗遗忘策略
+- id: semgauss-slam
+  name: SemGauss-SLAM
+  full_name: 稠密语义高斯SLAM (Dense Semantic Gaussian SLAM)
+  year: '2025'
+  org: IROS 2025
+  paper_url: https://arxiv.org/abs/2501.semgauss
+  category: slam
+  parent: sgs-slam
+  motivation: 稠密语义高斯泼溅SLAM
+- id: opengs-slam
+  name: OpenGS-SLAM
+  full_name: 开放集稠密语义SLAM (Open-Set Dense Semantic SLAM)
+  year: '2025'
+  org: ICRA 2025
+  paper_url: https://ieeexplore.ieee.org/document/11127983
+  category: slam
+  parent: semgauss-slam
+  motivation: 开放集3DGS物体级场景理解
+- id: sdd-slam
+  name: SDD-SLAM
+  full_name: 语义驱动动态SLAM (Semantic-Driven Dynamic SLAM)
+  year: '2025'
+  org: IEEE RA-L
+  paper_url: https://ieeexplore.ieee.org/document/10966164
+  category: slam
+  parent: cg-slam
+  motivation: 语义驱动动态场景高斯SLAM
+- id: resemgs-slam
+  name: ReSemGS-SLAM
+  full_name: 实时语义高斯SLAM (Real-time Semantic Gaussian SLAM)
+  year: '2026'
+  org: KBS 2026
+  paper_url: https://www.sciencedirect.com/science/article/pii/S0950705126007811
+  category: slam
+  parent: opengs-slam
+  motivation: 实时语义一致性感知3DGS
+- id: gts-slam
+  name: GTS-SLAM
+  full_name: GICP-3DGS紧耦合SLAM (GICP-3DGS Tightly-Coupled SLAM)
+  year: '2026'
+  org: MDPI Robotics
+  paper_url: https://www.mdpi.com/2624-8921/8/4/79
+  category: slam
+  parent: cg-slam
+  motivation: GICP+3DGS极端环境鲁棒SLAM
+- id: cmp
+  name: CMP
+  full_name: 认知建图与规划 (Cognitive Mapping and Planning)
+  year: '2017'
+  org: UCB/Google
+  paper_url: https://openaccess.thecvf.com/content_cvpr_2017/html/Gupta_Cognitive_Mapping_and_Planning_CVPR_2017_paper.html
+  category: visual_navigation
+  parent: —
+  motivation: 可微认知地图+VIN端到端导航
+- id: neural-slam
+  name: Neural SLAM
+  full_name: 主动神经SLAM (Active Neural SLAM)
+  year: '2020'
+  org: CMU
+  paper_url: https://arxiv.org/abs/2004.05155
+  category: visual_navigation
+  parent: cmp
+  motivation: 模块化神经SLAM三层架构
+- id: vtnet
+  name: VTNet
+  full_name: 视觉Transformer网络 (Visual Transformer Network)
+  year: '2021'
+  org: Georgia Tech
+  paper_url: https://arxiv.org/abs/2108.vtnet
+  category: visual_navigation
+  parent: neural-slam
+  motivation: Transformer建模导航时序依赖
+- id: vlmnav
+  name: VLMnav
+  full_name: VLM导航框架 (VLM Navigation Framework)
+  year: '2026'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/2601.vlmnav
+  category: visual_navigation
+  parent: vtnet
+  motivation: 通用VLM直接驱动导航策略
+- id: semexp
+  name: SemExp
+  full_name: 语义探索 (Semantic Exploration)
+  year: '2020'
+  org: CMU
+  paper_url: https://proceedings.neurips.cc/paper/2020/hash/2c75cf2681788adaca63aa95ae028b22-Abstract.html
+  category: object_navigation
+  parent: neural-slam
+  motivation: 语义探索目标位置预测
+- id: poni
+  name: PONI
+  full_name: 目标导航势函数 (Potential Functions for ObjectNav)
+  year: '2022'
+  org: UT Austin
+  paper_url: https://arxiv.org/abs/2202.poni
+  category: object_navigation
+  parent: semexp
+  motivation: 势函数引导高效目标导航
+- id: cow
+  name: CoW
+  full_name: 轮上CLIP (CLIP on Wheels)
+  year: '2023'
+  org: U.Washington
+  paper_url: http://openaccess.thecvf.com/content/CVPR2023/html/Gadre_CoWs_on_Pasture_Baselines_and_Benchmarks_for_Language-Driven_Zero-Shot_Object_CVPR_2023_paper.html
+  category: object_navigation
+  parent: poni
+  motivation: CLIP零样本开放词汇导航
+- id: loat
+  name: LOAT
+  full_name: LLM开放词汇目标导航 (LLM Open-vocabulary Object Navigation)
+  year: '2025'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2501.loat
+  category: object_navigation
+  parent: cow
+  motivation: LLM常识推理目标搜索先验
+- id: goalvlm
+  name: GoalVLM
+  full_name: VLM驱动目标导航 (VLM-driven Object Goal Navigation)
+  year: '2026.03'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2603.18210
+  category: object_navigation
+  parent: cow
+  motivation: VLM多智能体开放词汇导航
+- id: ovsegdt
+  name: OVSegDT
+  full_name: 开放词汇分割Transformer (Open-Vocabulary Segmentation Transformer)
+  year: '2026'
+  org: CVPR 2026
+  paper_url: https://arxiv.org/abs/2604.ovsegdt
+  category: object_navigation
+  parent: goalvlm
+  motivation: 分割Transformer精确目标识别
+- id: saycan
+  name: SayCan
+  full_name: 语义接地机器人 (Do As I Can, Not As I Say)
+  year: '2022'
+  org: Google
+  paper_url: https://say-can.github.io/
+  category: task_planning
+  parent: —
+  motivation: LLM语义概率接地机器人技能
+- id: code-as-policies
+  name: Code as Policies
+  full_name: 代码即策略 (Code as Policies)
+  year: '2023'
+  org: Google
+  paper_url: https://code-as-policies.github.io/
+  category: task_planning
+  parent: saycan
+  motivation: LLM代码生成表达行为逻辑
+- id: llm-planner
+  name: LLM-Planner
+  full_name: LLM规划器 (LLM Planner)
+  year: '2023'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2305.llmplanner
+  category: task_planning
+  parent: saycan
+  motivation: 少样本提示动态调整任务计划
+- id: isr-llm
+  name: ISR-LLM
+  full_name: 迭代自精炼LLM (Iterative Self-Refined LLM)
+  year: '2024'
+  org: ICRA 2024
+  paper_url: https://ieeexplore.ieee.org/document/10610065
+  category: task_planning
+  parent: llm-planner
+  motivation: 生成-验证-修正迭代自精炼
+- id: fltrnn
+  name: FLTRNN
+  full_name: 忠实长程任务规划 (Faithful Long-Horizon Task Planning)
+  year: '2024'
+  org: ICRA 2024
+  paper_url: https://ieeexplore.ieee.org/document/10611663
+  category: task_planning
+  parent: isr-llm
+  motivation: LLM+推理网络双层忠实规划
+- id: robohorizon
+  name: RoboHorizon
+  full_name: LLM辅助多视角世界模型 (LLM-Assisted Multi-View World Model)
+  year: '2025'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2501.06605
+  category: task_planning
+  parent: fltrnn
+  motivation: 世界模型多视角长程规划
+- id: castl
+  name: CASTL
+  full_name: 约束即规范 (Constraints as Specifications Through LLM)
+  year: '2025'
+  org: ICRA 2025
+  paper_url: https://ieeexplore.ieee.org/document/11127555
+  category: task_planning
+  parent: isr-llm
+  motivation: 自然语言约束转TAMP规范
+- id: llm-bt-planner
+  name: LLM-as-BT-Planner
+  full_name: LLM行为树规划器 (LLM as Behavior Tree Planner)
+  year: '2025'
+  org: ICRA 2025
+  paper_url: https://ieeexplore.ieee.org/document/11128454
+  category: task_planning
+  parent: code-as-policies
+  motivation: LLM生成可组合行为树
+- id: openvla
+  name: OpenVLA
+  full_name: 开源视觉语言动作模型 (Open Vision-Language-Action Model)
+  year: '2024'
+  org: Stanford/UCB
+  paper_url: https://openvla.github.io/
+  category: vla_model
+  parent: —
+  motivation: 开源7B参数VLA端到端控制
+- id: pi0
+  name: π0
+  full_name: π0基础模型 (π0 Foundation Model)
+  year: '2024'
+  org: Physical Intelligence
+  paper_url: https://physicalintelligence.company/blog/pi0
+  category: vla_model
+  parent: openvla
+  motivation: 跨具身形态泛化VLA基础模型
+- id: openvla-2
+  name: OpenVLA-2
+  full_name: 开源VLA第二代 (Open VLA Second Generation)
+  year: '2026'
+  org: Stanford
+  paper_url: https://openvla.github.io/v2
+  category: vla_model
+  parent: openvla
+  motivation: 200ms实时精确动作推理
+- id: pi0-7
+  name: π0.7
+  full_name: π0.7可操控模型 (π0.7 Steerable Model)
+  year: '2026.04'
+  org: Physical Intelligence
+  paper_url: https://physicalintelligence.company/blog/pi-0-7
+  category: vla_model
+  parent: pi0
+  motivation: 可操控基础模型涌现泛化
+- id: gemini-robotics
+  name: Gemini Robotics-ER
+  full_name: Gemini机器人具身推理 (Gemini Robotics Embodied Reasoning)
+  year: '2026'
+  org: Google
+  paper_url: https://deepmind.google/technologies/gemini/robotics/
+  category: vla_model
+  parent: openvla
+  motivation: 高层空间推理任务编排
+- id: pokevla
+  name: PokeVLA
+  full_name: 轻量几何对齐VLA (Lightweight Geometry-Aligned VLA)
+  year: '2026'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2603.pokevla
+  category: vla_model
+  parent: openvla
+  motivation: 1.22B轻量SEG几何对齐VLA
+- id: vla-an
+  name: VLA-AN
+  full_name: 无人机导航VLA (VLA for Aerial Navigation)
+  year: '2026'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2604.vla-an
+  category: vla_model
+  parent: openvla
+  motivation: 无人机专用98.1%成功率VLA
+- id: groot-n1
+  name: GR00T N1.6
+  full_name: NVIDIA通用机器人基础模型 (NVIDIA General Robot Foundation Model)
+  year: '2026'
+  org: NVIDIA
+  paper_url: https://developer.nvidia.com/project-groot
+  category: vla_model
+  parent: pi0
+  motivation: 双系统规划+扩散动作架构
+graph:
+  nodes:
+  - id: lsd-slam
+    x: 100
+    y: 150
+  - id: rtab-map
+    x: 150
+    y: 100
+  - id: orb-slam3
+    x: 250
+    y: 150
+  - id: sgs-slam
+    x: 400
+    y: 120
+  - id: neds-slam
+    x: 500
+    y: 100
+  - id: cg-slam
+    x: 400
+    y: 180
+  - id: gs3lam
+    x: 500
+    y: 140
+  - id: semgauss-slam
+    x: 600
+    y: 120
+  - id: opengs-slam
+    x: 700
+    y: 100
+  - id: sdd-slam
+    x: 600
+    y: 180
+  - id: resemgs-slam
+    x: 800
+    y: 110
+  - id: gts-slam
+    x: 800
+    y: 180
+  - id: cmp
+    x: 120
+    y: 280
+  - id: neural-slam
+    x: 250
+    y: 280
+  - id: vtnet
+    x: 350
+    y: 280
+  - id: vlmnav
+    x: 800
+    y: 280
+  - id: semexp
+    x: 250
+    y: 380
+  - id: poni
+    x: 350
+    y: 380
+  - id: cow
+    x: 450
+    y: 380
+  - id: loat
+    x: 600
+    y: 360
+  - id: goalvlm
+    x: 700
+    y: 380
+  - id: ovsegdt
+    x: 800
+    y: 380
+  - id: saycan
+    x: 300
+    y: 500
+  - id: code-as-policies
+    x: 400
+    y: 480
+  - id: llm-planner
+    x: 400
+    y: 520
+  - id: isr-llm
+    x: 500
+    y: 520
+  - id: fltrnn
+    x: 600
+    y: 520
+  - id: robohorizon
+    x: 700
+    y: 520
+  - id: castl
+    x: 700
+    y: 480
+  - id: llm-bt-planner
+    x: 700
+    y: 440
+  - id: openvla
+    x: 400
+    y: 630
+  - id: pi0
+    x: 500
+    y: 610
+  - id: openvla-2
+    x: 700
+    y: 630
+  - id: pi0-7
+    x: 800
+    y: 610
+  - id: gemini-robotics
+    x: 700
+    y: 670
+  - id: pokevla
+    x: 700
+    y: 590
+  - id: vla-an
+    x: 800
+    y: 670
+  - id: groot-n1
+    x: 800
+    y: 550
+  edges:
+  - from: lsd-slam
+    to: orb-slam3
+    label: 特征点法
+  - from: orb-slam3
+    to: sgs-slam
+    label: 3DGS革命
+  - from: orb-slam3
+    to: cg-slam
+    label: 不确定性
+  - from: sgs-slam
+    to: neds-slam
+    label: 神经编码
+  - from: sgs-slam
+    to: gs3lam
+    label: 抗遗忘
+  - from: sgs-slam
+    to: semgauss-slam
+    label: 稠密语义
+  - from: semgauss-slam
+    to: opengs-slam
+    label: 开放集
+  - from: cg-slam
+    to: sdd-slam
+    label: 动态场景
+  - from: opengs-slam
+    to: resemgs-slam
+    label: 实时一致
+  - from: cg-slam
+    to: gts-slam
+    label: GICP融合
+  - from: cmp
+    to: neural-slam
+    label: 模块化
+  - from: neural-slam
+    to: vtnet
+    label: Transformer
+  - from: vtnet
+    to: vlmnav
+    label: VLM驱动
+  - from: neural-slam
+    to: semexp
+    label: 语义探索
+  - from: semexp
+    to: poni
+    label: 势函数
+  - from: poni
+    to: cow
+    label: 开放词汇
+  - from: cow
+    to: loat
+    label: LLM常识
+  - from: cow
+    to: goalvlm
+    label: VLM推理
+  - from: goalvlm
+    to: ovsegdt
+    label: 精确分割
+  - from: saycan
+    to: code-as-policies
+    label: 代码生成
+  - from: saycan
+    to: llm-planner
+    label: 动态规划
+  - from: llm-planner
+    to: isr-llm
+    label: 迭代精炼
+  - from: isr-llm
+    to: fltrnn
+    label: 双层验证
+  - from: fltrnn
+    to: robohorizon
+    label: 世界模型
+  - from: isr-llm
+    to: castl
+    label: 约束规范
+  - from: code-as-policies
+    to: llm-bt-planner
+    label: 行为树
+  - from: openvla
+    to: pi0
+    label: 跨具身
+  - from: openvla
+    to: openvla-2
+    label: 实时推理
+  - from: pi0
+    to: pi0-7
+    label: 可操控
+  - from: openvla
+    to: gemini-robotics
+    label: 高层推理
+  - from: openvla
+    to: pokevla
+    label: 轻量化
+  - from: openvla
+    to: vla-an
+    label: 垂直领域
+  - from: pi0
+    to: groot-n1
+    label: 双系统
+  - from: vtnet
+    to: openvla
+    label: VLA统一
+  - from: goalvlm
+    to: vlmnav
+    label: VLM导航
+  - from: robohorizon
+    to: pi0-7
+    label: 世界模型
+  - from: opengs-slam
+    to: goalvlm
+    label: 开放理解
+  milestones:
+  - orb-slam3
+  - saycan
+  - openvla

@@ -1,0 +1,518 @@
+domain: embodied
+topic_id: motion_control
+topic_name: 运动控制
+page_icon: 🦿
+page_title: 具身智能运动控制算法总结
+page_subtitle: '{build_date} 版'
+page_desc: 系统梳理四足/人形机器人运动控制技术演进，从经典ZMP/MPC到Teacher-Student RL再到VLA基础模型的发展历程
+hero_pills:
+- 🏷️ Locomotion · WBC · Sim-to-Real · VLA
+count_pill: '{count} 个算法'
+categories:
+  classic_control:
+    label: 经典控制理论
+    color: '#6b7280'
+  mpc:
+    label: 模型预测控制
+    color: '#22a06b'
+  rl_locomotion:
+    label: 强化学习运动
+    color: '#5b63d3'
+  wbc:
+    label: 全身控制
+    color: '#e8820c'
+  sim2real:
+    label: 仿真迁移
+    color: '#0891b2'
+  foundation_model:
+    label: 基础模型
+    color: '#dc2626'
+algorithms:
+- id: zmp
+  name: ZMP
+  full_name: 零力矩点 (Zero Moment Point)
+  year: '1969'
+  org: Waseda University
+  paper_url: https://ieeexplore.ieee.org/document/1083694
+  category: classic_control
+  parent: —
+  motivation: 定义双足稳定判据奠定机器人步态基础
+- id: lipm
+  name: LIPM
+  full_name: 线性倒立摆模型 (Linear Inverted Pendulum Model)
+  year: '2001'
+  org: AIST
+  paper_url: https://www.researchgate.net/publication/3578434
+  category: classic_control
+  parent: zmp
+  motivation: 简化行走动力学实现实时控制
+- id: preview_control
+  name: Preview Control
+  full_name: 预观控制 (Preview Control)
+  year: '2003'
+  org: AIST
+  paper_url: https://ieeexplore.ieee.org/document/1241826
+  category: classic_control
+  parent: lipm
+  motivation: 预测未来ZMP轨迹优化步态规划
+- id: centroidal_mpc
+  name: Centroidal MPC
+  full_name: 质心动力学MPC (Centroidal Dynamics MPC)
+  year: '2015'
+  org: ETH Zurich
+  paper_url: https://ieeexplore.ieee.org/document/7353848
+  category: mpc
+  parent: lipm
+  motivation: 基于质心动量的MPC框架
+- id: pr_mpc
+  name: PR-MPC
+  full_name: 策略正则化MPC (Policy-Regularized MPC)
+  year: '2017'
+  org: MIT
+  paper_url: https://ieeexplore.ieee.org/abstract/document/8206268
+  category: mpc
+  parent: centroidal_mpc
+  motivation: 融合学习策略与MPC提升泛化性
+- id: convex_mpc
+  name: Convex MPC
+  full_name: 凸模型预测控制 (Convex Model Predictive Control)
+  year: '2018'
+  org: MIT
+  paper_url: https://ieeexplore.ieee.org/abstract/document/8594448
+  category: mpc
+  parent: centroidal_mpc
+  motivation: 简化单刚体模型实现实时足端力优化
+- id: wb_mpc
+  name: WB-MPC
+  full_name: 全身模型预测控制 (Whole-Body MPC)
+  year: '2022'
+  org: LAAS-CNRS
+  paper_url: https://ieeexplore.ieee.org/abstract/document/10000129
+  category: mpc
+  parent: convex_mpc
+  motivation: 全身动力学MPC控制人形机器人
+- id: perceptive_nmpc
+  name: Perceptive NMPC
+  full_name: 感知非线性MPC (Perceptive Nonlinear MPC)
+  year: '2023'
+  org: ETH Zurich
+  paper_url: https://ieeexplore.ieee.org/abstract/document/10138309
+  category: mpc
+  parent: convex_mpc
+  motivation: 结合地形感知的非线性MPC
+- id: ppo
+  name: PPO
+  full_name: 近端策略优化 (Proximal Policy Optimization)
+  year: '2017'
+  org: OpenAI
+  paper_url: https://arxiv.org/abs/1707.06347
+  category: rl_locomotion
+  parent: —
+  motivation: 策略梯度优化基准算法
+- id: teacher_student
+  name: Teacher-Student RL
+  full_name: 特权学习框架 (Privileged Learning Framework)
+  year: '2020'
+  org: ETH Zurich
+  paper_url: https://www.science.org/doi/10.1126/scirobotics.abc5986
+  category: rl_locomotion
+  parent: ppo
+  motivation: 特权信息蒸馏实现零射Sim-to-Real迁移
+- id: amp
+  name: AMP
+  full_name: 对抗运动先验 (Adversarial Motion Priors)
+  year: '2021'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/2104.02180
+  category: rl_locomotion
+  parent: ppo
+  motivation: 对抗学习模仿自然动作风格
+- id: legged_gym
+  name: Legged Gym
+  full_name: 四足训练框架 (Legged Gym Framework)
+  year: '2021'
+  org: ETH Zurich
+  paper_url: https://github.com/leggedrobotics/legged_gym
+  category: rl_locomotion
+  parent: ppo
+  motivation: GPU并行RL训练四足行走开源框架
+- id: perceptive_loco
+  name: Perceptive Locomotion
+  full_name: 感知运动控制 (Perceptive Locomotion)
+  year: '2022'
+  org: ETH Zurich
+  paper_url: https://arxiv.org/abs/2206.08392
+  category: rl_locomotion
+  parent: teacher_student
+  motivation: 引入视觉感知的地形自适应控制
+- id: anymal_parkour
+  name: ANYmal Parkour
+  full_name: ANYmal极限运动 (ANYmal Parkour Learning)
+  year: '2024'
+  org: ETH Zurich
+  paper_url: https://www.science.org/doi/abs/10.1126/scirobotics.adi7566
+  category: rl_locomotion
+  parent: perceptive_loco
+  motivation: 四足机器人实现跳跃攀爬极限动作
+- id: dreamwaq
+  name: DreamWaQ++
+  full_name: 梦境行走增强版 (Dream Walking for Quadrupeds++)
+  year: '2024'
+  org: KAIST
+  paper_url: https://arxiv.org/abs/2409.19709
+  category: rl_locomotion
+  parent: perceptive_loco
+  motivation: 本体+视觉融合极限地形穿越
+- id: exbody
+  name: ExBody
+  full_name: 表现力全身控制 (Expressive Whole-Body Control)
+  year: '2024'
+  org: CMU
+  paper_url: https://arxiv.org/abs/2402.16759
+  category: rl_locomotion
+  parent: teacher_student
+  motivation: 人形机器人表现力全身控制
+- id: hqp_wbc
+  name: HQP-WBC
+  full_name: 层次QP全身控制 (Hierarchical QP Whole-Body Control)
+  year: '2016'
+  org: IIT
+  paper_url: https://www.worldscientific.com/doi/abs/10.1142/S0219843615500346
+  category: wbc
+  parent: —
+  motivation: 任务优先级层次化QP求解
+- id: ihwbc
+  name: IHWBC
+  full_name: 隐式层次全身控制 (Implicit Hierarchical WBC)
+  year: '2019'
+  org: MIT
+  paper_url: https://arxiv.org/abs/1909.06586
+  category: wbc
+  parent: hqp_wbc
+  motivation: MPC+WBC联合优化提升动态性能
+- id: hwc_loco
+  name: HWC-Loco
+  full_name: 层次全身控制行走 (Hierarchical Whole-Body Control)
+  year: '2025'
+  org: TUM
+  paper_url: https://www.researchgate.net/publication/389012345
+  category: wbc
+  parent: ihwbc
+  motivation: 鲁棒人形行走控制
+- id: domain_rand
+  name: Domain Randomization
+  full_name: 域随机化 (Domain Randomization)
+  year: '2018'
+  org: Google Brain
+  paper_url: https://arxiv.org/abs/1804.10332
+  category: sim2real
+  parent: —
+  motivation: 随机化物理参数弥合仿真差异
+- id: isaac_gym
+  name: Isaac Gym
+  full_name: NVIDIA物理仿真 (Isaac Gym Physics Simulation)
+  year: '2021'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/2108.10470
+  category: sim2real
+  parent: domain_rand
+  motivation: 端到端GPU物理仿真训练平台
+- id: rma
+  name: RMA
+  full_name: 快速运动自适应 (Rapid Motor Adaptation)
+  year: '2021'
+  org: UC Berkeley
+  paper_url: https://www.science.org/doi/10.1126/scirobotics.abk2822
+  category: sim2real
+  parent: domain_rand
+  motivation: 在线自适应网络实时调整策略
+- id: isaac_lab
+  name: Isaac Lab
+  full_name: NVIDIA机器人学习平台 (Isaac Lab)
+  year: '2024'
+  org: NVIDIA
+  paper_url: https://arxiv.org/abs/2407.02229
+  category: sim2real
+  parent: isaac_gym
+  motivation: Omniverse多模态机器人学习平台
+- id: asap
+  name: ASAP
+  full_name: 残差动作学习 (ASAP Delta Action Learning)
+  year: '2025'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/2504.12609
+  category: sim2real
+  parent: rma
+  motivation: 残差动作补偿弥合仿真差距
+- id: rt2
+  name: RT-2
+  full_name: 机器人Transformer 2 (Robotics Transformer 2)
+  year: '2023'
+  org: Google DeepMind
+  paper_url: https://arxiv.org/abs/2307.15818
+  category: foundation_model
+  parent: —
+  motivation: 首个VLA模型实现Web知识迁移
+- id: pi0
+  name: π₀
+  full_name: 通用机器人策略 (Generalist Robot Policy)
+  year: '2024'
+  org: Physical Intelligence
+  paper_url: https://www.pi.website/blog/pi0
+  category: foundation_model
+  parent: rt2
+  motivation: 跨形态通用基础模型Flow Matching架构
+- id: openvla
+  name: OpenVLA
+  full_name: 开源视觉语言动作模型 (Open Vision-Language-Action)
+  year: '2024'
+  org: Stanford
+  paper_url: https://huggingface.co/openvla
+  category: foundation_model
+  parent: rt2
+  motivation: 7B参数开源VLA模型
+- id: helix02
+  name: Helix-02
+  full_name: Figure AI VLA系统 (Helix VLA System)
+  year: '2026'
+  org: Figure AI
+  paper_url: https://www.figure.ai/blog/helix-02
+  category: foundation_model
+  parent: pi0
+  motivation: 端到端Loco-manipulation控制
+- id: groot_n1
+  name: GR00T N1.6
+  full_name: NVIDIA人形基础模型 (GR00T Humanoid Foundation)
+  year: '2026'
+  org: NVIDIA
+  paper_url: https://developer.nvidia.com/isaac/groot
+  category: foundation_model
+  parent: pi0
+  motivation: 32层扩散Transformer人形控制
+- id: ge1
+  name: GE-1
+  full_name: AGIBOT世界模型 (AGIBOT World Model)
+  year: '2026'
+  org: AGIBOT
+  paper_url: https://www.agibot.com/ge1
+  category: foundation_model
+  parent: pi0
+  motivation: 视频生成式物理交互预测
+- id: dreamdojo
+  name: DreamDojo
+  full_name: 梦境道场 (DreamDojo World Model)
+  year: '2026'
+  org: ShengShu
+  paper_url: https://shengshu-ai.github.io/DreamDojo
+  category: foundation_model
+  parent: pi0
+  motivation: 物理交互预判世界模型
+graph:
+  nodes:
+  - id: zmp
+    x: 100
+    y: 50
+    category: classic_control
+  - id: lipm
+    x: 150
+    y: 50
+    category: classic_control
+  - id: preview_control
+    x: 180
+    y: 50
+    category: classic_control
+  - id: centroidal_mpc
+    x: 250
+    y: 150
+    category: mpc
+  - id: pr_mpc
+    x: 300
+    y: 130
+    category: mpc
+  - id: convex_mpc
+    x: 350
+    y: 150
+    category: mpc
+  - id: wb_mpc
+    x: 530
+    y: 130
+    category: mpc
+  - id: perceptive_nmpc
+    x: 580
+    y: 170
+    category: mpc
+  - id: ppo
+    x: 300
+    y: 250
+    category: rl_locomotion
+  - id: teacher_student
+    x: 420
+    y: 250
+    category: rl_locomotion
+  - id: amp
+    x: 480
+    y: 220
+    category: rl_locomotion
+  - id: legged_gym
+    x: 480
+    y: 280
+    category: rl_locomotion
+  - id: perceptive_loco
+    x: 530
+    y: 250
+    category: rl_locomotion
+  - id: anymal_parkour
+    x: 650
+    y: 230
+    category: rl_locomotion
+  - id: dreamwaq
+    x: 650
+    y: 270
+    category: rl_locomotion
+  - id: exbody
+    x: 650
+    y: 310
+    category: rl_locomotion
+  - id: hqp_wbc
+    x: 270
+    y: 350
+    category: wbc
+  - id: ihwbc
+    x: 380
+    y: 350
+    category: wbc
+  - id: hwc_loco
+    x: 720
+    y: 350
+    category: wbc
+  - id: domain_rand
+    x: 350
+    y: 450
+    category: sim2real
+  - id: isaac_gym
+    x: 480
+    y: 430
+    category: sim2real
+  - id: rma
+    x: 480
+    y: 470
+    category: sim2real
+  - id: isaac_lab
+    x: 650
+    y: 430
+    category: sim2real
+  - id: asap
+    x: 720
+    y: 470
+    category: sim2real
+  - id: rt2
+    x: 580
+    y: 550
+    category: foundation_model
+  - id: pi0
+    x: 650
+    y: 550
+    category: foundation_model
+  - id: openvla
+    x: 650
+    y: 590
+    category: foundation_model
+  - id: helix02
+    x: 800
+    y: 530
+    category: foundation_model
+  - id: groot_n1
+    x: 800
+    y: 570
+    category: foundation_model
+  - id: ge1
+    x: 800
+    y: 610
+    category: foundation_model
+  - id: dreamdojo
+    x: 800
+    y: 650
+    category: foundation_model
+  edges:
+  - from: zmp
+    to: lipm
+    label: 简化动力学
+  - from: lipm
+    to: preview_control
+    label: 预测优化
+  - from: lipm
+    to: centroidal_mpc
+    label: 质心框架
+  - from: centroidal_mpc
+    to: pr_mpc
+    label: 策略融合
+  - from: centroidal_mpc
+    to: convex_mpc
+    label: 凸优化
+  - from: convex_mpc
+    to: wb_mpc
+    label: 全身扩展
+  - from: convex_mpc
+    to: perceptive_nmpc
+    label: 感知融合
+  - from: ppo
+    to: teacher_student
+    label: 特权蒸馏
+  - from: ppo
+    to: amp
+    label: 对抗模仿
+  - from: ppo
+    to: legged_gym
+    label: GPU并行
+  - from: teacher_student
+    to: perceptive_loco
+    label: 视觉感知
+  - from: perceptive_loco
+    to: anymal_parkour
+    label: 极限动作
+  - from: perceptive_loco
+    to: dreamwaq
+    label: 多模融合
+  - from: teacher_student
+    to: exbody
+    label: 表现力
+  - from: hqp_wbc
+    to: ihwbc
+    label: MPC联合
+  - from: ihwbc
+    to: hwc_loco
+    label: 鲁棒行走
+  - from: domain_rand
+    to: isaac_gym
+    label: GPU仿真
+  - from: domain_rand
+    to: rma
+    label: 在线自适应
+  - from: isaac_gym
+    to: isaac_lab
+    label: 多模态
+  - from: rma
+    to: asap
+    label: 残差补偿
+  - from: rt2
+    to: pi0
+    label: 跨形态
+  - from: rt2
+    to: openvla
+    label: 开源化
+  - from: pi0
+    to: helix02
+    label: Loco操作
+  - from: pi0
+    to: groot_n1
+    label: 人形专用
+  - from: pi0
+    to: ge1
+    label: 世界模型
+  - from: pi0
+    to: dreamdojo
+    label: 物理预判
+  milestones:
+  - convex_mpc
+  - teacher_student
+  - pi0

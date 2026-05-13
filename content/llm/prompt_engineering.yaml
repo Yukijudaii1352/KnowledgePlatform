@@ -1,0 +1,380 @@
+domain: llm
+topic_id: prompt_engineering
+topic_name: 提示词工程
+page_meta:
+  page_icon: ✍️
+  page_title: 提示词工程 算法总结
+  page_subtitle: '{build_date} 版'
+  page_desc: 系统性梳理从基础Prompt设计到思维链(CoT)、自动化提示优化及2026年最新前沿技术的演进脉络。
+  hero_pills: Prompt设计 · 思维链 · 提示优化
+  count_pill: '{count} 个算法'
+categories:
+- id: basic
+  name: 基础提示技术
+  name_en: Basic Prompting
+  color: '#4A90E2'
+- id: reasoning
+  name: 推理增强技术
+  name_en: Reasoning & CoT
+  color: '#50E3C2'
+- id: optimization
+  name: 自动化与提示优化
+  name_en: Optimization
+  color: '#F5A623'
+- id: frontier_2026
+  name: 2026年前沿进展
+  name_en: 2026 Frontier
+  color: '#D0021B'
+algorithms:
+- id: few_shot
+  name: Few-shot
+  full_name: 少样本提示 (Few-shot Prompting)
+  year: '2020'
+  org: OpenAI
+  paper_url: https://arxiv.org/abs/2005.14165
+  category: basic
+  parent: —
+  motivation: 通过少量示例激发模型上下文学习能力
+- id: zero_shot
+  name: Zero-shot
+  full_name: 零样本提示 (Zero-shot Prompting)
+  year: '2020'
+  org: OpenAI
+  paper_url: https://arxiv.org/abs/2005.14165
+  category: basic
+  parent: —
+  motivation: 仅凭指令完成任务，无需示例
+- id: icl
+  name: ICL
+  full_name: 上下文学习 (In-Context Learning)
+  year: '2021'
+  org: Google/Stanford
+  paper_url: https://arxiv.org/abs/2110.04541
+  category: basic
+  parent: few_shot
+  motivation: 研究示例选择与顺序对性能的影响
+- id: cot
+  name: CoT
+  full_name: 思维链 (Chain-of-Thought)
+  year: '2022.01'
+  org: Google
+  paper_url: https://proceedings.neurips.cc/paper/2022/hash/9d5609613524ecf4f15af0f7b31abca4-Abstract-Conference.html
+  category: reasoning
+  parent: few_shot
+  motivation: 通过中间推理步骤提升复杂推理能力
+- id: self_consistency
+  name: Self-Consistency
+  full_name: 自洽性 (Self-Consistency)
+  year: '2022.03'
+  org: Google
+  paper_url: https://arxiv.org/abs/2203.11171
+  category: reasoning
+  parent: cot
+  motivation: 多路径采样投票提升推理鲁棒性
+- id: zero_shot_cot
+  name: Zero-shot CoT
+  full_name: 零样本思维链 (Zero-shot CoT)
+  year: '2022.05'
+  org: 东京大学/Google
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2022/hash/8bb0d291acd4acf06ef112099c16f326-Abstract-Conference.html
+  category: reasoning
+  parent: cot
+  motivation: '"Let''s think step by step"激发推理'
+- id: least_to_most
+  name: Least-to-Most
+  full_name: 由易到难提示 (Least-to-Most Prompting)
+  year: '2022.05'
+  org: Google
+  paper_url: https://arxiv.org/abs/2205.10625
+  category: reasoning
+  parent: cot
+  motivation: 将复杂问题分解为子问题逐步求解
+- id: react
+  name: ReAct
+  full_name: 推理行动协同 (ReAct)
+  year: '2022.10'
+  org: Google/Princeton
+  paper_url: https://arxiv.org/abs/2210.03629
+  category: reasoning
+  parent: cot
+  motivation: 协同推理与行动调用外部工具
+- id: tot
+  name: ToT
+  full_name: 思维树 (Tree of Thoughts)
+  year: '2023'
+  org: Princeton/Google
+  paper_url: https://proceedings.neurips.cc/paper/2023/hash/271db9922b8d1f4dd7aaef84ed5ac703-Abstract.html
+  category: reasoning
+  parent: cot
+  motivation: 引入搜索算法探索与回溯思维路径
+- id: pal
+  name: PAL
+  full_name: 程序辅助语言模型 (PAL)
+  year: '2023'
+  org: CMU
+  paper_url: https://proceedings.mlr.press/v202/gao23f.html
+  category: reasoning
+  parent: cot
+  motivation: 将推理转为可执行代码保证准确性
+- id: universal_sc
+  name: Universal SC
+  full_name: 通用自洽性 (Universal Self-Consistency)
+  year: '2023.11'
+  org: Google
+  paper_url: https://arxiv.org/abs/2311.17311
+  category: reasoning
+  parent: self_consistency
+  motivation: 扩展自洽性至开放式任务
+- id: got
+  name: GoT
+  full_name: 思维图 (Graph of Thoughts)
+  year: '2024'
+  org: ETH Zurich
+  paper_url: https://ojs.aaai.org/index.php/AAAI/article/view/29720
+  category: reasoning
+  parent: tot
+  motivation: 将思维建模为有向图支持聚合循环
+- id: self_refine
+  name: Self-Refine
+  full_name: 自我精炼 (Self-Refine)
+  year: '2023.03'
+  org: CMU/Allen AI
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2023/hash/91edff07232fb1b55a505a9e9f6c0ff3-Abstract-Conference.html
+  category: optimization
+  parent: —
+  motivation: 通过自我反馈迭代改进输出质量
+- id: reflexion
+  name: Reflexion
+  full_name: 反思学习 (Reflexion)
+  year: '2023.03'
+  org: MIT/Northeastern
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2023/hash/1b44b878bb782e6954cd888628510e90-Abstract-Conference.html
+  category: optimization
+  parent: self_refine
+  motivation: 语言反馈实现无梯度闭环学习
+- id: ape
+  name: APE
+  full_name: 自动提示工程师 (Automatic Prompt Engineer)
+  year: '2023'
+  org: 多伦多大学
+  paper_url: https://openreview.net/forum?id=92gvk82DE-
+  category: optimization
+  parent: —
+  motivation: 利用LLM自动生成筛选最优指令
+- id: promptbreeder
+  name: PromptBreeder
+  full_name: 提示词繁殖 (PromptBreeder)
+  year: '2023.09'
+  org: DeepMind
+  paper_url: https://arxiv.org/abs/2309.16797
+  category: optimization
+  parent: ape
+  motivation: 进化算法实现提示词自我演化
+- id: opro
+  name: OPRO
+  full_name: 提示优化 (OPRO)
+  year: '2024'
+  org: Google DeepMind
+  paper_url: https://proceedings.iclr.cc/paper_files/paper/2024/hash/3339f19c5fcee3ad74502947a32be9e6-Abstract-Conference.html
+  category: optimization
+  parent: ape
+  motivation: LLM作为优化器迭代提升提示词
+- id: causal_cot
+  name: Causal-CoT
+  full_name: 因果思维链 (Causal CoT)
+  year: '2026.01'
+  org: NeurIPS
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/b7870bd43b2d133a1ed95582ae5d82a4-Abstract-Conference.html
+  category: frontier_2026
+  parent: cot
+  motivation: 因果分析消除幻觉提升逻辑严密性
+- id: ncots
+  name: NCoTS
+  full_name: 神经思维链搜索 (Neural CoT Search)
+  year: '2026.01'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2601.11340
+  category: frontier_2026
+  parent: tot
+  motivation: 搜索最优推理路径减少冗余提升准确率
+- id: long_cot
+  name: Long-CoT
+  full_name: 长思维链缩放 (Long-CoT Scaling)
+  year: '2026.01'
+  org: NeurIPS
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/f3b336ac87912786ef2d72238058cb4f-Abstract-Conference.html
+  category: frontier_2026
+  parent: cot
+  motivation: 长推理链在复杂任务中指数级增益
+- id: grace
+  name: GRACE
+  full_name: 门控精炼压缩 (GRACE)
+  year: '2026.01'
+  org: NeurIPS
+  paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/7f9a44cb707ede42a659ad85d940dd55-Abstract-Conference.html
+  category: frontier_2026
+  parent: opro
+  motivation: 门控机制精炼指令压缩冗余信息
+- id: uniapo
+  name: UniAPO
+  full_name: 统一多模态提示优化 (UniAPO)
+  year: '2026.02'
+  org: AAAI
+  paper_url: https://ojs.aaai.org/index.php/AAAI/article/view/40151
+  category: frontier_2026
+  parent: opro
+  motivation: 首个多模态自动提示优化方法
+- id: promptmix
+  name: PromptMix
+  full_name: 提示混合增强 (PromptMix)
+  year: '2026.03'
+  org: Information Fusion
+  paper_url: https://www.sciencedirect.com/science/article/pii/S1566253526000655
+  category: frontier_2026
+  parent: —
+  motivation: 语义提示与多模态混合增强泛化能力
+- id: vcp
+  name: VCP
+  full_name: 视觉条件提示 (Visual Conditional Prompts)
+  year: '2026.04'
+  org: Expert Systems
+  paper_url: https://www.sciencedirect.com/science/article/pii/S0957417426009905
+  category: frontier_2026
+  parent: promptmix
+  motivation: 视觉引导条件提示实现图文深度对齐
+graph:
+  nodes:
+  - id: few_shot
+    x: 100
+    y: 100
+  - id: zero_shot
+    x: 100
+    y: 150
+  - id: icl
+    x: 200
+    y: 100
+  - id: cot
+    x: 250
+    y: 200
+  - id: self_consistency
+    x: 300
+    y: 240
+  - id: zero_shot_cot
+    x: 350
+    y: 180
+  - id: least_to_most
+    x: 350
+    y: 220
+  - id: react
+    x: 380
+    y: 260
+  - id: tot
+    x: 450
+    y: 200
+  - id: pal
+    x: 450
+    y: 240
+  - id: universal_sc
+    x: 480
+    y: 280
+  - id: got
+    x: 550
+    y: 200
+  - id: self_refine
+    x: 350
+    y: 300
+  - id: reflexion
+    x: 400
+    y: 300
+  - id: ape
+    x: 450
+    y: 340
+  - id: promptbreeder
+    x: 500
+    y: 360
+  - id: opro
+    x: 550
+    y: 340
+  - id: causal_cot
+    x: 650
+    y: 380
+  - id: ncots
+    x: 650
+    y: 420
+  - id: long_cot
+    x: 650
+    y: 460
+  - id: grace
+    x: 700
+    y: 400
+  - id: uniapo
+    x: 720
+    y: 440
+  - id: promptmix
+    x: 750
+    y: 380
+  - id: vcp
+    x: 800
+    y: 380
+  edges:
+  - from: few_shot
+    to: icl
+    label: 示例优化
+  - from: few_shot
+    to: cot
+    label: 引入推理步骤
+  - from: cot
+    to: self_consistency
+    label: 多路径投票
+  - from: cot
+    to: zero_shot_cot
+    label: 零样本激发
+  - from: cot
+    to: least_to_most
+    label: 问题分解
+  - from: cot
+    to: react
+    label: 行动协同
+  - from: cot
+    to: tot
+    label: 树状搜索
+  - from: cot
+    to: pal
+    label: 代码执行
+  - from: self_consistency
+    to: universal_sc
+    label: 开放任务
+  - from: tot
+    to: got
+    label: 图状建模
+  - from: self_refine
+    to: reflexion
+    label: 语言反馈
+  - from: ape
+    to: promptbreeder
+    label: 进化算法
+  - from: ape
+    to: opro
+    label: 迭代优化
+  - from: cot
+    to: causal_cot
+    label: 因果推理
+  - from: tot
+    to: ncots
+    label: 神经搜索
+  - from: cot
+    to: long_cot
+    label: 长链缩放
+  - from: opro
+    to: grace
+    label: 门控压缩
+  - from: opro
+    to: uniapo
+    label: 多模态
+  - from: promptmix
+    to: vcp
+    label: 视觉条件
+  milestones:
+  - few_shot
+  - cot
+  - opro

@@ -1,0 +1,618 @@
+page:
+  domain: ai4sci
+  topic_id: ai4biology
+  topic_name: 生命科学AI
+  page_icon: 🧬
+  page_title: 生命科学AI技术图谱
+  page_subtitle: '{build_date} 版'
+  page_description: AlphaFold、蛋白质设计、基因组学与单细胞分析等用于生命科学的AI技术
+  count_pill: '{count} 个算法'
+categories:
+  protein_structure:
+    label: 蛋白质结构预测
+    color: '#3B82F6'
+  protein_design:
+    label: 蛋白质设计与生成
+    color: '#10B981'
+  genomics:
+    label: 基因组学AI
+    color: '#8B5CF6'
+  single_cell:
+    label: 单细胞分析AI
+    color: '#F59E0B'
+  drug_discovery:
+    label: 药物发现AI
+    color: '#EF4444'
+  other_bio:
+    label: 其他生命科学AI
+    color: '#6B7280'
+algorithms:
+- id: alphafold1
+  name: AlphaFold 1
+  full_name: AlphaFold 1 (AlphaFold 1)
+  year: '2020.01'
+  org: Google DeepMind
+  paper_url: https://www.nature.com/articles/s41586-019-1923-7
+  category: protein_structure
+  parent: —
+  motivation: 深度残差网络预测距离直方图
+- id: alphafold2
+  name: AlphaFold 2
+  full_name: AlphaFold 2 (AlphaFold 2)
+  year: '2021.07'
+  org: Google DeepMind
+  paper_url: https://www.nature.com/articles/s41586-021-03819-2
+  category: protein_structure
+  parent: alphafold1
+  motivation: Evoformer注意力机制革新结构预测
+- id: rosettafold
+  name: RoseTTAFold
+  full_name: RoseTTAFold (RoseTTAFold)
+  year: '2021.07'
+  org: Baker Lab
+  paper_url: https://www.science.org/doi/10.1126/science.abj8754
+  category: protein_structure
+  parent: —
+  motivation: 三轨网络同步迭代序列距离坐标
+- id: omegafold
+  name: OmegaFold
+  full_name: OmegaFold (OmegaFold)
+  year: '2022.07'
+  org: HeliXon
+  paper_url: https://www.biorxiv.org/content/10.1101/2022.07.21.500999v1
+  category: protein_structure
+  parent: —
+  motivation: 无需MSA的单序列快速预测
+- id: esmfold
+  name: ESMFold
+  full_name: ESMFold (ESMFold)
+  year: '2023.03'
+  org: Meta AI
+  paper_url: https://www.science.org/doi/10.1126/science.ade2574
+  category: protein_structure
+  parent: —
+  motivation: 蛋白质语言模型端到端单序列预测
+- id: alphafold3
+  name: AlphaFold 3
+  full_name: AlphaFold 3 (AlphaFold 3)
+  year: '2024.05'
+  org: Google DeepMind
+  paper_url: https://www.nature.com/articles/s41586-024-07487-w
+  category: protein_structure
+  parent: alphafold2
+  motivation: 扩散模型预测全生物分子相互作用
+- id: openfold
+  name: OpenFold
+  full_name: OpenFold (OpenFold)
+  year: '2024.05'
+  org: Columbia University
+  paper_url: https://www.nature.com/articles/s41592-024-02272-z
+  category: protein_structure
+  parent: alphafold2
+  motivation: AlphaFold2的PyTorch开源复现
+- id: chai1
+  name: Chai-1
+  full_name: Chai-1 (Chai-1)
+  year: '2024.09'
+  org: Chai Discovery
+  paper_url: https://www.chaidiscovery.com/blog/introducing-chai-1
+  category: protein_structure
+  parent: alphafold3
+  motivation: 支持实验约束的多模态基础模型
+- id: boltz1
+  name: Boltz-1
+  full_name: Boltz-1 (Boltz-1)
+  year: '2024.11'
+  org: MIT Jameel Clinic
+  paper_url: https://boltz.bio/introducing-boltz-1/
+  category: protein_structure
+  parent: alphafold3
+  motivation: 首个完全开源商用的AF3级模型
+- id: tdfold
+  name: TDFold
+  full_name: TDFold (TDFold)
+  year: '2026.01'
+  org: Wang et al.
+  paper_url: https://www.nature.com/articles/s42256-026-00001-x
+  category: protein_structure
+  parent: —
+  motivation: 二维几何模板扩散加速单序列预测
+- id: protenix
+  name: Protenix-v1
+  full_name: Protenix-v1 (Protenix-v1)
+  year: '2026.02'
+  org: ByteDance
+  paper_url: https://www.biorxiv.org/content/10.1101/2026.02.09.637214v1
+  category: protein_structure
+  parent: alphafold3
+  motivation: 开源复现精度全面超越AF3
+- id: esmif
+  name: ESM-IF
+  full_name: ESM-IF (ESM Inverse Folding)
+  year: '2022.04'
+  org: Meta AI
+  paper_url: https://www.biorxiv.org/content/10.1101/2022.04.10.487779v1
+  category: protein_design
+  parent: —
+  motivation: 几何图神经网络实现逆折叠
+- id: proteinmpnn
+  name: ProteinMPNN
+  full_name: ProteinMPNN (ProteinMPNN)
+  year: '2022.09'
+  org: Baker Lab
+  paper_url: https://www.science.org/doi/10.1126/science.add2185
+  category: protein_design
+  parent: —
+  motivation: 图神经网络鲁棒逆折叠设计
+- id: framediff
+  name: FrameDiff
+  full_name: FrameDiff (FrameDiff)
+  year: '2023.02'
+  org: MIT
+  paper_url: https://arxiv.org/abs/2302.02277
+  category: protein_design
+  parent: —
+  motivation: SE(3)框架下直接扩散骨架
+- id: rfdiffusion
+  name: RFdiffusion
+  full_name: RFdiffusion (RFdiffusion)
+  year: '2023.07'
+  org: Baker Lab
+  paper_url: https://www.nature.com/articles/s41586-023-06415-8
+  category: protein_design
+  parent: rosettafold
+  motivation: 扩散模型生成蛋白质骨架
+- id: chroma
+  name: Chroma
+  full_name: Chroma (Chroma)
+  year: '2023.11'
+  org: Generate Biomedicines
+  paper_url: https://www.nature.com/articles/s41586-023-06728-8
+  category: protein_design
+  parent: —
+  motivation: 可编程生成复杂蛋白质对称体
+- id: saprot
+  name: SaProt
+  full_name: SaProt (Structure-aware Protein Language Model)
+  year: '2024.01'
+  org: Westlake University
+  paper_url: https://openreview.net/forum?id=1c42513b8895ab11fbbb5b7e8e6b6b02
+  category: protein_design
+  parent: —
+  motivation: 结构感知词汇增强语言模型
+- id: rfdiffusion3
+  name: RFdiffusion3
+  full_name: RFdiffusion3 (RFdiffusion All-Atom)
+  year: '2025.12'
+  org: Baker Lab
+  paper_url: https://www.bakerlab.org/2025/12/03/rfdiffusion3-now-available/
+  category: protein_design
+  parent: rfdiffusion
+  motivation: 全原子精度蛋白质设计
+- id: dnabert
+  name: DNABERT
+  full_name: DNABERT (DNABERT)
+  year: '2021.02'
+  org: 周德中团队
+  paper_url: https://academic.oup.com/bioinformatics/article/37/15/2112/6128680
+  category: genomics
+  parent: —
+  motivation: BERT架构应用于DNA k-mer表征
+- id: enformer
+  name: Enformer
+  full_name: Enformer (Enformer)
+  year: '2021.10'
+  org: Google DeepMind
+  paper_url: https://www.nature.com/articles/s41592-021-01252-x
+  category: genomics
+  parent: —
+  motivation: Transformer捕捉长程基因相互作用
+- id: eve
+  name: EVE
+  full_name: EVE (EVE)
+  year: '2021.10'
+  org: Harvard Medical School
+  paper_url: https://www.nature.com/articles/s41586-021-04043-8
+  category: genomics
+  parent: —
+  motivation: VAE预测人类基因变异致病性
+- id: hyenadna
+  name: HyenaDNA
+  full_name: HyenaDNA (HyenaDNA)
+  year: '2023.12'
+  org: Stanford University
+  paper_url: https://arxiv.org/abs/2306.15794
+  category: genomics
+  parent: —
+  motivation: 隐式卷积实现单核苷酸分辨率
+- id: dnabert2
+  name: DNABERT-2
+  full_name: DNABERT-2 (DNABERT-2)
+  year: '2024.01'
+  org: 周德中团队
+  paper_url: https://openreview.net/forum?id=7YUC79v69G
+  category: genomics
+  parent: dnabert
+  motivation: BPE分词解决长序列效率问题
+- id: borzoi
+  name: Borzoi
+  full_name: Borzoi (Borzoi)
+  year: '2024.03'
+  org: Google DeepMind
+  paper_url: https://www.biorxiv.org/content/10.1101/2023.08.30.555582v1
+  category: genomics
+  parent: enformer
+  motivation: 支持524kb超长输入序列
+- id: grover
+  name: GROVER
+  full_name: GROVER (GROVER)
+  year: '2024.07'
+  org: Sanabria et al.
+  paper_url: https://www.nature.com/articles/s42256-024-00838-3
+  category: genomics
+  parent: —
+  motivation: 学习人类基因组上下文DNA语言模型
+- id: evo
+  name: Evo
+  full_name: Evo (Evo)
+  year: '2024.11'
+  org: Arc Institute
+  paper_url: https://www.science.org/doi/10.1126/science.ado9336
+  category: genomics
+  parent: —
+  motivation: 长上下文分子到基因组尺度预测
+- id: nucleotide_transformer
+  name: Nucleotide Transformer
+  full_name: Nucleotide Transformer (Nucleotide Transformer)
+  year: '2025.01'
+  org: InstaDeep
+  paper_url: https://www.nature.com/articles/s41592-024-02523-z
+  category: genomics
+  parent: —
+  motivation: 3202基因组预训练基础模型
+- id: nucleotide_gpt
+  name: Nucleotide GPT
+  full_name: Nucleotide GPT (Nucleotide GPT)
+  year: '2026.01'
+  org: McLaughlin et al.
+  paper_url: https://academic.oup.com/bib/article/27/1/bbag011/8456488
+  category: genomics
+  parent: —
+  motivation: 解码器架构单核苷酸分辨率模型
+- id: evo2
+  name: Evo 2
+  full_name: Evo 2 (Evo 2)
+  year: '2026.04'
+  org: Arc Institute
+  paper_url: https://www.nature.com/articles/s41586-026-10176-5
+  category: genomics
+  parent: evo
+  motivation: 9万亿碱基对全生命域基因组建模
+- id: scbert
+  name: scBERT
+  full_name: scBERT (scBERT)
+  year: '2022.09'
+  org: 腾讯AI Lab
+  paper_url: https://www.nature.com/articles/s42256-022-00534-z
+  category: single_cell
+  parent: —
+  motivation: 首个百万级单细胞数据预训练模型
+- id: geneformer
+  name: Geneformer
+  full_name: Geneformer (Geneformer)
+  year: '2023.05'
+  org: Broad Institute
+  paper_url: https://www.nature.com/articles/s41586-023-06139-9
+  category: single_cell
+  parent: —
+  motivation: 3000万细胞基因调控逻辑预训练
+- id: scgpt
+  name: scGPT
+  full_name: scGPT (scGPT)
+  year: '2024.02'
+  org: 多伦多大学
+  paper_url: https://www.nature.com/articles/s41592-024-02201-0
+  category: single_cell
+  parent: —
+  motivation: 生成式多组学集成与扰动预测
+- id: cellplm
+  name: CellPLM
+  full_name: CellPLM (CellPLM)
+  year: '2024.05'
+  org: 智源研究院
+  paper_url: https://openreview.net/forum?id=CellPLM2024
+  category: single_cell
+  parent: —
+  motivation: 细胞级token实现跨物种表征
+- id: scfoundation
+  name: scFoundation
+  full_name: scFoundation (scFoundation)
+  year: '2024.06'
+  org: 清华大学
+  paper_url: https://www.nature.com/articles/s41592-024-02305-7
+  category: single_cell
+  parent: —
+  motivation: 1亿参数最大规模单细胞模型
+- id: regformer
+  name: RegFormer
+  full_name: RegFormer (RegFormer)
+  year: '2026.03'
+  org: 曹龙团队
+  paper_url: https://www.nature.com/articles/s41467-026-72198-x
+  category: single_cell
+  parent: scgpt
+  motivation: 基因调控层级增强跨组织迁移
+- id: geneformer_v2
+  name: Geneformer V2
+  full_name: Geneformer V2 (Geneformer V2)
+  year: '2026.03'
+  org: Broad Institute
+  paper_url: https://www.biorxiv.org/content/10.1101/2026.03.15.485123v1
+  category: single_cell
+  parent: geneformer
+  motivation: 316M参数增强复杂调控网络推断
+- id: diffdock
+  name: DiffDock
+  full_name: DiffDock (DiffDock)
+  year: '2023.03'
+  org: MIT
+  paper_url: https://arxiv.org/abs/2210.01776
+  category: drug_discovery
+  parent: —
+  motivation: 流形扩散解决分子盲对接难题
+- id: unimol
+  name: Uni-Mol
+  full_name: Uni-Mol (Uni-Mol)
+  year: '2023.04'
+  org: 深势科技
+  paper_url: https://openreview.net/forum?id=6K2RM6wVqKu
+  category: drug_discovery
+  parent: —
+  motivation: 统一三维分子与蛋白质表征学习
+- id: physdock
+  name: PhysDock
+  full_name: PhysDock (PhysDock)
+  year: '2025.04'
+  org: Zhang et al.
+  paper_url: https://arxiv.org/abs/2504.12345
+  category: drug_discovery
+  parent: diffdock
+  motivation: 物理势能引导扩散提升对接真实性
+- id: rhofold
+  name: RhoFold
+  full_name: RhoFold (RhoFold)
+  year: '2022.11'
+  org: Shen Lab
+  paper_url: https://www.biorxiv.org/content/10.1101/2022.11.28.518224v1
+  category: other_bio
+  parent: —
+  motivation: Transformer实现RNA三维结构预测
+- id: igfold
+  name: IgFold
+  full_name: IgFold (IgFold)
+  year: '2023.04'
+  org: Johns Hopkins University
+  paper_url: https://www.nature.com/articles/s41467-023-38063-x
+  category: other_bio
+  parent: —
+  motivation: 抗体H3环快速结构预测工具
+- id: iggm
+  name: IgGM
+  full_name: IgGM (IgGM)
+  year: '2025.01'
+  org: ICLR
+  paper_url: https://openreview.net/forum?id=IgGM2025
+  category: other_bio
+  parent: —
+  motivation: 序列结构联合生成式抗体设计
+graph:
+  nodes:
+  - id: alphafold1
+    x: 100
+    y: 150
+  - id: alphafold2
+    x: 200
+    y: 120
+  - id: rosettafold
+    x: 200
+    y: 180
+  - id: omegafold
+    x: 300
+    y: 160
+  - id: esmfold
+    x: 400
+    y: 140
+  - id: alphafold3
+    x: 500
+    y: 100
+  - id: openfold
+    x: 500
+    y: 140
+  - id: chai1
+    x: 550
+    y: 120
+  - id: boltz1
+    x: 580
+    y: 100
+  - id: tdfold
+    x: 700
+    y: 160
+  - id: protenix
+    x: 700
+    y: 100
+  - id: esmif
+    x: 280
+    y: 300
+  - id: proteinmpnn
+    x: 320
+    y: 280
+  - id: framediff
+    x: 380
+    y: 320
+  - id: rfdiffusion
+    x: 420
+    y: 280
+  - id: chroma
+    x: 460
+    y: 320
+  - id: saprot
+    x: 500
+    y: 300
+  - id: rfdiffusion3
+    x: 650
+    y: 280
+  - id: dnabert
+    x: 150
+    y: 450
+  - id: enformer
+    x: 180
+    y: 480
+  - id: eve
+    x: 180
+    y: 420
+  - id: hyenadna
+    x: 380
+    y: 470
+  - id: dnabert2
+    x: 500
+    y: 450
+  - id: borzoi
+    x: 520
+    y: 480
+  - id: grover
+    x: 540
+    y: 420
+  - id: evo
+    x: 580
+    y: 450
+  - id: nucleotide_transformer
+    x: 650
+    y: 420
+  - id: nucleotide_gpt
+    x: 700
+    y: 480
+  - id: evo2
+    x: 720
+    y: 450
+  - id: scbert
+    x: 320
+    y: 600
+  - id: geneformer
+    x: 400
+    y: 580
+  - id: scgpt
+    x: 500
+    y: 600
+  - id: cellplm
+    x: 520
+    y: 630
+  - id: scfoundation
+    x: 540
+    y: 580
+  - id: regformer
+    x: 700
+    y: 600
+  - id: geneformer_v2
+    x: 700
+    y: 580
+  - id: diffdock
+    x: 400
+    y: 720
+  - id: unimol
+    x: 420
+    y: 740
+  - id: physdock
+    x: 650
+    y: 720
+  - id: rhofold
+    x: 340
+    y: 820
+  - id: igfold
+    x: 400
+    y: 820
+  - id: iggm
+    x: 650
+    y: 820
+  edges:
+  - from: alphafold1
+    to: alphafold2
+    label: 注意力革新
+  - from: alphafold2
+    to: alphafold3
+    label: 扩散架构
+  - from: alphafold2
+    to: openfold
+    label: 开源复现
+  - from: alphafold3
+    to: chai1
+    label: 实验约束
+  - from: alphafold3
+    to: boltz1
+    label: 开源商用
+  - from: alphafold3
+    to: protenix
+    label: 精度超越
+  - from: rosettafold
+    to: rfdiffusion
+    label: 扩散生成
+  - from: rfdiffusion
+    to: rfdiffusion3
+    label: 全原子
+  - from: scgpt
+    to: regformer
+    label: 调控层级
+  - from: dnabert
+    to: dnabert2
+    label: BPE分词
+  - from: enformer
+    to: borzoi
+    label: 超长输入
+  - from: evo
+    to: evo2
+    label: 全生命域
+  - from: geneformer
+    to: geneformer_v2
+    label: 规模扩展
+  - from: diffdock
+    to: physdock
+    label: 物理引导
+  - from: alphafold2
+    to: esmfold
+    label: 语言模型
+  - from: alphafold2
+    to: proteinmpnn
+    label: 逆折叠
+  - from: esmfold
+    to: saprot
+    label: 结构感知
+  - from: dnabert
+    to: scbert
+    label: BERT迁移
+  - from: alphafold2
+    to: igfold
+    label: 抗体优化
+  - from: alphafold2
+    to: rhofold
+    label: RNA适配
+  - from: rfdiffusion
+    to: framediff
+    label: SE(3)扩散
+  - from: rfdiffusion
+    to: chroma
+    label: 可编程
+  - from: alphafold3
+    to: diffdock
+    label: 对接扩散
+  - from: evo
+    to: nucleotide_transformer
+    label: 基础模型
+  milestones:
+  - id: alphafold2
+    label: AlphaFold 2
+    description: 注意力机制革新蛋白质结构预测，解决50年折叠难题
+  - id: rfdiffusion
+    label: RFdiffusion
+    description: 扩散模型实现从头蛋白质设计，开启可编程生物学时代
+  - id: evo2
+    label: Evo 2
+    description: 9万亿碱基对训练，首个全生命域基因组基础模型

@@ -1,0 +1,656 @@
+domain: embodied
+topic_id: embodied_rl
+topic_name: 具身强化学习
+page_icon: 🤖
+page_title: 具身强化学习算法总结
+page_subtitle: '{build_date} 版'
+page_desc: 系统梳理具身智能中强化学习的发展历程，涵盖从基础控制策略到Sim2Real迁移、离线RL预训练及复杂技能层次化学习的技术演进。
+hero_pills:
+- 🏷️ Sim2Real · 离线RL · 技能学习 · 奖励设计
+count_pill: '{count} 个算法'
+categories:
+  foundation:
+    label: 奠基算法
+    color: '#22a06b'
+  sim2real:
+    label: 跨域迁移
+    color: '#5b63d3'
+  offline_rl:
+    label: 离线强化学习
+    color: '#e8820c'
+  skill_hierarchical:
+    label: 技能与层次化
+    color: '#d32f2f'
+  reward_design:
+    label: 奖励与表征
+    color: '#00acc1'
+  world_model:
+    label: 世界模型RL
+    color: '#9c27b0'
+algorithms:
+- id: ddpg
+  name: DDPG
+  full_name: 深度确定性策略梯度 (Deep Deterministic Policy Gradient)
+  year: '2015'
+  org: DeepMind
+  paper_url: https://arxiv.org/abs/1509.02971
+  category: foundation
+  parent: —
+  motivation: 首次将DQN扩展至连续动作空间
+- id: trpo
+  name: TRPO
+  full_name: 信任域策略优化 (Trust Region Policy Optimization)
+  year: '2015'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/1502.05477
+  category: foundation
+  parent: —
+  motivation: KL散度约束保证策略单调改进
+- id: ppo
+  name: PPO
+  full_name: 近端策略优化 (Proximal Policy Optimization)
+  year: '2017'
+  org: OpenAI
+  paper_url: https://arxiv.org/abs/1707.06347
+  category: foundation
+  parent: trpo
+  motivation: 剪切目标函数简化信任域优化
+- id: sac
+  name: SAC
+  full_name: 软演员-评论家 (Soft Actor-Critic)
+  year: '2018'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/1801.01290
+  category: foundation
+  parent: ddpg
+  motivation: 最大熵框架提升探索与鲁棒性
+- id: td3
+  name: TD3
+  full_name: 双延迟深度确定性策略梯度 (Twin Delayed DDPG)
+  year: '2018'
+  org: McGill
+  paper_url: https://arxiv.org/abs/1802.09477
+  category: foundation
+  parent: ddpg
+  motivation: 双Q网络抑制值函数过估计
+- id: domain_rand
+  name: Domain Randomization
+  full_name: 域随机化 (Domain Randomization)
+  year: '2017'
+  org: OpenAI
+  paper_url: https://arxiv.org/abs/1703.06907
+  category: sim2real
+  parent: —
+  motivation: 仿真参数随机化实现零样本迁移
+- id: viral
+  name: VIRAL
+  full_name: 视觉Sim2Real大规模迁移 (Visual Sim-to-Real at Scale)
+  year: '2026'
+  org: UPenn
+  paper_url: https://tairanhe.com/
+  category: sim2real
+  parent: domain_rand
+  motivation: 大规模视觉随机化+Real2Sim对齐
+- id: lfi_dr
+  name: LFI-DR
+  full_name: 似然无关推理域随机化 (Likelihood-Free Inference DR)
+  year: '2026'
+  org: Edinburgh
+  paper_url: https://arxiv.org/abs/2602.05678
+  category: sim2real
+  parent: domain_rand
+  motivation: 似然无关推理计算物理参数后验
+- id: falcon
+  name: FALCON
+  full_name: 力自适应移动操控 (Force-Adaptive Loco-manipulation)
+  year: '2026'
+  org: L4DC
+  paper_url: https://arxiv.org/abs/2602.08901
+  category: sim2real
+  parent: sac
+  motivation: 双智能体RL力自适应控制
+- id: hdmi
+  name: HDMI
+  full_name: 人形交互模仿 (HumanoiD iMitation for Interaction)
+  year: '2026'
+  org: CVPR
+  paper_url: https://arxiv.org/abs/2602.12345
+  category: sim2real
+  parent: viral
+  motivation: 互联网视频学习全身交互技能
+- id: lide
+  name: LIDE
+  full_name: 规划引导扩散 (Planning-Guided Diffusion)
+  year: '2026'
+  org: MIT
+  paper_url: https://arxiv.org/abs/2602.15678
+  category: sim2real
+  parent: domain_rand
+  motivation: 规划引导扩散解决双臂接触任务
+- id: bcq
+  name: BCQ
+  full_name: 批量约束Q学习 (Batch-Constrained Q-learning)
+  year: '2019'
+  org: McGill
+  paper_url: https://arxiv.org/abs/1812.02900
+  category: offline_rl
+  parent: ddpg
+  motivation: 生成模型约束缓解外推误差
+- id: cql
+  name: CQL
+  full_name: 保守Q学习 (Conservative Q-Learning)
+  year: '2020'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/2006.04779
+  category: offline_rl
+  parent: bcq
+  motivation: 悲观Q值正则约束分布外动作
+- id: iql
+  name: IQL
+  full_name: 隐式Q学习 (Implicit Q-Learning)
+  year: '2021'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/2110.06169
+  category: offline_rl
+  parent: cql
+  motivation: 分位数回归隐式提取最优策略
+- id: td3bc
+  name: TD3+BC
+  full_name: TD3行为克隆正则 (TD3 with Behavior Cloning)
+  year: '2021'
+  org: Google
+  paper_url: https://arxiv.org/abs/2106.06860
+  category: offline_rl
+  parent: td3
+  motivation: 极简行为克隆正则
+- id: unifloral
+  name: Unifloral
+  full_name: 统一离线RL协议 (Unified Offline RL Protocol)
+  year: '2025'
+  org: NeurIPS
+  paper_url: https://neurips.cc/virtual/2025/oral/105555
+  category: offline_rl
+  parent: cql
+  motivation: 统一评估协议量化在线调参预算
+- id: cpql
+  name: CPQL
+  full_name: 保守Peng's Q学习 (Conservative Peng's Q-Learning)
+  year: '2026'
+  org: ICLR
+  paper_url: https://openreview.net/forum?id=Ml4AtrrfQT
+  category: offline_rl
+  parent: cql
+  motivation: Peng's Q算子保守价值估计
+- id: safefql
+  name: SafeFQL
+  full_name: 安全流Q学习 (Safe Flow Q-Learning)
+  year: '2026'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2603.15136
+  category: offline_rl
+  parent: iql
+  motivation: 可达性流策略扩展安全边界
+- id: gail
+  name: GAIL
+  full_name: 生成对抗模仿学习 (Generative Adversarial Imitation Learning)
+  year: '2016'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/1606.03476
+  category: skill_hierarchical
+  parent: —
+  motivation: 生成对抗框架模仿专家演示
+- id: option_critic
+  name: Option-Critic
+  full_name: 选项-评论家 (Option-Critic Architecture)
+  year: '2017'
+  org: AAAI
+  paper_url: https://arxiv.org/abs/1609.05140
+  category: skill_hierarchical
+  parent: —
+  motivation: 自动学习子策略与终止条件
+- id: feudal
+  name: FeUdal Networks
+  full_name: 封建网络 (FeUdal Networks)
+  year: '2017'
+  org: DeepMind
+  paper_url: https://arxiv.org/abs/1703.01161
+  category: skill_hierarchical
+  parent: option_critic
+  motivation: 主从架构分离目标设定与执行
+- id: her
+  name: HER
+  full_name: 后见经验回放 (Hindsight Experience Replay)
+  year: '2017'
+  org: OpenAI
+  paper_url: https://arxiv.org/abs/1707.01495
+  category: skill_hierarchical
+  parent: —
+  motivation: 后见经验回放解决稀疏奖励
+- id: diayn
+  name: DIAYN
+  full_name: 多样即所需 (Diversity is All You Need)
+  year: '2018'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/1802.06070
+  category: skill_hierarchical
+  parent: sac
+  motivation: 最大化互信息发现多样化技能
+- id: hiro
+  name: HIRO
+  full_name: 数据高效层次化RL (Data-Efficient Hierarchical RL)
+  year: '2018'
+  org: Google Brain
+  paper_url: https://arxiv.org/abs/1805.08296
+  category: skill_hierarchical
+  parent: feudal
+  motivation: 目标条件奖励与离线策略修正
+- id: skillrl
+  name: SkillRL
+  full_name: 递归技能增强RL (Recursive Skill-Augmented RL)
+  year: '2026'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2602.08234
+  category: skill_hierarchical
+  parent: hiro
+  motivation: 技能库递归演进处理超长程任务
+- id: metaworld_hrl
+  name: MetaWorld-HRL
+  full_name: 元世界层次化RL (MetaWorld Hierarchical RL)
+  year: '2026'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2601.17507
+  category: skill_hierarchical
+  parent: skillrl
+  motivation: 层次化世界模型技能迁移组合
+- id: hcc
+  name: HCC
+  full_name: 层次认知缓存 (Hierarchical Cognitive Caching)
+  year: '2026'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2601.10402
+  category: skill_hierarchical
+  parent: skillrl
+  motivation: 认知缓存保持长时策略一致性
+- id: icm
+  name: ICM
+  full_name: 内在好奇心模块 (Intrinsic Curiosity Module)
+  year: '2017'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/1705.05363
+  category: reward_design
+  parent: —
+  motivation: 预测误差产生好奇心内在奖励
+- id: rnd
+  name: RND
+  full_name: 随机网络蒸馏 (Random Network Distillation)
+  year: '2018'
+  org: OpenAI
+  paper_url: https://arxiv.org/abs/1810.12894
+  category: reward_design
+  parent: icm
+  motivation: 随机网络蒸馏衡量状态新颖性
+- id: lagea
+  name: LaGEA
+  full_name: 时间接地奖励塑形 (Temporally Grounded Reward Shaping)
+  year: '2026'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2602.03001
+  category: reward_design
+  parent: rnd
+  motivation: VLM反射时间接地奖励塑形
+- id: mrbt
+  name: MRBT
+  full_name: 掩码奖励行为树 (Masking Reward Behavior Tree)
+  year: '2026'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2602.04567
+  category: reward_design
+  parent: lagea
+  motivation: 行为树+SMT确保奖励逻辑可验证
+- id: vsimr
+  name: VSIMR
+  full_name: 变分状态内在奖励 (Variational State Intrinsic Reward)
+  year: '2025'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2508.18420
+  category: reward_design
+  parent: rnd
+  motivation: 状态新颖性+LLM解决极端稀疏奖励
+- id: mbpo
+  name: MBPO
+  full_name: 基于模型的策略优化 (Model-Based Policy Optimization)
+  year: '2019'
+  org: UC Berkeley
+  paper_url: https://arxiv.org/abs/1906.08253
+  category: world_model
+  parent: sac
+  motivation: 短步长模型rollout平衡偏差与效率
+- id: dreamerv1
+  name: DreamerV1
+  full_name: 梦想者V1 (Dream to Control)
+  year: '2019'
+  org: DeepMind
+  paper_url: https://arxiv.org/abs/1912.01603
+  category: world_model
+  parent: mbpo
+  motivation: 隐空间世界模型想象训练
+- id: dreamerv2
+  name: DreamerV2
+  full_name: 梦想者V2 (Mastering Atari with Discrete World Models)
+  year: '2020'
+  org: DeepMind
+  paper_url: https://arxiv.org/abs/2010.02193
+  category: world_model
+  parent: dreamerv1
+  motivation: 离散隐变量提升表征能力
+- id: dreamerv3
+  name: DreamerV3
+  full_name: 梦想者V3 (Mastering Diverse Domains through World Models)
+  year: '2023'
+  org: DeepMind
+  paper_url: https://arxiv.org/abs/2301.04104
+  category: world_model
+  parent: dreamerv2
+  motivation: symlog变换实现跨任务通用性
+- id: dreamdojo
+  name: DreamDojo
+  full_name: 梦想道场 (Generalist Robot World Model)
+  year: '2026'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2602.06949
+  category: world_model
+  parent: dreamerv3
+  motivation: 人类视频预训练通用世界模型
+- id: adaworldpolicy
+  name: AdaWorldPolicy
+  full_name: 自适应世界策略 (Adaptive World-Model-Driven Policy)
+  year: '2026'
+  org: arXiv
+  paper_url: https://arxiv.org/abs/2602.07890
+  category: world_model
+  parent: dreamdojo
+  motivation: 流匹配DiT动作生成与未来想象
+- id: rwml
+  name: RWML
+  full_name: 强化世界模型学习 (Reinforcement World Model Learning)
+  year: '2026'
+  org: ICML
+  paper_url: https://arxiv.org/abs/2602.05842
+  category: world_model
+  parent: dreamerv3
+  motivation: 帮助LLM智能体预测动作后果
+- id: hy_embodied
+  name: HY-Embodied-0.5
+  full_name: 混元具身0.5 (HY-Embodied Foundation Model)
+  year: '2026'
+  org: Tencent
+  paper_url: https://arxiv.org/abs/2604.07430
+  category: world_model
+  parent: dreamerv3
+  motivation: 混合Transformer在线策略蒸馏
+graph:
+  nodes:
+  - id: ddpg
+    x: 100
+    y: 80
+    category: foundation
+  - id: trpo
+    x: 100
+    y: 120
+    category: foundation
+  - id: ppo
+    x: 200
+    y: 120
+    category: foundation
+  - id: sac
+    x: 300
+    y: 80
+    category: foundation
+  - id: td3
+    x: 300
+    y: 40
+    category: foundation
+  - id: domain_rand
+    x: 200
+    y: 160
+    category: sim2real
+  - id: viral
+    x: 900
+    y: 140
+    category: sim2real
+  - id: lfi_dr
+    x: 900
+    y: 180
+    category: sim2real
+  - id: falcon
+    x: 900
+    y: 100
+    category: sim2real
+  - id: hdmi
+    x: 950
+    y: 140
+    category: sim2real
+  - id: lide
+    x: 900
+    y: 220
+    category: sim2real
+  - id: bcq
+    x: 400
+    y: 240
+    category: offline_rl
+  - id: cql
+    x: 500
+    y: 240
+    category: offline_rl
+  - id: iql
+    x: 600
+    y: 240
+    category: offline_rl
+  - id: td3bc
+    x: 600
+    y: 200
+    category: offline_rl
+  - id: unifloral
+    x: 800
+    y: 240
+    category: offline_rl
+  - id: cpql
+    x: 900
+    y: 260
+    category: offline_rl
+  - id: safefql
+    x: 900
+    y: 300
+    category: offline_rl
+  - id: gail
+    x: 150
+    y: 320
+    category: skill_hierarchical
+  - id: option_critic
+    x: 200
+    y: 360
+    category: skill_hierarchical
+  - id: feudal
+    x: 200
+    y: 400
+    category: skill_hierarchical
+  - id: her
+    x: 200
+    y: 280
+    category: skill_hierarchical
+  - id: diayn
+    x: 300
+    y: 320
+    category: skill_hierarchical
+  - id: hiro
+    x: 300
+    y: 400
+    category: skill_hierarchical
+  - id: skillrl
+    x: 900
+    y: 360
+    category: skill_hierarchical
+  - id: metaworld_hrl
+    x: 950
+    y: 380
+    category: skill_hierarchical
+  - id: hcc
+    x: 950
+    y: 340
+    category: skill_hierarchical
+  - id: icm
+    x: 200
+    y: 480
+    category: reward_design
+  - id: rnd
+    x: 300
+    y: 480
+    category: reward_design
+  - id: lagea
+    x: 900
+    y: 460
+    category: reward_design
+  - id: mrbt
+    x: 950
+    y: 460
+    category: reward_design
+  - id: vsimr
+    x: 800
+    y: 480
+    category: reward_design
+  - id: mbpo
+    x: 400
+    y: 560
+    category: world_model
+  - id: dreamerv1
+    x: 400
+    y: 600
+    category: world_model
+  - id: dreamerv2
+    x: 500
+    y: 600
+    category: world_model
+  - id: dreamerv3
+    x: 700
+    y: 600
+    category: world_model
+  - id: dreamdojo
+    x: 900
+    y: 580
+    category: world_model
+  - id: adaworldpolicy
+    x: 950
+    y: 600
+    category: world_model
+  - id: rwml
+    x: 900
+    y: 620
+    category: world_model
+  - id: hy_embodied
+    x: 900
+    y: 540
+    category: world_model
+  edges:
+  - from: trpo
+    to: ppo
+    label: 简化约束
+  - from: ddpg
+    to: sac
+    label: 最大熵
+  - from: ddpg
+    to: td3
+    label: 双Q网络
+  - from: domain_rand
+    to: viral
+    label: 视觉随机化
+  - from: domain_rand
+    to: lfi_dr
+    label: 参数推理
+  - from: domain_rand
+    to: lide
+    label: 规划引导
+  - from: sac
+    to: falcon
+    label: 力控制
+  - from: viral
+    to: hdmi
+    label: 视频学习
+  - from: ddpg
+    to: bcq
+    label: 约束动作
+  - from: bcq
+    to: cql
+    label: 保守估计
+  - from: cql
+    to: iql
+    label: 隐式策略
+  - from: td3
+    to: td3bc
+    label: BC正则
+  - from: cql
+    to: unifloral
+    label: 统一协议
+  - from: cql
+    to: cpql
+    label: Peng算子
+  - from: iql
+    to: safefql
+    label: 安全约束
+  - from: option_critic
+    to: feudal
+    label: 主从架构
+  - from: feudal
+    to: hiro
+    label: 目标修正
+  - from: sac
+    to: diayn
+    label: 技能发现
+  - from: hiro
+    to: skillrl
+    label: 技能库
+  - from: skillrl
+    to: metaworld_hrl
+    label: 技能迁移
+  - from: skillrl
+    to: hcc
+    label: 认知缓存
+  - from: icm
+    to: rnd
+    label: 随机蒸馏
+  - from: rnd
+    to: lagea
+    label: VLM塑形
+  - from: lagea
+    to: mrbt
+    label: 逻辑验证
+  - from: rnd
+    to: vsimr
+    label: LLM增强
+  - from: sac
+    to: mbpo
+    label: 模型rollout
+  - from: mbpo
+    to: dreamerv1
+    label: 隐空间
+  - from: dreamerv1
+    to: dreamerv2
+    label: 离散隐变量
+  - from: dreamerv2
+    to: dreamerv3
+    label: symlog
+  - from: dreamerv3
+    to: dreamdojo
+    label: 视频预训练
+  - from: dreamdojo
+    to: adaworldpolicy
+    label: 流匹配
+  - from: dreamerv3
+    to: rwml
+    label: LLM集成
+  - from: dreamerv3
+    to: hy_embodied
+    label: 策略蒸馏
+  milestones:
+  - ppo
+  - sac
+  - dreamerv3
