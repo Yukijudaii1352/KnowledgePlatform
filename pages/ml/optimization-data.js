@@ -1,5 +1,5 @@
 /**
- * optimization-data.js — 由 pipeline/build.py 于 2026-05-13 12:20:58 自动生成。
+ * optimization-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:48 自动生成。
  * 源文件：content/ml/optimization.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */

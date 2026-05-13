@@ -1,5 +1,5 @@
 /**
- * video_generation-data.js — 由 pipeline/build.py 于 2026-05-13 12:20:50 自动生成。
+ * video_generation-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:41 自动生成。
  * 源文件：content/aigc/video_generation.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */

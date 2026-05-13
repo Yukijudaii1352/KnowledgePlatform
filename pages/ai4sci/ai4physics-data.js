@@ -1,5 +1,5 @@
 /**
- * ai4physics-data.js — 由 pipeline/build.py 于 2026-05-13 12:20:48 自动生成。
+ * ai4physics-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:39 自动生成。
  * 源文件：content/ai4sci/ai4physics.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */

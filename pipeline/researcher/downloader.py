@@ -27,16 +27,41 @@ from http_utils import HttpClient
 # ============ 知乎 API 下载支持 ============
 
 def _load_zhihu_cookies() -> dict:
-    """从 zhihu-cli 的配置中加载已保存的知乎 cookie"""
+    """加载知乎 cookies，优先 zhihu-cli，其次项目内 cookies.json。"""
     import os
-    cookie_path = os.path.expanduser("~/.zhihu-cli/cookies.json")
-    if os.path.exists(cookie_path):
+    import json as _json
+
+    # 1) zhihu-cli 的标准位置
+    zhihu_cli_cookie_path = os.path.expanduser("~/.zhihu-cli/cookies.json")
+    if os.path.exists(zhihu_cli_cookie_path):
         try:
-            import json as _json
-            data = _json.load(open(cookie_path))
-            return data.get("cookies", {})
+            data = _json.load(open(zhihu_cli_cookie_path, "r", encoding="utf-8"))
+            cookies = data.get("cookies", {})
+            if isinstance(cookies, dict) and cookies:
+                return cookies
         except Exception:
             pass
+
+    # 2) 兼容当前项目 researcher/cookies.json 结构：{"zhihu.com": {...}}
+    candidates = [
+        os.path.join(os.getcwd(), "cookies.json"),
+        os.path.join(os.path.dirname(__file__), "cookies.json"),
+    ]
+    for cookie_path in candidates:
+        if not os.path.exists(cookie_path):
+            continue
+        try:
+            data = _json.load(open(cookie_path, "r", encoding="utf-8"))
+            if isinstance(data, dict):
+                # 兼容直接是 cookie map 的情况
+                if "z_c0" in data:
+                    return data
+                zhihu_cookie = data.get("zhihu.com")
+                if isinstance(zhihu_cookie, dict) and zhihu_cookie:
+                    return zhihu_cookie
+        except Exception:
+            continue
+
     return {}
 
 

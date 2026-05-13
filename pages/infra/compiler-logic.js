@@ -90,14 +90,22 @@ function renderGraph() {
   const GE = CFG.graph.edges || [];
   if (GN.length === 0) { svg.innerHTML = ''; return; }
 
-  const maxX = Math.max(...GN.map(n => n.x)) + 100;
-  const maxY = Math.max(...GN.map(n => n.y)) + 60;
-  const scaleX = (W - 80) / maxX;
-  const scaleY = (H - 60) / maxY;
+  const xs = GN.map(n => Number(n.x) || 0);
+  const ys = GN.map(n => Number(n.y) || 0);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const padX = 40;
+  const padY = 30;
+  const rangeX = Math.max(1, maxX - minX);
+  const rangeY = Math.max(1, maxY - minY);
+  const scaleX = (W - padX * 2) / rangeX;
+  const scaleY = (H - padY * 2) / rangeY;
   const nodes = GN.map(n => ({
     ...n,
-    sx: n.x * scaleX + 40,
-    sy: n.y * scaleY + 30,
+    sx: ((Number(n.x) || 0) - minX) * scaleX + padX,
+    sy: ((Number(n.y) || 0) - minY) * scaleY + padY,
     algo: ALGOS.find(a => a.id === n.id)
   }));
 
