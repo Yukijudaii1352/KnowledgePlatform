@@ -17,11 +17,221 @@ const CFG = window.PAGE_CONFIG;
 const ALGOS = CFG.algos;
 const CATEGORIES = CFG.categories;          // { id: {label, color} }
 const PROJECT_URLS = CFG.projectUrls || {};
+const GRAPH_STATE = {
+  userPositions: {},
+  drag: null
+};
 
 // 按时间 降序 排列（最新进展视图用）
 const ALGOS_DESC = [...ALGOS].sort((a, b) => (b.year || '').localeCompare(a.year || ''));
 // 按时间 升序 排列（时间线视图用）
 const ALGOS_ASC  = [...ALGOS].sort((a, b) => (a.year || '').localeCompare(b.year || ''));
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function getMilestoneIds() {
+  return new Set(
+    (CFG.graph.milestones || []).map(item => (
+      item && typeof item === 'object' ? item.id : item
+    )).filter(Boolean)
+  );
+}
+
+function getNodeLabelLines(name) {
+  const text = String(name || '').trim();
+  if (!text) return [''];
+  if (text.length <= 12) return [text];
+  const chunks = text.match(/.{1,10}/g) || [text];
+  return chunks.slice(0, 2);
+}
+
+function ensureGraphHeight(container, count) {
+  const desired = window.innerWidth <= 768
+    ? Math.min(560, Math.max(420, 360 + count * 6))
+    : Math.min(860, Math.max(600, 460 + count * 9));
+  container.style.height = `${desired}px`;
+  return desired;
+}
+
+function relaxNodePositions(nodes, W, H) {
+  const positioned = nodes.map(n => ({
+    ...n,
+    px: n.sx,
+    py: n.sy,
+    ax: n.sx,
+    ay: n.sy,
+    radius: n.radius || 22
+  }));
+
+  for (let step = 0; step < 70; step += 1) {
+    for (let i = 0; i < positioned.length; i += 1) {
+      const a = positioned[i];
+      for (let j = i + 1; j < positioned.length; j += 1) {
+        const b = positioned[j];
+        const dx = b.px - a.px;
+        const dy = b.py - a.py;
+        const dist = Math.hypot(dx, dy) || 0.001;
+        const minDist = a.radius + b.radius + 24;
+        if (dist >= minDist) continue;
+        const push = (minDist - dist) * 0.5;
+        const ux = dx / dist;
+        const uy = dy / dist;
+        a.px -= ux * push;
+        a.py -= uy * push;
+        b.px += ux * push;
+        b.py += uy * push;
+      }
+    }
+
+    positioned.forEach(n => {
+      n.px += (n.ax - n.px) * 0.12;
+      n.py += (n.ay - n.py) * 0.12;
+      n.px = clamp(n.px, n.radius + 22, W - n.radius - 22);
+      n.py = clamp(n.py, n.radius + 22, H - n.radius - 22);
+    });
+  }
+
+  return positioned.map(n => ({
+    ...n,
+    sx: n.px,
+    sy: n.py
+  }));
+}
+
+function getNodePosition(nodes, id) {
+  return nodes.find(n => n.id === id) || null;
+}
+
+function updateGraphSvg(svg, nodes, edges) {
+  edges.forEach(edge => {
+    const from = getNodePosition(nodes, edge.from);
+    const to = getNodePosition(nodes, edge.to);
+    if (!from || !to) return;
+    const mx = (from.sx + to.sx) / 2;
+    const my = (from.sy + to.sy) / 2;
+    const dx = to.sx - from.sx;
+    const dy = to.sy - from.sy;
+    const curveStrength = clamp(Math.hypot(dx, dy) * 0.08, 12, 40);
+    const cx = mx - (dy / (Math.hypot(dx, dy) || 1)) * curveStrength;
+    const cy = my + (dx / (Math.hypot(dx, dy) || 1)) * curveStrength;
+    const path = svg.querySelector(`[data-edge-from="${edge.from}"][data-edge-to="${edge.to}"]`);
+    if (path) {
+      path.setAttribute('d', `M${from.sx},${from.sy} Q${cx},${cy} ${to.sx},${to.sy}`);
+    }
+    const label = svg.querySelector(`[data-edge-label="${edge.from}__${edge.to}"]`);
+    if (label) {
+      label.setAttribute('x', String((from.sx + cx + to.sx) / 3));
+      label.setAttribute('y', String((from.sy + cy + to.sy) / 3 - 8));
+    }
+  });
+
+  nodes.forEach(node => {
+    const el = svg.querySelector(`[data-node-id="${node.id}"]`);
+    if (el) {
+      el.setAttribute('transform', `translate(${node.sx},${node.sy})`);
+    }
+  });
+}
+
+function bindGraphInteractions(svg, nodes, edges, W, H) {
+  const getPoint = (event) => {
+    const rect = svg.getBoundingClientRect();
+    const viewBox = svg.viewBox.baseVal;
+    const scaleX = viewBox.width / rect.width;
+    const scaleY = viewBox.height / rect.height;
+    return {
+      x: (event.clientX - rect.left) * scaleX,
+      y: (event.clientY - rect.top) * scaleY
+    };
+  };
+
+  const syncNodeStorage = () => {
+    nodes.forEach(node => {
+      GRAPH_STATE.userPositions[node.id] = {
+        x: Number((node.sx / W).toFixed(4)),
+        y: Number((node.sy / H).toFixed(4))
+      };
+    });
+  };
+
+  const stopDrag = () => {
+    if (!GRAPH_STATE.drag) return;
+    const dragged = svg.querySelector(`[data-node-id="${GRAPH_STATE.drag.id}"]`);
+    if (dragged) dragged.classList.remove('dragging');
+    svg.classList.remove('graph-dragging');
+    svg.style.cursor = '';
+    GRAPH_STATE.drag = null;
+  };
+
+  svg.onpointerdown = (event) => {
+    const target = event.target && event.target.closest ? event.target.closest('.graph-node') : null;
+    if (!target) return;
+    const node = getNodePosition(nodes, target.dataset.nodeId);
+    if (!node) return;
+    const point = getPoint(event);
+    GRAPH_STATE.drag = {
+      id: node.id,
+      offsetX: point.x - node.sx,
+      offsetY: point.y - node.sy,
+      startX: point.x,
+      startY: point.y,
+      moved: false
+    };
+    target.classList.add('dragging');
+    svg.classList.add('graph-dragging');
+    svg.style.cursor = 'grabbing';
+    svg.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  };
+
+  svg.onpointermove = (event) => {
+    if (!GRAPH_STATE.drag) return;
+    const node = getNodePosition(nodes, GRAPH_STATE.drag.id);
+    if (!node) return;
+    const point = getPoint(event);
+    const travel = Math.hypot(point.x - GRAPH_STATE.drag.startX, point.y - GRAPH_STATE.drag.startY);
+    node.sx = clamp(point.x - GRAPH_STATE.drag.offsetX, node.radius + 18, W - node.radius - 18);
+    node.sy = clamp(point.y - GRAPH_STATE.drag.offsetY, node.radius + 18, H - node.radius - 18);
+    GRAPH_STATE.drag.moved = GRAPH_STATE.drag.moved || travel > 4;
+    syncNodeStorage();
+    updateGraphSvg(svg, nodes, edges);
+    event.preventDefault();
+  };
+
+  svg.onpointerup = (event) => {
+    if (!GRAPH_STATE.drag) return;
+    const { id, moved } = GRAPH_STATE.drag;
+    stopDrag();
+    if (!moved) showAlgo(id);
+    event.preventDefault();
+  };
+
+  svg.onpointercancel = () => {
+    if (GRAPH_STATE.drag) stopDrag();
+  };
+}
+
+function ensureGraphToolbar(container) {
+  let toolbar = container.querySelector('.graph-toolbar');
+  if (!toolbar) {
+    toolbar = document.createElement('div');
+    toolbar.className = 'graph-toolbar';
+    toolbar.innerHTML = `
+      <span class="graph-hint">可拖动节点调整布局</span>
+      <button type="button" class="graph-btn" id="graph-reset-btn">重置布局</button>
+    `;
+    container.appendChild(toolbar);
+  }
+  const resetBtn = toolbar.querySelector('#graph-reset-btn');
+  if (resetBtn) {
+    resetBtn.onclick = () => {
+      GRAPH_STATE.userPositions = {};
+      renderGraph();
+    };
+  }
+}
 
 
 /* ============ 2. Hero 区：count_pill + meta ============ */
@@ -82,13 +292,15 @@ function renderGraph() {
   // 如果容器当前不可见（display:none），clientWidth 会为 0，避免错算
   const cw = container.clientWidth;
   if (!cw) return;
-  const W = cw;
-  const H = container.clientHeight || 520;
-  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-
   const GN = CFG.graph.nodes || [];
   const GE = CFG.graph.edges || [];
   if (GN.length === 0) { svg.innerHTML = ''; return; }
+  const H = ensureGraphHeight(container, GN.length);
+  const W = cw;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  ensureGraphToolbar(container);
+
+  const milestoneIds = getMilestoneIds();
 
   const xs = GN.map(n => Number(n.x) || 0);
   const ys = GN.map(n => Number(n.y) || 0);
@@ -96,18 +308,43 @@ function renderGraph() {
   const maxX = Math.max(...xs);
   const minY = Math.min(...ys);
   const maxY = Math.max(...ys);
-  const padX = 40;
-  const padY = 30;
+  const padX = 72;
+  const padY = 52;
   const rangeX = Math.max(1, maxX - minX);
   const rangeY = Math.max(1, maxY - minY);
   const scaleX = (W - padX * 2) / rangeX;
   const scaleY = (H - padY * 2) / rangeY;
-  const nodes = GN.map(n => ({
+  let nodes = GN.map(n => ({
     ...n,
-    sx: ((Number(n.x) || 0) - minX) * scaleX + padX,
-    sy: ((Number(n.y) || 0) - minY) * scaleY + padY,
+    radius: milestoneIds.has(n.id) ? 28 : 24,
     algo: ALGOS.find(a => a.id === n.id)
   }));
+
+  nodes = nodes.map(n => {
+    const stored = GRAPH_STATE.userPositions[n.id];
+    if (stored && Number.isFinite(stored.x) && Number.isFinite(stored.y)) {
+      return {
+        ...n,
+        sx: clamp(stored.x * W, n.radius + 18, W - n.radius - 18),
+        sy: clamp(stored.y * H, n.radius + 18, H - n.radius - 18)
+      };
+    }
+    return {
+      ...n,
+      sx: ((Number(n.x) || 0) - minX) * scaleX + padX,
+      sy: ((Number(n.y) || 0) - minY) * scaleY + padY
+    };
+  });
+
+  if (Object.keys(GRAPH_STATE.userPositions).length === 0) {
+    nodes = relaxNodePositions(nodes, W, H);
+    nodes.forEach(node => {
+      GRAPH_STATE.userPositions[node.id] = {
+        x: Number((node.sx / W).toFixed(4)),
+        y: Number((node.sy / H).toFixed(4))
+      };
+    });
+  }
 
   let html = `<defs>
     <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="28" refY="3.5" orient="auto">
@@ -122,28 +359,37 @@ function renderGraph() {
     const from = nodes.find(n => n.id === e.from);
     const to   = nodes.find(n => n.id === e.to);
     if (!from || !to) return;
-    const mx = (from.sx + to.sx) / 2, my = (from.sy + to.sy) / 2;
-    const dx = to.sx - from.sx, dy = to.sy - from.sy;
-    const cx = mx - dy * 0.1, cy = my + dx * 0.1;
-    html += `<path class="graph-link" d="M${from.sx},${from.sy} Q${cx},${cy} ${to.sx},${to.sy}"/>`;
+    const mx = (from.sx + to.sx) / 2;
+    const my = (from.sy + to.sy) / 2;
+    const dx = to.sx - from.sx;
+    const dy = to.sy - from.sy;
+    const curveStrength = clamp(Math.hypot(dx, dy) * 0.08, 12, 40);
+    const cx = mx - (dy / (Math.hypot(dx, dy) || 1)) * curveStrength;
+    const cy = my + (dx / (Math.hypot(dx, dy) || 1)) * curveStrength;
+    html += `<path class="graph-link" data-edge-from="${e.from}" data-edge-to="${e.to}" d="M${from.sx},${from.sy} Q${cx},${cy} ${to.sx},${to.sy}"/>`;
     const lx = (from.sx + cx + to.sx) / 3;
-    const ly = (from.sy + cy + to.sy) / 3 - 6;
-    if (e.label) html += `<text class="graph-link-label" x="${lx}" y="${ly}" text-anchor="middle">${e.label}</text>`;
+    const ly = (from.sy + cy + to.sy) / 3 - 8;
+    if (e.label) html += `<text class="graph-link-label" data-edge-label="${e.from}__${e.to}" x="${lx}" y="${ly}" text-anchor="middle">${e.label}</text>`;
   });
 
   nodes.forEach(n => {
     const catMeta = CATEGORIES[n.category] || { color: '#888' };
-    const isMilestone = (CFG.graph.milestones || []).includes(n.id);
-    const r = isMilestone ? 26 : 22;
-    html += `<g class="graph-node" onclick="showAlgo('${n.id}')" transform="translate(${n.sx},${n.sy})">
+    const isMilestone = milestoneIds.has(n.id);
+    const r = isMilestone ? 28 : 24;
+    const labelLines = getNodeLabelLines(n.algo ? n.algo.name : n.id);
+    const labelHtml = labelLines.map((line, index) => (
+      `<tspan x="0" dy="${index === 0 ? '-3' : '13'}">${line}</tspan>`
+    )).join('');
+    html += `<g class="graph-node" data-node-id="${n.id}" transform="translate(${n.sx},${n.sy})">
       <circle r="${r}" fill="white" stroke="${catMeta.color}" filter="url(#shadow)"/>
-      <circle r="${r - 4}" fill="${catMeta.color}" opacity="0.1"/>
-      <text text-anchor="middle" dy="-2" font-size="13">${n.algo ? n.algo.name : n.id}</text>
-      <text class="node-sub" text-anchor="middle" dy="12">${n.algo ? n.algo.year : ''}</text>
+      <circle r="${Math.max(r - 4, 12)}" fill="${catMeta.color}" opacity="0.1"/>
+      <text text-anchor="middle" font-size="12.5">${labelHtml}</text>
+      <text class="node-sub" text-anchor="middle" dy="18">${n.algo ? n.algo.year : ''}</text>
     </g>`;
   });
 
   svg.innerHTML = html;
+  bindGraphInteractions(svg, nodes, GE, W, H);
 
   // Legend
   const legend = document.getElementById('graph-legend');
@@ -154,7 +400,7 @@ function renderGraph() {
   }
 
   const gd = document.getElementById('graph-desc');
-  if (gd) gd.textContent = `节点代表算法，边代表继承/改进关系；颜色对应路线类别。点击节点可跳转至「最新进展」中该算法的详解。`;
+  if (gd) gd.textContent = `节点代表算法，边代表继承/改进关系；颜色对应路线类别。支持拖动节点调整布局，轻点节点可跳转至「最新进展」中的算法详解。`;
 }
 
 /* ============ 6. 算法详解 + 路线筛选（降序） ============ */

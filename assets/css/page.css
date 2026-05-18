@@ -50,25 +50,80 @@
 
 /* ---- Graph ---- */
 #graph-container {
-  width: 100%; height: 520px;
+  width: 100%; min-height: 600px;
   background: var(--bg-card); border: 1px solid var(--border);
   border-radius: var(--radius-lg); overflow: hidden;
   box-shadow: var(--shadow-sm); position: relative;
+  background-image:
+    radial-gradient(circle at top right, rgba(91,99,211,0.06), transparent 28%),
+    linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,249,252,0.96));
 }
-#graph-container svg { width: 100%; height: 100%; }
-.graph-node { cursor: pointer; }
+#graph-container svg { width: 100%; height: 100%; touch-action: none; user-select: none; }
+.graph-node { cursor: grab; }
+.graph-node.dragging { cursor: grabbing; }
 .graph-node circle { stroke-width: 2.5; transition: all 0.2s; }
 .graph-node:hover circle { filter: drop-shadow(0 0 8px rgba(91,99,211,0.4)); stroke-width: 3.5; }
+.graph-node.dragging circle { filter: drop-shadow(0 10px 20px rgba(91,99,211,0.26)); stroke-width: 3.5; }
 .graph-node text { font-family: -apple-system, "SF Pro Display", "Inter", sans-serif; font-weight: 700; fill: var(--text); pointer-events: none; }
 .graph-node .node-sub { font-size: 10px; font-weight: 400; fill: var(--text-muted); }
-.graph-link { stroke: var(--border-strong); stroke-width: 1.8; fill: none; marker-end: url(#arrowhead); }
-.graph-link-label { font-size: 10px; fill: var(--text-dim); }
+.graph-link { stroke: rgba(123, 134, 162, 0.75); stroke-width: 1.8; fill: none; marker-end: url(#arrowhead); }
+.graph-link-label {
+  font-size: 10px; fill: var(--text-dim);
+  paint-order: stroke; stroke: rgba(255,255,255,0.95); stroke-width: 4px; stroke-linejoin: round;
+}
 .graph-legend {
-  position: absolute; bottom: 12px; left: 16px;
-  display: flex; gap: 16px; font-size: 0.78rem; color: var(--text-muted);
+  position: absolute; right: 16px; bottom: 14px;
+  display: flex; gap: 12px; flex-wrap: wrap;
+  max-width: min(70%, 620px);
+  font-size: 0.78rem; color: var(--text-muted);
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.9);
+  border: 1px solid rgba(203, 210, 226, 0.9);
+  backdrop-filter: blur(8px);
 }
 .graph-legend-item { display: flex; align-items: center; gap: 5px; }
 .graph-legend-dot { width: 12px; height: 12px; border-radius: 50%; }
+.graph-toolbar {
+  position: absolute; top: 14px; left: 16px; right: 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; z-index: 2; pointer-events: none;
+}
+.graph-hint {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.9);
+  border: 1px solid rgba(203, 210, 226, 0.9);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  backdrop-filter: blur(8px);
+}
+.graph-hint::before {
+  content: '↕';
+  color: var(--accent);
+  font-size: 0.85rem;
+}
+.graph-btn {
+  pointer-events: auto;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.92);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  backdrop-filter: blur(8px);
+}
+.graph-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent-border);
+  background: var(--accent-softer);
+}
 
 /* ---- Timeline ---- */
 .timeline { position: relative; padding-left: 36px; }
@@ -292,7 +347,18 @@
   .pair-result { grid-template-columns: 1fr; }
   .mode-toggle { display: none; }
   .algo-header { flex-wrap: wrap; gap: 10px; }
-  #graph-container { height: 400px; }
+  #graph-container { min-height: 420px; }
+  .graph-toolbar {
+    position: static;
+    padding: 12px 12px 0;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .graph-legend {
+    position: static;
+    max-width: none;
+    margin: 0 12px 12px;
+  }
   .route-filter-bar { position: static; padding: 12px; }
   .algo-meta-row > * { font-size: 0.7rem; padding: 2px 7px; }
   .algo-body .table-wrap { justify-content: flex-start; }
