@@ -213,6 +213,31 @@ function bindGraphInteractions(svg, nodes, edges, W, H) {
   };
 }
 
+function isGraphFullscreen(container) {
+  return document.fullscreenElement === container;
+}
+
+function updateGraphFullscreenButton(container) {
+  const btn = container.querySelector('#graph-fullscreen-btn');
+  if (!btn) return;
+  const active = isGraphFullscreen(container);
+  btn.classList.toggle('active', active);
+  btn.setAttribute('aria-label', active ? '退出全屏图谱' : '全屏查看图谱');
+  btn.setAttribute('title', active ? '退出全屏' : '全屏查看');
+  btn.innerHTML = active
+    ? '<span class="graph-btn-icon">⤢</span><span class="graph-btn-text">退出全屏</span>'
+    : '<span class="graph-btn-icon">⤢</span><span class="graph-btn-text">全屏查看</span>';
+}
+
+function toggleGraphFullscreen(container) {
+  if (!container || !document.fullscreenEnabled) return;
+  if (isGraphFullscreen(container)) {
+    document.exitFullscreen().catch(() => {});
+    return;
+  }
+  container.requestFullscreen().catch(() => {});
+}
+
 function ensureGraphToolbar(container) {
   let toolbar = container.querySelector('.graph-toolbar');
   if (!toolbar) {
@@ -220,9 +245,19 @@ function ensureGraphToolbar(container) {
     toolbar.className = 'graph-toolbar';
     toolbar.innerHTML = `
       <span class="graph-hint">可拖动节点调整布局</span>
-      <button type="button" class="graph-btn" id="graph-reset-btn">重置布局</button>
+      <div class="graph-toolbar-actions">
+        <button type="button" class="graph-btn graph-btn-icon-only" id="graph-fullscreen-btn" aria-label="全屏查看图谱" title="全屏查看">
+          <span class="graph-btn-icon">⤢</span><span class="graph-btn-text">全屏查看</span>
+        </button>
+        <button type="button" class="graph-btn" id="graph-reset-btn">重置布局</button>
+      </div>
     `;
     container.appendChild(toolbar);
+  }
+  const fullscreenBtn = toolbar.querySelector('#graph-fullscreen-btn');
+  if (fullscreenBtn) {
+    fullscreenBtn.onclick = () => toggleGraphFullscreen(container);
+    updateGraphFullscreenButton(container);
   }
   const resetBtn = toolbar.querySelector('#graph-reset-btn');
   if (resetBtn) {
@@ -645,4 +680,13 @@ window.addEventListener('load', () => {
     const vo = document.getElementById('view-overview');
     if (vo && vo.style.display !== 'none') renderGraph();
   });
+});
+document.addEventListener('fullscreenchange', () => {
+  const container = document.getElementById('graph-container');
+  if (!container) return;
+  updateGraphFullscreenButton(container);
+  const vo = document.getElementById('view-overview');
+  if (vo && vo.style.display !== 'none') {
+    setTimeout(renderGraph, 40);
+  }
 });
