@@ -1,5 +1,5 @@
 /**
- * llm_sft-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:47 自动生成。
+ * llm_sft-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:05 自动生成。
  * 源文件：content/llm/llm_sft.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "llm_sft",
     "topic_name": "llm_sft",
     "page_title": "LLM监督微调 算法总结",
-    "page_subtitle": "2026-05-13 版",
+    "page_subtitle": "2026-05-18 版",
     "page_desc": "概述从指令微调到参数高效微调(LoRA/QLoRA)的技术演进，涵盖经典方法与2026年最新进展",
     "page_icon": "🎯",
     "hero_pills": [
@@ -19,6 +19,12 @@ window.PAGE_CONFIG = {
     "image_base": ""
   },
   "overview": [
+    {
+      "title": "待定",
+      "body_html": "<p>待定。</p>"
+    }
+  ],
+  "latest_overview": [
     {
       "title": "待定",
       "body_html": "<p>待定。</p>"

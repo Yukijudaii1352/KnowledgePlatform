@@ -96,9 +96,9 @@ def split_sections(body: str):
 
 # ============ 领域综述 ============
 
-def parse_overview(md_body: str):
+def parse_overview(md_body: str, section_name: str = "领域综述"):
     if not md_body.strip():
-        err("`## 领域综述` 板块为空")
+        err(f"`## {section_name}` 板块为空")
     out = []
     current_title, current_buf = None, []
     in_fence = False
@@ -119,8 +119,12 @@ def parse_overview(md_body: str):
         out.append({"title": current_title,
                     "body_html": md_to_html("\n".join(current_buf))})
     if not out:
-        err("`## 领域综述` 下必须至少包含一个 `###` 小节")
+        err(f"`## {section_name}` 下必须至少包含一个 `###` 小节")
     return out
+
+
+def default_overview_section(title: str = "待定", body: str = "待定。"):
+    return [{"title": title, "body_html": md_to_html(body)}]
 
 
 # ============ 演化关系 ============
@@ -446,7 +450,12 @@ def compile_doc(src: Path, copy_images: bool = False, dry_run: bool = False):
     for must in ("领域综述", "算法演化关系", "核心算法"):
         if must not in secs:
             err(f"[{src}] 缺少 `## {must}` 板块")
-    overview = parse_overview(secs["领域综述"])
+    overview = parse_overview(secs["领域综述"], "领域综述")
+    latest_overview = (
+        parse_overview(secs["最新进展综述"], "最新进展综述")
+        if "最新进展综述" in secs
+        else default_overview_section()
+    )
     graph = parse_graph(secs["算法演化关系"])
 
     image_base = fm.get("image_base", "")
@@ -479,6 +488,7 @@ def compile_doc(src: Path, copy_images: bool = False, dry_run: bool = False):
             "image_base": image_base,
         },
         "overview": overview,
+        "latest_overview": latest_overview,
         "graph":    graph,
         "algos":    algos,
         "categories": categories,

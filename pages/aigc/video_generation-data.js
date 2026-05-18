@@ -1,5 +1,5 @@
 /**
- * video_generation-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:41 自动生成。
+ * video_generation-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:01 自动生成。
  * 源文件：content/aigc/video_generation.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "video_generation",
     "topic_name": "video_generation",
     "page_title": "视频生成 算法总结",
-    "page_subtitle": "2026-05-13 版",
+    "page_subtitle": "2026-05-18 版",
     "page_desc": "从GAN到扩散模型再到世界模型的视频生成技术演进，涵盖Sora、Kling等里程碑模型与时序一致性核心技术",
     "page_icon": "🎬",
     "hero_pills": [
@@ -19,6 +19,12 @@ window.PAGE_CONFIG = {
     "image_base": ""
   },
   "overview": [
+    {
+      "title": "待定",
+      "body_html": "<p>待定。</p>"
+    }
+  ],
+  "latest_overview": [
     {
       "title": "待定",
       "body_html": "<p>待定。</p>"

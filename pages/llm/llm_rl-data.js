@@ -1,5 +1,5 @@
 /**
- * llm_rl-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:46 自动生成。
+ * llm_rl-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:05 自动生成。
  * 源文件：content/llm/llm_rl.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "llm_rl",
     "topic_name": "LLM强化学习",
     "page_title": "LLM强化学习算法演进",
-    "page_subtitle": "2026-05-13 版",
+    "page_subtitle": "2026-05-18 版",
     "page_desc": "从PPO到RLHF、DPO、GRPO再到2026年最新VAPO等算法的完整演化图谱，涵盖策略梯度、偏好优化、在线强化学习三大技术路线",
     "page_icon": "🎯",
     "hero_pills": [
@@ -20,8 +20,38 @@ window.PAGE_CONFIG = {
   },
   "overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "一、从传统策略梯度到 LLM 强化学习",
+      "body_html": "<p>LLM 强化学习的底层仍然继承自经典强化学习的三件套：<strong>策略模型、奖励信号、轨迹优化</strong>。不同之处在于，语言模型的“动作”不再是低维连续控制，而是高维离散 token 生成；“状态”也不再是外部环境观测，而是不断增长的上下文序列。因此，传统 RL 中关于策略梯度、优势函数、价值估计和信用分配的问题，在 LLM 场景里都被重新放大了。</p>\n<p>从 <code>REINFORCE → TRPO → PPO</code> 的路线，本质上是在回答同一个问题：<strong>如何在保证训练稳定的前提下，提高策略更新效率</strong>。这条路线后来成为 RLHF 的基础，因为它天然适合把“整段回答得到一个总体奖励”的场景映射成策略优化问题。</p>\n<blockquote>\n<p>参考综述：<a href=\"https://zhuanlan.zhihu.com/p/1967567827276895446\"><em>LLM中的强化学习方法：人人都能看懂的RL理论</em></a></p>\n</blockquote>"
+    },
+    {
+      "title": "二、RLHF 为什么以 PPO 为起点",
+      "body_html": "<p>在大模型对齐早期，<code>PPO</code> 之所以成为主流，不只是因为它“经典”，更因为它在工程上平衡了三件事：</p>\n<ul>\n<li><strong>稳定性</strong>：裁剪目标函数限制新旧策略偏移，避免大模型在单步更新中崩掉。</li>\n<li><strong>可控性</strong>：通过 <code>Reference Model + KL</code> 约束，使策略优化不会偏离监督微调模型太远。</li>\n<li><strong>可分工训练</strong>：<code>Policy / Value / Reward / Reference</code> 四类角色清晰，便于在 RLHF 流水线中拆分实现。</li>\n</ul>\n<p>这也解释了为什么 <code>InstructGPT</code> 之后，大量工作都围绕“保留 PPO 的稳定性，但减轻其复杂度和成本”展开。LLM 的训练代价远高于传统 RL，任何多一个模型、多一轮 rollout、多一次反向传播，都会被放大成显著的工程负担。</p>"
+    },
+    {
+      "title": "三、领域主线：简化训练与强化对齐",
+      "body_html": "<p>结合这篇综述与当前算法谱系，LLM-RL 基本围绕两条主线展开：</p>\n<ul>\n<li><strong>简化训练链路</strong>：减少 Value Model、减少在线采样成本、减少对昂贵奖励模型的依赖，使算法更适合大模型训练。</li>\n<li><strong>强化对齐效果</strong>：把传统 RL 更精细地适配到语言生成、偏好学习、推理轨迹和长回答优化中，降低 sequence-level 奖励错配带来的方差与偏差。</li>\n</ul>\n<p>在这两条主线下，领域逐渐分化出三大族系：</p>\n<ul>\n<li><strong>经典在线策略优化</strong>：<code>PPO / ReMax / GRPO / DAPO / VAPO</code></li>\n<li><strong>偏好优化</strong>：<code>DPO / IPO / KTO / ORPO / SimPO</code></li>\n<li><strong>推理与鲁棒性增强</strong>：<code>Dr.GRPO / Reinforce++ / OAPL / WDPO / MoDPO</code></li>\n</ul>\n<p>它们共享的目标不是单纯“让回答更像人类喜欢”，而是逐步把优化对象从<strong>静态偏好</strong>推进到<strong>可验证推理质量、长链决策质量与训练稳健性</strong>。</p>"
+    },
+    {
+      "title": "四、从 RLHF 到 Reasoning RL 的演进",
+      "body_html": "<p>2024 年之后，领域重心明显从“把模型训得能对齐”转向“把模型训得能稳定推理”。这也是 <code>GRPO</code> 一类方法迅速流行的原因：在数学推理、代码、可验证问答等任务里，奖励往往更接近<strong>结果可检验</strong>而不是<strong>偏好打分</strong>，于是训练目标开始从传统 RLHF 转向 reasoning RL。</p>\n<p>这带来两个直接变化：</p>\n<ul>\n<li>算法更加关注<strong>长回答内部的信用分配</strong>，不再满足于只在整段输出末尾给一个总奖励。</li>\n<li>训练更加关注<strong>低成本扩展性</strong>，因为 reasoning 场景需要更长 rollout、更高采样量和更频繁的在线更新。</li>\n</ul>\n<p>因此，今天看 LLM-RL，不能只把它理解成“PPO + 奖励模型”。它已经演进成一个横跨<strong>偏好学习、在线强化学习、推理优化、鲁棒训练</strong>的完整算法家族。</p>"
+    }
+  ],
+  "latest_overview": [
+    {
+      "title": "一、范式边界正在从 RLHF 扩展到 Agentic RL",
+      "body_html": "<p>最新一波综述最重要的判断是：传统 <code>RLHF / DPO</code> 更适合描述<strong>单轮文本生成的对齐问题</strong>，而越来越多真实系统面对的是<strong>多步交互、部分可观测、带工具与环境反馈的智能体问题</strong>。这意味着底层建模正在从“单步 MDP”转向“长程 POMDP”。</p>\n<p>在这个新范式里，优化对象不再只是“最终回答是否被偏好”，而是<strong>整个交互轨迹的策略质量</strong>：何时规划、何时调用工具、如何利用记忆、如何根据环境反馈自我修正。</p>\n<blockquote>\n<p>参考综述：<a href=\"https://zhuanlan.zhihu.com/p/2032098279991808634\"><em>面向LLM Agent强化学习（Agentic RL）综述</em></a></p>\n</blockquote>"
+    },
+    {
+      "title": "二、强化学习开始直接塑造六类智能体能力",
+      "body_html": "<p>这篇新综述把 Agentic RL 的核心能力归纳成六类：<strong>规划、工具使用、记忆、自我改进、推理、感知</strong>。其中最有代表性的变化有三点：</p>\n<ul>\n<li><strong>规划</strong>：RL 不再只优化回答偏好，而是优化多步任务分解、树搜索引导和长期决策鲁棒性。</li>\n<li><strong>工具使用</strong>：RL 开始决定“何时用、用什么、怎么组合、失败后如何恢复”，让工具调用从格式模仿升级为策略选择。</li>\n<li><strong>记忆与自我改进</strong>：记忆写入、检索、压缩、遗忘开始成为可学习策略；反思与自博弈也从一次性提示技巧，走向可参数化、可迭代的持续改进机制。</li>\n</ul>\n<p>这说明“最新进展”已经不只是新 loss function，而是在重新定义 LLM 强化学习的任务边界。</p>"
+    },
+    {
+      "title": "三、PPO / DPO / GRPO 正在从算法本体变成优化壳层",
+      "body_html": "<p>从工程视角看，<code>PPO / DPO / GRPO</code> 仍然是主流训练骨架，但它们扮演的角色已经在变化。过去它们更多用于优化<strong>静态文本偏好</strong>；现在它们逐渐成为统一的<strong>策略更新壳层</strong>，上面承载的是更复杂的轨迹数据、过程奖励、工具反馈与环境交互。</p>\n<p>因此，最新工作更关心的往往不是“是否使用 PPO 或 DPO”，而是：</p>\n<ul>\n<li>奖励来自<strong>最终答案、过程监督还是环境回报</strong>；</li>\n<li>rollout 是<strong>单次回答</strong>还是<strong>多步工具链 / 多轮任务轨迹</strong>；</li>\n<li>优化目标是<strong>对齐偏好</strong>还是<strong>提高规划与推理能力</strong>；</li>\n<li>训练过程中如何处理<strong>长程信用分配、环境噪声和数据稀缺</strong>。</li>\n</ul>\n<p>也正因为如此，LLM-RL 与 Agentic RL 的边界正在变得连续，而不是割裂。</p>"
+    },
+    {
+      "title": "四、下一阶段的真正瓶颈",
+      "body_html": "<p>相较于早期“能不能把 PPO 跑起来”，当前领域更现实的瓶颈已经变成：</p>\n<ul>\n<li><strong>长程信用分配</strong>：多步轨迹里，最终成功究竟该归因于哪一步决策。</li>\n<li><strong>环境与评测</strong>：很多智能体能力必须放到真实工具链、网页、代码执行或仿真环境里验证，离线 benchmark 不再足够。</li>\n<li><strong>奖励设计与安全性</strong>：长程任务更容易被 reward hacking、捷径策略和不安全探索影响。</li>\n<li><strong>训练成本</strong>：Agentic RL 的 rollout 更长、反馈更慢、状态空间更复杂，直接放大了算力与数据压力。</li>\n</ul>\n<p>因此，LLM 强化学习的“最新进展”并不是对旧算法的简单修补，而是在向<strong>真正面向智能体的强化学习系统</strong>过渡。</p>"
     }
   ],
   "graph": {

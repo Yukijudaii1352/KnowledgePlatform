@@ -1,5 +1,5 @@
 /**
- * kernel_method-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:48 自动生成。
+ * kernel_method-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:06 自动生成。
  * 源文件：content/ml/kernel_method.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "kernel_method",
     "topic_name": "核方法",
     "page_title": "核方法 算法总结",
-    "page_subtitle": "2026-05-13 版",
+    "page_subtitle": "2026-05-18 版",
     "page_desc": "综述从经典支持向量机、核回归到现代大规模核近似与神经正切核，涵盖2026年核方法与深度学习融合的最新进展。",
     "page_icon": "🔮",
     "hero_pills": [
@@ -19,6 +19,12 @@ window.PAGE_CONFIG = {
     "image_base": ""
   },
   "overview": [
+    {
+      "title": "待定",
+      "body_html": "<p>待定。</p>"
+    }
+  ],
+  "latest_overview": [
     {
       "title": "待定",
       "body_html": "<p>待定。</p>"

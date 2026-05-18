@@ -1,5 +1,5 @@
 /**
- * ai4material-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:39 自动生成。
+ * ai4material-data.js — 由 pipeline/build.py 于 2026-05-18 18:50:59 自动生成。
  * 源文件：content/ai4sci/ai4material.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "ai4material",
     "topic_name": "材料学AI",
     "page_title": "材料学AI 算法总结",
-    "page_subtitle": "2026-05-13 版",
+    "page_subtitle": "2026-05-18 版",
     "page_desc": "AI在晶体结构预测、性质预测及新材料发现领域的演进脉络",
     "page_icon": "🧪",
     "hero_pills": [
@@ -19,6 +19,12 @@ window.PAGE_CONFIG = {
     "image_base": ""
   },
   "overview": [
+    {
+      "title": "待定",
+      "body_html": "<p>待定。</p>"
+    }
+  ],
+  "latest_overview": [
     {
       "title": "待定",
       "body_html": "<p>待定。</p>"

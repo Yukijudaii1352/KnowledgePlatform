@@ -1,5 +1,5 @@
 /**
- * infer-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:45 自动生成。
+ * infer-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:04 自动生成。
  * 源文件：content/infra/infer.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -19,6 +19,12 @@ window.PAGE_CONFIG = {
     "image_base": ""
   },
   "overview": [
+    {
+      "title": "待定",
+      "body_html": "<p>待定。</p>"
+    }
+  ],
+  "latest_overview": [
     {
       "title": "待定",
       "body_html": "<p>待定。</p>"

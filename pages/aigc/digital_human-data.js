@@ -1,5 +1,5 @@
 /**
- * digital_human-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:40 自动生成。
+ * digital_human-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:00 自动生成。
  * 源文件：content/aigc/digital_human.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "digital_human",
     "topic_name": "数字人",
     "page_title": "数字人 算法总结",
-    "page_subtitle": "2026-05-13 版",
+    "page_subtitle": "2026-05-18 版",
     "page_desc": "从基于GAN的动作迁移到神经辐射场驱动，再到扩散模型与DiT架构下的实时全身生成，数字人技术经历了传统参数化驱动、神经渲染与GAN、生成式大模型三大演进阶段。2026年，DiT架构统治地位确立，3DGS与扩散模型融合实现75FPS实时渲染，原生音视频同步生成成为前沿趋势。",
     "page_icon": "👤",
     "hero_pills": [
@@ -19,6 +19,12 @@ window.PAGE_CONFIG = {
     "image_base": "../../content/aigc/digital_human/assets/"
   },
   "overview": [
+    {
+      "title": "待定",
+      "body_html": "<p>待定。</p>"
+    }
+  ],
+  "latest_overview": [
     {
       "title": "待定",
       "body_html": "<p>待定。</p>"

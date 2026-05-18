@@ -1,5 +1,5 @@
 /**
- * vla-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:44 自动生成。
+ * vla-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:04 自动生成。
  * 源文件：content/embodied/vla.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "vla",
     "topic_name": "视觉-语言-动作基础模型",
     "page_title": "视觉-语言-动作 (VLA) 基础模型算法总结",
-    "page_subtitle": "2026-05-13 版",
+    "page_subtitle": "2026-05-18 版",
     "page_desc": "从模仿学习到原生多模态端到端控制，梳理VLA模型在具身智能领域的技术演进与前沿突破",
     "page_icon": "🦾",
     "hero_pills": [
@@ -42,6 +42,24 @@ window.PAGE_CONFIG = {
     {
       "title": "五、后训练与评估",
       "body_html": "<p>一个预训练好的VLA模型只是拥有了「基础智能」。要使其在特定场景下表现出色，并能持续进化，后训练和评估是必不可少的环节。</p>\n<h4>5.1 后训练方法</h4>\n<p>后训练的目标是使通用模型快速适应特定的下游任务或机器人平台。</p>\n<ul>\n<li><strong>监督微调（SFT）</strong> ：这是最直接和常用的方法。通过人工遥操作采集少量针对特定任务的专家演示数据，然后在预训练模型的基础上进行微调。SFT简单高效，但其性能上限受限于演示数据的质量和一致性，并且存在模仿学习固有的复合误差问题。</li>\n<li>\n<p><strong>强化微调（RFT）</strong> ：强化学习允许模型通过与环境的直接交互和试错来超越演示数据，学习到更优的策略。</p>\n</li>\n<li>\n<p><strong>潜力</strong>：可以突破模仿学习的性能瓶颈，提升策略的鲁棒性和成功率。</p>\n</li>\n<li>\n<p><strong>挑战</strong>：在真实世界中应用RL面临样本效率低、奖励函数设计困难、安全性问题等巨大挑战。尽管挑战重重，但<code>VLA-RL</code>、<code>GRAPE</code>等工作已开始探索如何将RL（尤其是在线RL和偏好学习）有效地用于VLA后训练，并展现出巨大潜力。</p>\n</li>\n<li>\n<p><strong>推理时扩展</strong>：这类方法在不改变模型权重的情况下，在推理（测试）阶段提升性能。例如，<code>V-GPS</code>在推理时采样多个候选动作序列，然后使用一个预训练的值函数来评估并选择最优的动作执行。这种方法灵活且模型无关，但其效果依赖于预训练模型的初始能力和评估模块的准确性。</p>\n</li>\n</ul>\n<h4>5.2 模型评估体系</h4>\n<p>如何科学、全面地评估一个VLA模型的性能，是指导领域发展方向的关键。</p>\n<ul>\n<li><strong>真实环境评估</strong>：这是评估的「黄金标准」，最能反映模型的实际应用能力。评估指标通常是任务成功率，并区分<strong>分布内（In-Distribution）</strong> 任务（与训练数据相似）和<strong>分布外（Out-of-Distribution）</strong> 任务（新物体、新场景）以测试泛化能力。标准化基准如<code>FMB</code>和自动化评估系统<code>AutoEval</code>的出现，正在努力解决真实评测成本高、可复现性差的问题。</li>\n<li>\n<p><strong>仿真器评估</strong>：仿真器提供了可控、可复现、低成本的大规模评估环境。</p>\n</li>\n<li>\n<p><strong>早期基准</strong>：如RLBench, Meta-World，主要关注控制能力。</p>\n</li>\n<li><strong>现代基准</strong>：如<code>CALVIN</code>、<code>LIBERO</code>，引入了语言指令和长时序任务，更适合评估VLA模型。<code>SimplerEnv</code>则致力于缩小仿真与现实的差距（Sim-to-Real Gap）。许多论文都会在这些公开基准上报告性能，以便进行横向对比（如下表所示）。</li>\n</ul>\n<p><img alt=\"\" src=\"https://pic3.zhimg.com/v2-abd1acf18388ce57b4a33701badfc54e_1440w.jpg\" /></p>\n<ul>\n<li><strong>世界模型评估</strong>：这是一个前沿方向。通过训练一个生成式模型（通常是视频生成模型）来模拟物理世界的动态，即构建一个「世界模型」（World Model）。然后，可以在这个数据驱动的世界模型中评估VLA策略，其渲染和物理动态可能比传统仿真器更逼真。<code>WorldEval</code>等工作已证明，基于世界模型的评估结果与真实环境评测结果具有较强的相关性，但该技术本身仍处于早期发展阶段。</li>\n</ul>"
+    }
+  ],
+  "latest_overview": [
+    {
+      "title": "一、VLA 的最新焦点正在转向世界模型",
+      "body_html": "<p>最新这篇综述关注的不是“如何再做一个更大的 VLA 主干”，而是更具体的问题：<strong>VLA 如何获得对物理世界的前瞻能力</strong>。纯粹依赖视觉-语言-动作映射的模型，虽然能继承大模型的语义理解与开放词汇泛化，但在真实部署中经常暴露出三类短板：</p>\n<ul>\n<li><strong>物理动态建模不足</strong>：模型能“理解指令”，但未必能可靠预测接触、碰撞、遮挡与连续运动的后果。</li>\n<li><strong>长程规划缺少可执行验证</strong>：LLM 或 VLM 可以给出高层计划，却无法直接验证这些计划在物理世界里是否真的可行。</li>\n<li><strong>高质量机器人数据稀缺</strong>：真实世界采集成本高、风险高，限制了大规模在线试错和覆盖长尾场景。</li>\n</ul>\n<p>正因为如此，世界模型开始被视为 VLA 迈向通用具身智能的重要增量模块：它不只是“生成未来画面”，更是在为策略提供<strong>物理一致的前瞻与验证机制</strong>。</p>\n<blockquote>\n<p>参考综述：<a href=\"https://zhuanlan.zhihu.com/p/2029851015126689488\"><em>迈向通用具身人工智能：VLA智体的世界模型综述</em></a></p>\n</blockquote>"
+    },
+    {
+      "title": "二、四类世界模型范式正在分化成清晰技术谱系",
+      "body_html": "<p>这篇综述把面向 VLA 的世界模型划分为四种典型范式，它们对应了四种不同的“把未来引入决策”的方式：</p>\n<ul>\n<li><strong>世界规划器（World Planner）</strong>：先显式或隐式预测未来状态，再把这些未来表征作为规划条件输入策略。</li>\n<li><strong>世界动作模型（World Action Model）</strong>：联合建模未来观测与动作分布，让“看见未来”和“生成动作”在同一模型里耦合。</li>\n<li><strong>世界合成器（World Synthesizer）</strong>：把世界模型当作数据引擎，批量合成交错的观测-动作轨迹，缓解机器人数据稀缺。</li>\n<li><strong>世界模拟器（World Simulator）</strong>：把世界模型直接当作虚拟环境，用于评估、强化学习和测试时规划。</li>\n</ul>\n<p>这四条路线并不是互斥关系。它们共同指向的趋势是：VLA 不再满足于“看到当前场景就立即出动作”，而是逐步获得<strong>预测、验证、合成、模拟</strong>四种更主动的能力。</p>"
+    },
+    {
+      "title": "三、基础模型与评测体系也在发生迁移",
+      "body_html": "<p>从底层架构看，世界模型已经不局限于单一视频生成器，而是在三类基础能力之间组合：</p>\n<ul>\n<li><strong>图像 / 视频生成模型</strong>：擅长高保真未来合成，适合做显式想象与可视化规划。</li>\n<li><strong>统一理解-生成模型</strong>：把感知和生成放进同一框架，更适合做多模态条件下的端到端推演。</li>\n<li><strong>表征模型</strong>：不追求像素级重建，而是在潜空间中保持对几何、时间与因果结构的压缩表达，更适合高效规划与控制。</li>\n</ul>\n<p>与此同时，评测也在迁移。综述明确指出，像 <code>CALVIN</code>、<code>LIBERO</code> 这类仿真基准上的性能已经越来越接近饱和，说明仅靠封闭仿真环境很难继续区分新方法的真实价值。下一阶段更重要的是：</p>\n<ul>\n<li>世界模型是否真的提高了<strong>真实世界物理一致性</strong>；</li>\n<li>是否能支持<strong>更长时程、更开放场景</strong>的任务；</li>\n<li>是否能在保证安全的前提下，替代部分昂贵的真实机器人试错。</li>\n</ul>"
+    },
+    {
+      "title": "四、下一阶段最难的问题不是更大模型，而是更可靠的未来建模",
+      "body_html": "<p>综述最后点出的挑战非常集中，基本定义了 VLA 下一阶段的研究重点：</p>\n<ul>\n<li><strong>物理一致性</strong>：如何减少“看起来合理、实际上不可执行”的物理幻觉。</li>\n<li><strong>4D 时空感知</strong>：如何把三维几何结构和时间演化同时纳入表征，而不是停留在二维图像层面。</li>\n<li><strong>安全与可靠性</strong>：如何让世界模型在执行前预测风险、约束危险动作，而不是只做离线生成。</li>\n<li><strong>长程前瞻</strong>：如何在多阶段任务里持续保持目标、约束和空间关系的一致理解。</li>\n<li><strong>失败感知动力学</strong>：不仅学习成功演示，还要显式建模失败、偏差与纠错过程。</li>\n</ul>\n<p>对 VLA 来说，这些问题意味着研究重心正在从“统一多模态输入输出”迈向“让模型真正具备可验证、可模拟、可前瞻的世界理解能力”。这也是为什么世界模型会成为当前 VLA 领域最值得单独追踪的一条最新进展主线。</p>"
     }
   ],
   "graph": {
@@ -373,28 +391,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "transformer_policy",
       "motivation": "大规模模仿学习实现100+任务零样本泛化",
-      "summary": "BC-Z 提出了一种大规模多任务行为克隆系统，通过在 100 个操作任务（25,877 条演示）上训练语言/视频条件化策略，实现了对 29 个从未见过的任务的零样本泛化（语言条件下 24 个任务成功率非零，平均 44%），证明了简单的模仿学习方法在足够规模下可以获得任务级别的泛化能力。",
+      "summary": "BC-Z 提出了一个大规模多任务行为克隆框架，通过在 100 个操作任务上联合训练（含语言和视频条件），结合 HG-DAgger 人在回路干预机制，实现了对 29 个留出任务的零样本任务泛化（32% 成功率），证明了大规模多任务模仿学习可以产生语义层面的任务泛化能力。",
       "keyPoints": [
-        "<strong>大规模多任务数据集</strong>：100 个操作任务、25,877 条真机演示，使用 HG-DAgger（共享自主）高效采集数据",
-        "<strong>双模态任务条件化</strong>：支持自然语言指令和人类视频两种任务指定方式，统一映射到 512 维任务嵌入空间",
-        "<strong>语言编码器</strong>：冻结的预训练 Universal Sentence Encoder (USE)，无需额外训练即可提供语义丰富的任务表征",
-        "<strong>视频编码器</strong>：ResNet18 处理人类演示视频，通过语言回归辅助损失（cosine loss）对齐到语言嵌入空间",
-        "<strong>FiLM 条件化架构</strong>：任务嵌入通过 FiLM 层注入 ResNet18 视觉编码器的每个残差块，实现任务感知的视觉特征提取",
-        "<strong>自适应状态差分动作</strong>：将动作定义为到未来 \\(N>1\\) 步目标姿态的状态差分，避免 10Hz 控制下的微小动作和抖动问题",
-        "<strong>开环轨迹辅助预测</strong>：策略额外预测未来 10 步开环轨迹作为辅助训练目标，推理时仅执行第一步（闭环）",
-        "<strong>零样本泛化</strong>：语言条件下对 29 个未见任务中 24 个实现非零成功率，平均 44%；视频条件下泛化更困难（9 个任务非零，平均 4%）"
+        "双组件架构：ResNet18 视觉 Encoder + FiLM 条件化控制层（MDN 输出动作分布）",
+        "任务条件机制：冻结的 Universal Sentence Encoder (USE) 语言嵌入作为主条件，可选视频 demonstration 作为辅助条件",
+        "大规模多任务训练：100 个操作任务（抓取、放置、开门、推动等），约 40k episodes 的专家演示数据",
+        "HG-DAgger (Human-in-the-loop Guided DAgger)：训练过程中人类操作员可实时干预机器人动作，干预数据作为额外训练信号",
+        "零样本泛化验证：在 29 个完全留出的任务上评估，语言条件 52% vs one-hot 45% vs 视频 42%",
+        "干预数据 + 专家演示联合训练：53% 成功率 vs 仅专家演示 27%，证明 HG-DAgger 对泛化有显著增益",
+        "任务表征空间分析：语言嵌入在语义空间中形成合理聚类，语义相似的任务在嵌入空间中距离更近"
       ],
-      "detail": "<h5>系统架构</h5>\n<p><img alt=\"BC-Z 网络架构\" src=\"https://ar5iv.labs.arxiv.org/html/2202.02005v1/assets/x3.png\" />\n<em>图：BC-Z 网络架构。单目 RGB 图像经 ResNet18 编码，通过 FiLM 层接收任务嵌入 \\(z\\) 的条件化，最后经多头 MLP 预测各动作分量（delta XYZ、delta 轴角、夹爪角度）。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># BC-Z 训练流程伪代码\n# 1. 数据采集（HG-DAgger 共享自主）\nfor round in range(num_rounds):\n    deploy policy π with human supervisor\n    human takes over when robot deviates  # 干预数据\n    collect (s, a, task_id) into dataset D\n\n# 2. 任务嵌入编码\nz_lang = USE(language_command)           # 冻结，512-dim\nz_video = ResNet18_video(human_video)    # 可训练，512-dim\n\n# 3. 策略训练\nfor batch in dataloader(D):\n    s, a, task_id = batch\n    z = sample_task_embedding(task_id)   # 随机选语言或视频嵌入\n\n    # FiLM 条件化视觉编码\n    features = ResNet18_policy(image=s, film_conditioning=z)\n\n    # 多头动作预测\n    pred_xyz = MLP_xyz(features)         # delta XYZ\n    pred_rot = MLP_rot(features)         # delta axis-angle\n    pred_grip = MLP_grip(features)       # gripper angle\n\n    # 行为克隆损失\n    L_bc = HuberLoss(pred_xyz, a_xyz) + HuberLoss(pred_rot, a_rot) \\\n         + LogLoss(pred_grip, a_grip)\n\n    # 语言回归辅助损失（对齐视频嵌入到语言空间）\n    L_lang = CosineLoss(z_video, z_lang)\n\n    # 总损失\n    loss = L_bc + L_lang\n    loss.backward()\n    optimizer.step()\n</code></pre>\n<h5>动机与背景</h5>\n<p>传统的模仿学习方法通常针对单一任务训练，每个新任务都需要从头采集大量演示数据。这种范式在面对开放世界的多样化任务需求时，数据效率极低。BC-Z 的核心问题是：<strong>能否通过在大量任务上训练一个统一的策略，使其具备对从未见过的任务的零样本泛化能力？</strong></p>\n<p>此前的工作主要集中在少样本（few-shot）设置下，通过元学习等方法从少量演示中快速适应新任务。但这些方法仍需要新任务的机器人演示数据。BC-Z 探索了一个更激进的设定：<strong>完全不需要新任务的任何机器人数据</strong>，仅通过自然语言描述或人类视频即可执行新任务。</p>\n<h5>数据采集：HG-DAgger 共享自主</h5>\n<p>BC-Z 采用 HG-DAgger（Human-Gated DAgger）方法高效采集数据。与传统的纯遥操作演示不同，HG-DAgger 让策略自主执行任务，人类操作员仅在策略偏离时接管控制：</p>\n<p>$$\\mathcal{D} = \\mathcal{D}_{\\text{expert}} \\cup \\mathcal{D}_{\\text{DAgger}}$$</p>\n<div class=\"key-point\">💡 <strong>关键优势</strong>：HG-DAgger 相比纯人工演示，在相同数据量下将任务成功率从 27% 提升至 53%（Table 4），因为干预数据天然覆盖了策略容易犯错的状态分布。</div>\n<p>具体流程：7 台 Everyday Robots 机器人并行采集，每台配备头部单目 RGB 摄像头，操作员通过 6-DoF 手柄遥操作 7-DoF 机械臂（控制频率 10Hz）。总计采集 25,877 条演示，覆盖 100 个操作任务。</p>\n<h5>任务嵌入：双模态条件化</h5>\n<p>BC-Z 的任务指定支持两种模态：</p>\n<p><strong>语言条件化</strong>：使用冻结的 Universal Sentence Encoder (USE) 将自然语言指令映射为 512 维嵌入向量。USE 的预训练语义空间天然具备泛化能力——语义相近的指令（如 \"pick up the apple\" 与 \"grasp the fruit\"）在嵌入空间中距离较近。</p>\n<p><strong>视频条件化</strong>：使用可训练的 ResNet18 编码器处理人类演示视频，输出 512 维嵌入。为解决视频嵌入容易过拟合的问题，引入<strong>语言回归辅助损失</strong>：</p>\n<p>$$\\mathcal{L}_{\\text{lang}} = D_{\\cos}(z_h^i, z_\\ell^i)$$</p>\n<p>其中 \\(z_h^i = q(\\cdot | w_h)\\) 是视频嵌入，\\(z_\\ell^i = q(\\cdot | w_\\ell^i)\\) 是对应的语言嵌入。这个辅助损失迫使视频编码器学习与语言空间对齐的语义表征，而非仅记忆视觉细节。</p>\n<div class=\"warn-box\">⚠️ <strong>注意</strong>：实验表明（Table 3），语言条件化远优于视频条件化（held-out 任务：32% vs 4%），说明从视频推断任务意图比从语言推断困难得多。</div>\n<h5>策略网络：FiLM 条件化 + 多头动作预测</h5>\n<p>策略网络的核心设计是通过 <strong>FiLM (Feature-wise Linear Modulation)</strong> 层将任务嵌入注入视觉处理流程：</p>\n<p>$$\\text{FiLM}(x_c) = \\gamma_c(z) \\cdot x_c + \\beta_c(z)$$</p>\n<p>其中 \\(x_c\\) 是 ResNet18 第 \\(c\\) 个通道的特征图，\\(\\gamma_c(z)\\) 和 \\(\\beta_c(z)\\) 是从任务嵌入 \\(z\\) 线性投影得到的通道级缩放和偏移参数。FiLM 层应用于 ResNet18 的全部 4 个残差块，使视觉特征提取过程从底层就受到任务语义的调制。</p>\n<p>ResNet18 的最后一层均值池化后，分支为三个独立的 MLP 动作头（各含 2 个 256 维隐藏层 + ReLU）：\n- <strong>Delta XYZ</strong>：末端执行器的位置增量\n- <strong>Delta 轴角</strong>：末端执行器的姿态增量\n- <strong>夹爪角度</strong>：归一化的夹爪开合度</p>\n<h5>自适应状态差分动作</h5>\n<p>在 10Hz 控制频率下，相邻帧之间的动作差异极小，直接克隆会导致策略学到近乎零的动作并产生抖动。BC-Z 将动作重新定义为<strong>到未来第 \\(N\\) 步目标姿态的状态差分</strong>：</p>\n<p>$$a_t = s_{t+N} - s_t$$</p>\n<p>其中 \\(N > 1\\) 通过自适应算法根据手臂和夹爪的运动幅度动态选择。消融实验表明（Table 4），不使用自适应状态差分（\\(N=1\\)）时成功率从 45% 骤降至 3%。</p>\n<h5>完整训练目标</h5>\n<p>综合行为克隆损失和语言回归辅助损失，BC-Z 的完整训练目标为：</p>\n<p>$$\\min \\sum_{\\text{task } i} \\sum_{(s,a) \\sim \\mathcal{D}_e^i,\\; w_h \\sim \\mathcal{D}_h^i \\cup \\mathcal{D}_e^i} \\underbrace{-\\log \\pi(a|s, z^i)}_{\\text{behavior cloning}} + \\underbrace{D_{\\cos}(z_h^i, z_\\ell^i)}_{\\text{language regression}}$$</p>\n<p>其中行为克隆损失对 XYZ 和轴角使用 Huber loss，对夹爪角度使用 log loss。</p>\n<h5>实验核心发现</h5>\n<p><strong>单任务验证</strong>：在 bin-emptying 任务上达到 3.4 picks/min（人类 6.3），door opening 任务 87% 成功率（holdout 场景 94%）。</p>\n<p><strong>零样本泛化</strong>（Table 2）：\n- 语言条件（1 个干扰物）：38% 平均成功率\n- 语言条件（4-5 个干扰物）：32% 平均成功率\n- 视频条件（4-5 个干扰物）：4% 平均成功率</p>\n<p><strong>瓶颈分析</strong>（Table 3）：训练任务上 one-hot（42%）≈ 语言（40%）&gt;&gt; 视频（24%），说明语言嵌入空间已足够好，性能瓶颈主要在控制层而非编码器。</p>\n<p><strong>关键消融</strong>（Table 4）：\n- 多任务 vs 单任务：52% vs 5%（跨任务数据共享至关重要）\n- HG-DAgger vs 纯演示：53% vs 27%（干预数据显著提升性能）\n- 自适应状态差分 vs 原始动作：45% vs 3%（防止动作抖动）</p>\n<h5>与传统方法的区别</h5>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>维度</th>\n<th>传统少样本模仿学习</th>\n<th>BC-Z</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>新任务数据需求</td>\n<td>需要少量机器人演示</td>\n<td><strong>零机器人数据</strong></td>\n</tr>\n<tr>\n<td>任务指定方式</td>\n<td>机器人演示视频</td>\n<td>自然语言或人类视频</td>\n</tr>\n<tr>\n<td>泛化机制</td>\n<td>元学习快速适应</td>\n<td>大规模多任务预训练 + 语义嵌入</td>\n</tr>\n<tr>\n<td>训练规模</td>\n<td>通常 &lt; 10 任务</td>\n<td><strong>100 任务，25,877 演示</strong></td>\n</tr>\n<tr>\n<td>核心洞察</td>\n<td>学习如何学习</td>\n<td>足够多样的任务数据 + 好的任务表征 = 泛化</td>\n</tr>\n</tbody>\n</table></div>\n<div class=\"key-point\">💡 <strong>核心启示</strong>：BC-Z 证明了\"简单的模仿学习 + 大规模数据 + 预训练语言嵌入\"这一朴素组合就能实现任务级泛化，无需复杂的元学习或强化学习算法。这一发现为后续的 RT-1、RT-2 等大规模机器人基础模型奠定了重要基础。</div>",
+      "detail": "<h5>核心框架图</h5>\n<p><img alt=\"BC-Z 框架总览\" src=\"https://ar5iv.labs.arxiv.org/html/2202.02005/assets/figures/overview_v3.png\" />\n<em>图：BC-Z 框架总览。左侧为多任务训练数据（含人类演示和干预数据），中间为 ResNet18 编码器 + FiLM 控制层，右侧为零样本泛化到留出任务</em></p>\n<h5>模型架构</h5>\n<p><img alt=\"BC-Z 架构图\" src=\"https://ar5iv.labs.arxiv.org/html/2202.02005/assets/figures/singletask_architecture_base.png\" />\n<em>图：BC-Z 的端到端架构。视觉编码器（ResNet18）处理图像输入，FiLM 层以语言/视频嵌入为条件调节特征，MDN 输出动作分布</em></p>\n<h5>方法细节</h5>\n<p><strong>1. 动机与背景</strong></p>\n<p>传统机器人模仿学习通常针对单一任务训练，缺乏对未见过任务的泛化能力。BC-Z 的核心假设是：<strong>如果在大规模、多样化任务上联合训练，模型可以学习到任务之间的语义关系，从而实现对全新任务的零样本泛化</strong>。这一思路受到 NLP 和 CV 领域大规模预训练成功经验的启发。</p>\n<p><strong>2. 核心机制：FiLM 条件化 + MDN</strong></p>\n<p>BC-Z 的策略网络 \\(\\pi_\\theta(a|s, z)\\) 接受状态 \\(s\\)（RGB 图像）和任务嵌入 \\(z\\) 作为输入。任务嵌入 \\(z\\) 有三种变体：</p>\n<ul>\n<li><strong>语言条件</strong>：通过冻结的 USE 编码自然语言任务描述（如 \"pick up the can\"）获取 512 维嵌入</li>\n<li><strong>One-hot 条件</strong>：每个任务分配一个离散的 one-hot 向量</li>\n<li><strong>视频条件</strong>：将人类演示视频（3 帧）通过共享的 ResNet18 编码为嵌入</li>\n</ul>\n<p>FiLM (Feature-wise Linear Modulation) 层以任务嵌入 \\(z\\) 为输入，生成缩放因子 \\(\\gamma(z)\\) 和偏移量 \\(\\beta(z)\\)，对视觉编码器的中间特征图进行线性调制：\n\\[\n\\text{FiLM}(F) = \\gamma(z) \\odot F + \\beta(z)\n\\]\n这使得同一视觉特征可以根据不同任务被不同地\"解读\"——例如，同一场景中，不同任务可能关注不同物体。</p>\n<p>控制层使用<strong>混合密度网络（Mixture Density Network, MDN）</strong>输出动作分布。MDN 将动作空间建模为 \\(K\\) 个高斯分布的混合：\n\\[\np(a|s, z) = \\sum_{k=1}^{K} \\alpha_k(s, z) \\cdot \\mathcal{N}(a | \\mu_k(s, z), \\sigma_k^2(s, z))\n\\]\n其中 \\(\\alpha_k\\) 为混合权重，\\(\\mu_k\\) 和 \\(\\sigma_k\\) 为各高斯分量的均值和方差。MDN 比简单的确定性回归或单峰高斯更适合多模态的动作分布（例如，抓取物体可以从左边或右边绕过去）。</p>\n<p><strong>3. HG-DAgger：人在回路的干预机制</strong></p>\n<p>HG-DAgger 是 BC-Z 的关键数据增强策略。在训练过程中：\n- 机器人执行当前策略预测的动作\n- 人类操作员观察机器人行为，如果发现即将失败或不安全，可以实时<strong>接管控制</strong>\n- 接管期间的<strong>人类动作 + 当前状态 + 任务条件</strong>被记录为新的训练数据\n- 这些干预数据与原始专家演示数据<strong>混合训练</strong></p>\n<p>HG-DAgger 的核心优势：\n- 干预数据自然地聚焦于<strong>策略表现差的状态空间区域</strong>，提供针对性纠正\n- 不需要额外的专家演示收集，而是在训练过程中<strong>在线生成</strong>有价值的训练数据\n- 干预数据包含<strong>恢复行为</strong>（从接近失败的状态恢复到正常），教会模型处理边缘情况</p>\n<p>论文实验表明，加入 HG-DAgger 干预数据将留出任务成功率从 27% 提升至 53%。</p>\n<p><strong>4. 训练流程</strong></p>\n<p>训练目标为最大化动作对数似然（MDN 下的标准 BC 损失）：\n\\[\n\\mathcal{L} = -\\mathbb{E}_{(s, a, z) \\sim \\mathcal{D}} \\left[ \\log \\sum_{k=1}^{K} \\alpha_k \\cdot \\mathcal{N}(a | \\mu_k, \\sigma_k^2) \\right]\n\\]</p>\n<p>训练数据包含：\n- ~40k episodes 的专家远程操作演示（100 个训练任务）\n- 训练过程中产生的 HG-DAgger 干预数据\n- 两种数据混合，intervention data 有专门的权重</p>\n<p>训练细节：\n- 输入图像：472×472 RGB，随机裁剪到 224×224 并做数据增强（颜色抖动、随机遮挡等）\n- 动作空间：6-DoF 末端执行器位姿（x, y, z, roll, pitch, yaw）+ 夹爪开合\n- 控制频率：3 Hz\n- 优化器：Adam，学习率 1e-4\n- Batch size：256，episode 级别采样</p>\n<p><strong>5. 与传统方法的对比</strong></p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>维度</th>\n<th>传统单任务 BC</th>\n<th>多任务 BC（one-hot）</th>\n<th>BC-Z（语言条件）</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>任务表征</td>\n<td>无（固定策略）</td>\n<td>离散 ID，无语义</td>\n<td>连续语言嵌入，有语义</td>\n</tr>\n<tr>\n<td>泛化能力</td>\n<td>零（需重新训练）</td>\n<td>需 fine-tuning</td>\n<td>零样本泛化到语义相关任务</td>\n</tr>\n<tr>\n<td>数据效率</td>\n<td>每任务独立</td>\n<td>共享参数</td>\n<td>共享参数 + 干预数据</td>\n</tr>\n<tr>\n<td>动作分布</td>\n<td>单峰高斯</td>\n<td>单峰高斯</td>\n<td>MDN 多模态高斯混合</td>\n</tr>\n<tr>\n<td>人在回路</td>\n<td>无</td>\n<td>无</td>\n<td>HG-DAgger 实时干预</td>\n</tr>\n</tbody>\n</table></div>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># BC-Z 训练循环（含 HG-DAgger）\ndef train_bc_z():\n    # 初始化\n    encoder = ResNet18(pretrained=False)        # 视觉编码器\n    film_layers = FiLM(condition_dim=512)        # FiLM 条件层\n    mdn_head = MDN(n_components=5, action_dim=7) # MDN 控制头\n\n    # 多任务数据加载\n    dataset = MultiTaskDataset(100_tasks, expert_demos + intervention_data)\n\n    for epoch in range(total_epochs):\n        for batch in dataloader:\n            images, actions, task_embeddings = batch\n\n            # 视觉编码\n            features = encoder(images)\n\n            # FiLM 条件调制\n            for layer in film_layers:\n                features = layer(features, task_embeddings)\n\n            # MDN 输出分布参数\n            alphas, mus, sigmas = mdn_head(features)\n\n            # 计算负对数似然损失\n            loss = -mdn_log_likelihood(actions, alphas, mus, sigmas)\n            loss.backward()\n            optimizer.step()\n\n        # HG-DAgger：收集干预数据\n        if epoch % intervention_interval == 0:\n            for task in training_tasks:\n                episode = rollout(policy, task)\n                if human_intervened(episode):\n                    dataset.add(episode.intervention_data)\n\n    # 零样本评估\n    for heldout_task in 29_heldout_tasks:\n        success_rate = evaluate_zero_shot(policy, heldout_task)\n</code></pre>\n<p><strong>6. 实验结果关键发现</strong></p>\n<ul>\n<li><strong>语言条件的优势</strong>：语言条件（52%）&gt; one-hot（45%）&gt; 视频（42%），说明语义理解对零样本泛化至关重要。语言嵌入在训练任务间学到了可迁移的语义表示。</li>\n<li><strong>HG-DAgger 的显著增益</strong>：干预数据 + 专家演示（53%）vs 仅专家演示（27%），几乎翻倍。干预数据特别有助于改善模型在<strong>分布外状态</strong>下的表现。</li>\n<li><strong>任务复杂度影响</strong>：简单操作任务（如抓取、放置）泛化较好，复杂多步任务（如开门、堆叠）泛化较差。</li>\n<li><strong>未见指令的泛化</strong>：即使对训练任务使用未见过的语言描述（同义改写），模型也能保持较高成功率，证明语言嵌入的语义鲁棒性。</li>\n</ul>\n<h5>任务可视化</h5>\n<p><img alt=\"任务总览表\" src=\"https://ar5iv.labs.arxiv.org/html/2202.02005/assets/figures/tasks-tableau.png\" />\n<em>图：100 个训练任务和 29 个留出任务的总览</em></p>\n<p><img alt=\"留出任务序列\" src=\"https://ar5iv.labs.arxiv.org/html/2202.02005/assets/figures/holdout_sequence.png\" />\n<em>图：留出任务的执行序列示例，展示零样本泛化的行为</em></p>\n<p><img alt=\"干预与成功率关系\" src=\"https://ar5iv.labs.arxiv.org/html/2202.02005/assets/figures/interventions_vs_success.png\" />\n<em>图：干预次数与成功率的关系，展示 HG-DAgger 的效果</em></p>",
       "quiz": {
-        "q": "BC-Z 中语言回归辅助损失的主要作用是什么？",
+        "q": "BC-Z 中 HG-DAgger 干预数据的主要价值是什么？",
         "options": [
-          "提升语言编码器 USE 的表征质量",
-          "将视频编码器的嵌入空间与预训练语言嵌入空间对齐，改善视频条件化的语义泛化",
-          "加速行为克隆损失的收敛",
-          "使策略网络学习更精确的动作预测"
+          "提供更多样化的初始状态分布",
+          "针对策略表现差的状态区域提供纠正性数据",
+          "替代所有专家演示数据以降低成本",
+          "增加训练数据的时序长度"
         ],
         "answer": 1,
-        "explain": "语言回归损失通过 cosine distance 约束视频嵌入向语言嵌入对齐，防止视频编码器过拟合到视觉细节，从而学习更具语义组织性的任务表征空间。USE 语言编码器本身是冻结的，不受此损失影响。"
+        "explain": "HG-DAgger 在策略执行过程中记录人类干预，这些干预自然发生在策略表现差或即将失败的状态区域，提供了针对性的纠正信号，使成功率从 27% 提升至 53%。"
       }
     },
     {
@@ -409,12 +426,16 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "spatial_3d",
       "motivation": "融合CLIP语义与Transporter几何精度",
-      "summary": "CLIPort 的核心目标是：融合CLIP语义与Transporter几何精度。",
+      "summary": "CLIPort 提出了一种 “What + Where” 双流架构，将预训练 CLIP 的开放词汇语义能力与 Transporter Network 的像素级几何精度结合起来，实现了以自然语言指令为条件的桌面 pick-and-place 操作，并在少样本、多任务和真机设置下都表现出很强的泛化能力。",
       "keyPoints": [
-        "核心动机：融合CLIP语义与Transporter几何精度",
-        "代表机构：Google/UW"
+        "<strong>双流设计（What + Where）</strong>：语义流负责识别“操作什么物体”，空间流负责确定“在哪里操作”，两路通过 lateral connections 在多尺度上融合",
+        "<strong>语言条件化</strong>：使用 CLIP 文本编码器将自然语言指令映射到语义空间，再通过逐元素乘法调制视觉特征",
+        "<strong>Transporter 动作表示</strong>：将操作分解为 pick 和 place 两个像素级预测问题，place 端通过 query-key 互相关和离散旋转搜索得到放置位姿",
+        "<strong>样本效率高</strong>：冻结 CLIP 视觉编码器，仅训练空间流和解码器，在 1 到 100 条演示范围内就能达到较强性能",
+        "<strong>多任务共享有效</strong>：单一多任务模型在大量任务上超过对应的单任务专家模型，说明跨任务知识共享是有效的",
+        "<strong>真机可落地</strong>：在真实 UR5e 平台上仅用 179 条演示就训练出一个可执行多种语言条件化任务的统一模型"
       ],
-      "detail": "<p>融合CLIP语义与Transporter几何精度</p>"
+      "detail": "<h5>整体架构</h5>\n<p><img alt=\"CLIPort Architecture\" src=\"https://ar5iv.labs.arxiv.org/html/2109.12098/assets/x2.png\" /></p>\n<p>CLIPort 的核心思想来自神经科学中的 “What” 与 “Where” 两条通路：\n- <strong>语义流（What）</strong>：基于冻结的 CLIP ResNet-50 视觉编码器，负责提取语言对齐的开放词汇语义特征\n- <strong>空间流（Where）</strong>：基于从零训练的 ResNet 编码器-解码器处理 RGB-D 输入，保留像素级几何精度</p>\n<p>两条通路在解码阶段通过 <code>concat + 1x1 conv</code> 的 lateral connections 融合，最终输出像素级动作预测。</p>\n<h5>动作建模：从桌面操作到像素级 pick-and-place</h5>\n<p>CLIPort 继承了 Transporter Network 的动作表示，将操作分解为 pick 与 place 两个步骤。</p>\n<p><strong>Pick</strong>：对观测图像生成像素级抓取热力图：</p>\n<p>$$Q_{\\text{pick}}(o_t) = f_{\\text{pick}}(\\gamma_t), \\qquad a_{\\text{pick}} = \\arg\\max_{(u,v)} Q_{\\text{pick}}$$</p>\n<p>其中 \\(\\gamma_t\\) 是正交投影后的 RGB-D 图像。</p>\n<p><strong>Place</strong>：以 pick 点为中心裁剪 query patch，并与全图 key 特征做互相关，同时搜索离散旋转：</p>\n<p>$$Q_{\\text{place}}(o_t \\mid a_{\\text{pick}}) = \\left[ \\Phi_{\\text{query}}(\\gamma_t[T_{\\text{pick}}]) * \\Phi_{\\text{key}}(\\gamma_t) \\right]_{\\Delta\\tau}$$</p>\n<p>这使模型能显式建模“抓哪里”和“放哪里”，比直接回归连续位姿更稳定，也更符合桌面操作任务的几何结构。</p>\n<h5>为什么 CLIPort 有效</h5>\n<p>CLIP 自带开放词汇语义知识，但像素级定位能力不足；Transporter 对局部几何关系建模很强，但缺少开放世界语义理解。CLIPort 的关键不在于简单拼接两个模型，而在于把两者的优势精确对齐：</p>\n<ul>\n<li>语义流告诉模型“红色杯子”“蓝色方块”“左边的盘子”分别是什么</li>\n<li>空间流告诉模型这些目标在桌面上具体处于什么像素位置，以及抓取/放置的几何关系</li>\n</ul>\n<p>因此它既能理解复杂语言描述，又能保持操作精度，在多任务和真机实验中都优于从零训练的纯几何策略。</p>"
     },
     {
       "id": "saycan",
@@ -447,12 +468,16 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "transformer_policy",
       "motivation": "单一Transformer处理600+多形态任务",
-      "summary": "Gato 的核心目标是：单一Transformer处理600+多形态任务。",
+      "summary": "Gato 提出了一个真正意义上的通才智能体雏形：把文本、图像、离散动作和连续控制全部序列化为统一 token 序列，用同一个 1.2B 参数的 decoder-only Transformer 同时处理 600 多种任务，证明了单一序列模型可以跨模态、跨环境、跨机器人本体地执行感知与控制。",
       "keyPoints": [
-        "核心动机：单一Transformer处理600+多形态任务",
-        "代表机构：DeepMind"
+        "<strong>统一 token 化范式</strong>：文本、图像 patch、按钮动作、关节力矩、本体感觉等都被映射到同一 token 序列中",
+        "<strong>单模型多任务</strong>：一套参数同时处理 Atari、对话、图像描述、Meta-World、真实机械臂堆叠等 600+ 任务",
+        "<strong>连续动作离散化</strong>：连续控制量先经 \\(\\mu\\)-law 压缩再离散成 1024 个 bins，转化为语言模型可生成的 token",
+        "<strong>Prompt 条件化任务</strong>：不用手工 task id，而是用成功示范 episode 作为 prompt 条件，引导模型推断当前应该做什么",
+        "<strong>选择性监督</strong>：训练时只对文本 token 和动作 token 计算损失，观察 token 不参与损失",
+        "<strong>VLA 先驱意义</strong>：统一序列化、多模态上下文和动作 token 化的设计直接影响了 RT-1、RT-2、PaLM-E 等后续 VLA 工作"
       ],
-      "detail": "<p>单一Transformer处理600+多形态任务</p>"
+      "detail": "<h5>统一序列化：把一切都变成 token</h5>\n<p>Gato 最核心的设计不是某种特殊控制头，而是一个非常激进的前提：<strong>所有模态都统一为 token 序列</strong>。</p>\n<ul>\n<li><strong>文本</strong>：SentencePiece 子词</li>\n<li><strong>图像</strong>：\\(16 \\times 16\\) patch</li>\n<li><strong>离散值</strong>：直接作为整数 token</li>\n<li><strong>连续值</strong>：先做 \\(\\mu\\)-law 压缩，再离散为 1024 个 bins</li>\n</ul>\n<p>这种统一表示让机器人控制第一次被严格地纳入大语言模型式的 next-token prediction 范式中。</p>\n<h5>模型架构与训练目标</h5>\n<p>Gato 使用 1.2B 参数的 decoder-only Transformer：\n- 24 层\n- hidden size 2048\n- FFN hidden size 8196</p>\n<p>训练目标是标准自回归交叉熵，但只在<strong>文本 token 与动作 token</strong>上计算损失：</p>\n<p>$$\n\\mathcal{L}(\\theta, B) = -\\sum_b \\sum_l m(b,l)\\log p_\\theta(s_l^{(b)} \\mid s_1^{(b)}, \\dots, s_{l-1}^{(b)})\n$$</p>\n<p>其中 \\(m(b,l)=1\\) 仅当该 token 属于文本或动作，否则为 0。<br />\n这意味着图像与观察本身只是上下文，不被直接监督，模型被要求学习“如何基于这些上下文生成正确动作”。</p>\n<h5>对具身智能的启示</h5>\n<p>Gato 在机器人上的控制能力并不是最强的，但它证明了一件更重要的事：<strong>单一序列模型可以同时承载视觉、语言与动作三种能力</strong>。这为后来的 VLA 提供了三个关键模板：</p>\n<ul>\n<li>动作 token 化</li>\n<li>多模态统一上下文建模</li>\n<li>用大模型缩放规律来思考机器人策略学习</li>\n</ul>\n<p>从这个意义上说，Gato 不是今天最强的 VLA，但它是通往 VLA 路线最关键的原型之一。</p>"
     },
     {
       "id": "code_as_policies",
@@ -486,13 +511,29 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "transformer_policy",
       "motivation": "TokenLearner压缩视觉实现3Hz控制",
-      "summary": "RT-1 的核心目标是：TokenLearner压缩视觉实现3Hz控制。",
+      "summary": "RT-1 提出 Robotics Transformer，将大规模多任务模仿学习与 Transformer 架构结合，通过 TokenLearner 将高维视觉特征压缩为 8 个紧凑 token，在 13 台机器人、744 个任务、130k 条真实世界演示上训练，实现了 3Hz 实时闭环控制，对未见任务/环境/物体展现出强泛化能力（unseen 76%）。",
       "keyPoints": [
-        "核心动机：TokenLearner压缩视觉实现3Hz控制",
-        "演化来源：继承或改进自 bc_z",
-        "代表机构：Google DeepMind"
+        "<strong>Robotics Transformer 架构</strong>：将机器人控制转化为序列预测问题——输入 6 帧历史图像+自然语言指令，输出 7 维离散化动作（x, y, z, 旋转, 夹爪开合, 基座运动, 终止信号）",
+        "<strong>TokenLearner 视觉压缩</strong>：在 EfficientNet-B3 提取的 9×9×512 特征图上学习 8 个空间注意力 token，将 81 个 patch 压缩为仅 8 个 token，大幅降低 Transformer 计算量，实现 3Hz 推理",
+        "<strong>FiLM 条件注入</strong>：将自然语言指令通过 Universal Sentence Encoder 编码后，经 FiLM 层注入 EfficientNet 的多个 block，实现视觉-语言的早期融合",
+        "<strong>动作离散化</strong>：每个动作维度离散化为 256 个 bin，使用交叉熵损失训练，比连续回归更稳定、更易捕捉多模态动作分布",
+        "<strong>大规模真实世界数据集</strong>：17 个月、13 台 Everyday Robots 机械臂、130k 条演示、744 个任务，覆盖 kitchen manipulation 多样化场景",
+        "<strong>四类泛化实验</strong>：seen tasks (97%)、unseen tasks (76%)、干扰物鲁棒性 (83%)、长时程任务 (67%)，全面验证模型泛化能力",
+        "<strong>行为克隆框架</strong>：基于标准 BC-Z 框架，使用 Categorical Cross-Entropy 损失对离散化动作进行监督学习",
+        "<strong>高效推理</strong>：48ms/step（3Hz），640×480 全分辨率图像，可部署在真实机器人上进行实时闭环控制"
       ],
-      "detail": "<p>TokenLearner压缩视觉实现3Hz控制</p>"
+      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"RT-1 整体框架图\" src=\"https://ar5iv.labs.arxiv.org/html/2212.06817/assets/figures/rt1_teaser_tasks.png\" />\n<em>图 1：RT-1 高层概览——架构、数据集与评估</em></p>\n<p><img alt=\"机器人设置\" src=\"https://ar5iv.labs.arxiv.org/html/2212.06817/assets/figures/RT-1_Robot_Setup.png\" />\n<em>图 2：RT-1 所使用的 Everyday Robots 机械臂平台与相机配置</em></p>\n<h5>算法流程</h5>\n<pre><code>For each timestep t:\n    1. 取最近 6 帧 RGB 图像 (I_{t-5} ~ I_t)，每帧 640×480×3\n    2. 自然语言指令 s 通过 Universal Sentence Encoder 编码\n    3. 每帧图像通过 FiLM EfficientNet-B3 提取特征图 (9×9×512)\n    4. 6 帧特征图串联 → (6, 9, 9, 512)\n    5. TokenLearner 学习 8 个空间注意力 token: (8, 512)\n       - 对每个位置计算注意力权重（softmax over 9×9×6 positions）\n       - 加权求和得到紧凑 token\n    6. Transformer Decoder (8 层, 自注意力, 19.5M params):\n       - 输入: 8 个视觉 token + 1 个 action token + 1 个 stop token，共 10 个 token\n       - Causal attention（第 i 个 token 只能 attend 前 i-1 个）\n    7. Action head: 对 7 个动作维度分别预测 256-bin categorical 分布\n    8. 取 argmax 得到离散动作 → 映射回连续值 → 执行\n</code></pre>\n<h5>动机与背景</h5>\n<p>传统机器人学习面临两大核心瓶颈：<strong>数据稀缺</strong>与<strong>泛化困难</strong>。单个任务的小规模训练无法应对真实世界的无穷变化——光照、背景、物体外观、初始状态的任何细微改变都可能导致策略失效。同时，现有方法多采用连续动作回归（MSE 损失），难以捕获专家演示中天然存在的多模态动作分布（同一状态下可能有多种合理动作）。</p>\n<p>RT-1 的核心洞见是将大语言模型范式的<strong>三个关键要素</strong>迁移到机器人领域：\n1. <strong>统一 I/O 接口</strong>：所有感知（图像+语言）编码为 token，所有动作也离散化为 token\n2. <strong>大规模多样化数据</strong>：130k 条演示覆盖 744 个任务，让模型见过足够多的变异\n3. <strong>Transformer 序列建模</strong>：利用自注意力捕捉时序依赖和跨模态交互</p>\n<h5>核心机制详解</h5>\n<p><strong>1. TokenLearner：视觉压缩的关键</strong></p>\n<p>EfficientNet-B3 输出的特征图尺寸为 9×9=81 个空间位置，6 帧则为 486 个 patch。若直接将所有 patch 送入 Transformer，O(n²) 的注意力复杂度将使得实时推理不可行。</p>\n<p>TokenLearner 的核心操作：\n- 输入：X ∈ ℝ^{T×H×W×C}（T=6, H=W=9, C=512）\n- 学习 S=8 个空间注意力图 α_s ∈ ℝ^{T×H×W}\n- 第 s 个 token：z_s = Σ_{t,h,w} α_s[t,h,w] · X[t,h,w,:]\n- 输出：8 个 512 维 token</p>\n<div class=\"key-point\">💡 关键：8 个 token 仅为原始 486 个 patch 的 1.6%，但在最大注意力权重位置保留了最关键的语义信息（物体、夹爪、目标位置等）。这是 RT-1 能以 3Hz 实时运行的架构核心。</div>\n<p><strong>2. FiLM 条件注入</strong></p>\n<p>传统做法将语言指令编码为单一向量拼接到视觉特征后，信息交互有限。RT-1 采用 FiLM（Feature-wise Linear Modulation）在 EfficientNet 的多个 block 层级进行调制：</p>\n<p>$$\n\\text{FiLM}(x; \\gamma, \\beta) = \\gamma \\odot x + \\beta\n$$</p>\n<p>其中 γ 和 β 由语言嵌入（通过 USE 编码为 512 维）经 MLP 生成。这种<strong>层级化条件注入</strong>使得语言信号可以在不同抽象层次影响视觉特征提取——低级特征关注纹理/颜色，高级特征关注语义/物体类别。</p>\n<p><strong>3. 动作离散化与多模态分布</strong></p>\n<p>7 个动作维度（x, y, z, yaw, gripper, base, stop），每个离散化为 256 个均匀 bin。训练时用 Categorical Cross-Entropy：</p>\n<p>$$\n\\mathcal{L} = -\\sum_{d=1}^{7} \\sum_{b=1}^{256} y_{d,b} \\log \\hat{y}_{d,b}\n$$</p>\n<p>相比于 MSE 回归，离散化的优势：\n- <strong>捕获多模态</strong>：同一状态下\"从左侧绕过\"和\"从右侧绕过\"都是合理动作，categorical 分布可以保留两个模式，而 MSE 会取平均（产生危险的中值动作）\n- <strong>训练稳定</strong>：避免了连续值的回归数值不稳定性\n- <strong>与语言模型统一</strong>：动作成为\"动作词汇表\"中的 token，与自然语言 token 统一处理</p>\n<p><strong>4. 训练策略：从基础到泛化</strong></p>\n<p>论文提出了\"训练数据金字塔\"的概念（Appendix C）：\n- <strong>Bridging</strong>：先在少量高质量数据上训练解决基本问题\n- <strong>Sawyer</strong>：加入更多任务的数据扩展技能\n- <strong>Diverse multi-task</strong>：最终在全部 744 个任务的混合数据上训练</p>\n<p>这种渐进式训练与直接混合训练相比，在罕见任务上提升显著。</p>\n<h5>与传统方法的区别</h5>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>维度</th>\n<th>传统方法（如 BC-Z, Gato）</th>\n<th>RT-1</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>动作空间</td>\n<td>连续回归（MSE）</td>\n<td>每维 256-bin categorical</td>\n</tr>\n<tr>\n<td>视觉编码</td>\n<td>冻结视觉编码器 / 小 network</td>\n<td>FiLM EfficientNet-B3，语言早期融合</td>\n</tr>\n<tr>\n<td>特征压缩</td>\n<td>无压缩或简单 pooling</td>\n<td>TokenLearner 学习型压缩</td>\n</tr>\n<tr>\n<td>序列建模</td>\n<td>LSTM / CNN</td>\n<td>Transformer Decoder (8 层)</td>\n</tr>\n<tr>\n<td>推理速度</td>\n<td>未知/离线</td>\n<td>3Hz 实时闭环</td>\n</tr>\n<tr>\n<td>数据规模</td>\n<td>单任务 ~1k demos</td>\n<td>744 任务 130k demos</td>\n</tr>\n</tbody>\n</table></div>\n<div class=\"warn-box\">⚠️ 注意：RT-1 本质仍是<strong>行为克隆</strong>（Behavior Cloning），仅使用监督学习模仿专家，没有价值函数或在线探索。其泛化能力的提升完全来自<strong>模型容量 + 数据多样性 + 架构设计</strong>。</div>\n<h5>实验结果速览</h5>\n<ul>\n<li><strong>Seen tasks</strong>: RT-1 达到 97% 成功率，与 BC-Z（95%）持平，显著超过 Gato（50%）</li>\n<li><strong>Unseen tasks</strong>: RT-1 达到 76%，比 BC-Z（55%）高 21 个百分点</li>\n<li><strong>Distractor robustness</strong>: 添加 9 种未见物体和 2 种背景干扰后，RT-1 保持 83%，BC-Z 降至 46%</li>\n<li><strong>Long-horizon</strong>: 3+ 步任务中 RT-1 达到 67%（BC-Z 仅 30%）</li>\n<li><strong>消融关键结论</strong>：</li>\n<li>去掉 ImageNet 预训练 → unseen 掉约 20%</li>\n<li>离散化改为连续 → 大幅下降</li>\n<li>TokenLearner 换成 average pooling → 性能下降，推理变慢</li>\n<li>数据量翻倍（130k→260k）未见显著提升，说明当前模型容量可能已饱和</li>\n</ul>",
+      "quiz": {
+        "q": "RT-1 中 TokenLearner 的主要作用是什么？",
+        "options": [
+          "将自然语言指令编码为 token 向量",
+          "将 Transformer 输出解码为连续动作",
+          "将高维视觉特征图压缩为少量紧凑 token，降低 Transformer 计算量",
+          "对 7 个动作维度进行离散化编码"
+        ],
+        "answer": 2,
+        "explain": "TokenLearner 通过学习空间注意力图，将 6 帧 EfficientNet 特征图（486 个 patch）压缩为仅 8 个 512 维 token，大幅减少 Transformer 的序列长度，是实现 3Hz 实时推理的关键设计。"
+      }
     },
     {
       "id": "palm_e",
@@ -525,13 +566,16 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "vlm_finetune",
       "motivation": "VLM提取对象掩码增强开放世界操作",
-      "summary": "MOO 的核心目标是：VLM提取对象掩码增强开放世界操作。",
+      "summary": "MOO（Masked Object Objectives）将冻结的视觉语言模型作为对象级先验，通过在第一帧提取目标对象掩码并将其拼接到策略输入中，使机器人策略无需深度相机或额外重标定，就能对未见过的物体、背景和场景进行零样本泛化。",
       "keyPoints": [
-        "核心动机：VLM提取对象掩码增强开放世界操作",
-        "演化来源：继承或改进自 palm_e",
-        "代表机构：Google"
+        "<strong>对象级先验注入</strong>：利用冻结的 OWL-ViT 从第一帧检测目标对象，只把掩码或中心点作为额外通道输入策略",
+        "<strong>RT-1 风格策略骨干</strong>：图像经 EfficientNet + FiLM + TokenLearner + Transformer 生成 7-DoF 动作 token",
+        "<strong>训练时冻结 VLM</strong>：策略暴露在真实检测误差下学习鲁棒性，而不是对真值掩码过拟合",
+        "<strong>数据效率很高</strong>：仅在 <code>pick</code> 技能上扩展对象多样性，就能把对象泛化能力迁移到其他操作技能",
+        "<strong>多模态上游兼容</strong>：掩码既可来自文本描述，也可来自人手指向、视觉查询图或 GUI 标注",
+        "<strong>开放世界扩展性</strong>：与 CoW 等开放词汇导航模块结合后，可以实现“先找到新物体，再操作新物体”的完整系统"
       ],
-      "detail": "<p>VLM提取对象掩码增强开放世界操作</p>"
+      "detail": "<h5>系统架构与信息流</h5>\n<p><img alt=\"MOO Architecture\" src=\"https://ar5iv.labs.arxiv.org/html/2303.00905/assets/x2.png\" /></p>\n<p>MOO 的信息流可以概括为三步：</p>\n<ol>\n<li><strong>对象定位</strong>：从语言指令中解析对象描述，用冻结 OWL-ViT 在第一帧中检测目标对象</li>\n<li><strong>掩码生成</strong>：把对象中心点或掩码渲染为单通道图，与 RGB 图像拼接</li>\n<li><strong>策略推理</strong>：只保留动词语义作为语言条件，图像+掩码经 RT-1 风格策略骨干输出动作</li>\n</ol>\n<p>作者刻意把 VLM 的参与限制在第一帧，避免实时推理时重复调用大型检测模型。</p>\n<h5>为什么“单像素掩码”就足够</h5>\n<p>MOO 很有意思的一点是：它不一定需要完整边界框或精细分割。论文发现，仅用<strong>目标中心点</strong>这种极简表示，也能带来接近完整掩码的效果。</p>\n<p>原因在于：\n- 对象“是什么”由 VLM 提供\n- 对象“大概在哪”由单像素或稀疏掩码提供\n- 剩余局部几何与抓取细节则由下游策略从原始图像中补全</p>\n<p>这让系统既保留了开放词汇的可扩展性，又避免了过度依赖高质量分割。</p>\n<h5>关键结论：对象泛化与技能泛化可以解耦</h5>\n<p>MOO 的最重要发现之一是：即便只在 <code>pick</code> 任务里扩展对象多样性，模型也能把“识别和泛化到新物体”的能力迁移到 <code>move near</code>、<code>knock</code>、<code>place upright</code>、<code>place into</code> 等其他技能上。</p>\n<p>这说明策略内部学到的是两件相对独立的能力：\n- 动词条件告诉模型“做什么动作”\n- 掩码告诉模型“对哪个对象做”</p>\n<p>这种显式的对象条件化，为后续 VLA 的开放世界操作提供了一个非常实用的中间路线。</p>"
     },
     {
       "id": "rt2",
@@ -565,13 +609,16 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "spatial_3d",
       "motivation": "LLM生成3D体素价值图零样本操纵",
-      "summary": "VoxPoser 的核心目标是：LLM生成3D体素价值图零样本操纵。",
+      "summary": "VoxPoser 通过让 LLM 在 3D 体素空间中生成可供性图与约束图，把语言指令转换为可执行的 3D 值图，再由 MPC 在该值图上规划末端轨迹，实现了对开放集物体和开放式指令的零样本真实机器人操纵。",
       "keyPoints": [
-        "核心动机：LLM生成3D体素价值图零样本操纵",
-        "演化来源：继承或改进自 cliport",
-        "代表机构：Stanford"
+        "<strong>三阶段系统</strong>：感知模块负责检测与 3D 重建，LLM 负责生成值图代码，MPC 负责在值图上规划动作",
+        "<strong>3D 值图表示</strong>：把“应该去哪”表示为可供性图，把“不能去哪”表示为约束图，最终合成为任务值图",
+        "<strong>开放词汇感知</strong>：结合 OWL-ViT、SAM、XMem 等模块在开放世界中识别、分割和跟踪物体",
+        "<strong>闭环重规划</strong>：系统以约 5Hz 频率持续重建场景与重算值图，适应物体移动和遮挡变化",
+        "<strong>扰动体素机制</strong>：在约束边界注入噪声，使规划器主动远离危险区域，从而获得更强避碰能力",
+        "<strong>与端到端 VLA 不同</strong>：VoxPoser 不是直接输出动作，而是把高层语义显式投影为 3D 中间表示，增强了可解释性和可组合性"
       ],
-      "detail": "<p>LLM生成3D体素价值图零样本操纵</p>"
+      "detail": "<h5>系统流程：从语言到轨迹</h5>\n<p>VoxPoser 的核心流程是：</p>\n<ol>\n<li><strong>感知</strong>：利用 OWL-ViT + SAM + XMem 检测、分割并跟踪场景物体，构建 \\(100 \\times 100 \\times 100\\) 左右的 3D 体素空间</li>\n<li><strong>值图合成</strong>：让 GPT-4 生成 Python 代码，在 3D 体素网格上定义可供性图与约束图</li>\n<li><strong>运动规划</strong>：用 MPC + random shooting 在值图上搜索末端执行器轨迹，并持续闭环重规划</li>\n</ol>\n<p>值图的一个直观目标写法是：</p>\n<p>$$F_{\\text{task}}(\\mathbf{p}_j^e) = -\\sum_j V(\\mathbf{p}_j^e)$$</p>\n<p>其中高价值区域代表“应该到达”的空间位置，低价值区域代表障碍或约束。</p>\n<h5>3D 体素值图的合成机制</h5>\n<p>核心洞察是将 LLM 视作\"零样本代码生成器\"。给定场景的 3D 体素网格和物体标签，LLM 输出 Python 代码调用两类原子操作：</p>\n<ul>\n<li><code>affordance_map</code>: 定义\"应该去哪\"——如\"抓住杯子\"生成杯子顶部以上 5cm 区域的高值。</li>\n<li><code>constraint_map</code>: 定义\"不能去哪\"——如\"避免碰撞桌面\"生成桌面区域的负值。</li>\n</ul>\n<p>两类图通过 <strong>加权求和</strong> 融合：$F_{\\text{task}} = w_a F_{\\text{affordance}} + w_c F_{\\text{constraint}}$。LLM 代码还自动计算物体间的空间关系（如\"杯子在桌上\"→杯子的可供性区域 z 坐标高于桌面）。<strong>扰动体素</strong> 在约束边界注入高斯噪声，迫使 MPC 采样器主动远离危险区域。</p>\n<h5>闭环在线重规划</h5>\n<p>系统以 $5\\text{Hz}$ 频率执行以下循环：① 摄像机更新场景点云 → ② 重新计算 $F_{\\text{task}}$ → ③ MPC 随机射击 1000 条候选轨迹，选 $F_{\\text{task}}$ 最高者 → ④ 执行第一步动作。这种设计使得系统可以<strong>在线适应物体移动和遮挡变化</strong>，无需显式状态估计。每次重规划约 $50\\text{ms}$，满足实时性要求。</p>\n<h5>方法价值与局限</h5>\n<p>VoxPoser 的价值在于它把 LLM 的语义推理结果变成了可解释的空间中间表示，因此非常容易与不同下游规划器组合，也比“直接输出动作”的黑盒 VLA 更容易调试。</p>\n<p>但它也有明显局限：\n- 依赖外部感知模块，不是端到端方案\n- 更偏末端轨迹级规划，对精细接触动力学支持有限\n- 主要规划末端路径，未完整覆盖全臂避碰和复杂装配</p>\n<p>因此它更像是 “LLM + 3D planning” 路线的重要代表，而不是直接替代端到端 VLA。</p>\n<p>Code-as-Policies（Liang et al., 2023）同样用 LLM 生成代码控制机器人，但它是 2D 平面导航 + 刚性动作原语。VoxPoser 的创新在于将 LLM 代码输出<strong>投影到 3D 体素值图</strong>这一通用表示中，使得任何下游规划器（MPC、轨迹优化）都能消费，极大提升了灵活性和避碰能力。</p>"
     },
     {
       "id": "roboagent",
@@ -644,13 +691,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "transformer_policy",
       "motivation": "处理不同机器人本体感知差异",
-      "summary": "HPT 的核心目标是：处理不同机器人本体感知差异。",
+      "summary": "HPT 提出异构预训练Transformer架构，通过模块化的 Stem-Trunk-Head 设计将不同机器人本体（embodiment）的异构传感器和动作空间统一映射到共享表征空间，支持大规模跨本体数据联合预训练后快速迁移到新机器人任务。",
       "keyPoints": [
-        "核心动机：处理不同机器人本体感知差异",
-        "演化来源：继承或改进自 rt_x",
-        "代表机构：清华/Meta"
+        "<strong>Stem-Trunk-Head 模块化架构</strong>：感知 Stem（本体特定编码器）将异构传感器数据映射为统一 token，共享 Trunk（Transformer）在统一表征空间学习，动作 Head（本体特定解码器）将表征映射回具体动作",
+        "<strong>跨本体大规模预训练</strong>：在 52 个数据集、多种机器人本体（单臂、双臂、四足、无人机等）上联合训练，总数据量超 20 万条轨迹",
+        "<strong>异构感知对齐</strong>：通过可学习的 Stem 投影器将不同模态（RGB、深度、关节状态、IMU 等）和不同数量的传感器统一为固定长度的 token 序列",
+        "<strong>动作空间解耦</strong>：Head 模块针对不同本体（位置控制、速度控制、关节力矩等）输出相应格式的动作，支持离散和连续动作",
+        "<strong>迁移学习高效</strong>：新机器人仅需少量数据微调 Stem 和 Head，冻结 Trunk 权重保持通用表征能力",
+        "<strong>缩放定律验证</strong>：预训练数据量和模型参数量与下游任务性能呈正相关，验证了机器人基础模型的缩放潜力"
       ],
-      "detail": "<p>处理不同机器人本体感知差异</p>"
+      "detail": "<h5>4.1 核心示意图</h5>\n<p><img alt=\"HPT 架构图\" src=\"https://liruiw.github.io/hpt/media/figures/framework.png\" />\n<em>图：HPT 的 Stem-Trunk-Head 模块化架构，不同机器人本体通过共享 Trunk 实现表征统一</em></p>\n<p><img alt=\"HPT 概念图\" src=\"https://liruiw.github.io/hpt/media/figures/concept.png\" />\n<em>图：HPT 核心思想——不同本体（embodiment）的感知和动作通过可学习的投影和反投影模块对齐到共享空间</em></p>\n<h5>4.2 算法伪代码</h5>\n<pre><code class=\"language-python\"># HPT 前向传播核心流程\ndef hpt_forward(obs, embodiment_id):\n    # 1. Stem: 本体特定编码，将异构观测投影为统一token序列\n    # obs 可以是任意数量/模态的传感器数据\n    tokens = stem[embodiment_id](obs)  # stem: 可学习的线性投影或浅层MLP\n\n    # 2. Trunk: 共享Transformer处理统一token序列\n    # trunk在所有本体间共享权重\n    unified_repr = trunk(tokens)  # Multi-head Self-Attention + FFN\n\n    # 3. Head: 本体特定解码，输出对应动作格式\n    action = head[embodiment_id](unified_repr)\n    return action\n\n# 预训练阶段：在所有数据集上联合训练\nfor batch in mixed_embodiment_dataloader:\n    action_pred = hpt_forward(batch.obs, batch.embodiment_id)\n    loss = behavior_cloning_loss(action_pred, batch.action)\n    loss.backward()\n    optimizer.step()\n\n# 迁移阶段：冻结trunk，仅微调stem和head\ntrunk.requires_grad = False\nfor batch in new_robot_dataloader:\n    action_pred = hpt_forward(batch.obs, new_embodiment_id)\n    loss = behavior_cloning_loss(action_pred, batch.action)\n    (stem_loss + head_loss).backward()  # 仅更新新本体的stem和head\n    optimizer.step()\n</code></pre>\n<h5>4.3 方法细节</h5>\n<p><strong>动机与背景</strong>：机器人学习领域长期面临数据稀缺问题——传统方法针对特定机器人本体从头训练策略，无法利用其他本体的大量数据。不同机器人的传感器配置（相机数量、是否有力传感器）、动作空间（关节角度 vs 末端位姿、连续 vs 离散）千差万别，直接拼接训练会导致表征空间混乱。HPT 的核心动机是将\"本体\"（embodiment）视为一个可建模的变量，通过显式的模块化设计实现异构数据的统一预训练。</p>\n<p><strong>核心机制——Stem-Trunk-Head 拆解</strong>：Stem 模块负责\"消化\"本体特异性。每个本体拥有独立的 Stem，将原始观测 \\(o_i\\)（可能是一张 RGB 图、一组关节角度、一段力传感器读数，或它们的任意组合）映射为固定数量（如 64 个）的统一维度 token 序列。映射方式灵活——对于图像用轻量 CNN/ViT patch embedding，对于低维向量用 MLP 投影 + 可学习位置编码区分不同传感器通道。Trunk 是核心的共享 Transformer，采用标准的 Multi-head Self-Attention 堆叠，在所有本体间共享权重，这正是实现知识迁移的关键。Head 模块是 Stem 的逆过程——将 Trunk 输出的统一表征解码为特定本体的动作格式，可以是末端位姿的 6D 向量、关节角度序列，甚至离散的动作 token。</p>\n<div class=\"key-point\">💡 关键：Stem 和 Head 的设计保证了 Trunk 内部始终处理<strong>相同形状</strong>的 token 序列，无论上游有多少摄像头、下游控制几个关节。这让 Trunk 成为一个真正的\"通用策略大脑\"。</div>\n<p><strong>训练与迁移流程</strong>：预训练阶段采用行为克隆（Behavior Cloning）目标，在全部 52 个数据集的混合批次上联合优化：\\(\\mathcal{L} = \\mathbb{E}_{(o, a) \\sim \\mathcal{D}} \\| \\text{Head}(\\text{Trunk}(\\text{Stem}(o))) - a \\|^2\\)（连续动作）或交叉熵（离散动作）。关键技巧是<strong>按本体平衡采样</strong>，防止大数据集本体主导梯度更新。迁移到新机器人时，冻结 Trunk 权重，仅需用少量（如 50-100 条）新本体轨迹微调新的 Stem 和 Head。这种\"即插即用\"方式大幅降低了新机器人的数据需求，同时保留了预训练学到的通用视觉-运动关联。</p>\n<p><strong>与相关工作的对比</strong>：不同于 RT-X（在固定动作空间的同构机器人间共享数据，本质是数据混合而非架构统一），HPT 首次实现了真正异构本体间的架构级统一。相比 Octo 等基于单一本体设计的通用策略模型，HPT 的模块化设计允许动态扩展新本体类型而无需修改 Trunk 结构。与传统域自适应方法（如 finetuning 全网络）相比，冻结 Trunk 的策略防止了小样本场景下的灾难性遗忘。</p>\n<h5>4.4 关键公式</h5>\n<p><strong>统一观测编码</strong>：设本体 \\(e\\) 有 \\(K_e\\) 个传感器，第 \\(k\\) 个传感器观测为 \\(\\mathbf{s}_k \\in \\mathbb{R}^{d_k}\\)。Stem 将每个传感器独立编码后拼接为统一 token 序列：</p>\n<p>$$\\mathbf{z}_k = \\text{MLP}_k^{(e)}(\\mathbf{s}_k) \\in \\mathbb{R}^{D} \\quad \\Rightarrow \\quad \\mathbf{Z}^{(e)} = [\\mathbf{z}_1; \\mathbf{z}_2; \\dots; \\mathbf{z}_{K_e}] \\in \\mathbb{R}^{K_e \\times D}$$</p>\n<p>对于图像传感器，MLP 替换为轻量 CNN 或 patch embedding 投影。所有本体投影后的 token 维度 \\(D\\) 统一（如 \\(D=512\\)），但 token 数量 \\(K_e\\) 可不同。</p>\n<p><strong>共享 Transformer 处理</strong>：</p>\n<p>$$\\mathbf{H}^{(l+1)} = \\text{LN}\\big(\\mathbf{H}^{(l)} + \\text{MHA}(\\mathbf{H}^{(l)})\\big), \\quad \\mathbf{H}^{(l+2)} = \\text{LN}\\big(\\mathbf{H}^{(l+1)} + \\text{FFN}(\\mathbf{H}^{(l+1)})\\big)$$</p>\n<p>其中 \\(\\mathbf{H}^{(0)} = \\mathbf{Z}^{(e)} + \\mathbf{P}^{(e)}\\)（\\(\\mathbf{P}^{(e)}\\) 为本体特定的可学习位置编码），MHA 为多头自注意力，FFN 为两层 MLP。</p>\n<p><strong>预训练损失（多本体联合 BC）</strong>：</p>\n<p>$$\\mathcal{L}_{\\text{pretrain}} = \\sum_{e \\in \\mathcal{E}} \\frac{1}{|\\mathcal{D}_e|} \\sum_{(o,a) \\in \\mathcal{D}_e} \\ell\\big(\\text{Head}_e(\\text{Trunk}(\\text{Stem}_e(o))), a\\big)$$</p>\n<p>其中 \\(\\ell\\) 为 MSE（连续动作）或交叉熵（离散动作），\\(\\mathcal{E}\\) 为所有训练本体集合。</p>\n<div class=\"warn-box\">⚠️ 注意：Stem 输出的 token 数量因本体传感器数量而异，但 Trunk 中的自注意力机制天然支持变长序列，因此无需 padding 到统一长度，这避免了不必要的计算浪费。</div>",
+      "quiz": {
+        "q": "HPT 进行新机器人迁移训练时，以下哪个模块的权重通常被冻结？",
+        "options": [
+          "Stem（本体特定编码器）",
+          "Trunk（共享 Transformer）",
+          "Head（本体特定解码器）",
+          "所有模块均参与训练"
+        ],
+        "answer": 1,
+        "explain": "迁移时冻结 Trunk 以保留预训练的通用视觉-运动表征，仅微调新本体的 Stem 和 Head，从而在小样本场景下避免过拟合和灾难性遗忘。"
+      }
     },
     {
       "id": "octo",
@@ -684,13 +745,31 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "vlm_finetune",
       "motivation": "双视觉特征7B超越55B RT-2-X",
-      "summary": "OpenVLA 的核心目标是：双视觉特征7B超越55B RT-2-X。",
+      "summary": "OpenVLA 提出将预训练的 Prismatic-7B 视觉语言模型（DINOv2+SigLIP 视觉编码器 + Llama 2 7B）微调为通用机器人操控策略，通过动作离散化和端到端训练，在 970k Open X-Embodiment 机器人演示数据上训练出仅 7B 参数即超越 55B RT-2-X 的开源 VLA 模型。",
       "keyPoints": [
-        "核心动机：双视觉特征7B超越55B RT-2-X",
-        "演化来源：继承或改进自 rt2",
-        "代表机构：Stanford/UCB"
+        "<strong>三组件架构</strong>：DINOv2+SigLIP 双视觉编码器（~600M）→ 2层MLP投影器 → Llama 2 7B LLM 主干",
+        "<strong>动作标记化</strong>：7维连续动作各离散为256 bins，映射到 Llama tokenizer 中最低频的256个token，保留高频token用于文本指令",
+        "<strong>大规模机器人预训练</strong>：在 Open X-Embodiment 数据集 970k 条演示上微调 27 epochs，224×224图像分辨率，学习率 2e-5，batch size 2048",
+        "<strong>训练资源</strong>：64张 A100 GPU，训练耗时约14天",
+        "<strong>关键发现1</strong>：冻结视觉编码器严重损害性能（47.0% vs 69.7% full fine-tune），必须全部解冻微调",
+        "<strong>关键发现2</strong>：DINOv2+SigLIP 双编码器显著优于单一 SigLIP 或 CLIP 编码器，空间推理能力更强",
+        "<strong>超越 RT-2-X</strong>：在 29 个跨机器人形态任务上平均成功率高出 16.5%（绝对值），参数量仅为其 1/7",
+        "<strong>高效微调</strong>：LoRA (rank=32) 仅训练1.4%参数即匹配全参数微调性能（68.2% vs 69.7%），VRAM仅需59.7GB",
+        "<strong>量化推理</strong>：支持 int4 量化，在消费级 RTX 4090 GPU 上以 ~6Hz 运行，不损失下游任务成功率",
+        "<strong>完全开源</strong>：提供模型权重、PyTorch 代码库、微调 notebook 和 VLA 推理服务端"
       ],
-      "detail": "<p>双视觉特征7B超越55B RT-2-X</p>"
+      "detail": "<h5>1. 模型架构</h5>\n<p><img alt=\"OpenVLA 架构示意图\" src=\"https://ar5iv.labs.arxiv.org/html/2406.09246/x1.png\" />\n<em>图：OpenVLA 模型架构。给定观测图像和语言指令，模型预测7维机器人控制动作。三部分：DINOv2+SigLIP 视觉编码器 → MLP投影器 → Llama 2 7B LLM。</em></p>\n<p>OpenVLA 的架构继承自现代 VLM 的标准设计范式，核心基于 <strong>Prismatic-7B</strong> 视觉语言模型，由三个组件组成：</p>\n<p><strong>(1) 视觉编码器（~600M 参数）</strong>：采用<strong>双编码器融合</strong>设计——DINOv2 和 SigLIP 各处理输入图像（224×224），输出特征向量在通道维度拼接。与仅使用 CLIP 或 SigLIP 的常见方案不同，DINOv2 的加入显著提升了空间推理能力，这对机器人操控任务尤为关键。视觉编码器共输出约 256 个图像 patch embedding。</p>\n<p><strong>(2) 投影器</strong>：一个轻量的 2 层 MLP，将拼接后的视觉特征映射到 LLM 的 token 嵌入空间（4096 维）。</p>\n<p><strong>(3) LLM 主干</strong>：Llama 2 7B，标准 Transformer decoder-only 架构，将视觉 token 与文本指令 token 拼接后自回归生成动作 token 序列。</p>\n<div class=\"warn-box\">⚠️ 关键设计决策：视觉编码器必须解冻训练。实验表明冻结视觉编码器导致成功率从 69.7% 骤降至 47.0%，原因在于互联网预训练的视觉特征缺乏机器人操作所需的细粒度空间和物理属性表征。</div>\n<h5>2. 动作离散化与 Token 映射</h5>\n<p>OpenVLA 将连续动作预测转化为语言模型的标准 next-token prediction 任务，核心机制如下：</p>\n<p><strong>动作空间</strong>：7 维绝对笛卡尔动作向量，包括：\n- 末端执行器位置增量 (Δx, Δy, Δz)\n- 旋转增量 (Δroll, Δpitch, Δyaw)\n- 夹爪开合度 (gripper)</p>\n<p><strong>离散化</strong>：每个动作维度独立离散为 256 个均匀 bins，bin 边界设为训练数据该维度第 1 和第 99 百分位数之间。</p>\n<p><strong>Token 分配</strong>：7 个动作维度 × 256 bins = 1792 个 action tokens，覆盖 Llama 2 tokenizer 中<strong>最低频的 256 个字节级 token</strong>。低频 token 在自然语言中几乎不被使用，因此重映射它们为 action token 不会干扰文本理解能力，同时保留所有高频 token 用于处理语言指令。</p>\n<p><strong>训练时</strong>：模型接收图像 token + 指令 token，自回归生成 7 个 action token，loss 仅计算在 action token 上（标准交叉熵）。</p>\n<h5>3. 训练流程</h5>\n<pre><code class=\"language-python\"># OpenVLA 训练框架伪代码\nmodel = PrismaticVLM(\n    vision_encoder=DinoV2_SigLIP(),   # 双视觉编码器 (~600M params)\n    projector=MLP(n_layers=2),\n    llm_backbone=Llama2()             # 7B params\n)\nmodel.vision_encoder.requires_grad = True  # 关键：必须解冻\ndataset = OpenX_Embodiment(num_demos=970_000)\noptimizer = AdamW(lr=2e-5, weight_decay=0.1)\ntrain_loader = DataLoader(dataset, batch_size=2048)\n\nfor epoch in range(27):\n    for img, instruction, action_7d in train_loader:\n        # 动作离散化：7维 × 256 bins\n        action_tokens = discretize(action_7d, bins=256)\n        # 拼接视觉 + 指令 + 动作token，仅计算action token loss\n        loss = model(img, instruction, labels=action_tokens)\n        loss.backward()\n        optimizer.step()\n# 硬件：64×A100 80GB，训练14天\n</code></pre>\n<p><strong>数据混合</strong>：使用 Open X-Embodiment (OXE) 数据集的全部 970k 条机器人演示，覆盖 22 种机器人形态和数百种任务。与 Octo 和 RT-2-X 使用的更小子集不同，OpenVLA 的全数据混合是其性能优势的关键来源之一。</p>\n<p><strong>预处理</strong>：图像 resize 到 224×224，使用 pixel-level 归一化（与 Prismatic 一致）。文本指令以自然语言形式直接拼接到输入序列中。</p>\n<h5>4. 高效微调：LoRA 与量化</h5>\n<p>OpenVLA 的一个核心贡献是证明了<strong>参数高效微调（PEFT）和量化技术可无缝应用于 VLAs</strong>，使其能在消费级 GPU 上适配新任务而不损失性能。</p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>微调策略</th>\n<th>成功率</th>\n<th>训练参数量 (M)</th>\n<th>VRAM (batch=16)</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>Full Fine-Tuning</td>\n<td>69.7%</td>\n<td>7,188.1</td>\n<td>163.3 GB*</td>\n</tr>\n<tr>\n<td>Last Layer Only</td>\n<td>30.3%</td>\n<td>465.1</td>\n<td>51.4 GB</td>\n</tr>\n<tr>\n<td>Frozen Vision</td>\n<td>47.0%</td>\n<td>6,760.4</td>\n<td>156.2 GB*</td>\n</tr>\n<tr>\n<td>Sandwich FT</td>\n<td>62.1%</td>\n<td>914.2</td>\n<td>64.0 GB</td>\n</tr>\n<tr>\n<td><strong>LoRA, rank=32</strong></td>\n<td><strong>68.2%</strong></td>\n<td><strong>97.6</strong></td>\n<td><strong>59.7 GB</strong></td>\n</tr>\n<tr>\n<td>LoRA, rank=64</td>\n<td>68.2%</td>\n<td>195.2</td>\n<td>60.5 GB</td>\n</tr>\n</tbody>\n</table></div>\n<p><em>注：带 * 策略需 2×GPU 分片（FSDP）</em></p>\n<p><strong>核心发现</strong>：\n- <strong>LoRA rank=32</strong> 达到 68.2%，与 full fine-tuning 的 69.7% 无显著差异，但仅训练 <strong>1.4%</strong> 参数，VRAM 降低 63%\n- Sandwich fine-tuning（解冻视觉编码器 + token embedding + 最后一层）达到 62.1%，是 LoRA 之前的轻量替代\n- Last layer only（30.3%）表明仅微调输出层远不足以适配新任务\n- rank=64 相比 rank=32 无额外收益，表明低秩适配已足够</p>\n<p><strong>量化推理</strong>：OpenVLA 支持 int4 量化部署。在 RTX 4090 消费级 GPU 上，bfloat16 精度推理速度约 <strong>6Hz</strong>，int4 量化进一步降低显存且不损害成功率。模型还提供远程推理服务端，支持实时流式动作预测。</p>\n<h5>5. 实验结果亮点</h5>\n<ul>\n<li><strong>跨平台评测</strong>：在 WidowX (BridgeData V2) 和 Google Robot 两个机器人平台上进行\"开箱即用\"评测，覆盖 29 个任务，含视觉、运动、物理和语义泛化四个维度</li>\n<li><strong>vs RT-2-X (55B)</strong>：除语义泛化外所有类别均超越，平均绝对成功率高出 <strong>16.5%</strong>，参数量仅 1/7</li>\n<li><strong>语言条件能力</strong>：在需要理解复杂语言指令的任务中表现突出，如\"将苹果放入蓝色碗中\" vs \"将苹果放入红色碗中\"</li>\n<li><strong>Fine-tuning 泛化</strong>：在 Franka 机器人上微调后，OpenVLA 展现出强大的多任务泛化能力，尤其在多物体、强语言指令场景下</li>\n</ul>\n<div class=\"key-point\">💡 关键启示：OpenVLA 证明了 (1) 互联网 VLM 预训练 + 大规模机器人数据微调是构建通用机器人策略的有效路径；(2) 开源 7B 模型可超越闭源 55B 模型，关键在于数据混合和视觉编码器选择；(3) LoRA 和量化为 VLA 走进实验室和消费级硬件铺平了道路。</div>",
+      "quiz": {
+        "q": "OpenVLA 为什么选择冻结 Llama 2 tokenizer 中最低频的 256 个 token 重映射为 action token？",
+        "options": [
+          "低频 token 在文本生成中损失函数权重更小，便于优化",
+          "保留高频 token 用于理解语言指令，同时利用低频 token 的空间容纳动作离散化为 7×256 bins",
+          "低频 token 的 embedding 向量维度更小，节省显存",
+          "因为 Llama 2 的 tokenizer 恰好有且仅有 256 个低频 token"
+        ],
+        "answer": 1,
+        "explain": "OpenVLA 将 7 维动作各离散化为 256 bins 共需 1792 个 action token。重映射最低频的字节级 token 既能避免占用高频 token 影响语言理解能力，又能利用低信息密度的 token 槽位承载控制信号。"
+      }
     },
     {
       "id": "gr1",
@@ -704,13 +783,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "transformer_policy",
       "motivation": "人形机器人端到端全身控制",
-      "summary": "GR-1/GR-2 的核心目标是：人形机器人端到端全身控制。",
+      "summary": "Fourier GR 系列是世界首款量产人形机器人平台，通过 53 个自由度全身关节、自研 FSA 2.0 执行器与基于 Transformer 的端到端全身控制策略，实现了从上层指令到底层关节力矩的直接映射，打破了传统“感知-规划-控制”管道架构，为人形机器人大规模部署提供了完整的硬件-算法闭环方案。",
       "keyPoints": [
-        "核心动机：人形机器人端到端全身控制",
-        "演化来源：继承或改进自 rt_x",
-        "代表机构：Fourier"
+        "<strong>端到端全身控制范式</strong>：GR 系列采用 Transformer 策略网络，将多模态感知（RGB 相机、深度、触觉、关节状态）直接映射为 53 自由度全身关节目标位置/力矩，去除模块化分解，实现从视觉到动作的单一前向推理",
+        "<strong>自主研发 FSA 2.0 执行器</strong>：7 种定制化旋转执行器，峰值扭矩 &gt;380 N·m，集成双编码器（电机端 + 输出端）实现高精度位置与力矩闭环控制，串行关节结构使腿部负载能力大幅提升",
+        "<strong>12-DOF 灵巧手</strong>：每只手 6 个主动自由度，集成 6 阵列触觉传感器，可感知接触力与滑动，形成视觉-触觉-本体的完整感知闭环",
+        "<strong>多模态遥操作与数据采集</strong>：支持 VR 遥操作、示教编程和直接指令控制三种模式，可高效采集专家演示数据用于端到端策略训练",
+        "<strong>模块化硬件设计</strong>：可拆卸电池支持续航翻倍，集成布线减少线缆外露，串行关节排布最大化有效工作空间",
+        "<strong>开源工具链</strong>：原生支持 NVIDIA Isaac Lab 与 MuJoCo 物理仿真，提供 ROS SDK 和 Python API，降低端到端策略开发与迁移成本",
+        "<strong>世界首款量产人形机器人</strong>：GR-1 已完成批量交付，GR-2 全面升级，奠定了人形机器人从实验室到产业应用的关键里程碑"
       ],
-      "detail": "<p>人形机器人端到端全身控制</p>"
+      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"GR-2 全身结构与执行器排布\" src=\"https://www.fftai.com/_next/image?url=%2Fimages%2Fgr2%2Fgr2-hero.jpg&amp;w=1200\" />\n<em>图 1：GR-2 人形机器人全身硬件结构——175cm / 63kg / 53DOF，采用串行关节排布与集成布线设计</em></p>\n<p><img alt=\"FSA 2.0 执行器\" src=\"https://www.fftai.com/_next/image?url=%2Fimages%2Fgr2%2Ffsa-actuator.jpg&amp;w=800\" />\n<em>图 2：FSA 2.0 系列执行器——7 种定制型号，峰值扭矩 &gt;380 N·m，双编码器闭环控制</em></p>\n<h5>算法流程</h5>\n<pre><code>端到端全身控制流程（GR 系列 VLA 视角）：\n\n对于每个控制周期（目标 20-50Hz）：\n    1. 传感器输入：\n       - Head RGB-D 相机（640×480 或更高分辨率）\n       - 12-DOF 灵巧手指尖触觉阵列（6 传感器/手，三轴力+滑动检测）\n       - 53 个关节编码器（位置、速度、力矩）\n       - 惯性测量单元（IMU）提供基座姿态\n       - 可选的语音/文本指令（自然语言任务描述）\n    2. 感知编码：\n       - 视觉 Transformer 将多帧 RGB-D 图像编码为空间-时序特征\n       - 触觉信号经 MLP 编码为紧凑触觉 token\n       - 关节状态通过浅层 MLP 编码为 proprioceptive token\n       - 指令（文本/语音）经轻量语言编码器（如 USE/CLIP）编码\n    3. 多模态融合与动作生成：\n       - 所有 token 拼接后送入因果 Transformer Decoder（8-12 层）\n       - 输出 53 个关节的目标位置 setpoint（或增量位置/力矩）\n       - 输出 12 个手指关节的目标角度\n       - 离散化动作分布（256 bins/DIM）或连续回归\n    4. 底层闭环：\n       - 目标位置经 FSA 2.0 双编码器 PID/阻抗控制器转化为电流指令\n       - 执行器以 &gt;1kHz 本地闭环频率执行力矩控制\n       - 触觉反馈可用于在线调整抓取力（柔顺控制）\n</code></pre>\n<h5>动机与背景</h5>\n<p>传统人形机器人控制沿袭了\"感知 → 状态估计 → 任务规划 → 轨迹优化 → 全身控制（WBC）→ 关节伺服\"的串行管道。这种模块化设计虽然可解释性强，但存在<strong>误差累积、优化实时性差、环境泛化困难</strong>三大瓶颈。</p>\n<p>Fourier 推出 GR 系列的核心理念是：<strong>硬件与算法联合设计</strong>。一方面，自研 FSA 2.0 执行器提供高带宽（&gt;1kHz 电流环）、高反驱透明度（back-drivability），使基于学习的端到端策略能够直接控制底层关节而无需传统 WBC 的 QP 优化层；另一方面，GR-1 的量产实践证明了端到端 Transformer 策略能够在真实世界搬运、装配、巡检等任务中稳定运行。</p>\n<p>相比于 RT-1/RT-2 的桌面级机械臂，GR 系列的挑战呈指数级增长：53 个自由度（RT-1 仅 7 维动作）、浮动基座的平衡约束、手-臂-躯干-腿的全身协调、以及高负载下的安全交互。因此，GR 的控制策略需要同时解决<strong>运动控制</strong>（行走、平衡）和<strong>操作控制</strong>（抓取、搬运）——这正是\"全身控制\"（Whole-Body Control）的核心内涵。</p>\n<h5>核心技术解析</h5>\n<p><strong>1. FSA 2.0 执行器：学习控制的关键使能器</strong></p>\n<p>端到端策略训练的输出通常是关节位置或力矩命令，这要求执行器具有：\n- <strong>高带宽通信</strong>：&gt;1kHz CAN/EtherCAT总线，保证神经网络推理结果能快速传递到关节\n- <strong>精确的出力控制</strong>：双编码器（电机端 19-bit + 输出端 17-bit）消除传动间隙误差，使策略网络不必建模减速器非线性\n- <strong>柔顺与反驱</strong>：低传动比设计（1:9 ~ 1:16）使得机械臂在断电或故障时可手动拖动，也利于基于力矩的阻抗控制\n- <strong>高扭矩密度</strong>：峰值 &gt;380 N·m，使得单臂负载 3kg 的同时仍可高速运动</p>\n<div class=\"key-point\">💡 关键：FSA 2.0 的本地闭环能力（位置/速度/力矩三种模式可动态切换）为端到端策略提供了\"命令接口\"——策略网络只需输出高层动作意图（如\"膝关节目标角度\"），执行器自行完成底层伺服。这种\"策略-伺服\"的分层架构平衡了端到端的灵活性与工业级稳定性。</div>\n<p><strong>2. 触觉闭环与灵巧操作</strong></p>\n<p>GR-2 的 12-DOF 灵巧手（每手 6 主动自由度）集成了 6 阵列触觉传感器，可感知：\n- 法向接触力（量程 0-15N，分辨率 0.01N）\n- 切向滑动（通过微振动检测）\n- 接触区域热力图</p>\n<p>这些触觉信号通过两种路径影响控制：\n- <strong>快速反射回路</strong>：当检测到意外滑动时，执行器本地自动增加抓取力，延迟 &lt;5ms，无需经 Transformer 推理\n- <strong>慢速策略回路</strong>：触觉 token 作为 Transformer 的输入序列之一，使策略网络学会\"根据物体表面特性调整抓取策略\"（如：光滑物体用指尖捏取，粗糙物体用手掌包裹）</p>\n<p>这种<strong>分层触觉架构</strong>——本地快速反射 + 策略层语义理解——与人类神经系统的脊髓反射 + 大脑皮层控制类似，是 GR 系列实现灵巧操作的关键设计。</p>\n<p><strong>3. 端到端策略的部署与训练框架</strong></p>\n<p>Fourier 官方并未公开具体模型架构，但结合其技术栈（NVIDIA Isaac Lab、MuJoCo、ROS 2）和行业趋势，可推断其端到端策略采用以下技术路线：</p>\n<ul>\n<li><strong>仿真预训练</strong>：在 Isaac Lab 中构建 GR 的数字孪生（数字躯干），利用并行 GPU 仿真生成海量全身控制数据（行走、抓取、搬运），训练基础运动控制先验</li>\n<li><strong>Sim-to-Real 迁移</strong>：采用域随机化（动力学参数、视觉纹理、接触参数）+ 执行器输入-输出测量做系统辨识，缩小 Sim-to-Real Gap</li>\n<li><strong>真实数据微调</strong>：通过 VR 遥操作 + 示教模式采集任务专属演示（如工厂搬运），用行为克隆（BC）或 DPO 微调策略</li>\n<li><strong>混合控制</strong>：对于行走等安全要求高的子任务，可切换至传统模型预测控制（MPC）+ 全身控制（WBC），操作任务则由端到端策略主导，形成混合架构</li>\n</ul>\n<h5>与传统方法对比</h5>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>维度</th>\n<th>传统人形机器人（Atlas, Asimo）</th>\n<th>GR 系列（VLA 视角）</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>控制架构</td>\n<td>感知→规划→WBC→伺服（多层优化）</td>\n<td>端到端 Transformer 直接输出关节指令</td>\n</tr>\n<tr>\n<td>动作生成</td>\n<td>离线轨迹优化 + 在线 MPC</td>\n<td>单次神经网络前向推理（20-50Hz）</td>\n</tr>\n<tr>\n<td>执行器</td>\n<td>液压/高传动比减速器</td>\n<td>FSA 2.0 低传动比力矩电机，原生反驱</td>\n</tr>\n<tr>\n<td>触觉</td>\n<td>极少或无</td>\n<td>12 指端 6 阵列触觉传感器 + 快速反射</td>\n</tr>\n<tr>\n<td>数据依赖</td>\n<td>精确模型 + 状态估计</td>\n<td>仿真 + 遥操作演示 + 微调</td>\n</tr>\n<tr>\n<td>量产状态</td>\n<td>实验室原型</td>\n<td>世界首款量产人形机器人（GR-1 已交付）</td>\n</tr>\n<tr>\n<td>开源生态</td>\n<td>封闭</td>\n<td>ROS SDK + Isaac Lab + MuJoCo 支持</td>\n</tr>\n</tbody>\n</table></div>\n<div class=\"warn-box\">⚠️ 注意：GR 系列本质上是一个<strong>硬件-算法联合平台</strong>，而非单一学术论文中的方法。其控制策略可根据应用需求在传统 WBC 与端到端策略之间灵活切换，代表了\"从学术 VLA 到工业落地\"的中间态——保留传统方法的安全保障，逐步引入端到端泛化能力。</div>\n<h5>关键硬件参数速览</h5>\n<p><strong>GR-1（初代量产款）</strong>\n- 身高：165 cm\n- 体重：55 kg\n- 自由度：40 DOF\n- 单臂负载：2 kg\n- 灵巧手：6 DOF × 2（可选）\n- 行走速度：1.2 m/s\n- 电池：可拆卸，续航 2 小时</p>\n<p><strong>GR-2（升级款）</strong>\n- 身高：175 cm\n- 体重：63 kg\n- 自由度：53 DOF（含 12-DOF 灵巧手）\n- 单臂负载：3 kg\n- 执行器：FSA 2.0，7 种定制型号，峰值扭矩 &gt;380 N·m\n- 灵巧手：12 DOF，6 阵列触觉传感器\n- 结构：串行关节排布，集成布线\n- 电池：可拆卸，续航翻倍（4 小时）\n- 仿真支持：NVIDIA Isaac Lab + MuJoCo + ROS 2 SDK</p>",
+      "quiz": {
+        "q": "Fourier GR-2 中 FSA 2.0 执行器的双编码器设计的主要作用是什么？",
+        "options": [
+          "提高电机的最大转速",
+          "消除传动间隙误差，使端到端策略不必建模减速器非线性",
+          "降低执行器功耗",
+          "增加通信带宽"
+        ],
+        "answer": 1,
+        "explain": "FSA 2.0 的电机端编码器（19-bit）和输出端编码器（17-bit）共同工作，可以在执行器本地闭环控制中实时补偿谐波减速器的传动误差、摩擦和回差，使得上层端到端策略只需要关心运动意图（如目标位置/力矩），而不必处理底层传动链的非线性。这是端到端策略能够直接控制 53 自由度全身关节的关键硬件基础。"
+      }
     },
     {
       "id": "pi0",
@@ -744,13 +838,29 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "diffusion_flow",
       "motivation": "双系统架构支持200Hz全身控制",
-      "summary": "Helix-02 的核心目标是：双系统架构支持200Hz全身控制。",
+      "summary": "Helix 提出了一种“System 2, System 1”双系统 VLA 架构，以 7B 参数 VLM 进行 7–9 Hz 的场景与语言理解，引导 80M 参数的 visuomotor Transformer 在 200 Hz 下输出全身连续控制，从而在一个统一模型内实现从语言到全身动作的零样本泛化，解决传统 VLA 模型无法同时兼顾高层语义推理与高频灵巧控制的瓶颈。",
       "keyPoints": [
-        "核心动机：双系统架构支持200Hz全身控制",
-        "演化来源：继承或改进自 pi0",
-        "代表机构：Figure AI"
+        "双系统架构：System 2（7B VLM，7–9 Hz）负责场景理解与语言解释，System 1（80M Transformer，200 Hz）负责实时 visuomotor 控制",
+        "端到端联合训练：梯度通过 S2→S1 的 latent communication vector 反向传播，两系统共用一组权重",
+        "全上身控制输出：手腕位姿、手指屈伸/外展、躯干朝向、头部目标，200 Hz 连续动作空间",
+        "多机器人协同：单一权重同时驱动物理两机器人完成长程操作任务，无需针对任务微调",
+        "零样本物体泛化：在混乱环境中拾取数千种训练中未见过的家居物品，仅需自然语言指令",
+        "纯机载低功耗 GPU 推理：全部推理在嵌入式 GPU 上完成，即用型商业部署",
+        "自动终止条件预测：动作空间附加“任务完成百分比”合成量，便于多技能序列编排",
+        "训练数据仅约 500 小时遥操作数据，不到先前 VLA 数据集的 5%"
       ],
-      "detail": "<p>双系统架构支持200Hz全身控制</p>"
+      "detail": "<p><img alt=\"Helix 技能缩放曲线\" src=\"https://images.ctfassets.net/qx5k8y1u9drj/3iC6I99o9zVebi4YAct58Z/c0f52b7200aee4c9638fe9fb1d9a5788/NEW_SCALING_LAWS.png?fm=webp\" />\n<em>图: Helix vs 传统方法的技能获取缩放曲线——传统启发式操控依赖 PhD 人工编程，模仿学习依赖海量遥操作数据，而 Helix 通过自然语言即可即时获得新技能。</em></p>\n<h5>动机与背景</h5>\n<p>传统机器人系统的技能扩展面临严重的瓶颈：每新增一种行为都需要 PhD 级手工编程或数千次遥操作示范。这一范式在工业结构化环境中尚可维持，但在家庭等非结构化场景——涉及成千上万形状、颜色、材质各异的物体——完全不可扩展。</p>\n<p>同时，已有 VLA（Vision-Language-Action）模型面临根本性折衷：VLM 骨干具有极强的语义泛化能力，但推理速度太慢（通常只到个位数 Hz）；而 visuomotor 策略能跑 200 Hz，却缺乏泛化。Helix 的核心思路是将两者分离为异步协同的两个系统，打通 VLM 的常识知识到高速动作控制的链路。</p>\n<h5>System 2（S2）—— 慢思考，语义推理</h5>\n<p>S2 是承载所有语义与场景理解的核心。其设计要点：\n- <strong>骨干</strong>: 7B 参数的开源开放权重 VLM，经互联网规模预训练，在推理时微调部署于机载 GPU。\n- <strong>输入</strong>: 单目机器人图像 + 机器人状态（手腕位姿、手指位置），通过视觉-语言嵌入空间投影后输入 VLM；外加自然语言指令。\n- <strong>输出</strong>: 单个连续 latent vector，将所有语义级任务信息（目标物体类型、容器位置、协作意图等）压缩其中，传递给 S1 进行条件控制。\n- <strong>频率</strong>: 7–9 Hz，作为异步后台进程运行，持续更新共享内存中的 latent vector。</p>\n<div class=\"key-point\">💡 关键：S2 不做任何动作 token 化。它不输出离散动作码本，而是将高层次意图编码为连续 latent，避免离散化带来的信息损失和复杂的 tokenization 方案，这是 Helix 相对现有 VLA（如 RT-2 等）的重大区别。</div>\n<h5>System 1（S1）—— 快思考，实时执行</h5>\n<p>S1 是一个 80M 参数的 cross-attention encoder-decoder Transformer，专门为高速闭环控制设计：\n- <strong>视觉骨干</strong>: 全卷积多尺度视觉网络，使用纯仿真数据预训练初始化权重，以获取稳健的视觉表征。\n- <strong>输入</strong>: 与 S2 相同的图像和状态输入，但在更高频率（200 Hz）下处理，实现即时响应。\n- <strong>条件注入</strong>: S2 的 latent vector 被投影到 S1 的 token 空间，沿序列维度与 S1 视觉特征拼接，构成任务条件。\n- <strong>输出空间</strong>: 200 Hz 全上身控制，包括手腕目标位姿、手指屈伸控制、手指外展控制、躯干朝向目标、头部朝向目标，以及一个合成的“任务完成百分比”信号。</p>\n<div class=\"warn-box\">⚠️ 注意: S2 和 S1 并非简单的串行 pipeline，而是异步并行。S2 在后台慢速迭代，S1 读取最新的共享 latent vector 运行实时闭环控制。这样 S1 不会因等待 S2 推理而丢帧。</div>\n<h5>端到端训练</h5>\n<p>Helix 从原始像素和文本指令直接映射到连续动作，使用标准回归损失进行端到端训练。梯度从 S1 经 latent communication vector 反向传播到 S2，实现两个系统的联合优化。</p>\n<p>训练时引入时序偏移（temporal offset）：在 S1 和 S2 输入之间加入人工延迟，该延迟被校准为部署时 S1/S2 推理延迟的差值。这一步确保训练条件与实际部署的实时控制需求精确对齐，避免训练-部署分布漂移。</p>\n<!-- 训练伪代码 -->\n\n<pre><code class=\"language-python\"># Helix 端到端训练伪代码\nfor batch in dataloader:\n    # S2: 慢速语义推理（7-9 Hz）\n    img_s2 = batch.image_s2\n    state_s2 = batch.state_s2\n    cmd = batch.text_command\n    latent = S2(img_s2, state_s2, cmd)  # 输出连续 latent vector\n\n    # S1: 高速控制（200 Hz），用 latent 条件控制\n    # 训练中加入 temporal offset 模拟部署延迟\n    img_s1 = batch.image_s2[offset:]  # offset 模拟 S2 推理延迟\n    state_s1 = batch.state_s2[offset:]\n    action_pred = S1(img_s1, state_s1, latent)\n\n    # 回归损失\n    loss = MSE(action_pred, batch.ground_truth_action)\n    # 梯度经 latent 向量反向传播至 S2\n    loss.backward()  # 同时更新 S1 和 S2 参数\n</code></pre>\n<h5>训练数据</h5>\n<p>约 500 小时的高质量多机器人、多操作员遥操作数据。为生成自然语言条件训练对，使用自动标注 VLM 对机载摄像头视频片段进行事后指令生成（\"What instruction would you have given the robot to get the action seen in this video?\"）。所有训练期间接触的物品均被排除在评测之外，确保零样本泛化测试的严格性。</p>\n<h5>推理部署</h5>\n<p>推理管线分别在两个机载低功耗嵌入式 GPU 上运行：一个专门跑 S2（异步后台，持续消费最新观察），一个专门跑 S1（实时 200 Hz 控制循环）。S2 持续更新共享内存中的 latent vector，S1 取最新值执行闭环控制。</p>\n<h5>与传统方法的区别</h5>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>维度</th>\n<th>传统 VLA（如 RT-2）</th>\n<th>传统 visuomotor 策略</th>\n<th>Helix</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>泛化能力</td>\n<td>强（VLM 骨干）</td>\n<td>弱（单任务）</td>\n<td>强（S2 驱动泛化）</td>\n</tr>\n<tr>\n<td>控制频率</td>\n<td>低（~1–5 Hz）</td>\n<td>高（50–200 Hz）</td>\n<td>高（200 Hz S1）</td>\n</tr>\n<tr>\n<td>动作空间</td>\n<td>离散 token</td>\n<td>连续</td>\n<td>连续，全上身</td>\n</tr>\n<tr>\n<td>动作 token 化</td>\n<td>需要</td>\n<td>不需要</td>\n<td>不需要（latent 传递）</td>\n</tr>\n<tr>\n<td>多任务</td>\n<td>需单独头/微调</td>\n<td>单任务</td>\n<td>统一权重</td>\n</tr>\n<tr>\n<td>部署</td>\n<td>需云端</td>\n<td>可机载</td>\n<td>纯机载 GPU</td>\n</tr>\n</tbody>\n</table></div>\n<div class=\"key-point\">💡 关键创新：通过 latent vector 桥接自然语言语义与连续控制信号，Helix 从根本上避免了动作 tokenization 灾难。离散 token 在高维连续空间（如 23 自由度的全上身）中几乎不可扩展，而 latent 传递是唯一可泛化的方案。</div>",
+      "quiz": {
+        "q": "Helix 的双系统架构中，System 2 与 System 1 之间的通信机制是什么？",
+        "options": [
+          "将 S2 的语言输出转换为离散动作码本，通过查找表传给 S1",
+          "S2 输出连续 latent vector，通过共享内存异步传递给 S1 作为条件输入",
+          "S2 直接输出关节力矩，S1 负责平滑滤波",
+          "S2 和 S1 共享同一个视觉 backbone，通过注意力矩阵交互"
+        ],
+        "answer": 1,
+        "explain": "Helix 的核心设计是将 S2 的高层语义压缩到单个连续 latent vector，通过共享内存传递给 S1 做条件控制，避免离散 tokenization 方案的信息损失和扩展性问题。"
+      }
     },
     {
       "id": "long_vla",
@@ -764,13 +874,16 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "transformer_policy",
       "motivation": "相位感知输入掩码解决长程任务",
-      "summary": "Long-VLA 的核心目标是：相位感知输入掩码解决长程任务。",
+      "summary": "Long-VLA 提出了一种相位感知的输入掩码策略，将长程操作任务拆成“移动阶段”和“交互阶段”，并据此动态调节不同视觉输入的注意力范围，使统一 VLA 模型能在不改变整体架构的情况下更稳定地完成多步骤长程任务。",
       "keyPoints": [
-        "核心动机：相位感知输入掩码解决长程任务",
-        "演化来源：继承或改进自 openvla",
-        "代表机构：CoRL 2025"
+        "<strong>相位感知输入掩码</strong>：根据当前处于移动还是交互阶段，动态屏蔽或放大某些视觉 token 的注意力",
+        "<strong>数据分解策略</strong>：把整条机器人轨迹按切割点自动拆成移动段和交互段，并显式加入 phase id",
+        "<strong>统一端到端架构</strong>：仍然使用单一多模态 Transformer 编码器 + 条件扩散动作解码器",
+        "<strong>L-CALVIN 基准</strong>：把 CALVIN 的任务链从 5 步扩展到 10 步，系统评估长程操作能力",
+        "<strong>架构无关</strong>：该掩码机制不要求替换模型骨干，本质上是一个可插拔的输入级模块",
+        "<strong>检测增强与目标建模</strong>：结合 Grounding DINO 和 CLIP 目标编码，提高长程导航和交互阶段的目标定位能力"
       ],
-      "detail": "<p>相位感知输入掩码解决长程任务</p>"
+      "detail": "<h5>核心思想：为什么长程任务难</h5>\n<p>长程机器人任务不是简单把短任务串起来。移动阶段与交互阶段对视觉信息的需求不同：\n- <strong>移动阶段</strong> 更依赖静态相机和全局目标位置\n- <strong>交互阶段</strong> 更依赖夹爪相机和局部细节</p>\n<p>如果把所有视觉 token 一视同仁，模型往往会在长程序列中被无关视觉信息干扰，导致注意力分散。</p>\n<h5>相位感知掩码</h5>\n<p>Long-VLA 的解决方法是在输入层引入 phase-aware mask。<br />\n当阶段为移动时，屏蔽夹爪相机等局部 token；当阶段为交互时，再激活所有 token。</p>\n<p>其直观形式可以写成：</p>\n<p>$$M_{ij} = m_i \\cdot m_j$$</p>\n<p>只有当对应 token 在当前阶段被激活时，它们之间的注意力连接才被保留。</p>\n<h5>为什么这个方法有效</h5>\n<p>这个设计的优点在于：\n- 不需要重新设计骨干网络\n- 不改变动作解码器形式\n- 只是通过阶段信息去调度“模型应该关注什么”</p>\n<p>因此它特别适合作为现有 VLA 的增强模块。论文在 L-CALVIN 上表明，这种输入级的结构偏置足以显著提升长程连续任务的完成率，说明很多长程失败并非来自控制器本身，而是来自注意力资源分配错误。</p>"
     },
     {
       "id": "groot_n2",
@@ -921,13 +1034,16 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "transformer_policy",
       "motivation": "类脑架构0.4W功耗20ms生存本能",
-      "summary": "NeuroVLA 的核心目标是：类脑架构0.4W功耗20ms生存本能。",
+      "summary": "NeuroVLA 将皮层、小脑、脊髓三层生物运动控制分工映射到 VLA 体系中：高层 VLM 负责语义意图，小脑样模块负责状态调制与阻尼补偿，脊髓样脉冲网络负责高速执行与反射控制，从而在极低功耗下实现更平滑、更安全的具身控制。",
       "keyPoints": [
-        "核心动机：类脑架构0.4W功耗20ms生存本能",
-        "演化来源：继承或改进自 hpt",
-        "代表机构：智平方"
+        "<strong>三层类脑架构</strong>：Cortical 负责语义规划，Cerebellar 负责状态调制与误差补偿，Spinal 负责脉冲式高频执行",
+        "<strong>小脑样 FiLM 调制</strong>：利用 GRU 编码本体感觉历史，生成增益与偏移参数，对高层语义 latent 做动态仿射调制",
+        "<strong>迭代精炼机制</strong>：通过类似 efference copy 的内部循环，在执行前先进行物理状态预测和动作补偿",
+        "<strong>脉冲神经网络执行层</strong>：采用 LIF 神经元和 Spiking ResNet，在神经形态芯片上实现低功耗、高频率执行",
+        "<strong>安全反射能力</strong>：碰撞触发下可在 20ms 量级内走反射回路，不必等待高层 VLM 完成完整推理",
+        "<strong>节能与平滑性</strong>：在低功耗条件下抑制高频抖动，呈现出更接近生物运动系统的平滑轨迹与稀疏激活特性"
       ],
-      "detail": "<p>类脑架构0.4W功耗20ms生存本能</p>"
+      "detail": "<h5>三层控制分解</h5>\n<p>NeuroVLA 把具身控制形式化为三层组合映射：</p>\n<p>$$\na_t = \\Phi_{\\text{spine}}\\big(\\Phi_{\\text{cerebellum}}(\\Phi_{\\text{cortex}}(I_t, L), h_t)\\big)\n$$</p>\n<p>其中：\n- <strong>Cortex</strong>：从视觉与语言中提取语义意图\n- <strong>Cerebellum</strong>：根据本体感觉历史 \\(h_t\\) 做状态调制和误差补偿\n- <strong>Spine</strong>：以脉冲网络形式执行高频动作并负责快速反射</p>\n<p>这种分层设计的关键不是“更复杂”，而是把不同时间尺度的计算分开处理。</p>\n<h5>Cerebellar 模块：把语义计划变成可执行动作</h5>\n<p>论文中最有价值的创新是小脑样模块。它先用 GRU 编码关节位置、速度、力矩和力觉等历史状态，再通过门控 FiLM 生成调制参数，对高层语义 latent 做仿射调制：</p>\n<p>$$\nz_{\\text{mod}} = (1 + \\gamma_t)\\cdot(z_{\\text{sem}}\\cdot g_t) + \\beta_t\n$$</p>\n<p>这个过程相当于让系统在执行前先根据当前身体状态修正“计划中的动作”，例如在接触、摩擦、重力扰动存在时自动增加阻尼或重写局部运动趋势。</p>\n<h5>脉冲网络与反射控制</h5>\n<p>执行层采用 stateful LIF 神经元，膜电位在时间上持续积累与衰减，因此即便不显式引入 LSTM，也会自然携带短时记忆。<br />\n在此基础上，Spiking ResNet 保留了深层网络的表达能力，同时维持脉冲激活的稀疏性。</p>\n<p>这使 NeuroVLA 在两个方向上与传统 VLA 拉开差异：\n- <strong>能耗更低</strong>：神经形态芯片层只需极低功耗\n- <strong>反射更快</strong>：危险接触可直接走脊髓样反射回路，而不是等待完整大模型推理</p>\n<p>从 VLA 发展脉络看，NeuroVLA 代表的是一种“不是继续堆更大模型，而是重构控制体系本身”的路线。</p>"
     },
     {
       "id": "pi0_7",
@@ -996,13 +1112,29 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "diffusion_flow",
       "motivation": "潜在空间物理推理达99.9%",
-      "summary": "LaST-R1 的核心目标是：潜在空间物理推理达99.9%。",
+      "summary": "LaST-R1 首次将隐式链式推理（Latent Chain-of-Thought）与在线强化学习结合，使视觉-语言-动作模型（VLA）能够在压缩的隐式 token 空间中进行内在思考，并通过 Latent-Action Policy Optimization（LAPO）实现推理与执行的联合优化。",
       "keyPoints": [
-        "核心动机：潜在空间物理推理达99.9%",
-        "演化来源：继承或改进自 pi0_7",
-        "代表机构：Simplexity/北大"
+        "提出 <strong>Last0*</strong> 架构：用 DINOv3 的 top-k 稀疏 token 替代传统 visual summary，将视觉信息压缩为语义丰富的隐式推理锚点",
+        "<strong>latent reasoning tokens</strong>：在 visual/text tokens 与 action tokens 之间插入可学习的隐式 token，模型在其中进行自主推理后再输出动作",
+        "<strong>Latent-Action Policy Optimization (LAPO)</strong>：首次将隐式推理空间纳入 RL 优化目标，含三部分损失（action loss + latent similarity loss + value loss），对 latent token 采用 importance sampling + 序列级 ratio + token 级 mask",
+        "<strong>Adaptive Latent CoT</strong>：通过 M 个候选位置采样 <code>&lt;latent_end&gt;</code> 终止 token，温度 β 控制探索，实现推理长度的自适应学习",
+        "<strong>Hybrid Attention Mask</strong>：latent tokens 使用 causal mask 进行自回归推理，action tokens 使用 bidirectional mask 实现并行解码，兼顾推理深度与执行效率",
+        "在 LIBERO 四套件上达到 <strong>99.8% SOTA</strong>，超 π_RL（98.3%）和 OpenVLA-OFT（97.1%）",
+        "真实世界 4 任务 RL 后成功率从 52.5% 提升至 <strong>93.75%</strong>",
+        "OOD 泛化显著优于 Action-Only PPO，验证了隐式推理空间对泛化能力的关键作用"
       ],
-      "detail": "<p>潜在空间物理推理达99.9%</p>"
+      "detail": "<h5>动机与背景</h5>\n<p>传统 VLA 模型面临\"死记硬背\"困境：模型直接映射感知到动作，缺乏内在推理过程。虽然 Chain-of-Thought（CoT）在 LLM 中取得了巨大成功，但将其应用于机器人存在两大障碍：</p>\n<ol>\n<li><strong>语言 CoT 的时延瓶颈</strong>：显式文本推理增加 2-5 秒延迟，对实时控制不可接受</li>\n<li><strong>RL 优化断裂</strong>：文本推理与动作执行无法通过 RL 进行端到端联合优化</li>\n</ol>\n<p>LaST-R1 的核心洞察：<strong>推理不一定需要显式语言，可以在压缩的隐式空间中进行</strong>——这既保留了推理深度，又解决了延迟和优化问题。</p>\n<h5>Last0* 架构</h5>\n<p><img alt=\"LaST-R1 架构总览图\" src=\"https://ar5iv.labs.arxiv.org/html/2604.28192/assets/x1.png\" />\n<em>图：LaST-R1 整体架构——视觉输入经 DINOv3 提取 top-k latent tokens，与 visual/text tokens 拼接后输入 LLM 进行 latent reasoning，最后 action decoder 输出动作块</em></p>\n<p>模型基于 Qwen3-VL-4B 构建，核心架构如下：</p>\n<p><strong>输入处理</strong>：\n- 视觉输入经 vision encoder 提取 N_v 个 visual tokens\n- 额外使用预训练 DINOv3 模型提取 top-k 隐式视觉总结 token（离线计算，无额外训练成本）\n- 文本指令 token 化后与 visual tokens、latent summary tokens 拼接</p>\n<p><strong>消融实验验证</strong>（Table 1）：\n- DINOv3 top-k 方法在 LIBERO-Spatial 上达 97.2%，显著优于 Global Pooling（93.5%）、Convolutional Downsampling（94.8%）、Q-Former（95.1%）\n- 隐式 token 长度从 1→8，性能单调提升至 97.2%（长度 1 时仅 93.8%）</p>\n<p><strong>Hybrid Attention Mask 设计</strong>（Figure 6）：\n- Vision + Text + Latent tokens：使用 causal lower-triangular mask（自回归生成）\n- <code>&lt;latent_end&gt;</code> 后 action tokens：使用 bidirectional mask，允许 chunk 内所有 action token 互相 attend\n- 该设计实现了\"推理串行、执行并行\"的效率平衡</p>\n<h5>Latent-Action Policy Optimization (LAPO)</h5>\n<p>LAPO 是首个将隐式推理空间纳入 RL 优化的框架，其总损失函数为：</p>\n<p>$$\\mathcal{L}_{LAPO}(\\theta) = \\mathcal{L}_{action}(\\theta) + \\lambda_1 \\mathcal{L}_{latent}(\\theta) + \\lambda_2 \\mathcal{L}_{value}(\\theta)$$</p>\n<p><strong>1. Action Loss（动作损失）</strong>：\n基于 PPO-clip 目标，对 action tokens 计算 standard policy gradient：</p>\n<p>$$\\mathcal{L}_{action} = -\\min(r_t(\\theta) \\hat{A}_t, \\text{clip}(r_t(\\theta), 1-\\epsilon_{\\min}, 1+\\epsilon_{\\max}) \\hat{A}_t)$$</p>\n<p>其中 ratio \\(r_t(\\theta)\\) 按序列级别计算，\\(\\epsilon_{\\min}=0.2, \\epsilon_{\\max}=0.28\\) 为非对称裁剪。</p>\n<p><strong>2. Latent Loss（隐式损失）</strong>：\n对 latent reasoning tokens 采用特殊处理：</p>\n<ul>\n<li><strong>Importance Sampling</strong>：由于隐式 token 不可直接监督，利用 SFT warm-up 期间计算的 offline DINOv3 GT latent 作为锚点</li>\n<li><strong>序列级 ratio</strong>：与 action loss 共享同一序列级 ratio（\\(r_t(\\theta)\\)），保持优化一致性</li>\n<li><strong>Token 级 mask</strong>：仅对 latent token 位置施加损失</li>\n</ul>\n<p>$$\\mathcal{L}_{latent} = -r_t(\\theta) \\hat{A}_t \\cdot \\mathbf{1}_{\\text{latent\\_position}} \\cdot \\cos\\_\\text{sim}(z_{pred}, z_{gt})$$</p>\n<p><strong>3. Value Loss（价值损失）</strong>：\n标准 MSE 损失，用于 GAE 优势估计（\\(\\gamma=0.99, \\lambda=0.95\\)）。</p>\n<p><strong>超参数消融</strong>（Figure 7）：\n- \\(\\lambda_1=0.1\\) 最佳（99.8%），\\(\\lambda_1=0\\) 降至 97.2%，\\(\\lambda_1=1\\) 降至 99.0%\n- \\(\\lambda_2=1\\) 最佳（99.8%），\\(\\lambda_2=0.1\\) 降至 97.8%\n- \\(\\lambda_3=0.1\\)（transition penalty）最佳，增至 2 降至 98.6%</p>\n<h5>Adaptive Latent CoT</h5>\n<p>传统方法固定插值长度，无法适配不同任务复杂度。LaST-R1 提出了自适应推理长度机制：</p>\n<ul>\n<li>设置最大长度 \\(L_{max}=8\\)，候选终止位置数 \\(M=4\\)</li>\n<li>在每个候选位置以概率 \\(p(m) \\propto \\exp(-\\beta \\cdot m)\\) 采样 <code>&lt;latent_end&gt;</code> token</li>\n<li>温度 \\(\\beta\\) 控制探索：\\(\\beta\\) 大 → 偏向短推理（exploitation），\\(\\beta\\) 小 → 偏向长推理（exploration）</li>\n</ul>\n<p><strong>优化目标</strong>包含 transition loss \\(\\mathcal{L}_{end}\\)：</p>\n<p>$$\\mathcal{L}_{total} = \\mathcal{L}_{action} + \\lambda_1 \\mathcal{L}_{latent} + \\lambda_2 \\mathcal{L}_{value} + \\lambda_3 \\mathcal{L}_{end}$$</p>\n<p>实验结果（Figure 8）：RL 后模型自动学习到早期退出策略——简单任务用 2-4 步推理，复杂任务保留更长推理。</p>\n<h5>训练流程</h5>\n<p><strong>第一阶段：SFT Warm-up</strong>\n- 预训练数据：400K 轨迹（28M 帧），含 Open-X-Embodiment、DROID、ManiSkill 等\n- 使用 Qwen3-VL-4B 预训练权重初始化\n- 扩展 tokenizer 词表：新增 256 个 action tokens（<code>&lt;action_i&gt;</code>，\\(i \\in [0,255]\\)）+ <code>&lt;latent_end&gt;</code> token\n- 联合优化：cosine similarity loss（latent 对齐）+ CE loss（<code>&lt;latent_end&gt;</code> + action tokens），权重比 1:0.1:1\n- LIBERO：每任务仅 1 条专家轨迹，训练 10K iterations\n- 真实世界：每任务 20 条轨迹，训练 1K iterations</p>\n<p><strong>第二阶段：LAPO RL 在线训练</strong>\n- LIBERO：8×H20 GPU，verl+FSDP，每次 rollout 512 条轨迹，4 PPO epochs，学习率 \\(3\\times10^{-5}\\)（actor）/ \\(3\\times10^{-4}\\)（value head）\n- 真实世界：Franka Research 3 机器人 + 2×RTX 4090，连续异步 actor-learner 架构，仅更新 LoRA（r=32），冻结基座模型\n- 真实世界奖励：任务成功 +10，步惩罚 -0.05</p>\n<h5>关键实验发现</h5>\n<ol>\n<li><strong>LIBERO SOTA</strong>（Table 1）：LaST-R1 四套件平均 99.8%，超过所有对比方法</li>\n<li><strong>消融 M=4</strong> 最佳，M=1（固定长度）降至 97.5%</li>\n<li><strong>执行效率</strong>（Figure 9）：RL 后模型执行步数甚至优于 expert demonstrations</li>\n<li><strong>OOD 泛化</strong>（Figure 10）：Action-Only PPO overfitting 严重（20-30%），LaST-R1 持续提升至 54-100%</li>\n</ol>",
+      "quiz": {
+        "q": "LaST-R1 中 LAPO 对隐式推理 token 采用的优化策略是什么？",
+        "options": [
+          "直接使用 PPO-clip 进行优化，与 action token 无区别",
+          "采用 importance sampling + 序列级 ratio + token 级 mask，仅对 latent token 位置施加损失",
+          "冻结隐式 token 权重，仅优化 action decoder",
+          "使用 DPO 进行偏好对齐，不涉及 ratio 计算"
+        ],
+        "answer": 1,
+        "explain": "隐式 token 不可直接监督，LAPO 利用 SFT 阶段的 offline DINOv3 GT latent 作为锚点进行 importance sampling，共享序列级 ratio 保持优化一致性，并通过 token 级 mask 仅在 latent 位置施加损失。"
+      }
     }
   ],
   "categories": {

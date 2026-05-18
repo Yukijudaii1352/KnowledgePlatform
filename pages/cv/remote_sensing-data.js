@@ -1,5 +1,5 @@
 /**
- * remote_sensing-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:43 自动生成。
+ * remote_sensing-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:02 自动生成。
  * 源文件：content/cv/remote_sensing.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "remote_sensing",
     "topic_name": "遥感与卫星视觉",
     "page_title": "遥感与卫星视觉技术演进",
-    "page_subtitle": "2026-05-13 版",
+    "page_subtitle": "2026-05-18 版",
     "page_desc": "系统梳理遥感图像理解、地物分类、变化检测与旋转目标检测等核心算法的发展历程",
     "page_icon": "🛰️",
     "hero_pills": [
@@ -19,6 +19,12 @@ window.PAGE_CONFIG = {
     "image_base": ""
   },
   "overview": [
+    {
+      "title": "待定",
+      "body_html": "<p>待定。</p>"
+    }
+  ],
+  "latest_overview": [
     {
       "title": "待定",
       "body_html": "<p>待定。</p>"

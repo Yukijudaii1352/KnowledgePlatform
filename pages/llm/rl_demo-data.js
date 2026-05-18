@@ -1,5 +1,5 @@
 /**
- * rl_demo-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:50 自动生成。
+ * rl_demo-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:08 自动生成。
  * 源文件：pipeline/examples/rl_demo.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "rl_demo",
     "topic_name": "强化学习 Demo (示例编译)",
     "page_title": "大模型 RL 算法总结",
-    "page_subtitle": "2026-05-13 版",
+    "page_subtitle": "2026-05-18 版",
     "page_desc": "最小示例文档 —— 用来演示 pipeline 如何把一篇结构化 markdown 文档编译为一个完整的二级标签页。",
     "page_icon": "🎯",
     "hero_pills": [
@@ -31,6 +31,12 @@ window.PAGE_CONFIG = {
     {
       "title": "三、发展趋势",
       "body_html": "<p>纵观 RLVR 的发展脉络，可以清晰看到几个趋势：从复杂到简洁、从通用到精细、从硬约束到软约束。</p>"
+    }
+  ],
+  "latest_overview": [
+    {
+      "title": "待定",
+      "body_html": "<p>待定。</p>"
     }
   ],
   "graph": {

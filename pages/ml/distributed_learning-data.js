@@ -1,5 +1,5 @@
 /**
- * distributed_learning-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:48 自动生成。
+ * distributed_learning-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:06 自动生成。
  * 源文件：content/ml/distributed_learning.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "distributed_learning",
     "topic_name": "分布式机器学习",
     "page_title": "分布式机器学习 算法总结",
-    "page_subtitle": "2026-05-13 版",
+    "page_subtitle": "2026-05-18 版",
     "page_desc": "系统梳理从参数服务器到联邦学习，以及大规模模型并行训练与通信优化的技术演进历程，涵盖2011年至2026年的经典算法与前沿进展。",
     "page_icon": "🔄",
     "hero_pills": [
@@ -19,6 +19,12 @@ window.PAGE_CONFIG = {
     "image_base": ""
   },
   "overview": [
+    {
+      "title": "待定",
+      "body_html": "<p>待定。</p>"
+    }
+  ],
+  "latest_overview": [
     {
       "title": "待定",
       "body_html": "<p>待定。</p>"

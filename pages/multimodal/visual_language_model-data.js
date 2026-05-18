@@ -1,5 +1,5 @@
 /**
- * visual_language_model-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:50 自动生成。
+ * visual_language_model-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:08 自动生成。
  * 源文件：content/mm/visual_language_model.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "visual_language_model",
     "topic_name": "视觉-语言基础模型",
     "page_title": "视觉-语言基础模型",
-    "page_subtitle": "2026-05-13 版",
+    "page_subtitle": "2026-05-18 版",
     "page_desc": "视觉-语言基础模型（VLM）通过跨模态对齐、指令微调和原生多模态训练，实现图像与文本的深度理解与生成，是多模态AI的核心基础设施。",
     "page_icon": "🔗",
     "hero_pills": [],
@@ -17,6 +17,12 @@ window.PAGE_CONFIG = {
     "image_base": ""
   },
   "overview": [
+    {
+      "title": "待定",
+      "body_html": "<p>待定。</p>"
+    }
+  ],
+  "latest_overview": [
     {
       "title": "待定",
       "body_html": "<p>待定。</p>"

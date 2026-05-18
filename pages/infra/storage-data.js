@@ -1,5 +1,5 @@
 /**
- * storage-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:46 自动生成。
+ * storage-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:05 自动生成。
  * 源文件：content/infra/storage.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "storage",
     "topic_name": "AI存储系统",
     "page_title": "AI存储系统技术演进",
-    "page_subtitle": "2026-05-13版",
+    "page_subtitle": "2026-05-18版",
     "page_desc": "从GFS奠基到大模型时代的存储优化——涵盖大规模训练数据存储、高速缓存、Checkpoint优化与分布式文件系统的技术演进",
     "page_icon": "💾",
     "hero_pills": [
@@ -22,6 +22,12 @@ window.PAGE_CONFIG = {
     "image_base": ""
   },
   "overview": [
+    {
+      "title": "待定",
+      "body_html": "<p>待定。</p>"
+    }
+  ],
+  "latest_overview": [
     {
       "title": "待定",
       "body_html": "<p>待定。</p>"

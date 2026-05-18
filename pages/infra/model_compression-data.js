@@ -1,5 +1,5 @@
 /**
- * model_compression-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:45 自动生成。
+ * model_compression-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:05 自动生成。
  * 源文件：content/infra/model_compression.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "model_compression",
     "topic_name": "模型压缩",
     "page_title": "模型压缩算法总结",
-    "page_subtitle": "2026-05-13 版",
+    "page_subtitle": "2026-05-18 版",
     "page_desc": "综述量化、剪枝、蒸馏与稀疏化部署的技术演进，涵盖从经典压缩范式到2026年最新前沿进展。",
     "page_icon": "🗜️",
     "hero_pills": [
@@ -19,6 +19,12 @@ window.PAGE_CONFIG = {
     "image_base": ""
   },
   "overview": [
+    {
+      "title": "待定",
+      "body_html": "<p>待定。</p>"
+    }
+  ],
+  "latest_overview": [
     {
       "title": "待定",
       "body_html": "<p>待定。</p>"

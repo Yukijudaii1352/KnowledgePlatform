@@ -293,11 +293,23 @@ function ensureGraphToolbar(container) {
   });
 })();
 
-/* ============ 4. 时间线 (升序) ============ */
+/* ============ 4. 最新进展综述 ============ */
+(function renderLatestOverview() {
+  const root = document.getElementById('latest-progress-overview');
+  if (!root) return;
+  (CFG.latest_overview || []).forEach(sec => {
+    const el = document.createElement('div');
+    el.className = 'field-overview-section';
+    el.innerHTML = `<h3>${sec.title}</h3>${sec.body_html}`;
+    root.appendChild(el);
+  });
+})();
+
+/* ============ 5. 时间线 (升序) ============ */
 function renderTimeline() {
   const c = document.getElementById('timeline-container');
   if (!c) return;
-  const milestones = new Set(CFG.graph.milestones || []);
+  const milestones = getMilestoneIds();
   c.innerHTML = ALGOS_ASC.map(a => {
     const isMile = milestones.has(a.id);
     const paper = a.paperUrl ? `<a class="tl-paper-link" href="${a.paperUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">📄 论文</a>` : '';
@@ -319,7 +331,34 @@ function renderTimeline() {
   if (td) td.textContent = `共 ${ALGOS.length} 个算法，按发布时间从早到晚排列。点击任意卡片可跳转至「最新进展」中该算法的详解。`;
 }
 
-/* ============ 5. 图谱 (纯 SVG) ============ */
+function renderProgressTimeline() {
+  const c = document.getElementById('progress-timeline-container');
+  if (!c) return;
+  const milestones = getMilestoneIds();
+  c.innerHTML = ALGOS_DESC.map(a => {
+    const isMile = milestones.has(a.id);
+    const paper = a.paperUrl ? `<a class="tl-paper-link" href="${a.paperUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">📄 论文</a>` : '';
+    const catMeta = CATEGORIES[a.category] || null;
+    const cat = catMeta ? `<span class="tl-route-badge" style="background:${catMeta.color}22;color:${catMeta.color}">${catMeta.label}</span>` : '';
+    const parent = (a.parent && a.parent !== '—')
+      ? `<span class="tl-inherit">← 改进自 ${a.parent}</span>`
+      : `<span class="tl-inherit">🏛️ 奠基</span>`;
+    return `<div class="tl-item">
+      <div class="tl-dot ${isMile ? 'milestone' : ''}"></div>
+      <div class="tl-date">${a.year}</div>
+      <div class="tl-card" onclick="scrollToAlgo('${a.id}')">
+        <h3>${a.name} — ${a.fullName || ''}</h3>
+        <p class="tl-summary">${a.summary}</p>
+        <div class="tl-badges">${cat}${a.org ? `<span class="tl-org-badge">${a.org}</span>` : ''}</div>
+        ${parent}${paper}
+      </div>
+    </div>`;
+  }).join('');
+  const td = document.getElementById('progress-timeline-desc');
+  if (td) td.textContent = `共 ${ALGOS.length} 个算法，按发布时间从新到旧排列。点击时间线卡片可定位到下方对应算法详解。`;
+}
+
+/* ============ 6. 图谱 (纯 SVG) ============ */
 function renderGraph() {
   const container = document.getElementById('graph-container');
   const svg = document.getElementById('graph-svg');
@@ -438,7 +477,7 @@ function renderGraph() {
   if (gd) gd.textContent = `节点代表算法，边代表继承/改进关系；颜色对应路线类别。支持拖动节点调整布局，轻点节点可跳转至「最新进展」中的算法详解。`;
 }
 
-/* ============ 6. 算法详解 + 路线筛选（降序） ============ */
+/* ============ 7. 算法详解 + 路线筛选（降序） ============ */
 let currentRouteFilter = 'all';
 
 function renderAlgos() {
@@ -545,7 +584,7 @@ function renderQuiz(a) {
     </div>`;
 }
 
-/* ============ 7. 视图切换 ============ */
+/* ============ 8. 视图切换 ============ */
 const VIEW_LABELS = { overview: '领域综述', progress: '最新进展' };
 
 function enterView(name) {
@@ -587,7 +626,7 @@ function exitView() {
   window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
 }
 
-/* ============ 8. 交互辅助 ============ */
+/* ============ 9. 交互辅助 ============ */
 function showAlgo(id) {
   // 跳转到「最新进展」并展开对应算法
   enterView('progress');
@@ -598,6 +637,18 @@ function showAlgo(id) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       const header = el.querySelector('.algo-header');
       if (header && !header.classList.contains('expanded')) header.click();
+    }
+    reRenderMath();
+  }, 120);
+}
+
+function scrollToAlgo(id) {
+  enterView('progress');
+  if (currentRouteFilter !== 'all') filterByRoute('all');
+  setTimeout(() => {
+    const el = document.getElementById('algo-' + id);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     reRenderMath();
   }, 120);
@@ -645,7 +696,7 @@ function toggleChat() {
   w.classList.toggle('kb-chat-expanded');
 }
 
-/* ============ 9. KaTeX ============ */
+/* ============ 10. KaTeX ============ */
 function reRenderMath() {
   if (typeof renderMathInElement !== 'undefined') {
     renderMathInElement(document.body, {
@@ -660,8 +711,9 @@ function reRenderMath() {
   }
 }
 
-/* ============ 10. Init ============ */
+/* ============ 11. Init ============ */
 renderTimeline();
+renderProgressTimeline();
 renderAlgos();
 
 // 初始状态：两个视图都隐藏（由 CSS 默认隐藏），展示视图选择屏

@@ -1,5 +1,5 @@
 /**
- * text_edit-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:41 自动生成。
+ * text_edit-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:01 自动生成。
  * 源文件：content/aigc/text_edit.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "text_edit",
     "topic_name": "text_edit",
     "page_title": "图像编辑技术演进图谱",
-    "page_subtitle": "2026-05-13 版",
+    "page_subtitle": "2026-05-18 版",
     "page_desc": "梳理从GAN时代到Diffusion时代的图像编辑算法演进脉络，涵盖局部重绘、风格迁移、可控生成及2026年最新的DiT架构编辑与精准控制技术。",
     "page_icon": "🎨",
     "hero_pills": [
@@ -19,6 +19,12 @@ window.PAGE_CONFIG = {
     "image_base": ""
   },
   "overview": [
+    {
+      "title": "待定",
+      "body_html": "<p>待定。</p>"
+    }
+  ],
+  "latest_overview": [
     {
       "title": "待定",
       "body_html": "<p>待定。</p>"

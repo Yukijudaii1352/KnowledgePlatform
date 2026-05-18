@@ -1,5 +1,5 @@
 /**
- * ml4sci-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:39 自动生成。
+ * ml4sci-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:00 自动生成。
  * 源文件：content/ai4sci/ml4sci.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "ml4sci",
     "topic_name": "ml4sci",
     "page_title": "科学机器学习技术演进",
-    "page_subtitle": "2026-05-13 版",
+    "page_subtitle": "2026-05-18 版",
     "page_desc": "从物理信息神经网络（PINN）到神经算子、可微分仿真与科学计算加速的技术发展脉络",
     "page_icon": "⚛️",
     "hero_pills": [
@@ -19,6 +19,12 @@ window.PAGE_CONFIG = {
     "image_base": ""
   },
   "overview": [
+    {
+      "title": "待定",
+      "body_html": "<p>待定。</p>"
+    }
+  ],
+  "latest_overview": [
     {
       "title": "待定",
       "body_html": "<p>待定。</p>"

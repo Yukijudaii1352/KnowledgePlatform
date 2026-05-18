@@ -1,5 +1,5 @@
 /**
- * representation_learning-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:49 自动生成。
+ * representation_learning-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:07 自动生成。
  * 源文件：content/ml/representation_learning.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "representation_learning",
     "topic_name": "表示学习",
     "page_title": "表示学习 技术演进",
-    "page_subtitle": "2026-05-13 版",
+    "page_subtitle": "2026-05-18 版",
     "page_desc": "从特征工程到深度表示学习，探讨数据的有效表达方式",
     "page_icon": "🧠",
     "hero_pills": [
@@ -20,6 +20,12 @@ window.PAGE_CONFIG = {
     "image_base": ""
   },
   "overview": [
+    {
+      "title": "待定",
+      "body_html": "<p>待定。</p>"
+    }
+  ],
+  "latest_overview": [
     {
       "title": "待定",
       "body_html": "<p>待定。</p>"

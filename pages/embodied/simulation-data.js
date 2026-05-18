@@ -1,5 +1,5 @@
 /**
- * simulation-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:44 自动生成。
+ * simulation-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:03 自动生成。
  * 源文件：content/embodied/simulation.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "simulation",
     "topic_name": "具身智能仿真",
     "page_title": "具身智能仿真技术演进图谱",
-    "page_subtitle": "2026-05-13 版",
+    "page_subtitle": "2026-05-18 版",
     "page_desc": "从早期物理引擎到GPU大规模并行仿真，再到生成式数字孪生的技术演进历程，涵盖Isaac Sim、MuJoCo、Genesis等核心平台与基准测试体系。",
     "page_icon": "🎮",
     "hero_pills": [
@@ -19,6 +19,12 @@ window.PAGE_CONFIG = {
     "image_base": ""
   },
   "overview": [
+    {
+      "title": "待定",
+      "body_html": "<p>待定。</p>"
+    }
+  ],
+  "latest_overview": [
     {
       "title": "待定",
       "body_html": "<p>待定。</p>"

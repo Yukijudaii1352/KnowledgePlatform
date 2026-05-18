@@ -1,5 +1,5 @@
 /**
- * 3d_vision-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:41 自动生成。
+ * 3d_vision-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:01 自动生成。
  * 源文件：content/cv/3d_vision.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "3d_vision",
     "topic_name": "3D视觉",
     "page_title": "3D视觉技术演进图谱",
-    "page_subtitle": "2026-05-13 版",
+    "page_subtitle": "2026-05-18 版",
     "page_desc": "系统梳理从点云处理、NeRF神经辐射场到3D Gaussian Splatting的技术变革与2026最新前沿，涵盖神经渲染、三维重建的完整演化路径。",
     "page_icon": "🧊",
     "hero_pills": [
@@ -20,6 +20,12 @@ window.PAGE_CONFIG = {
     "image_base": ""
   },
   "overview": [
+    {
+      "title": "待定",
+      "body_html": "<p>待定。</p>"
+    }
+  ],
+  "latest_overview": [
     {
       "title": "待定",
       "body_html": "<p>待定。</p>"

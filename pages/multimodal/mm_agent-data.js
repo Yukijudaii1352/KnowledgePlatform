@@ -1,5 +1,5 @@
 /**
- * mm_agent-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:49 自动生成。
+ * mm_agent-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:08 自动生成。
  * 源文件：content/mm/mm_agent.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "mm_agent",
     "topic_name": "多模态Agent",
     "page_title": "多模态Agent 技术演进图谱",
-    "page_subtitle": "2026-05-13 版",
+    "page_subtitle": "2026-05-18 版",
     "page_desc": "涵盖视觉-语言导航、GUI自动化、网页交互、具身智能和通用框架五大方向，从感知到决策、从单体到协作的完整技术演进脉络。",
     "page_icon": "🤖",
     "hero_pills": [
@@ -19,6 +19,12 @@ window.PAGE_CONFIG = {
     "image_base": ""
   },
   "overview": [
+    {
+      "title": "待定",
+      "body_html": "<p>待定。</p>"
+    }
+  ],
+  "latest_overview": [
     {
       "title": "待定",
       "body_html": "<p>待定。</p>"

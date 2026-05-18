@@ -1,5 +1,5 @@
 /**
- * ai4biology-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:39 自动生成。
+ * ai4biology-data.js — 由 pipeline/build.py 于 2026-05-18 18:50:59 自动生成。
  * 源文件：content/ai4sci/ai4biology.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "ai4biology",
     "topic_name": "生命科学AI",
     "page_title": "生命科学AI技术图谱",
-    "page_subtitle": "2026-05-13 版",
+    "page_subtitle": "2026-05-18 版",
     "page_desc": "AlphaFold、蛋白质设计、基因组学与单细胞分析等用于生命科学的AI技术",
     "page_icon": "🧬",
     "hero_pills": [],
@@ -17,6 +17,12 @@ window.PAGE_CONFIG = {
     "image_base": "../../content/ai4sci/ai4biology/assets/"
   },
   "overview": [
+    {
+      "title": "待定",
+      "body_html": "<p>待定。</p>"
+    }
+  ],
+  "latest_overview": [
     {
       "title": "待定",
       "body_html": "<p>待定。</p>"

@@ -1,5 +1,5 @@
 /**
- * image_classification-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:42 自动生成。
+ * image_classification-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:02 自动生成。
  * 源文件：content/cv/image_classification.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "image_classification",
     "topic_name": "图像分类",
     "page_title": "图像分类算法演进",
-    "page_subtitle": "2026-05-13 版",
+    "page_subtitle": "2026-05-18 版",
     "page_desc": "从AlexNet开启的深度学习时代，经历ResNet残差革命、ViT注意力范式，到ConvNeXt现代CNN复兴与2026年高效状态空间模型的融合探索",
     "page_icon": "🖼️",
     "hero_pills": [
@@ -20,6 +20,12 @@ window.PAGE_CONFIG = {
     "image_base": ""
   },
   "overview": [
+    {
+      "title": "待定",
+      "body_html": "<p>待定。</p>"
+    }
+  ],
+  "latest_overview": [
     {
       "title": "待定",
       "body_html": "<p>待定。</p>"

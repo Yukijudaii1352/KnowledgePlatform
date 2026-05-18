@@ -1,5 +1,5 @@
 /**
- * ai4physics-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:39 自动生成。
+ * ai4physics-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:00 自动生成。
  * 源文件：content/ai4sci/ai4physics.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "ai4physics",
     "topic_name": "物理学AI",
     "page_title": "物理学AI 算法总结",
-    "page_subtitle": "2026-05-13 版",
+    "page_subtitle": "2026-05-18 版",
     "page_desc": "从PINN到神经算子，从流体仿真到物理定律发现，涵盖2016-2026年物理学AI核心算法演化",
     "page_icon": "⚛️",
     "hero_pills": [
@@ -20,6 +20,12 @@ window.PAGE_CONFIG = {
     "image_base": "../../content/ai4sci/ai4physics/assets/"
   },
   "overview": [
+    {
+      "title": "待定",
+      "body_html": "<p>待定。</p>"
+    }
+  ],
+  "latest_overview": [
     {
       "title": "待定",
       "body_html": "<p>待定。</p>"

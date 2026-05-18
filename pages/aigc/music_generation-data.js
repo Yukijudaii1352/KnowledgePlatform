@@ -1,5 +1,5 @@
 /**
- * music_generation-data.js — 由 pipeline/build.py 于 2026-05-13 14:56:40 自动生成。
+ * music_generation-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:01 自动生成。
  * 源文件：content/aigc/music_generation.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "music_generation",
     "topic_name": "music_generation",
     "page_title": "音乐生成技术演进",
-    "page_subtitle": "2026-05-13 版",
+    "page_subtitle": "2026-05-18 版",
     "page_desc": "从WaveNet的原始波形合成到MusicLM的文本驱动生成，再到SongBloom的端到端歌曲创作，AI音乐生成经历了从局部采样到长时结构一致性的技术跨越，实现了旋律、和声、人声与伴奏的全栈智能创作。",
     "page_icon": "🎵",
     "hero_pills": [
@@ -19,6 +19,12 @@ window.PAGE_CONFIG = {
     "image_base": ""
   },
   "overview": [
+    {
+      "title": "待定",
+      "body_html": "<p>待定。</p>"
+    }
+  ],
+  "latest_overview": [
     {
       "title": "待定",
       "body_html": "<p>待定。</p>"
