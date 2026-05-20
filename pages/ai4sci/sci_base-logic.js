@@ -17,9 +17,21 @@ const CFG = window.PAGE_CONFIG;
 const ALGOS = CFG.algos;
 const CATEGORIES = CFG.categories;          // { id: {label, color} }
 const PROJECT_URLS = CFG.projectUrls || {};
+const CHAT_STORAGE_KEY = 'kp_page_chat_settings_v1';
+const CHAT_DEFAULT_CONFIG = {
+  base: 'https://api.openai.com',
+  key: '',
+  model: 'gpt-4.1-mini'
+};
 const GRAPH_STATE = {
   userPositions: {},
   drag: null
+};
+const CHAT_STATE = {
+  config: loadChatConfig(),
+  history: [],
+  sending: false,
+  settingsOpen: false
 };
 
 // 按时间 降序 排列（最新进展视图用）
@@ -503,6 +515,7 @@ function renderAlgos() {
             ${f.label}<span class="route-chip-count">${counts[f.key]}</span>
           </button>`).join('')}
       </div>
+      <span class="route-filter-hint">按发布时间从新到旧排列</span>
     </div>`;
 
   // 渲染顺序：时间从新到旧
@@ -696,6 +709,396 @@ function toggleChat() {
   const w = document.getElementById('kb-chat-widget');
   w.classList.toggle('kb-chat-collapsed');
   w.classList.toggle('kb-chat-expanded');
+  if (w.classList.contains('kb-chat-expanded')) {
+    if (!isChatConfigured()) {
+      toggleChatSettings(true);
+    }
+    const input = document.getElementById('kb-chat-input');
+    if (input && !input.disabled) input.focus();
+  }
+}
+
+function loadChatConfig() {
+  try {
+    const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+    if (!raw) return { ...CHAT_DEFAULT_CONFIG };
+    const parsed = JSON.parse(raw);
+    return {
+      base: String(parsed.base || CHAT_DEFAULT_CONFIG.base).trim(),
+      key: String(parsed.key || '').trim(),
+      model: String(parsed.model || CHAT_DEFAULT_CONFIG.model).trim()
+    };
+  } catch (_) {
+    return { ...CHAT_DEFAULT_CONFIG };
+  }
+}
+
+function saveChatConfig() {
+  localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(CHAT_STATE.config));
+}
+
+function clearChatConfig() {
+  CHAT_STATE.config = { ...CHAT_DEFAULT_CONFIG, key: '' };
+  localStorage.removeItem(CHAT_STORAGE_KEY);
+}
+
+function isChatConfigured() {
+  return Boolean(
+    CHAT_STATE.config.base &&
+    CHAT_STATE.config.key &&
+    CHAT_STATE.config.model
+  );
+}
+
+function getChatEls() {
+  return {
+    widget: document.getElementById('kb-chat-widget'),
+    config: document.getElementById('kb-chat-config'),
+    base: document.getElementById('kb-chat-base'),
+    key: document.getElementById('kb-chat-key'),
+    model: document.getElementById('kb-chat-model'),
+    status: document.getElementById('kb-chat-status'),
+    input: document.getElementById('kb-chat-input'),
+    send: document.getElementById('kb-chat-send-btn'),
+    messages: document.getElementById('kb-chat-messages'),
+    save: document.getElementById('kb-chat-save-btn'),
+    clear: document.getElementById('kb-chat-clear-btn')
+  };
+}
+
+function syncChatConfigForm() {
+  const els = getChatEls();
+  if (!els.base || !els.key || !els.model) return;
+  els.base.value = CHAT_STATE.config.base || '';
+  els.key.value = CHAT_STATE.config.key || '';
+  els.model.value = CHAT_STATE.config.model || '';
+}
+
+function renderChatStatus() {
+  const els = getChatEls();
+  if (!els.status || !els.input || !els.send) return;
+  if (CHAT_STATE.sending) {
+    els.status.textContent = `正在调用 ${CHAT_STATE.config.model || '模型'}，并结合本页知识回答…`;
+    els.input.disabled = true;
+    els.send.disabled = true;
+    return;
+  }
+  if (isChatConfigured()) {
+    els.status.textContent = `已配置 ${CHAT_STATE.config.model} · 将结合本页知识内容回答`;
+    els.input.disabled = false;
+    els.send.disabled = false;
+    els.input.placeholder = '例如：BERT 和 MAE 的关系是什么？';
+  } else {
+    els.status.textContent = '未配置 API。请先点击右上角 ⚙ 填写 API Base / API Key / Model。';
+    els.input.disabled = true;
+    els.send.disabled = true;
+    els.input.placeholder = '请先配置 API Base / API Key / Model';
+  }
+}
+
+function toggleChatSettings(forceOpen) {
+  const els = getChatEls();
+  if (!els.config) return;
+  CHAT_STATE.settingsOpen = typeof forceOpen === 'boolean' ? forceOpen : !CHAT_STATE.settingsOpen;
+  els.config.hidden = !CHAT_STATE.settingsOpen;
+  if (CHAT_STATE.settingsOpen) syncChatConfigForm();
+}
+
+function renderChatText(text) {
+  return String(text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function appendChatMessage(role, text) {
+  const els = getChatEls();
+  if (!els.messages) return null;
+  const div = document.createElement('div');
+  div.className = `kb-chat-msg kb-chat-msg-${role}`;
+  div.innerHTML = renderChatText(text);
+  els.messages.appendChild(div);
+  els.messages.scrollTop = els.messages.scrollHeight;
+  return div;
+}
+
+function normalizeChatBase(base) {
+  return String(base || '').trim().replace(/\/+$/, '');
+}
+
+function resolveChatEndpoint(base) {
+  const normalized = normalizeChatBase(base);
+  if (!normalized) return '';
+  if (normalized.endsWith('/chat/completions')) return normalized;
+  if (normalized.endsWith('/v1')) return `${normalized}/chat/completions`;
+  return `${normalized}/v1/chat/completions`;
+}
+
+function htmlToPlainText(html) {
+  const div = document.createElement('div');
+  div.innerHTML = html || '';
+  return (div.textContent || div.innerText || '').replace(/\s+/g, ' ').trim();
+}
+
+function trimText(text, maxChars) {
+  const normalized = String(text || '').replace(/\s+/g, ' ').trim();
+  if (normalized.length <= maxChars) return normalized;
+  return `${normalized.slice(0, maxChars)}…`;
+}
+
+function extractSearchTerms(text) {
+  const source = String(text || '').toLowerCase();
+  const english = source.match(/[a-z0-9_+-]{2,}/g) || [];
+  const chinese = [];
+  const blocks = source.match(/[\u4e00-\u9fff]{2,}/g) || [];
+  blocks.forEach(block => {
+    chinese.push(block);
+    for (let i = 0; i < block.length - 1; i += 1) {
+      chinese.push(block.slice(i, i + 2));
+    }
+  });
+  return [...new Set([...english, ...chinese])].slice(0, 40);
+}
+
+function scoreAlgoForChat(algo, terms, question) {
+  const catLabel = CATEGORIES[algo.category]?.label || algo.category || '';
+  const corpus = [
+    algo.id,
+    algo.name,
+    algo.fullName,
+    algo.year,
+    algo.org,
+    algo.parent,
+    catLabel,
+    algo.summary,
+    ...(algo.keyPoints || []).map(htmlToPlainText),
+    htmlToPlainText(algo.detail || '')
+  ].join(' ').toLowerCase();
+
+  let score = 0;
+  const q = String(question || '').toLowerCase();
+  if (algo.name && q.includes(String(algo.name).toLowerCase())) score += 80;
+  if (algo.fullName && q.includes(String(algo.fullName).toLowerCase())) score += 70;
+  if (algo.id && q.includes(String(algo.id).toLowerCase())) score += 50;
+  terms.forEach(term => {
+    if (term && corpus.includes(term)) score += Math.max(3, Math.min(10, term.length * 1.5));
+  });
+  if (/最新|recent|new|frontier/.test(q)) {
+    score += parseAlgoYear(algo.year).year / 1000;
+  }
+  return score;
+}
+
+function rankRelevantAlgos(question) {
+  const terms = extractSearchTerms(question);
+  const ranked = ALGOS.map(algo => ({
+    algo,
+    score: scoreAlgoForChat(algo, terms, question)
+  })).sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return compareAlgoDesc(a.algo, b.algo);
+  });
+  const hit = ranked.filter(item => item.score > 0).slice(0, 6).map(item => item.algo);
+  if (hit.length > 0) return hit;
+  return ALGOS_DESC.slice(0, 6);
+}
+
+function buildAlgoContext(algo, index) {
+  const catLabel = CATEGORIES[algo.category]?.label || algo.category || '未分类';
+  const keyPoints = (algo.keyPoints || []).slice(0, 4).map(item => `- ${htmlToPlainText(item)}`).join('\n');
+  const detail = trimText(htmlToPlainText(algo.detail || ''), index < 2 ? 900 : 420);
+  return [
+    `${index + 1}. ${algo.name} | ${algo.fullName || ''} | ${algo.year} | ${catLabel} | ${algo.org || '未知机构'}`,
+    `一句话总结：${trimText(algo.summary || '', 280)}`,
+    algo.parent && algo.parent !== '—' ? `演进关系：改进自 ${algo.parent}` : '演进关系：奠基性算法',
+    keyPoints ? `核心要点：\n${keyPoints}` : '',
+    detail ? `深入细节摘录：${detail}` : ''
+  ].filter(Boolean).join('\n');
+}
+
+function buildGraphContext(relevantIds) {
+  const edges = (CFG.graph?.edges || []).filter(edge => relevantIds.has(edge.from) || relevantIds.has(edge.to));
+  return edges.slice(0, 12).map(edge => `- ${edge.from} -> ${edge.to}${edge.label ? ` (${edge.label})` : ''}`).join('\n');
+}
+
+function buildPageContextPrompt(question) {
+  const relevantAlgos = rankRelevantAlgos(question);
+  const relevantIds = new Set(relevantAlgos.map(algo => algo.id));
+  const overviewText = trimText((CFG.overview || []).map(sec => htmlToPlainText(sec.body_html)).join('\n'), 2200);
+  const latestOverviewText = trimText((CFG.latest_overview || []).map(sec => htmlToPlainText(sec.body_html)).join('\n'), 2200);
+  const categoriesText = Object.entries(CATEGORIES).map(([key, value]) => `- ${key}: ${value.label}`).join('\n');
+  const algosText = relevantAlgos.map((algo, index) => buildAlgoContext(algo, index)).join('\n\n');
+  const graphText = buildGraphContext(relevantIds);
+
+  return [
+    '[页面主题]',
+    `主题：${CFG.meta.page_title}`,
+    `领域：${CFG.meta.domain}`,
+    `说明：${CFG.meta.page_desc || '无'}`,
+    '',
+    '[类别]',
+    categoriesText || '无',
+    '',
+    '[领域综述]',
+    overviewText || '无',
+    '',
+    '[最新进展综述]',
+    latestOverviewText || '无',
+    '',
+    '[与当前问题最相关的算法]',
+    algosText || '无',
+    '',
+    '[相关图谱关系]',
+    graphText || '无'
+  ].join('\n');
+}
+
+function buildChatMessages(question) {
+  const systemPrompt = [
+    '你是当前知识页面的学习客服。',
+    '你的任务是帮助用户学习本页内容，而不是泛泛闲聊。',
+    '要求：',
+    '- 优先严格依据提供的页面上下文回答。',
+    '- 如果页面上下文不足以支持结论，明确说“本页没有足够信息支持这个问题”。',
+    '- 默认用中文回答。',
+    '- 优先解释概念、区别、联系、演进脉络和学习路径。',
+    '- 回答尽量采用这个结构：先直接回答，再解释原因，最后建议用户下一步看本页哪个算法或板块。',
+    '- 不要编造论文结论、实验数字、公式或页面里不存在的事实。'
+  ].join('\n');
+
+  const history = CHAT_STATE.history.slice(-6).map(item => ({
+    role: item.role,
+    content: item.content
+  }));
+
+  return [
+    { role: 'system', content: systemPrompt },
+    { role: 'system', content: buildPageContextPrompt(question) },
+    ...history,
+    { role: 'user', content: question }
+  ];
+}
+
+function extractAssistantContent(payload) {
+  const content = payload?.choices?.[0]?.message?.content;
+  if (typeof content === 'string') return content.trim();
+  if (Array.isArray(content)) {
+    return content.map(part => {
+      if (typeof part === 'string') return part;
+      if (typeof part?.text === 'string') return part.text;
+      return '';
+    }).join('\n').trim();
+  }
+  return '';
+}
+
+function extractApiError(payload, fallbackStatus) {
+  if (payload?.error?.message) return payload.error.message;
+  if (payload?.message) return payload.message;
+  return `请求失败（HTTP ${fallbackStatus}）`;
+}
+
+async function requestPageChat(messages) {
+  const endpoint = resolveChatEndpoint(CHAT_STATE.config.base);
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${CHAT_STATE.config.key}`
+    },
+    body: JSON.stringify({
+      model: CHAT_STATE.config.model,
+      messages
+    })
+  });
+
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch (_) {
+    payload = null;
+  }
+  if (!response.ok) {
+    throw new Error(extractApiError(payload, response.status));
+  }
+  const text = extractAssistantContent(payload);
+  if (!text) throw new Error('模型返回为空。请检查模型名、API Base 或服务商兼容性。');
+  return text;
+}
+
+async function sendChatMessage() {
+  const els = getChatEls();
+  if (!els.input || CHAT_STATE.sending || !isChatConfigured()) return;
+  const question = els.input.value.trim();
+  if (!question) return;
+
+  appendChatMessage('user', question);
+  els.input.value = '';
+  CHAT_STATE.sending = true;
+  renderChatStatus();
+  const pending = appendChatMessage('bot', '正在整理本页知识并思考…');
+
+  try {
+    const messages = buildChatMessages(question);
+    const answer = await requestPageChat(messages);
+    if (pending) pending.innerHTML = renderChatText(answer);
+    CHAT_STATE.history.push({ role: 'user', content: question });
+    CHAT_STATE.history.push({ role: 'assistant', content: answer });
+  } catch (error) {
+    const msg = `调用失败：${error.message || error}。如果你使用的是纯静态 GitHub Pages，请确认目标 API 允许浏览器直连（CORS），并检查 API Base / Key / Model 是否正确。`;
+    if (pending) {
+      pending.className = 'kb-chat-msg kb-chat-msg-error';
+      pending.innerHTML = renderChatText(msg);
+    } else {
+      appendChatMessage('error', msg);
+    }
+  } finally {
+    CHAT_STATE.sending = false;
+    renderChatStatus();
+    if (!els.input.disabled) els.input.focus();
+  }
+}
+
+function initChatWidget() {
+  const els = getChatEls();
+  if (!els.messages) return;
+  syncChatConfigForm();
+  renderChatStatus();
+
+  if (els.save) {
+    els.save.onclick = () => {
+      CHAT_STATE.config = {
+        base: normalizeChatBase(els.base?.value || CHAT_DEFAULT_CONFIG.base),
+        key: String(els.key?.value || '').trim(),
+        model: String(els.model?.value || CHAT_DEFAULT_CONFIG.model).trim()
+      };
+      saveChatConfig();
+      CHAT_STATE.settingsOpen = false;
+      toggleChatSettings(false);
+      renderChatStatus();
+      appendChatMessage('bot', `配置已保存。后续回答将结合“${CFG.meta.page_title}”这一页的知识内容。`);
+    };
+  }
+
+  if (els.clear) {
+    els.clear.onclick = () => {
+      clearChatConfig();
+      syncChatConfigForm();
+      toggleChatSettings(true);
+      renderChatStatus();
+      appendChatMessage('bot', '已清空本地 API 配置。请重新填写后再继续提问。');
+    };
+  }
+
+  if (els.send) {
+    els.send.onclick = () => sendChatMessage();
+  }
+
+  if (els.input) {
+    els.input.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendChatMessage();
+      }
+    });
+  }
 }
 
 /* ============ 10. KaTeX ============ */
@@ -724,6 +1127,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (hash === 'overview' || hash === 'progress') {
     enterView(hash);
   }
+  initChatWidget();
   reRenderMath();
 });
 window.addEventListener('load', () => {

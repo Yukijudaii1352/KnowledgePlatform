@@ -121,7 +121,6 @@
   <div class="view-back-bar">
     <button class="view-back-btn" onclick="exitView()">← 返回选择</button>
     <h2 class="view-panel-title">🚀 最新进展</h2>
-    <span class="view-panel-hint">按发布时间从新到旧排列</span>
   </div>
 
   <section class="view-section">
@@ -139,16 +138,39 @@
   <div class="kb-chat-panel" id="kb-chat-panel">
     <div class="kb-chat-header">
       <span>💡 本页知识助手</span>
-      <button onclick="toggleChat()" class="kb-chat-close">×</button>
+      <div class="kb-chat-header-actions">
+        <button type="button" class="kb-chat-icon-btn" onclick="toggleChatSettings()" title="配置 API">⚙</button>
+        <button type="button" onclick="toggleChat()" class="kb-chat-close" title="关闭">×</button>
+      </div>
     </div>
+    <div class="kb-chat-config" id="kb-chat-config" hidden>
+      <div class="kb-chat-config-note">纯前端模式：你的 API Base / API Key / Model 仅保存在当前浏览器本地，不会上传到本站服务器。</div>
+      <label class="kb-chat-field">
+        <span>API Base</span>
+        <input type="url" id="kb-chat-base" placeholder="https://api.openai.com">
+      </label>
+      <label class="kb-chat-field">
+        <span>API Key</span>
+        <input type="password" id="kb-chat-key" placeholder="sk-...">
+      </label>
+      <label class="kb-chat-field">
+        <span>Model</span>
+        <input type="text" id="kb-chat-model" placeholder="gpt-4.1-mini">
+      </label>
+      <div class="kb-chat-config-actions">
+        <button type="button" id="kb-chat-save-btn">保存配置</button>
+        <button type="button" id="kb-chat-clear-btn" class="ghost">清空配置</button>
+      </div>
+    </div>
+    <div class="kb-chat-status" id="kb-chat-status"></div>
     <div class="kb-chat-messages" id="kb-chat-messages">
       <div class="kb-chat-msg kb-chat-msg-bot">
-        你好，我是本页的 AI 助手（规划中）。未来你可以基于「具身强化学习」向我提问。
+        你好，我可以结合「具身强化学习」这一页的知识内容回答你的问题。首次使用前，请先点击右上角 ⚙ 填写 API Base / API Key / Model。
       </div>
     </div>
     <div class="kb-chat-input-row">
-      <input type="text" id="kb-chat-input" placeholder="提问…（即将上线）" disabled>
-      <button disabled>发送</button>
+      <textarea id="kb-chat-input" rows="2" placeholder="例如：BERT 和 MAE 的关系是什么？"></textarea>
+      <button type="button" id="kb-chat-send-btn">发送</button>
     </div>
   </div>
 </div>
