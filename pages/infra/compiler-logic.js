@@ -8,7 +8,7 @@
  * 只读取全局变量 PAGE_CONFIG（由 {topic_id}-data.js 提供）。
  * 视图结构：
  *   view-picker (默认)  →  view-overview  (综述 + 时间线 + 图谱)
- *                      →  view-progress  (按时间从新到旧的算法列表)
+ *                      →  view-progress  (最新综述 + 按时间从新到旧的算法列表)
  */
 
 /* ============ 1. 引用注入的数据 ============ */
@@ -335,33 +335,6 @@ function renderTimeline() {
   }).join('');
   const td = document.getElementById('timeline-desc');
   if (td) td.textContent = `共 ${ALGOS.length} 个算法，按发布时间从早到晚排列。点击任意卡片可跳转至「最新进展」中该算法的详解。`;
-}
-
-function renderProgressTimeline() {
-  const c = document.getElementById('progress-timeline-container');
-  if (!c) return;
-  const milestones = getMilestoneIds();
-  c.innerHTML = ALGOS_DESC.map(a => {
-    const isMile = milestones.has(a.id);
-    const paper = a.paperUrl ? `<a class="tl-paper-link" href="${a.paperUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">📄 论文</a>` : '';
-    const catMeta = CATEGORIES[a.category] || null;
-    const cat = catMeta ? `<span class="tl-route-badge" style="background:${catMeta.color}22;color:${catMeta.color}">${catMeta.label}</span>` : '';
-    const parent = (a.parent && a.parent !== '—')
-      ? `<span class="tl-inherit">← 改进自 ${a.parent}</span>`
-      : `<span class="tl-inherit">🏛️ 奠基</span>`;
-    return `<div class="tl-item">
-      <div class="tl-dot ${isMile ? 'milestone' : ''}"></div>
-      <div class="tl-date">${a.year}</div>
-      <div class="tl-card" onclick="scrollToAlgo('${a.id}')">
-        <h3>${a.name} — ${a.fullName || ''}</h3>
-        <p class="tl-summary">${a.summary}</p>
-        <div class="tl-badges">${cat}${a.org ? `<span class="tl-org-badge">${a.org}</span>` : ''}</div>
-        ${parent}${paper}
-      </div>
-    </div>`;
-  }).join('');
-  const td = document.getElementById('progress-timeline-desc');
-  if (td) td.textContent = `共 ${ALGOS.length} 个算法，按发布时间从新到旧排列。点击时间线卡片可定位到下方对应算法详解。`;
 }
 
 /* ============ 6. 图谱 (纯 SVG) ============ */
@@ -719,7 +692,6 @@ function reRenderMath() {
 
 /* ============ 11. Init ============ */
 renderTimeline();
-renderProgressTimeline();
 renderAlgos();
 
 // 初始状态：两个视图都隐藏（由 CSS 默认隐藏），展示视图选择屏

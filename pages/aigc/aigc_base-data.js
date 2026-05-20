@@ -1,5 +1,5 @@
 /**
- * aigc_base-data.js — 由 pipeline/build.py 于 2026-05-20 16:45:35 自动生成。
+ * aigc_base-data.js — 由 pipeline/build.py 于 2026-05-20 16:56:24 自动生成。
  * 源文件：content/aigc/aigc_base.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */

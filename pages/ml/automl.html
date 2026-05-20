@@ -4,7 +4,7 @@
   页面结构：
     Hero -> 视图选择屏(view-picker: 领域综述 / 最新进展)
          -> view-overview (综述 + 时间线 + 图谱)
-         -> view-progress (按时间从新到旧的算法列表)
+         -> view-progress (最新综述 + 按时间从新到旧的算法列表)
   ⚠️ 所有 {{...}} 占位符由 pipeline/build.py 替换，不要随意改动。
 -->
 <html lang="zh-CN">
@@ -133,12 +133,6 @@
     <div class="field-overview" id="latest-progress-overview">
       <!-- sections injected by logic -->
     </div>
-  </section>
-
-  <section class="view-section">
-    <h3 class="view-section-title">📐 最新进展时间线</h3>
-    <p class="section-desc" id="progress-timeline-desc"></p>
-    <div class="timeline timeline-desc" id="progress-timeline-container"></div>
   </section>
 
   <div class="algo-list" id="algo-list"></div>

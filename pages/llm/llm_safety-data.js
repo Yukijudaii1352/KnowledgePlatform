@@ -1,5 +1,5 @@
 /**
- * llm_safety-data.js — 由 pipeline/build.py 于 2026-05-20 16:45:42 自动生成。
+ * llm_safety-data.js — 由 pipeline/build.py 于 2026-05-20 16:56:32 自动生成。
  * 源文件：content/llm/llm_safety.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
