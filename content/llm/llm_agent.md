@@ -1,7 +1,7 @@
 ---
 domain: llm
 topic_id: llm_agent
-topic_name: llm_agent
+topic_name: LLM Agent
 page_icon: 🤖
 page_title: LLM Agent
 page_subtitle: '{build_date} 版'

@@ -1,7 +1,7 @@
 ---
 domain: embodied
 topic_id: navigation
-topic_name: navigation
+topic_name: 导航与移动智能
 page_icon: 🧭
 page_title: 导航与移动智能
 page_subtitle: '{build_date} 版'

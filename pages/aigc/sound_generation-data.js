@@ -1,5 +1,5 @@
 /**
- * sound_generation-data.js — 由 pipeline/build.py 于 2026-05-20 16:56:25 自动生成。
+ * sound_generation-data.js — 由 pipeline/build.py 于 2026-05-20 17:14:04 自动生成。
  * 源文件：content/aigc/sound_generation.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -7,7 +7,7 @@ window.PAGE_CONFIG = {
   "meta": {
     "domain": "aigc",
     "topic_id": "sound_generation",
-    "topic_name": "sound_generation",
+    "topic_name": "AI音频生成技术演化图谱",
     "page_title": "AI音频生成技术演化图谱",
     "page_subtitle": "2026-05-12 版",
     "page_desc": "从WaveNet自回归波形生成到Diffusion Transformer统一框架，AI音频生成经历了自回归时代、GAN时代、扩散模型时代和统一大模型时代四个阶段，涵盖TTS、语音克隆、音效生成、神经编解码器与音乐生成五大技术方向。",

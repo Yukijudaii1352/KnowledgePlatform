@@ -1,7 +1,7 @@
 ---
 domain: cv
 topic_id: ocr
-topic_name: ocr
+topic_name: OCR 技术演进图谱
 page_icon: 📜
 page_title: OCR 技术演进图谱
 page_subtitle: '{build_date} 版'

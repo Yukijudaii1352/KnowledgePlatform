@@ -1,7 +1,7 @@
 ---
 domain: ai4sci
 topic_id: ai4chem
-topic_name: ai4chem
+topic_name: 化学AI 技术演进图谱
 page_icon: 🧪
 page_title: 化学AI 技术演进图谱
 page_subtitle: '{build_date} 版'

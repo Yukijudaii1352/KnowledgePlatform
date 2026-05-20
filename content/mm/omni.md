@@ -1,7 +1,7 @@
 ---
 domain: multimodal
 topic_id: omni
-topic_name: omni
+topic_name: Omni模型技术演进总结
 page_icon: 🌐
 page_title: Omni模型技术演进总结
 page_subtitle: '{build_date} 版'

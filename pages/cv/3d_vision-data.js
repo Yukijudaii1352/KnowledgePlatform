@@ -1,5 +1,5 @@
 /**
- * 3d_vision-data.js — 由 pipeline/build.py 于 2026-05-20 16:56:26 自动生成。
+ * 3d_vision-data.js — 由 pipeline/build.py 于 2026-05-20 17:14:05 自动生成。
  * 源文件：content/cv/3d_vision.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */

@@ -1,7 +1,7 @@
 ---
 domain: cv
 topic_id: medical_vision
-topic_name: medical_vision
+topic_name: 医学影像算法演进
 page_icon: 🏥
 page_title: 医学影像算法演进
 page_subtitle: '{build_date} 版'

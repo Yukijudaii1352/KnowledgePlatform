@@ -1,7 +1,7 @@
 ---
 domain: ai4sci
 topic_id: ml4sci
-topic_name: ml4sci
+topic_name: 科学机器学习技术演进
 page_icon: ⚛️
 page_title: 科学机器学习技术演进
 page_subtitle: '{build_date} 版'

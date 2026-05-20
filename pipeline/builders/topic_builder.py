@@ -446,6 +446,17 @@ def resolve_page_subtitle(raw: str | None) -> str:
     return str(raw).replace("{build_date}", build_date)
 
 
+def choose_display_topic_name(topic_id: str, topic_name: str, page_title: str) -> str:
+    candidate = str(topic_name or "").strip()
+    topic_id = str(topic_id or "").strip()
+    page_title = str(page_title or "").strip()
+    if not candidate:
+        return page_title or topic_id
+    if candidate == topic_id and page_title:
+        return page_title
+    return candidate
+
+
 # ============ 主流程 ============
 
 def compile_doc(src: Path, copy_images: bool = False, dry_run: bool = False):
@@ -496,12 +507,13 @@ def compile_doc(src: Path, copy_images: bool = False, dry_run: bool = False):
 
     # 组装 PAGE_CONFIG（page_subtitle 会被替换为日期驱动的版本）
     page_subtitle = resolve_page_subtitle(fm.get("page_subtitle"))
+    display_topic_name = choose_display_topic_name(topic_id, fm["topic_name"], fm["page_title"])
 
     cfg = {
         "meta": {
             "domain": domain,
             "topic_id": topic_id,
-            "topic_name": fm["topic_name"],
+            "topic_name": display_topic_name,
             "page_title": fm["page_title"],
             "page_subtitle": page_subtitle,
             "page_desc": fm.get("page_desc", ""),
@@ -533,7 +545,7 @@ def compile_doc(src: Path, copy_images: bool = False, dry_run: bool = False):
         "{{PAGE_DESC}}":     fm.get("page_desc", ""),
         "{{PAGE_ICON}}":     fm.get("page_icon", "📘"),
         "{{DOMAIN_NAME}}":   DOMAIN_MAP[domain]["name"],
-        "{{TOPIC_NAME}}":    fm["topic_name"],
+        "{{TOPIC_NAME}}":    display_topic_name,
         "{{TOPIC_ID}}":      topic_id,
     }
     for k, v in replacements.items():

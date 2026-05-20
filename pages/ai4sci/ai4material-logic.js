@@ -23,9 +23,32 @@ const GRAPH_STATE = {
 };
 
 // 按时间 降序 排列（最新进展视图用）
-const ALGOS_DESC = [...ALGOS].sort((a, b) => (b.year || '').localeCompare(a.year || ''));
+const ALGOS_DESC = [...ALGOS].sort(compareAlgoDesc);
 // 按时间 升序 排列（时间线视图用）
-const ALGOS_ASC  = [...ALGOS].sort((a, b) => (a.year || '').localeCompare(b.year || ''));
+const ALGOS_ASC  = [...ALGOS].sort(compareAlgoAsc);
+
+function parseAlgoYear(value) {
+  const text = String(value || '').trim();
+  if (!text) return { year: -9999, sub: -1 };
+  const match = text.match(/^(\d{4})(?:[.\-/](\d+))?/);
+  if (!match) return { year: -9999, sub: -1 };
+  return {
+    year: Number(match[1] || -9999),
+    sub: Number(match[2] || 0)
+  };
+}
+
+function compareAlgoDesc(a, b) {
+  const ay = parseAlgoYear(a.year);
+  const by = parseAlgoYear(b.year);
+  if (ay.year !== by.year) return by.year - ay.year;
+  if (ay.sub !== by.sub) return by.sub - ay.sub;
+  return Number(b.num || 0) - Number(a.num || 0);
+}
+
+function compareAlgoAsc(a, b) {
+  return -compareAlgoDesc(a, b);
+}
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -483,7 +506,7 @@ function renderAlgos() {
     </div>`;
 
   // 渲染顺序：时间从新到旧
-  const blocks = ALGOS_DESC.map(a => {
+  const blocks = ALGOS_DESC.map((a, index) => {
     const cat = a.category || 'foundation';
     const catMeta = CATEGORIES[cat] || { label: cat, color: '#888' };
     const paperUrl = a.paperUrl;
@@ -500,7 +523,7 @@ function renderAlgos() {
     <div class="algo-block" id="algo-${a.id}" data-route="${cat}">
       <div class="algo-header" onclick="toggleAlgo(this)">
         <div class="algo-header-left">
-          <div class="algo-num">${a.num}</div>
+          <div class="algo-num">${index + 1}</div>
           <div class="algo-header-text">
             <h3>${a.name}</h3>
             <div class="algo-subtitle">${a.fullName || ''}</div>

@@ -1,7 +1,7 @@
 ---
 domain: ml
 topic_id: trustworthy_learning
-topic_name: trustworthy_learning
+topic_name: 可信机器学习技术演进图谱
 page_icon: 🛡️
 page_title: 可信机器学习技术演进图谱
 page_subtitle: '{build_date} 版'

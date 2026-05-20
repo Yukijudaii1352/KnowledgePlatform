@@ -1,7 +1,7 @@
 ---
 domain: aigc
 topic_id: sound_generation
-topic_name: sound_generation
+topic_name: AI音频生成技术演化图谱
 page_icon: 🔊
 page_title: AI音频生成技术演化图谱
 page_subtitle: 2026-05-12 版

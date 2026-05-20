@@ -1,7 +1,7 @@
 ---
 domain: llm
 topic_id: llm_safety
-topic_name: llm_safety
+topic_name: LLM安全 算法总结
 page_icon: 🛡️
 page_title: LLM安全 算法总结
 page_subtitle: '{build_date} 版'

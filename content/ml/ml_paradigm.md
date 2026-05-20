@@ -1,7 +1,7 @@
 ---
 domain: ml
 topic_id: ml_paradigm
-topic_name: ml_paradigm
+topic_name: 机器学习范式
 page_icon: 🧠
 page_title: 机器学习范式
 page_subtitle: '{build_date} 版'

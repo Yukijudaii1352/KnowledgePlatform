@@ -1,7 +1,7 @@
 ---
 domain: aigc
 topic_id: text2image
-topic_name: text2image
+topic_name: 文生图技术演进
 page_icon: 🎨
 page_title: 文生图技术演进
 page_subtitle: '{build_date} 版'

@@ -1,7 +1,7 @@
 ---
 domain: aigc
 topic_id: text_edit
-topic_name: text_edit
+topic_name: 图像编辑技术演进图谱
 page_icon: 🎨
 page_title: 图像编辑技术演进图谱
 page_subtitle: '{build_date} 版'

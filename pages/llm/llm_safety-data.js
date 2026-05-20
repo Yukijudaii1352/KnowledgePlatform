@@ -1,5 +1,5 @@
 /**
- * llm_safety-data.js — 由 pipeline/build.py 于 2026-05-20 16:56:32 自动生成。
+ * llm_safety-data.js — 由 pipeline/build.py 于 2026-05-20 17:14:11 自动生成。
  * 源文件：content/llm/llm_safety.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -7,7 +7,7 @@ window.PAGE_CONFIG = {
   "meta": {
     "domain": "llm",
     "topic_id": "llm_safety",
-    "topic_name": "llm_safety",
+    "topic_name": "LLM安全 算法总结",
     "page_title": "LLM安全 算法总结",
     "page_subtitle": "2026-05-20 版",
     "page_desc": "涵盖从早期RLHF对齐到2026年神经元级攻防与过程化幻觉控制的技术演进",

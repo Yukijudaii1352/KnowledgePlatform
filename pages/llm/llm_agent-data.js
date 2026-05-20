@@ -1,5 +1,5 @@
 /**
- * llm_agent-data.js — 由 pipeline/build.py 于 2026-05-20 16:56:31 自动生成。
+ * llm_agent-data.js — 由 pipeline/build.py 于 2026-05-20 17:14:10 自动生成。
  * 源文件：content/llm/llm_agent.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -7,7 +7,7 @@ window.PAGE_CONFIG = {
   "meta": {
     "domain": "llm",
     "topic_id": "llm_agent",
-    "topic_name": "llm_agent",
+    "topic_name": "LLM Agent",
     "page_title": "LLM Agent",
     "page_subtitle": "2026-05-20 版",
     "page_desc": "大语言模型智能体研究从工具调用、自主规划到多智能体协作的技术演进与前沿突破",

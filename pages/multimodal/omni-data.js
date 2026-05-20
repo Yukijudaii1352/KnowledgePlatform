@@ -1,5 +1,5 @@
 /**
- * omni-data.js — 由 pipeline/build.py 于 2026-05-20 16:56:36 自动生成。
+ * omni-data.js — 由 pipeline/build.py 于 2026-05-20 17:14:16 自动生成。
  * 源文件：content/mm/omni.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -7,7 +7,7 @@ window.PAGE_CONFIG = {
   "meta": {
     "domain": "multimodal",
     "topic_id": "omni",
-    "topic_name": "omni",
+    "topic_name": "Omni模型技术演进总结",
     "page_title": "Omni模型技术演进总结",
     "page_subtitle": "2026-05-20 版",
     "page_desc": "全模态统一处理技术的发展脉络，涵盖文本/图像/视频/音频的Any-to-Any交互",

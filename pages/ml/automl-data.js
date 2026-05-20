@@ -1,5 +1,5 @@
 /**
- * automl-data.js — 由 pipeline/build.py 于 2026-05-20 16:56:32 自动生成。
+ * automl-data.js — 由 pipeline/build.py 于 2026-05-20 17:14:12 自动生成。
  * 源文件：content/ml/automl.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -7,7 +7,7 @@ window.PAGE_CONFIG = {
   "meta": {
     "domain": "ml",
     "topic_id": "automl",
-    "topic_name": "automl",
+    "topic_name": "AutoML 算法总结",
     "page_title": "AutoML 算法总结",
     "page_subtitle": "2026-05-20 版",
     "page_desc": "从早期贝叶斯超参优化到自动特征工程与神经网络结构搜索， AutoML 经历了从人工调参到 LLM 智能体驱动的范式演进。 本文档梳理 2011–2026 年间自动特征工程、超参数优化、 NAS 及综合框架四大方向的经典与前沿算法。\n",

@@ -1,7 +1,7 @@
 ---
 domain: ml
 topic_id: probability_model
-topic_name: probability_model
+topic_name: 概率模型技术演进
 page_icon: 🎲
 page_title: 概率模型技术演进
 page_subtitle: '{build_date} 版'

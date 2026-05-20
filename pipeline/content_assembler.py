@@ -69,6 +69,17 @@ def safe_relative(path: Path, base: Path = ROOT) -> str:
         return str(path)
 
 
+def choose_display_topic_name(topic_id: str, topic_name: str, page_title: str) -> str:
+    candidate = str(topic_name or "").strip()
+    topic_id = str(topic_id or "").strip()
+    page_title = str(page_title or "").strip()
+    if not candidate:
+        return page_title or topic_id
+    if candidate == topic_id and page_title:
+        return page_title
+    return candidate
+
+
 def load_yaml(path: Path) -> dict:
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
@@ -579,8 +590,9 @@ def render_document(
 
     domain = normalize_domain(meta.get("domain") or source.get("domain"), yaml_path)
     topic_id = str(meta.get("topic_id") or source.get("topic_id") or yaml_path.stem)
-    topic_name = str(meta.get("topic_name") or source.get("topic_name") or topic_id)
-    page_title = str(meta.get("page_title") or source.get("page_title") or topic_name)
+    raw_topic_name = str(meta.get("topic_name") or source.get("topic_name") or topic_id)
+    page_title = str(meta.get("page_title") or source.get("page_title") or raw_topic_name)
+    topic_name = choose_display_topic_name(topic_id, raw_topic_name, page_title)
     page_subtitle = str(meta.get("page_subtitle") or source.get("page_subtitle") or "{build_date} 版")
     page_desc = str(
         meta.get("page_desc")

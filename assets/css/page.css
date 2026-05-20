@@ -8,7 +8,16 @@
 .page-hero { padding: 36px 0 28px; border-bottom: 1px solid var(--border); }
 .page-hero h1 { font-size: clamp(1.7rem,3.5vw,2.3rem); font-weight: 800; letter-spacing: -0.02em; margin-bottom: 12px; }
 .page-hero-sub { font-size: 0.55em; color: var(--text-dim); font-weight: 400; }
-.page-hero-desc { color: var(--text-secondary); font-size: 1rem; max-width: 65ch; margin-bottom: 18px; }
+.page-hero-desc {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  max-width: none;
+  width: 100%;
+  margin-bottom: 18px;
+  word-break: normal;
+  overflow-wrap: normal;
+  line-break: auto;
+}
 .meta-row { display: flex; flex-wrap: wrap; gap: 10px; }
 
 /* ---- Field overview ---- */
@@ -387,7 +396,7 @@
 .view-section { margin-top: 32px; }
 .view-section-title { font-size: 1.1rem; font-weight: 700; color: var(--text); margin-bottom: 12px; }
 .view-panel .section-desc { font-size: 0.88rem; color: var(--text-muted); margin-bottom: 16px; }
-.view-panel .field-overview { margin-top: 20px; }
+.view-panel .field-overview { margin-top: 0; }
 #view-progress .algo-list { margin-top: 28px; }
 
 @media (max-width: 768px) {

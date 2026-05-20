@@ -1,7 +1,7 @@
 ---
 domain: ml
 topic_id: automl
-topic_name: automl
+topic_name: AutoML 算法总结
 page_icon: 🤖
 page_title: AutoML 算法总结
 page_subtitle: '{build_date} 版'

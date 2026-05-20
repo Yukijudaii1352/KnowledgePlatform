@@ -1,7 +1,7 @@
 ---
 domain: aigc
 topic_id: music_generation
-topic_name: music_generation
+topic_name: 音乐生成技术演进
 page_icon: 🎵
 page_title: 音乐生成技术演进
 page_subtitle: '{build_date} 版'

@@ -1,7 +1,7 @@
 ---
 domain: ml
 topic_id: transfer_learning
-topic_name: transfer_learning
+topic_name: 迁移学习 算法总结
 page_icon: 🔄
 page_title: 迁移学习 算法总结
 page_subtitle: '{build_date} 版'

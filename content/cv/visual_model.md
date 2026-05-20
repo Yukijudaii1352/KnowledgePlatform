@@ -1,7 +1,7 @@
 ---
 domain: cv
 topic_id: visual_model
-topic_name: visual_model
+topic_name: 视觉基础模型技术演进
 page_icon: 👁️
 page_title: 视觉基础模型技术演进
 page_subtitle: '{build_date} 版'

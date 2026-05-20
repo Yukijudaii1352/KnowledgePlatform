@@ -1,7 +1,7 @@
 ---
 domain: llm
 topic_id: llm_sft
-topic_name: llm_sft
+topic_name: LLM监督微调 算法总结
 page_icon: 🎯
 page_title: LLM监督微调 算法总结
 page_subtitle: '{build_date} 版'

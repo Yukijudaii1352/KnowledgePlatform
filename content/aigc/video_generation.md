@@ -1,7 +1,7 @@
 ---
 domain: aigc
 topic_id: video_generation
-topic_name: video_generation
+topic_name: 视频生成 算法总结
 page_icon: 🎬
 page_title: 视频生成 算法总结
 page_subtitle: '{build_date} 版'
