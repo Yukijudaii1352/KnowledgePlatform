@@ -1,5 +1,5 @@
 /**
- * transfer_learning-data.js — 由 pipeline/build.py 于 2026-05-20 17:45:15 自动生成。
+ * transfer_learning-data.js — 由 pipeline/build.py 于 2026-05-20 17:49:49 自动生成。
  * 源文件：content/ml/transfer_learning.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */

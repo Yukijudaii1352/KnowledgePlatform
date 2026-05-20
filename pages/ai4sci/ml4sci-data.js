@@ -1,5 +1,5 @@
 /**
- * ml4sci-data.js — 由 pipeline/build.py 于 2026-05-20 17:45:04 自动生成。
+ * ml4sci-data.js — 由 pipeline/build.py 于 2026-05-20 17:49:39 自动生成。
  * 源文件：content/ai4sci/ml4sci.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */

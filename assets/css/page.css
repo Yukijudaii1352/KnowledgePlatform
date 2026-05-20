@@ -337,6 +337,7 @@
 .kb-chat-icon-btn, .kb-chat-close { background: none; border: none; font-size: 18px; cursor: pointer; color: var(--text-dim); width: 30px; height: 30px; border-radius: 8px; }
 .kb-chat-icon-btn:hover, .kb-chat-close:hover { background: var(--bg-surface); color: var(--text); }
 .kb-chat-config { padding: 12px 14px; border-bottom: 1px solid var(--border); background: var(--bg-surface); display: flex; flex-direction: column; gap: 10px; }
+.kb-chat-config[hidden] { display: none !important; }
 .kb-chat-config-note { font-size: 0.76rem; color: var(--text-muted); line-height: 1.6; }
 .kb-chat-field { display: flex; flex-direction: column; gap: 5px; font-size: 0.8rem; color: var(--text-secondary); }
 .kb-chat-field span { font-weight: 600; color: var(--text); }
