@@ -350,6 +350,21 @@
 .kb-chat-msg-bot { background: var(--accent-softer); color: var(--text); }
 .kb-chat-msg-user { background: var(--accent); color: #fff; margin-left: auto; }
 .kb-chat-msg-error { background: var(--red-soft); color: var(--red); }
+.kb-chat-msg.kb-chat-msg-markdown { white-space: normal; }
+.kb-chat-msg.kb-chat-msg-markdown p { margin: 0 0 8px; }
+.kb-chat-msg.kb-chat-msg-markdown p:last-child { margin-bottom: 0; }
+.kb-chat-msg.kb-chat-msg-markdown ul,
+.kb-chat-msg.kb-chat-msg-markdown ol { margin: 0 0 8px 18px; padding: 0; }
+.kb-chat-msg.kb-chat-msg-markdown li { margin-bottom: 4px; }
+.kb-chat-msg.kb-chat-msg-markdown pre { margin: 8px 0; padding: 10px 12px; background: rgba(19, 26, 45, 0.92); color: #eef2ff; border-radius: var(--radius-sm); overflow-x: auto; font-size: 0.8rem; line-height: 1.6; }
+.kb-chat-msg.kb-chat-msg-markdown code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.kb-chat-msg.kb-chat-msg-markdown :not(pre) > code { padding: 1px 5px; border-radius: 6px; background: rgba(91,99,211,0.12); color: var(--accent); }
+.kb-chat-msg.kb-chat-msg-markdown h1,
+.kb-chat-msg.kb-chat-msg-markdown h2,
+.kb-chat-msg.kb-chat-msg-markdown h3,
+.kb-chat-msg.kb-chat-msg-markdown h4 { margin: 10px 0 6px; font-size: 0.95rem; line-height: 1.4; }
+.kb-chat-msg.kb-chat-msg-markdown blockquote { margin: 8px 0; padding-left: 10px; border-left: 3px solid var(--accent-border); color: var(--text-secondary); }
+.kb-chat-msg.kb-chat-msg-markdown a { color: var(--accent); text-decoration: underline; }
 .kb-chat-input-row { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--border); align-items: flex-end; }
 .kb-chat-input-row textarea { flex: 1; min-height: 44px; max-height: 120px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.88rem; font-family: inherit; resize: vertical; }
 .kb-chat-input-row button { flex-shrink: 0; padding: 10px 14px; border: none; border-radius: var(--radius-sm); background: var(--accent); color: #fff; font-size: 0.84rem; font-weight: 600; cursor: pointer; font-family: inherit; }

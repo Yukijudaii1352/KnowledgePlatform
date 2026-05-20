@@ -808,6 +808,16 @@ function renderChatText(text) {
   return String(text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+function renderChatMarkdown(text) {
+  const source = String(text || '').trim();
+  if (!source) return '';
+  if (window.marked && window.DOMPurify) {
+    const html = window.marked.parse(source, { breaks: true, gfm: true });
+    return window.DOMPurify.sanitize(html);
+  }
+  return renderChatText(source).replace(/\n/g, '<br>');
+}
+
 function appendChatMessage(role, text) {
   const els = getChatEls();
   if (!els.messages) return null;
@@ -817,6 +827,13 @@ function appendChatMessage(role, text) {
   els.messages.appendChild(div);
   els.messages.scrollTop = els.messages.scrollHeight;
   return div;
+}
+
+function finalizeAssistantMessage(node, text) {
+  if (!node) return;
+  node.classList.add('kb-chat-msg-markdown');
+  node.innerHTML = renderChatMarkdown(text);
+  reRenderMath();
 }
 
 function normalizeChatBase(base) {
@@ -1023,6 +1040,100 @@ async function requestPageChat(messages) {
   return text;
 }
 
+function extractStreamDelta(payload) {
+  const delta = payload?.choices?.[0]?.delta;
+  if (!delta) return '';
+  if (typeof delta.content === 'string') return delta.content;
+  if (Array.isArray(delta.content)) {
+    return delta.content.map(part => {
+      if (typeof part === 'string') return part;
+      if (typeof part?.text === 'string') return part.text;
+      return '';
+    }).join('');
+  }
+  return '';
+}
+
+async function requestPageChatStream(messages, onDelta) {
+  const endpoint = resolveChatEndpoint(CHAT_STATE.config.base);
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${CHAT_STATE.config.key}`
+    },
+    body: JSON.stringify({
+      model: CHAT_STATE.config.model,
+      messages,
+      stream: true
+    })
+  });
+
+  const contentType = response.headers.get('content-type') || '';
+  if (!response.ok) {
+    let payload = null;
+    try {
+      payload = await response.json();
+    } catch (_) {
+      payload = null;
+    }
+    throw new Error(extractApiError(payload, response.status));
+  }
+
+  if (!response.body || !/text\/event-stream/i.test(contentType)) {
+    let payload = null;
+    try {
+      payload = await response.json();
+    } catch (_) {
+      payload = null;
+    }
+    const text = extractAssistantContent(payload);
+    if (!text) throw new Error('模型返回为空。请检查模型名、API Base 或服务商兼容性。');
+    onDelta(text, true);
+    return text;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+  let fullText = '';
+  let done = false;
+
+  while (!done) {
+    const { value, done: streamDone } = await reader.read();
+    done = streamDone;
+    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+
+    const chunks = buffer.split('\n\n');
+    buffer = chunks.pop() || '';
+
+    for (const chunk of chunks) {
+      const lines = chunk.split('\n').map(line => line.trim()).filter(Boolean);
+      for (const line of lines) {
+        if (!line.startsWith('data:')) continue;
+        const data = line.slice(5).trim();
+        if (!data || data === '[DONE]') continue;
+        let payload = null;
+        try {
+          payload = JSON.parse(data);
+        } catch (_) {
+          continue;
+        }
+        const deltaText = extractStreamDelta(payload);
+        if (!deltaText) continue;
+        fullText += deltaText;
+        onDelta(fullText, false);
+      }
+    }
+  }
+
+  if (!fullText.trim()) {
+    throw new Error('流式返回为空。请检查 API Base / Model 是否支持 OpenAI-compatible stream。');
+  }
+  onDelta(fullText, true);
+  return fullText;
+}
+
 async function sendChatMessage() {
   const els = getChatEls();
   if (!els.input || CHAT_STATE.sending || !isChatConfigured()) return;
@@ -1037,8 +1148,14 @@ async function sendChatMessage() {
 
   try {
     const messages = buildChatMessages(question);
-    const answer = await requestPageChat(messages);
-    if (pending) pending.innerHTML = renderChatText(answer);
+    const answer = await requestPageChatStream(messages, (partial, finished) => {
+      if (!pending) return;
+      if (finished) {
+        finalizeAssistantMessage(pending, partial);
+      } else {
+        pending.textContent = partial || '正在整理本页知识并思考…';
+      }
+    });
     CHAT_STATE.history.push({ role: 'user', content: question });
     CHAT_STATE.history.push({ role: 'assistant', content: answer });
   } catch (error) {
@@ -1071,7 +1188,7 @@ function initChatWidget() {
       };
       saveChatConfig();
       CHAT_STATE.settingsOpen = false;
-      toggleChatSettings(false);
+      if (els.config) els.config.hidden = true;
       renderChatStatus();
       appendChatMessage('bot', `配置已保存。后续回答将结合“${CFG.meta.page_title}”这一页的知识内容。`);
     };
