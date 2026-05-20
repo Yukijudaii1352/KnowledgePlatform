@@ -1,88 +1,91 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # batch_run.sh - 批量扫描指定目录下的 yaml 文件并执行 run.sh
 
-# ============== 配置区 ==============
-# 在这里指定要扫描的多个目录的绝对路径
-# DIRS=(
-#     "/group/40048/zcharowang/Agent/KnowledgePipeline/knowlege_tmp/cv"
-#     "/group/40048/zcharowang/Agent/KnowledgePipeline/knowlege_tmp/llm"
-#     "/group/40048/zcharowang/Agent/KnowledgePipeline/knowlege_tmp/mm"
-#     "/group/40048/zcharowang/Agent/KnowledgePipeline/knowlege_tmp/aigc"
-# )
+set -uo pipefail
 
-DIRS=(
-    "/group/40048/zcharowang/Agent/KnowledgePipeline/knowlege_tmp/infra"
-    "/group/40048/zcharowang/Agent/KnowledgePipeline/knowlege_tmp/embodied"
-    "/group/40048/zcharowang/Agent/KnowledgePipeline/knowlege_tmp/ai4sci"
-)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+RUN_SCRIPT="${SCRIPT_DIR}/run.sh"
+LOG_DIR="${REPO_ROOT}/content/_batch_logs"
+MAIN_LOG="${LOG_DIR}/batch_run_$(date +%Y%m%d_%H%M%S).log"
 
-
-# run.sh 的绝对路径（按需修改）
-RUN_SCRIPT="/group/40048/zcharowang/Agent/KnowledgePipeline/knowlege_tmp/run.sh"
-
-# 日志目录
-LOG_DIR="/group/40048/zcharowang/Agent/KnowledgePipeline/knowlege_tmp/"
-mkdir -p "$LOG_DIR"
-
-# 主日志文件
-MAIN_LOG="$LOG_DIR/batch_run_$(date +%Y%m%d_%H%M%S).log"
-# ====================================
+mkdir -p "${LOG_DIR}"
 
 log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$MAIN_LOG"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "${MAIN_LOG}"
 }
+
+if [[ ! -f "${RUN_SCRIPT}" ]]; then
+    log "ERROR: run.sh 不存在: ${RUN_SCRIPT}"
+    exit 1
+fi
+
+if (( $# > 0 )); then
+    TARGETS=("$@")
+else
+    TARGETS=("${REPO_ROOT}/content")
+fi
 
 log "============ 批量任务开始 ============"
 log "PID: $$"
-
-# 检查 run.sh
-if [[ ! -f "$RUN_SCRIPT" ]]; then
-    log "ERROR: run.sh 不存在: $RUN_SCRIPT"
-    exit 1
-fi
+log "Run script: ${RUN_SCRIPT}"
 
 total=0
 success=0
 failed=0
 failed_files=()
 
-for dir in "${DIRS[@]}"; do
-    if [[ ! -d "$dir" ]]; then
-        log "WARN: 目录不存在，跳过: $dir"
-        continue
-    fi
+for target in "${TARGETS[@]}"; do
+    if [[ -d "${target}" ]]; then
+        log "----- 扫描目录: ${target} -----"
+        while IFS= read -r -d '' yaml_file; do
+            total=$((total + 1))
+            log "[${total}] 执行: bash ${RUN_SCRIPT} ${yaml_file}"
 
-    log "----- 扫描目录: $dir -----"
+            start_ts=$(date +%s)
+            single_log="${LOG_DIR}/$(basename "${yaml_file}" .yaml)_$(date +%Y%m%d_%H%M%S).log"
 
-    # 用 find 递归查找 .yaml 文件，使用 -print0 安全处理空格/特殊字符
-    while IFS= read -r -d '' yaml_file; do
+            if bash "${RUN_SCRIPT}" "${yaml_file}" >"${single_log}" 2>&1; then
+                end_ts=$(date +%s)
+                log "  ✔ 成功 (耗时 $((end_ts - start_ts))s) 日志: ${single_log}"
+                success=$((success + 1))
+            else
+                rc=$?
+                end_ts=$(date +%s)
+                log "  ✘ 失败 rc=${rc} (耗时 $((end_ts - start_ts))s) 日志: ${single_log}"
+                failed=$((failed + 1))
+                failed_files+=("${yaml_file}")
+            fi
+        done < <(find "${target}" -type f -name "*.yaml" -print0)
+    elif [[ -f "${target}" ]]; then
         total=$((total + 1))
-        log "[$total] 执行: sh $RUN_SCRIPT $yaml_file"
+        log "[${total}] 执行: bash ${RUN_SCRIPT} ${target}"
 
         start_ts=$(date +%s)
-        # 单个文件的独立日志（可选，便于排查）
-        single_log="$LOG_DIR/$(basename "$yaml_file" .yaml)_$(date +%Y%m%d_%H%M%S).log"
+        single_log="${LOG_DIR}/$(basename "${target}" .yaml)_$(date +%Y%m%d_%H%M%S).log"
 
-        if sh "$RUN_SCRIPT" "$yaml_file" >"$single_log" 2>&1; then
+        if bash "${RUN_SCRIPT}" "${target}" >"${single_log}" 2>&1; then
             end_ts=$(date +%s)
-            log "  ✔ 成功 (耗时 $((end_ts - start_ts))s) 日志: $single_log"
+            log "  ✔ 成功 (耗时 $((end_ts - start_ts))s) 日志: ${single_log}"
             success=$((success + 1))
         else
             rc=$?
             end_ts=$(date +%s)
-            log "  ✘ 失败 rc=$rc (耗时 $((end_ts - start_ts))s) 日志: $single_log"
+            log "  ✘ 失败 rc=${rc} (耗时 $((end_ts - start_ts))s) 日志: ${single_log}"
             failed=$((failed + 1))
-            failed_files+=("$yaml_file")
+            failed_files+=("${target}")
         fi
-    done < <(find "$dir" -type f -name "*.yaml" -print0)
+    else
+        log "WARN: 路径不存在，跳过: ${target}"
+    fi
 done
 
 log "============ 批量任务结束 ============"
-log "总数: $total | 成功: $success | 失败: $failed"
+log "总数: ${total} | 成功: ${success} | 失败: ${failed}"
 if (( failed > 0 )); then
     log "失败文件列表:"
     for f in "${failed_files[@]}"; do
-        log "  - $f"
+        log "  - ${f}"
     done
 fi
 

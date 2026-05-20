@@ -2,12 +2,12 @@
 domain: infra
 topic_id: storage
 topic_name: AI存储系统
-page_icon: "\U0001F4BE"
+page_icon: 💾
 page_title: AI存储系统技术演进
 page_subtitle: '{build_date}版'
 page_desc: 从GFS奠基到大模型时代的存储优化——涵盖大规模训练数据存储、高速缓存、Checkpoint优化与分布式文件系统的技术演进
 hero_pills:
-- "\U0001F3F7️ AI Storage"
+- 🏷️ AI Storage
 - Checkpoint
 - Distributed FS
 - Data Loading
@@ -35,8 +35,13 @@ categories:
 
 ## 领域综述
 
-### 待定
-待定。
+### 待补充：阶段性领域总结
+请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+
+## 最新进展综述
+
+### 待补充：最近一个月最新动向
+请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
 
 ## 算法演化关系
 

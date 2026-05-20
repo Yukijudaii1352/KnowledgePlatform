@@ -7,8 +7,7 @@ page_title: AI编译器技术演进总结
 page_subtitle: '{build_date} 版'
 page_desc: 系统梳理从 XLA、TVM 到 MLIR、Triton 的 AI 编译器发展历程与核心技术突破，覆盖经典奠基工作与2026年最新进展。
 hero_pills:
-- "\U0001F3F7️ Deep Learning Compiler · Graph Optimization · Kernel Synthesis · LLM-Driven
-  Compilation"
+- 🏷️ Deep Learning Compiler · Graph Optimization · Kernel Synthesis · LLM-Driven Compilation
 count_pill: '{count} 个算法'
 categories:
   graph_compilers:
@@ -30,8 +29,13 @@ categories:
 
 ## 领域综述
 
-### 待定
-待定。
+### 待补充：阶段性领域总结
+请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+
+## 最新进展综述
+
+### 待补充：最近一个月最新动向
+请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
 
 ## 算法演化关系
 
@@ -717,16 +721,133 @@ motivation: 数学符号描述张量运算，多面体编译自动生成CUDA代�
 ```
 
 #### 📝 一句话总结
-TC 的核心目标是：数学符号描述张量运算，多面体编译自动生成CUDA代码。
+Tensor Comprehensions 提出了一种基于 Einstein 记法的张量计算 DSL，结合多面体编译（Polyhedral Compilation）和遗传算法自动调优，能够从高层数学描述自动生成高性能 GPU 内核，在分组卷积等算子上达到 NVIDIA 库 4 倍加速，并已集成到 Caffe2 和 PyTorch 框架中。
 
 #### 🎯 核心要点
-- 核心动机：数学符号描述张量运算，多面体编译自动生成CUDA代码
-- 演化来源：继承或改进自 halide
-- 代表机构：Meta/FAIR
+- **TC 语言**：基于 Einstein 记法的高层 DSL，支持隐式循环索引推断、自动归约（`+=!`/`min=!`/`max=!`）和 Range Inference（从输入张量形状自动推导输出形状）
+- **多面体 JIT 编译**：将 TC 转换为 Static Control Part (SCoP) 表示，利用 ISL 库进行仿射变换调度，基于 PPCG 框架自动映射到 CUDA 线程/块层次
+- **遗传算法自动调优**：种群大小 100、25 代进化，约 6 小时完成一轮搜索；调优参数包括 tile 大小、循环融合策略、共享内存使用比例等
+- **编译缓存系统**：以 (TC定义, 输入形状, 目标架构) 为键缓存最优 CUDA/PTX 代码，支持 Protocol Buffer 序列化持久化
+- **框架集成**：通过 ATen 异步张量库集成 Caffe2（生产）和 PyTorch（研究），提供 Python/C++ 双接口
+- **实验验证**：在 Tesla M40 (Maxwell) 和 P100 (Pascal) 上，分组卷积达 4× 加速，批量矩阵乘 3.6× 加速，生产 LUT 模型 3× 加速
 
 #### 🔬 深入细节
-数学符号描述张量运算，多面体编译自动生成CUDA代码
+##### 系统架构总览
 
+![TC 系统架构图](https://ar5iv.labs.arxiv.org/html/1802.04730/assets/x1.png)
+*图：Tensor Comprehensions 端到端编译流程——从高层 TC 语言定义经多面体分析、调度优化、GPU 映射到 CUDA 代码生成*
+
+TC 的整体流程分为四个阶段：
+1. **前端解析**：将 TC 语言描述解析为 Halide IR 中间表示
+2. **多面体分析与调度**：转换为 SCoP，利用 ISL 进行依赖分析和仿射变换调度
+3. **GPU 映射**：基于 PPCG 将调度后的循环映射到 CUDA 的 block/thread 层次，插入共享内存 promotion
+4. **代码生成与自动调优**：生成 CUDA 代码，通过 NVRTC 即时编译，遗传算法搜索最优参数组合
+
+##### TC 语言与算法伪代码
+
+TC 语言采用类 Einstein 记法，以矩阵乘法为例：
+
+```python
+# TC 语言定义：转置矩阵乘法
+def tmm(float(M, K) A, float(N, K) B) -> (C) {
+    C(m, n) +=! A(m, kk) * B(n, kk)   # +=! 表示先初始化为0再累加归约
+}
+
+# TC 语言定义：分组卷积
+def gconv(float(N, G, F, C, W, H) I, float(G, F, C, KW, KH) W1) -> (O) {
+    O(n, g, f, w, h) +=! I(n, g, r_c, w + r_kw, h + r_kh) * W1(g, f, r_c, r_kw, r_kh)
+}
+```
+
+> 💡 **关键设计**：以 `r_` 前缀标记的索引（如 `r_c`, `r_kw`）为归约维度，编译器自动推断其范围；`+=!` 语义确保输出张量先清零再累加，避免数据竞争。
+
+##### 多面体编译核心机制
+
+**动机与背景**：传统深度学习框架依赖手写 CUDA 算子库（如 cuDNN、cuBLAS），每个新算子都需要专家级 GPU 编程。研究者设计新网络层时面临"性能鸿沟"——高层数学描述与底层高性能实现之间缺乏自动化桥梁。Halide 虽然分离了算法与调度，但仍需用户手动编写调度策略；XLA 依赖固定的算子融合规则，灵活性不足。
+
+**多面体模型（Polyhedral Model）**：TC 将张量计算转换为 Static Control Part (SCoP)——一种仅包含仿射循环边界和仿射数组访问的程序片段。在此表示下：
+
+$$S = \{(i_1, \ldots, i_n) \in \mathbb{Z}^n \mid A \cdot \mathbf{i} + \mathbf{b} \geq 0\}$$
+
+每个语句实例对应整数格点集合中的一个点，依赖关系可精确表示为仿射关系。ISL（Integer Set Library）提供了高效的整数集合运算，支持：
+- **依赖分析**：精确计算读写依赖（RAW/WAR/WAW）
+- **调度变换**：通过仿射变换矩阵重新排列循环执行顺序，实现 tiling、fusion、interchange 等优化
+- **参数化**：支持符号参数（如 batch size），允许运行时特化
+
+**GPU 映射策略**：基于 PPCG（Polyhedral Parallel Code Generator）框架，将调度后的循环层次映射到 CUDA 的三级并行层次：
+
+$$\text{Loop Nest} \xrightarrow{\text{outer bands}} \text{CUDA Blocks} \xrightarrow{\text{inner bands}} \text{CUDA Threads}$$
+
+映射过程自动处理：
+- **Tiling**：将循环分块以匹配 GPU 的 warp/SM 结构
+- **共享内存 Promotion**：将频繁访问的数据从全局内存提升到共享内存，插入必要的同步屏障（`__syncthreads`）
+- **寄存器 Promotion**：将线程私有数据提升到寄存器（论文指出此功能尚未完全实现，是性能瓶颈之一）
+
+> ⚠️ **注意**：论文坦承在大规模矩阵乘法上 TC 仍比 cuBLAS 慢 3-4 倍，主要原因是缺少寄存器级 tiling 和高级数据搬运优化（如 Scott Gray 文档中的 FU operand reuse 技巧）。
+
+##### 遗传算法自动调优
+
+自动调优器搜索的参数空间包括：
+
+| 参数类别 | 具体参数 | 说明 |
+|---------|---------|------|
+| Tiling | 各维度 tile 大小 | 影响数据局部性和并行粒度 |
+| Fusion | 循环融合策略 | Max/Min fusion 策略选择 |
+| Memory | 共享内存使用比例 | 平衡 occupancy 和数据复用 |
+| Mapping | block/thread 维度分配 | 匹配硬件拓扑 |
+| Unrolling | 展开因子 | 减少循环开销 |
+
+搜索流程：
+1. 初始化种群（100 个随机参数组合）
+2. 每代评估所有个体的实际 GPU 执行时间
+3. 选择 → 交叉 → 变异 → 生成下一代
+4. 25 代后选取最优个体
+5. 结果序列化到编译缓存
+
+> 💡 **关键**：自动调优的瓶颈不在 GPU 执行，而在 NVRTC 编译——NVRTC v8.0 内部持有全局锁，只能串行编译内核。
+
+##### 实验结果与分析
+
+在 Tesla P100 (Pascal) 上的关键结果（中位数，单位 μs）：
+
+| 算子 | Caffe2/cuDNN | TC (autotuned) | 加速比 |
+|------|-------------|----------------|--------|
+| 分组卷积 (32,32,16,16,14,14) | 1,343 | 321 | **4.2×** |
+| 分组卷积 (32,32,4,4,56,56) | 4,106 | 481 | **8.5×** |
+| 批量矩阵乘 (500,72,26,26) | 192 | 53 | **3.6×** |
+| 生产 LUT-1 | 64 | 22 | **2.9×** |
+| 生产 LUT-2 | 125 | 30 | **4.2×** |
+| MLP3 融合层 | 131 | 46 | **2.8×** |
+| 大矩阵乘 (128,4096,16384) | 2,431 | 8,177 | 0.3× (慢) |
+
+**关键发现**：
+1. **分组卷积优势显著**：cuDNN 对分组卷积的实现未充分优化，TC 的多面体编译能自动发现更好的数据局部性和并行策略
+2. **算子融合收益**：TC 可将多个小算子融合为单个内核（如 MLP 中的矩阵乘+偏置+激活），减少内核启动开销和中间数据搬运
+3. **大矩阵乘的差距**：cuBLAS 经过数十年手工优化，利用了寄存器级 tiling、warp shuffle 等底层技巧，TC 的多面体框架尚未覆盖这些优化
+4. **生产模型验证**：在 Facebook 生产环境的 LUT（Look-Up Table）模型上验证了实际可用性
+
+##### 与传统方法的对比
+
+| 特性 | TC | Halide | XLA | 手写 CUDA |
+|------|-----|--------|-----|-----------|
+| 算法描述 | Einstein 记法 | 函数式 + 手动调度 | 计算图 | 底层代码 |
+| 调度自动化 | 多面体自动 + 自动调优 | 需手写调度 | 固定规则 | 完全手动 |
+| 新算子支持 | 改 TC 定义即可 | 需写新调度 | 需注册算子 | 重写 CUDA |
+| GPU 映射 | PPCG 自动 | 手动指定 | 模板化 | 手动 |
+| 峰值性能 | 中高（缺寄存器优化） | 中高 | 中 | 最高 |
+| 开发效率 | 高 | 中 | 中高 | 低 |
+
+#### 🧪 练习题
+```yaml
+question: "Tensor Comprehensions 中 `+=!` 操作符的语义是什么？"
+options:
+  - "原子加操作，保证多线程安全"
+  - "先将输出张量初始化为零，再进行累加归约"
+  - "就地累加，不初始化输出张量"
+  - "并行归约，使用树形规约算法"
+answer: 1
+explain: "+=! 中的 ! 表示先将输出初始化为加法单位元（零），再进行累加。这与 += 不同，后者假设输出已有值并在其上累加。"
+```
 
 ### JAX
 
@@ -2566,16 +2687,215 @@ motivation: 3-bit非均匀量化编译优化，大幅提升LLM推理吞吐
 ```
 
 #### 📝 一句话总结
-Quantix 的核心目标是：3-bit非均匀量化编译优化，大幅提升LLM推理吞吐。
+Quantix 针对基于聚类的非均匀量化（clustering-based non-uniform quantization）将 LLM 权重压缩至 3 bit 后在 GPU 上推理吞吐严重下降的问题，提出了两项核心优化：(1) 硬件对齐的位重排方案（hardware-aligned bit shuffling），使 3-bit 数据在 GPU 内存层次中实现高效对齐访问；(2) 融合反量化-乘法流水线（fused dequantization-multiplication pipeline），将反量化操作映射到 CUDA Core、矩阵乘法映射到 Tensor Core 并行执行，消除传统方案中反量化的串行开销。在 NVIDIA L40 GPU 上，Quantix 实现了相对 FP16 cuBLAS 4.82× 的内核级加速，以及相对现有最优量化推理方案 11.46× 的端到端加速。
 
 #### 🎯 核心要点
-- 核心动机：3-bit非均匀量化编译优化，大幅提升LLM推理吞吐
-- 演化来源：继承或改进自 tensorrt
-- 代表机构：Community
+- **问题定义**：基于聚类的非均匀量化（如 k-means 量化）可将 LLM 权重压缩至 3 bit 并保持较高精度，但推理时需要查表反量化（codebook lookup），导致严重的计算开销和 GPU 利用率低下，实际推理速度甚至慢于 FP16 基线
+- **3-bit 对齐难题**：3 bit 不是 2 的幂次，无法自然对齐到 GPU 的 8/16/32/128-bit 内存访问粒度，朴素的位打包（bit packing）方案导致大量跨字（cross-word）访问和位移操作，严重制约内存带宽利用率
+- **硬件对齐位重排**：Quantix 设计了一种位重排方案，将 3-bit 量化索引重新组织排列，使得每次 32-bit 或 128-bit 内存加载都能获取完整的量化值集合，消除跨字边界访问，最大化内存事务效率
+- **融合反量化-乘法流水线**：传统方案先将所有量化权重反量化为 FP16 再执行 GEMM，Quantix 将反量化（codebook lookup + 位提取）映射到 CUDA Core，将矩阵乘法映射到 Tensor Core，两者通过共享内存（shared memory）在流水线中并行执行，隐藏反量化延迟
+- **双核协同架构**：在同一 SM（Streaming Multiprocessor）内，部分 warp 负责 CUDA Core 上的反量化工作，部分 warp 负责 Tensor Core 上的矩阵乘累加（MMA），通过 warp 级流水线调度实现计算资源的充分利用
+- **性能结果**：在 NVIDIA L40 GPU 上，内核级加速 4.82×（vs FP16 cuBLAS），端到端加速 11.46×（vs 现有最优非均匀量化方案），同时保持非均匀量化的精度优势
 
 #### 🔬 深入细节
-3-bit非均匀量化编译优化，大幅提升LLM推理吞吐
+##### 4.1 核心架构概览
 
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Quantix 推理框架                       │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  ┌──────────────┐    ┌──────────────┐    ┌───────────┐  │
+│  │  3-bit 量化   │    │  Bit Shuffle │    │ Codebook  │  │
+│  │  权重存储     │───▶│  重排引擎     │───▶│  查表反量化│  │
+│  │  (Global Mem) │    │  (对齐加载)   │    │ (CUDA Core)│  │
+│  └──────────────┘    └──────────────┘    └─────┬─────┘  │
+│                                                │        │
+│                                          Shared Memory  │
+│                                                │        │
+│  ┌──────────────┐    ┌──────────────┐    ┌─────▼─────┐  │
+│  │  FP16 激活值  │───▶│  激活值加载   │───▶│ Tensor Core│  │
+│  │  (Global Mem) │    │  (对齐加载)   │    │  MMA 计算  │  │
+│  └──────────────┘    └──────────────┘    └───────────┘  │
+│                                                         │
+│         CUDA Core 反量化 ∥ Tensor Core GEMM             │
+│              (Warp-level Pipeline)                       │
+└─────────────────────────────────────────────────────────┘
+```
+*图 1：Quantix 整体架构。3-bit 量化权重经过位重排后对齐加载，CUDA Core 执行 codebook 查表反量化，Tensor Core 并行执行矩阵乘累加，两者通过共享内存和 warp 级流水线协同工作。*
+
+##### 4.2 算法伪代码
+
+```python
+# Quantix 融合反量化-矩阵乘内核（概念性伪代码）
+def quantix_fused_gemm_kernel(
+    Q_packed,      # 3-bit 量化权重（位重排后），shape: [K, N/pack_factor]
+    codebook,      # 非均匀量化码本，shape: [num_groups, 2^3]
+    A,             # FP16 激活值，shape: [M, K]
+    C,             # 输出矩阵，shape: [M, N]
+):
+    # === 阶段 1：位重排加载（Hardware-Aligned Bit Shuffling）===
+    # 每个 warp 加载 128-bit 对齐的量化权重块
+    # 位重排保证每次加载获取完整的 3-bit 索引集合
+    packed_data = aligned_load_128bit(Q_packed, block_offset)
+    
+    # === 阶段 2：CUDA Core 反量化（与 Tensor Core MMA 流水线并行）===
+    for tile_k in range(0, K, TILE_K):
+        # --- CUDA Core Warps: 反量化 ---
+        # 从 packed_data 中提取 3-bit 索引（无跨字访问）
+        indices = extract_3bit_indices(packed_data, tile_k)  # 位操作
+        
+        # Codebook 查表：index → FP16 反量化值
+        W_dequant = codebook_lookup(codebook, indices)  # shape: [TILE_K, TILE_N]
+        
+        # 写入共享内存供 Tensor Core 使用
+        shared_mem.store(W_dequant, smem_offset)
+        __syncthreads()
+        
+        # --- Tensor Core Warps: 矩阵乘累加 ---
+        # 从共享内存加载反量化权重片段
+        W_frag = load_matrix_fragment(shared_mem, smem_offset)
+        A_frag = load_matrix_fragment(A, tile_k)
+        
+        # Tensor Core MMA: C += A_frag @ W_frag
+        C_accum = mma_sync(A_frag, W_frag, C_accum)
+    
+    # 写回结果
+    store_output(C, C_accum, block_offset)
+```
+
+```python
+# 硬件对齐位重排方案（离线预处理）
+def hardware_aligned_bit_shuffle(weights_3bit, group_size=128):
+    """
+    将 3-bit 量化索引重排为硬件对齐的打包格式。
+    
+    问题：10 个 3-bit 值 = 30 bits，无法填满 32-bit 字
+          朴素打包导致值跨越字边界
+    
+    解决：重排索引顺序，使每个 32-bit 字内的值完整且对齐
+    """
+    N = len(weights_3bit)
+    # 32 个 3-bit 值 = 96 bits = 3 个 32-bit 字（最小公倍数）
+    PACK_UNIT = 32  # 每个打包单元处理 32 个 3-bit 值
+    
+    packed = []
+    for i in range(0, N, PACK_UNIT):
+        chunk = weights_3bit[i:i+PACK_UNIT]  # 32 个 3-bit 索引
+        
+        # 位重排：将 32 个 3-bit 值的各位分离
+        # bit[2]: 高位平面, bit[1]: 中位平面, bit[0]: 低位平面
+        plane_2 = pack_bit_plane(chunk, bit_pos=2)  # 32 bits → 1 个 uint32
+        plane_1 = pack_bit_plane(chunk, bit_pos=1)  # 32 bits → 1 个 uint32
+        plane_0 = pack_bit_plane(chunk, bit_pos=0)  # 32 bits → 1 个 uint32
+        
+        # 3 个 uint32 完美对齐，无跨字访问
+        packed.extend([plane_2, plane_1, plane_0])
+    
+    return packed
+```
+
+##### 4.3 方法细节
+
+**动机与背景：非均匀量化的精度-速度困境**
+
+大语言模型（LLM）的推理部署面临巨大的内存和计算挑战。量化是最主要的压缩手段之一，将权重从 FP16（16 bit）压缩至更低位宽。现有量化方法分为两大类：
+
+1. **均匀量化**（Uniform Quantization）：量化级别等间距分布，反量化仅需简单的缩放和偏移操作（\(w = s \cdot q + z\)），计算开销极低。代表方法包括 GPTQ、AWQ、QuIP 等，通常在 4-bit 下工作良好，但在 3-bit 及以下精度显著下降。
+
+2. **非均匀量化**（Non-uniform Quantization）：使用聚类算法（如 k-means）找到最优量化级别，级别间距不等，能更好地匹配权重的实际分布。代表方法包括 SqueezeLLM、AQLM、NormalFloat 等。非均匀量化在 3-bit 下仍能保持较高精度，但反量化需要查表操作（codebook lookup），计算开销远大于均匀量化。
+
+Quantix 的核心观察是：非均匀量化在 3-bit 下的精度优势是显著的（相比均匀量化可降低 1-3 个困惑度点），但现有 GPU 实现的反量化开销完全抵消了内存带宽节省，导致实际推理速度甚至慢于 FP16 基线。这一性能瓶颈有两个根本原因：
+
+**原因一：3-bit 的内存对齐问题。** GPU 的内存系统以 32-bit（4 字节）或 128-bit（16 字节）为最小访问粒度。4-bit 量化值可以自然地 2 个一组打包到 1 个字节中，8 个一组打包到 1 个 32-bit 字中。但 3-bit 值无法整除这些粒度：10 个 3-bit 值占 30 bits，11 个占 33 bits，都无法填满 32-bit 字。朴素的连续打包方案会导致某些 3-bit 值跨越 32-bit 字边界，提取时需要加载两个字并进行复杂的位移和掩码操作，严重降低内存带宽利用率。
+
+**原因二：反量化的串行开销。** 传统实现采用两阶段方案：先将所有量化权重反量化为 FP16，再调用 cuBLAS 执行矩阵乘法。反量化阶段涉及大量的位操作（位提取）和查表操作（codebook lookup），这些操作在 GPU 上的计算密度低、内存访问模式不规则，无法充分利用 GPU 的计算资源。更关键的是，反量化和矩阵乘法是串行执行的，无法重叠计算。
+
+**硬件对齐位重排（Hardware-Aligned Bit Shuffling）**
+
+Quantix 的第一个核心创新是位重排方案。其核心思想是：不按照权重矩阵的自然顺序连续打包 3-bit 值，而是重新组织排列顺序，使得每次内存加载都能获取完整的、不跨字的量化值集合。
+
+具体方法是采用**位平面分离**（bit-plane decomposition）策略。对于一组 32 个 3-bit 量化索引（共 96 bits = 3 个 32-bit 字），将每个索引的第 0 位、第 1 位、第 2 位分别收集到三个独立的 32-bit 字中：
+
+$$\text{plane}_b[j] = \text{index}[j].\text{bit}[b], \quad b \in \{0, 1, 2\}, \quad j \in \{0, \ldots, 31\}$$
+
+这样，3 个 32-bit 字完美存储 32 个 3-bit 值，每次 128-bit 加载（4 个 32-bit 字）可以获取 \(\lfloor 4/3 \rfloor \times 32 = 32\) 个完整的量化索引（加上 1 个字的冗余或用于下一组）。更重要的是，从位平面恢复原始 3-bit 索引只需要简单的位与（AND）和位移（SHIFT）操作，无需处理跨字边界的情况。
+
+这种位重排是一个**离线预处理**步骤，在模型加载时一次性完成，不影响推理时的在线性能。重排后的数据布局与 GPU 的内存访问模式完美对齐，使得量化权重的加载效率接近理论带宽上限。
+
+**融合反量化-乘法流水线（Fused Dequantization-Multiplication Pipeline）**
+
+Quantix 的第二个核心创新是将反量化和矩阵乘法融合到同一个 CUDA 内核中，并利用 CUDA Core 和 Tensor Core 的异构计算能力实现流水线并行。
+
+现代 NVIDIA GPU（如 L40、A100、H100）同时具备两种计算单元：
+- **CUDA Core**：通用标量/向量计算单元，擅长位操作、条件分支、查表等不规则计算
+- **Tensor Core**：专用矩阵乘累加单元，执行 \(D = A \times B + C\) 的小矩阵运算（如 16×16×16），吞吐量远超 CUDA Core
+
+Quantix 的关键洞察是：反量化操作（位提取 + codebook 查表）本质上是 CUDA Core 擅长的不规则计算，而矩阵乘法是 Tensor Core 擅长的规则计算。在传统的两阶段方案中，这两种计算单元无法同时工作——反量化阶段 Tensor Core 空闲，矩阵乘阶段 CUDA Core 空闲。
+
+Quantix 设计了一个 warp 级流水线，在同一个 SM 内：
+1. **Producer warps**（生产者）：使用 CUDA Core 执行位提取和 codebook 查表，将反量化后的 FP16 权重写入共享内存
+2. **Consumer warps**（消费者）：使用 Tensor Core 从共享内存读取反量化权重，与激活值执行矩阵乘累加
+
+通过双缓冲（double buffering）技术，当 consumer warps 处理第 \(k\) 个 tile 时，producer warps 同时准备第 \(k+1\) 个 tile 的反量化数据，实现计算的完全重叠：
+
+$$\text{Pipeline Stage } k: \quad \underbrace{\text{Dequant}(W_{k+1})}_{\text{CUDA Core}} \parallel \underbrace{\text{MMA}(A_k, W_k)}_{\text{Tensor Core}}$$
+
+**Codebook 查表优化**
+
+非均匀量化的反量化核心是 codebook 查表：给定 3-bit 索引 \(q \in \{0, 1, \ldots, 7\}\)，从码本中取出对应的 FP16 值 \(c[q]\)。由于码本只有 8 个条目（\(2^3 = 8\)），Quantix 将码本加载到寄存器或共享内存中，利用 GPU 的快速本地存储实现零延迟查表。对于分组量化（group quantization），每个组有独立的码本，Quantix 将当前处理组的码本预加载到寄存器文件中，避免反复访问全局内存。
+
+**Warp 调度与资源分配**
+
+在 SM 内部，Quantix 需要精心平衡 producer warps 和 consumer warps 的数量比例。如果 producer warps 过多，Tensor Core 利用率不足；如果过少，反量化成为瓶颈。最优比例取决于反量化的计算强度和 Tensor Core 的吞吐量。由于 3-bit 非均匀量化的反量化涉及位操作和查表两步，其计算强度高于均匀量化的简单缩放，因此需要相对更多的 producer warps。
+
+##### 4.4 核心公式
+
+**非均匀量化（聚类量化）**：
+
+$$q^* = \arg\min_{q \in \{0,\ldots,2^b-1\}} |w - c[q]|$$
+
+其中 \(w\) 为原始 FP16 权重，\(c[\cdot]\) 为通过 k-means 聚类得到的码本，\(b=3\) 为量化位宽。
+
+> 💡 **关键**：非均匀量化的码本条目 \(c[q]\) 间距不等，能更好地匹配权重分布的密度，在 3-bit 下比均匀量化保持更高精度。
+
+**反量化（Codebook Lookup）**：
+
+$$\hat{w} = c[q], \quad q = \text{extract\_3bit}(\text{packed\_data}, \text{offset})$$
+
+> ⚠️ **注意**：与均匀量化的 \(\hat{w} = s \cdot q + z\)（仅需一次乘加）不同，非均匀量化需要查表操作，这是推理开销的主要来源。
+
+**位平面分离（Bit-Plane Decomposition）**：
+
+$$\text{plane}_b = \bigoplus_{j=0}^{31} \left(\text{index}[j].\text{bit}[b] \ll j\right), \quad b \in \{0, 1, 2\}$$
+
+32 个 3-bit 索引 → 3 个 32-bit 字，完美对齐，无跨字访问。
+
+**融合流水线吞吐模型**：
+
+$$T_{\text{fused}} = \max\left(T_{\text{dequant}}^{\text{CUDA Core}},\ T_{\text{MMA}}^{\text{Tensor Core}},\ T_{\text{mem}}\right)$$
+
+> 💡 **关键**：融合流水线的总时间由三者中的最慢者决定（而非串行相加），这是加速的根本来源。理想情况下，反量化时间被 Tensor Core 计算完全隐藏。
+
+**加速比分析**：
+
+$$\text{Speedup}_{\text{kernel}} = \frac{T_{\text{FP16-cuBLAS}}}{T_{\text{Quantix}}} = 4.82\times$$
+
+$$\text{Speedup}_{\text{e2e}} = \frac{T_{\text{SOTA-quantized}}}{T_{\text{Quantix}}} = 11.46\times$$
+
+> ⚠️ **注意**：11.46× 的端到端加速不仅来自内核优化，还包括 3-bit 压缩带来的内存带宽节省（权重传输量仅为 FP16 的 3/16 ≈ 18.75%），这在 LLM 推理的 memory-bound 场景中尤为重要。
+
+#### 🧪 练习题
+```yaml
+question: "Quantix 采用位平面分离（bit-plane decomposition）而非朴素连续打包来存储 3-bit 量化值的主要原因是什么？"
+options:
+  - "位平面分离可以减少量化误差，提高模型精度"
+  - "位平面分离使压缩率从 3-bit 进一步降低到 2-bit"
+  - "3-bit 值无法整除 32-bit 字边界，位平面分离消除了跨字访问，实现硬件对齐的高效内存加载"
+  - "位平面分离是 Tensor Core 的硬件要求，不支持其他数据格式"
+answer: 2
+explain: "3-bit 不是 2 的幂次，朴素连续打包会导致某些 3-bit 值跨越 32-bit 字边界，提取时需要加载两个字并进行复杂位操作。位平面分离将 32 个 3-bit 值的各位分别收集到 3 个独立的 32-bit 字中，每个字内的位完整对齐，消除了跨字访问，使 GPU 内存加载效率接近理论带宽上限。"
+```
 
 ### Hexcute
 

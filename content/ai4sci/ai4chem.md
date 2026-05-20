@@ -2,13 +2,12 @@
 domain: ai4sci
 topic_id: ai4chem
 topic_name: ai4chem
-page_icon: "\U0001F9EA"
+page_icon: 🧪
 page_title: 化学AI 技术演进图谱
 page_subtitle: '{build_date} 版'
 page_desc: 从分子表示学习到反应预测、逆合成分析、催化剂设计与分子生成，AI正在重塑化学研究范式。本图谱涵盖2017-2026年化学AI领域的经典算法与前沿突破，展现从数据驱动到物理感知、从辅助工具到AI科学家的演化历程。
 hero_pills:
-- "\U0001F3F7️ AI4Chemistry · Reaction Prediction · Retrosynthesis · Catalyst Discovery
-  · Molecular Generation"
+- 🏷️ AI4Chemistry · Reaction Prediction · Retrosynthesis · Catalyst Discovery · Molecular Generation
 count_pill: '{count} 个算法'
 categories:
   representation:
@@ -33,8 +32,13 @@ categories:
 
 ## 领域综述
 
-### 待定
-待定。
+### 待补充：阶段性领域总结
+请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+
+## 最新进展综述
+
+### 待补充：最近一个月最新动向
+请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
 
 ## 算法演化关系
 

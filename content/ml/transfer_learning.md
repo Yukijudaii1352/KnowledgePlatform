@@ -2,13 +2,12 @@
 domain: ml
 topic_id: transfer_learning
 topic_name: transfer_learning
-page_icon: "\U0001F504"
+page_icon: 🔄
 page_title: 迁移学习 算法总结
 page_subtitle: '{build_date} 版'
-page_desc: 从样本加权到特征对齐，从对抗博弈到预训练-微调，迁移学习打破了独立同分布假设，使知识在域、任务与模态间流动。本文梳理领域自适应、跨任务迁移与预训练范式三大技术脉络，涵盖
-  2006 年 KMM 至 2026 年扩散式域自适应与参数高效微调的完整演进。
+page_desc: 从样本加权到特征对齐，从对抗博弈到预训练-微调，迁移学习打破了独立同分布假设，使知识在域、任务与模态间流动。本文梳理领域自适应、跨任务迁移与预训练范式三大技术脉络，涵盖 2006 年 KMM 至 2026 年扩散式域自适应与参数高效微调的完整演进。
 hero_pills:
-- "\U0001F3F7️ Domain Adaptation · Cross-task Transfer · Pre-training Paradigm"
+- 🏷️ Domain Adaptation · Cross-task Transfer · Pre-training Paradigm
 count_pill: '{count} 个算法'
 categories:
   domain_adapt:
@@ -24,8 +23,13 @@ categories:
 
 ## 领域综述
 
-### 待定
-待定。
+### 待补充：阶段性领域总结
+请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+
+## 最新进展综述
+
+### 待补充：最近一个月最新动向
+请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
 
 ## 算法演化关系
 

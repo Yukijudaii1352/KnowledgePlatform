@@ -1,5 +1,5 @@
 /**
- * text_edit-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:01 自动生成。
+ * text_edit-data.js — 由 pipeline/build.py 于 2026-05-20 16:45:36 自动生成。
  * 源文件：content/aigc/text_edit.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,25 +9,27 @@ window.PAGE_CONFIG = {
     "topic_id": "text_edit",
     "topic_name": "text_edit",
     "page_title": "图像编辑技术演进图谱",
-    "page_subtitle": "2026-05-18 版",
+    "page_subtitle": "2026-05-20 版",
     "page_desc": "梳理从GAN时代到Diffusion时代的图像编辑算法演进脉络，涵盖局部重绘、风格迁移、可控生成及2026年最新的DiT架构编辑与精准控制技术。",
     "page_icon": "🎨",
     "hero_pills": [
       "🏷️ Image Editing · Diffusion Models · Controllable Generation"
     ],
     "count_pill": "{count} 个算法",
-    "image_base": ""
+    "image_base": "",
+    "overview_from_doc": true,
+    "latest_overview_from_doc": true
   },
   "overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：阶段性领域总结",
+      "body_html": "<p>请补充一篇纵观一段时间以来的总结性文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "latest_overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：最近一个月最新动向",
+      "body_html": "<p>请补充最近一个月该领域最新动向的综述文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "graph": {

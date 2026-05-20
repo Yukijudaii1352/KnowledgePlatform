@@ -2,12 +2,12 @@
 domain: cv
 topic_id: medical_vision
 topic_name: medical_vision
-page_icon: "\U0001F3E5"
+page_icon: 🏥
 page_title: 医学影像算法演进
 page_subtitle: '{build_date} 版'
 page_desc: 从U-Net到SAM 2，梳理医学分割、CT/MRI分析、病理识别与诊断辅助的技术发展脉络，涵盖经典架构到2026年Mamba与视觉语言模型的最新进展
 hero_pills:
-- "\U0001F3F7️ Medical AI · Segmentation · CT/MRI · Pathology · Diagnostic"
+- 🏷️ Medical AI · Segmentation · CT/MRI · Pathology · Diagnostic
 count_pill: '{count} 个算法'
 categories:
   foundation:
@@ -26,8 +26,13 @@ categories:
 
 ## 领域综述
 
-### 待定
-待定。
+### 待补充：阶段性领域总结
+请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+
+## 最新进展综述
+
+### 待补充：最近一个月最新动向
+请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
 
 ## 算法演化关系
 
@@ -193,8 +198,7 @@ milestones:
 id: unet
 num: 1
 name: U-Net
-full_name: 'U-Net: 医学图像分割的卷积网络 (U-Net: Convolutional Networks for Biomedical Image
-  Segmentation)'
+full_name: 'U-Net: 医学图像分割的卷积网络 (U-Net: Convolutional Networks for Biomedical Image Segmentation)'
 year: '2015'
 org: 弗莱堡大学
 parent: —
@@ -387,8 +391,7 @@ explain: "d1+d2 仅在像素同时靠近两个不同细胞时才很小（即位�
 id: vnet
 num: 2
 name: V-Net
-full_name: 'V-Net: 体积医学图像分割的全卷积网络 (V-Net: Fully Convolutional Neural Networks for
-  Volumetric Medical Image Segmentation)'
+full_name: 'V-Net: 体积医学图像分割的全卷积网络 (V-Net: Fully Convolutional Neural Networks for Volumetric Medical Image Segmentation)'
 year: '2016'
 org: Fausto Milletari
 parent: unet
@@ -575,8 +578,7 @@ explain: "Dice 损失直接优化预测与真实标注的重叠度，其计算�
 id: google_dr
 num: 3
 name: Google DR
-full_name: Google糖尿病视网膜病变检测 (Development and Validation of a Deep Learning Algorithm
-  for Detection of Diabetic Retinopathy)
+full_name: Google糖尿病视网膜病变检测 (Development and Validation of a Deep Learning Algorithm for Detection of Diabetic Retinopathy)
 year: '2016'
 org: Google Health
 parent: —
@@ -789,8 +791,7 @@ explain: "本文的一个核心创新是标注体系的设计：训练集每张�
 id: chexnet
 num: 4
 name: CheXNet
-full_name: 'CheXNet: 胸片肺炎检测的放射科医生级深度学习 (CheXNet: Radiologist-Level Pneumonia Detection
-  on Chest X-Rays with Deep Learning)'
+full_name: 'CheXNet: 胸片肺炎检测的放射科医生级深度学习 (CheXNet: Radiologist-Level Pneumonia Detection on Chest X-Rays with Deep Learning)'
 year: '2017'
 org: 斯坦福大学
 parent: —
@@ -982,8 +983,7 @@ Attention MIL 的核心目标是：可学习注意力权重聚合实例特征解
 id: unet_pp
 num: 6
 name: U-Net++
-full_name: 'U-Net++: 嵌套U型医学图像分割架构 (UNet++: A Nested U-Net Architecture for Medical
-  Image Segmentation)'
+full_name: 'U-Net++: 嵌套U型医学图像分割架构 (UNet++: A Nested U-Net Architecture for Medical Image Segmentation)'
 year: '2018'
 org: 亚利桑那州立大学
 parent: unet
@@ -1265,8 +1265,7 @@ explain: "Softmax 要求所有空间位置的注意力系数之和为 1，导致
 id: segresnet
 num: 8
 name: SegResNet
-full_name: 'SegResNet: 自编码器正则化的3D脑肿瘤分割 (3D MRI Brain Tumor Segmentation using Autoencoder
-  Regularization)'
+full_name: 'SegResNet: 自编码器正则化的3D脑肿瘤分割 (3D MRI Brain Tumor Segmentation using Autoencoder Regularization)'
 year: '2018'
 org: NVIDIA
 parent: vnet
@@ -1451,8 +1450,8 @@ explain: "VAE 分支仅在训练时使用，推理时被丢弃。它通过要求
 id: hovernet
 num: 9
 name: HoVer-Net
-full_name: 'HoVer-Net: 同时分割与分类的细胞核实例分割 (HoVer-Net: Simultaneous Segmentation and Classification
-  of Nuclei in Multi-Tissue Histology Images)'
+full_name: 'HoVer-Net: 同时分割与分类的细胞核实例分割 (HoVer-Net: Simultaneous Segmentation and Classification of Nuclei in Multi-Tissue
+  Histology Images)'
 year: '2019'
 org: 华威大学
 parent: —
@@ -1619,8 +1618,7 @@ explain: "HoVer Maps 将每个核像素到其实例质心的水平/垂直距离�
 id: nnu_net
 num: 10
 name: nnU-Net
-full_name: 'nnU-Net: 自配置深度学习医学图像分割方法 (nnU-Net: a self-configuring method for deep
-  learning-based biomedical image segmentation)'
+full_name: 'nnU-Net: 自配置深度学习医学图像分割方法 (nnU-Net: a self-configuring method for deep learning-based biomedical image segmentation)'
 year: '2020'
 org: 德国癌症研究中心
 parent: unet_pp
@@ -1805,8 +1803,7 @@ explain: "CT 值具有物理意义（HU 单位），不同样本间可比较，�
 id: transunet
 num: 11
 name: TransUNet
-full_name: 'TransUNet: Transformer增强医学图像分割 (TransUNet: Transformers Make Strong Encoders
-  for Medical Image Segmentation)'
+full_name: 'TransUNet: Transformer增强医学图像分割 (TransUNet: Transformers Make Strong Encoders for Medical Image Segmentation)'
 year: '2021'
 org: 约翰霍普金斯大学
 parent: unet
@@ -1961,8 +1958,7 @@ explain: "TransUNet 的三大核心改进是：(1) 用 ResNet-50 + ViT 混合编
 id: swin_unet
 num: 12
 name: Swin-Unet
-full_name: 'Swin-Unet: 纯Transformer医学图像分割 (Swin-Unet: Unet-like Pure Transformer for
-  Medical Image Segmentation)'
+full_name: 'Swin-Unet: 纯Transformer医学图像分割 (Swin-Unet: Unet-like Pure Transformer for Medical Image Segmentation)'
 year: '2021'
 org: 微软亚研/慕尼黑工大
 parent: transunet
@@ -2076,8 +2072,7 @@ explain: "Patch Expanding 先用线性层将通道维度扩展至 2C，再通过
 id: clam
 num: 13
 name: CLAM
-full_name: 'CLAM: 聚类约束注意力多实例学习 (Data-efficient and weakly supervised computational
-  pathology on whole-slide images)'
+full_name: 'CLAM: 聚类约束注意力多实例学习 (Data-efficient and weakly supervised computational pathology on whole-slide images)'
 year: '2021'
 org: 哈佛医学院
 parent: attention_mil
@@ -2293,8 +2288,7 @@ explain: "MedSAM 的核心策略是在约 157 万张覆盖 11 种模态的医学
 id: medsam_v1
 num: 15
 name: MedSAM-Video
-full_name: 'MedSAM视频分割版本 (Medical SAM 2: Segment medical images as video via Segment
-  Anything Model 2)'
+full_name: 'MedSAM视频分割版本 (Medical SAM 2: Segment medical images as video via Segment Anything Model 2)'
 year: '2024.08'
 org: 哈佛/麻省总医院
 parent: medsam
@@ -2322,8 +2316,7 @@ MedSAM-Video 的核心目标是：将3D扫描视为视频序列实现体积自�
 id: cihm
 num: 16
 name: CIHM
-full_name: 'CIHM: 上下文洞察混合Mamba (Context-Insight Hybrid Mamba for efficient medical
-  image segmentation)'
+full_name: 'CIHM: 上下文洞察混合Mamba (Context-Insight Hybrid Mamba for efficient medical image segmentation)'
 year: '2026.04'
 org: 中科院/清华大学
 parent: swin_unet
@@ -2351,8 +2344,7 @@ CIHM 的核心目标是：并行Mamba与CNN分支参数减少345倍。
 id: deco_mamba
 num: 17
 name: Deco-Mamba
-full_name: 'Deco-Mamba: 解码器端Mamba优化 (Decoding Matters: Efficient Mamba-Based Decoder
-  with Distribution-Aware Deep Supervision)'
+full_name: 'Deco-Mamba: 解码器端Mamba优化 (Decoding Matters: Efficient Mamba-Based Decoder with Distribution-Aware Deep Supervision)'
 year: '2026.03'
 org: 研究机构
 parent: cihm
@@ -2536,8 +2528,7 @@ explain: "传统深度监督强迫低分辨率层产生像素级预测，反而�
 id: mamba_sam
 num: 18
 name: Mamba-SAM
-full_name: 'Mamba-SAM: 混合Mamba与SAM架构 (A Hybrid Mamba-SAM Architecture for Efficient
-  3D Medical Image Segmentation)'
+full_name: 'Mamba-SAM: 混合Mamba与SAM架构 (A Hybrid Mamba-SAM Architecture for Efficient 3D Medical Image Segmentation)'
 year: '2026.02'
 org: 研究机构
 parent: medsam
@@ -2719,8 +2710,7 @@ explain: "VMamba 学习了医学领域特有细节，作为 Query 端能精准�
 id: medsam2
 num: 19
 name: MedSAM2
-full_name: 'MedSAM2: 3D医学影像与视频分割 (MedSAM2: Segment Anything in 3D Medical Images and
-  Videos)'
+full_name: 'MedSAM2: 3D医学影像与视频分割 (MedSAM2: Segment Anything in 3D Medical Images and Videos)'
 year: '2026.04'
 org: 哈佛/麻省总医院
 parent: medsam_v1
@@ -2991,8 +2981,7 @@ UVAS 的核心目标是：无监督异常发现解决长尾病变标注稀缺问
 id: medversa
 num: 21
 name: MedVersa
-full_name: 'MedVersa: 通用医学影像基础模型 (MedVersa: a generalist foundation model for diverse
-  medical imaging tasks)'
+full_name: 'MedVersa: 通用医学影像基础模型 (MedVersa: a generalist foundation model for diverse medical imaging tasks)'
 year: '2026'
 org: MGH/哈佛大学
 parent: medsam2
@@ -3176,8 +3165,7 @@ explain: "MedVersa 的动态任务协议（DTP）让 LLM 在生成文本的过�
 id: uclif
 num: 22
 name: UCLIF
-full_name: 'UCLIF: 3D胸部CT自监督基础模型 (A Self-Supervised Foundation Model Based on Three-Dimensional
-  Chest CT Scans)'
+full_name: 'UCLIF: 3D胸部CT自监督基础模型 (A Self-Supervised Foundation Model Based on Three-Dimensional Chest CT Scans)'
 year: '2026'
 org: 研究机构
 parent: —

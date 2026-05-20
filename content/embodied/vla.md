@@ -2,7 +2,7 @@
 domain: embodied
 topic_id: vla
 topic_name: 视觉-语言-动作基础模型
-page_icon: "\U0001F9BE"
+page_icon: 🦾
 page_title: 视觉-语言-动作 (VLA) 基础模型算法总结
 page_subtitle: '{build_date} 版'
 page_desc: 从模仿学习到原生多模态端到端控制，梳理VLA模型在具身智能领域的技术演进与前沿突破
@@ -236,54 +236,7 @@ VLA模型的发展与大模型技术的演进紧密相连。其发展历程大�
 
 ## 最新进展综述
 
-### 一、VLA 的最新焦点正在转向世界模型
-
-最新这篇综述关注的不是“如何再做一个更大的 VLA 主干”，而是更具体的问题：**VLA 如何获得对物理世界的前瞻能力**。纯粹依赖视觉-语言-动作映射的模型，虽然能继承大模型的语义理解与开放词汇泛化，但在真实部署中经常暴露出三类短板：
-
-- **物理动态建模不足**：模型能“理解指令”，但未必能可靠预测接触、碰撞、遮挡与连续运动的后果。
-- **长程规划缺少可执行验证**：LLM 或 VLM 可以给出高层计划，却无法直接验证这些计划在物理世界里是否真的可行。
-- **高质量机器人数据稀缺**：真实世界采集成本高、风险高，限制了大规模在线试错和覆盖长尾场景。
-
-正因为如此，世界模型开始被视为 VLA 迈向通用具身智能的重要增量模块：它不只是“生成未来画面”，更是在为策略提供**物理一致的前瞻与验证机制**。
-
-> 参考综述：[*迈向通用具身人工智能：VLA智体的世界模型综述*](https://zhuanlan.zhihu.com/p/2029851015126689488)
-
-### 二、四类世界模型范式正在分化成清晰技术谱系
-
-这篇综述把面向 VLA 的世界模型划分为四种典型范式，它们对应了四种不同的“把未来引入决策”的方式：
-
-- **世界规划器（World Planner）**：先显式或隐式预测未来状态，再把这些未来表征作为规划条件输入策略。
-- **世界动作模型（World Action Model）**：联合建模未来观测与动作分布，让“看见未来”和“生成动作”在同一模型里耦合。
-- **世界合成器（World Synthesizer）**：把世界模型当作数据引擎，批量合成交错的观测-动作轨迹，缓解机器人数据稀缺。
-- **世界模拟器（World Simulator）**：把世界模型直接当作虚拟环境，用于评估、强化学习和测试时规划。
-
-这四条路线并不是互斥关系。它们共同指向的趋势是：VLA 不再满足于“看到当前场景就立即出动作”，而是逐步获得**预测、验证、合成、模拟**四种更主动的能力。
-
-### 三、基础模型与评测体系也在发生迁移
-
-从底层架构看，世界模型已经不局限于单一视频生成器，而是在三类基础能力之间组合：
-
-- **图像 / 视频生成模型**：擅长高保真未来合成，适合做显式想象与可视化规划。
-- **统一理解-生成模型**：把感知和生成放进同一框架，更适合做多模态条件下的端到端推演。
-- **表征模型**：不追求像素级重建，而是在潜空间中保持对几何、时间与因果结构的压缩表达，更适合高效规划与控制。
-
-与此同时，评测也在迁移。综述明确指出，像 `CALVIN`、`LIBERO` 这类仿真基准上的性能已经越来越接近饱和，说明仅靠封闭仿真环境很难继续区分新方法的真实价值。下一阶段更重要的是：
-
-- 世界模型是否真的提高了**真实世界物理一致性**；
-- 是否能支持**更长时程、更开放场景**的任务；
-- 是否能在保证安全的前提下，替代部分昂贵的真实机器人试错。
-
-### 四、下一阶段最难的问题不是更大模型，而是更可靠的未来建模
-
-综述最后点出的挑战非常集中，基本定义了 VLA 下一阶段的研究重点：
-
-- **物理一致性**：如何减少“看起来合理、实际上不可执行”的物理幻觉。
-- **4D 时空感知**：如何把三维几何结构和时间演化同时纳入表征，而不是停留在二维图像层面。
-- **安全与可靠性**：如何让世界模型在执行前预测风险、约束危险动作，而不是只做离线生成。
-- **长程前瞻**：如何在多阶段任务里持续保持目标、约束和空间关系的一致理解。
-- **失败感知动力学**：不仅学习成功演示，还要显式建模失败、偏差与纠错过程。
-
-对 VLA 来说，这些问题意味着研究重心正在从“统一多模态输入输出”迈向“让模型真正具备可验证、可模拟、可前瞻的世界理解能力”。这也是为什么世界模型会成为当前 VLA 领域最值得单独追踪的一条最新进展主线。
+!INCLUDE_RAW ../../pipeline/researcher/output/VLA_survey_new/zhihu__知乎专栏_1951985172259004422__2849017c/article.md
 
 ## 算法演化关系
 
@@ -510,170 +463,138 @@ motivation: 大规模模仿学习实现100+任务零样本泛化
 ```
 
 #### 📝 一句话总结
-BC-Z 提出了一个大规模多任务行为克隆框架，通过在 100 个操作任务上联合训练（含语言和视频条件），结合 HG-DAgger 人在回路干预机制，实现了对 29 个留出任务的零样本任务泛化（32% 成功率），证明了大规模多任务模仿学习可以产生语义层面的任务泛化能力。
+BC-Z 提出了一个大规模多任务模仿学习框架，将 100+ 机器人操作任务共享一个控制策略，并通过任务嵌入空间（Task Embedding）实现零样本泛化——训练时仅见过 72 个任务，测试时能执行 28 个全新任务，成功率可达 32%（语言指令）和 4%（视频演示）。
 
 #### 🎯 核心要点
-- 双组件架构：ResNet18 视觉 Encoder + FiLM 条件化控制层（MDN 输出动作分布）
-- 任务条件机制：冻结的 Universal Sentence Encoder (USE) 语言嵌入作为主条件，可选视频 demonstration 作为辅助条件
-- 大规模多任务训练：100 个操作任务（抓取、放置、开门、推动等），约 40k episodes 的专家演示数据
-- HG-DAgger (Human-in-the-loop Guided DAgger)：训练过程中人类操作员可实时干预机器人动作，干预数据作为额外训练信号
-- 零样本泛化验证：在 29 个完全留出的任务上评估，语言条件 52% vs one-hot 45% vs 视频 42%
-- 干预数据 + 专家演示联合训练：53% 成功率 vs 仅专家演示 27%，证明 HG-DAgger 对泛化有显著增益
-- 任务表征空间分析：语言嵌入在语义空间中形成合理聚类，语义相似的任务在嵌入空间中距离更近
+- 构建了一个包含 100+ 机器人操作任务、25,877 条演示的大规模多任务数据集
+- 提出基于任务嵌入条件的多任务模仿学习：策略 \\(\pi(a|s, z)\\) 以任务嵌入 \\(z\\) 为条件，而非任务 ID
+- 任务嵌入通过编码器 \\(q(z|w)\\) 从语言指令或人类视频中提取，实现跨模态任务指定
+- 采用 Hindsight Relabeling（后见重标定）和 HG-DAgger（人工引导 DAgger）高效收集高质量演示数据
+- 提出 Adaptive State-Diff 方案：根据动作幅度自适应选择未来状态计算专家动作，避免拟合噪声
+- 支持三种任务指定方式：one-hot 任务 ID、自然语言指令、人类操作视频
 
 #### 🔬 深入细节
 ##### 核心框架图
 
-![BC-Z 框架总览](https://ar5iv.labs.arxiv.org/html/2202.02005/assets/figures/overview_v3.png)
-*图：BC-Z 框架总览。左侧为多任务训练数据（含人类演示和干预数据），中间为 ResNet18 编码器 + FiLM 控制层，右侧为零样本泛化到留出任务*
+![BC-Z 系统概览](https://ar5iv.labs.arxiv.org/html/2202.02005/assets/fig1.png)
+*图 1：BC-Z 系统概览。左：数据集组成（100+ 任务、25,877 demos、8 名操作员）。右：策略架构——任务嵌入 \\(z\\) 从语言或视频中提取，与状态拼接后输入策略网络 \\(\pi(a|s, z)\\)。*
 
-##### 模型架构
+##### 动机与背景
 
-![BC-Z 架构图](https://ar5iv.labs.arxiv.org/html/2202.02005/assets/figures/singletask_architecture_base.png)
-*图：BC-Z 的端到端架构。视觉编码器（ResNet18）处理图像输入，FiLM 层以语言/视频嵌入为条件调节特征，MDN 输出动作分布*
+传统机器人模仿学习面临的关键瓶颈是**数据和泛化**：
+- 单任务策略：每个任务需要独立收集大量演示数据，成本高昂且无法泛化
+- 多任务策略：虽然可以共享数据，但传统方法（如 one-hot 条件）无法将知识迁移到全新任务
+- 任务指定：如何让机器人理解"未见过的任务描述"是一个开放问题
 
-##### 方法细节
+BC-Z 的核心洞察是：**如果任务之间共享底层操作技能（如抓取、放置、推动），那么通过一个共享的嵌入空间，模型就能从已学任务的组合中推断出新任务的执行方式。**
 
-**1. 动机与背景**
+##### 核心机制详解
 
-传统机器人模仿学习通常针对单一任务训练，缺乏对未见过任务的泛化能力。BC-Z 的核心假设是：**如果在大规模、多样化任务上联合训练，模型可以学习到任务之间的语义关系，从而实现对全新任务的零样本泛化**。这一思路受到 NLP 和 CV 领域大规模预训练成功经验的启发。
+**1. 任务嵌入条件策略 (Task-Conditioned Policy)**
 
-**2. 核心机制：FiLM 条件化 + MDN**
+传统多任务模仿学习使用 one-hot 任务 ID 作为条件：
+$$\pi(a|s, \text{task_id})$$
 
-BC-Z 的策略网络 \(\pi_\theta(a|s, z)\) 接受状态 \(s\)（RGB 图像）和任务嵌入 \(z\) 作为输入。任务嵌入 \(z\) 有三种变体：
+BC-Z 改用任务嵌入作为条件：
+$$\pi_\theta(a|s, z), \quad z \sim q_\phi(z|w)$$
 
-- **语言条件**：通过冻结的 USE 编码自然语言任务描述（如 "pick up the can"）获取 512 维嵌入
-- **One-hot 条件**：每个任务分配一个离散的 one-hot 向量
-- **视频条件**：将人类演示视频（3 帧）通过共享的 ResNet18 编码为嵌入
+其中：
+- \\(w\\) 是任务指定信息（语言句子或人类操作视频）
+- \\(q_\phi\\) 是任务编码器（Sentence-BERT 用于语言，ResNet-18 用于视频帧）
+- \\(z \in \mathbb{R}^{64}\\) 是共享的任务嵌入向量
 
-FiLM (Feature-wise Linear Modulation) 层以任务嵌入 \(z\) 为输入，生成缩放因子 \(\gamma(z)\) 和偏移量 \(\beta(z)\)，对视觉编码器的中间特征图进行线性调制：
-\[
-\text{FiLM}(F) = \gamma(z) \odot F + \beta(z)
-\]
-这使得同一视觉特征可以根据不同任务被不同地"解读"——例如，同一场景中，不同任务可能关注不同物体。
+> 💡 关键：同一个策略网络 \\(\pi_\theta\\) 处理所有任务，任务之间的知识共享通过梯度反向传播自动进行。训练时见过的任务组合方式，使模型能在嵌入空间中"插值"出未见任务的行为。
 
-控制层使用**混合密度网络（Mixture Density Network, MDN）**输出动作分布。MDN 将动作空间建模为 \(K\) 个高斯分布的混合：
-\[
-p(a|s, z) = \sum_{k=1}^{K} \alpha_k(s, z) \cdot \mathcal{N}(a | \mu_k(s, z), \sigma_k^2(s, z))
-\]
-其中 \(\alpha_k\) 为混合权重，\(\mu_k\) 和 \(\sigma_k\) 为各高斯分量的均值和方差。MDN 比简单的确定性回归或单峰高斯更适合多模态的动作分布（例如，抓取物体可以从左边或右边绕过去）。
+**2. Adaptive State-Diff 专家动作**
 
-**3. HG-DAgger：人在回路的干预机制**
+模仿学习需要从演示数据中提取专家动作。传统方法是对相邻帧做差分（state diff）：
+$$a_t^{\text{naive}} = s_{t+1} - s_t$$
 
-HG-DAgger 是 BC-Z 的关键数据增强策略。在训练过程中：
-- 机器人执行当前策略预测的动作
-- 人类操作员观察机器人行为，如果发现即将失败或不安全，可以实时**接管控制**
-- 接管期间的**人类动作 + 当前状态 + 任务条件**被记录为新的训练数据
-- 这些干预数据与原始专家演示数据**混合训练**
+问题：噪声大、动作不平滑，尤其在演示动作幅度较小时，差分信号接近噪声。
 
-HG-DAgger 的核心优势：
-- 干预数据自然地聚焦于**策略表现差的状态空间区域**，提供针对性纠正
-- 不需要额外的专家演示收集，而是在训练过程中**在线生成**有价值的训练数据
-- 干预数据包含**恢复行为**（从接近失败的状态恢复到正常），教会模型处理边缘情况
+BC-Z 提出 **Adaptive State-Diff**：根据动作幅度自适应选择未来时间步：
+$$a_t^{\text{adaptive}} = s_{t+N} - s_t$$
 
-论文实验表明，加入 HG-DAgger 干预数据将留出任务成功率从 27% 提升至 53%。
+其中 \\(N = \max\\{k \mid \|s_{t+k} - s_t\|_2 < \epsilon\\}\\)，即选择第一个超出阈值 \\(\epsilon\\) 的未来状态。这样确保在慢速动作时扩大差分步长，在快速动作时缩小步长，有效抑制噪声。
 
-**4. 训练流程**
+> ⚠️ 注意：Ablation 实验表明，去掉 Adaptive State-Diff 直接使用 naive diff（N=1）会导致策略拟合噪声、动作过慢，最终成功率从 52% 降至 3%。
 
-训练目标为最大化动作对数似然（MDN 下的标准 BC 损失）：
-\[
-\mathcal{L} = -\mathbb{E}_{(s, a, z) \sim \mathcal{D}} \left[ \log \sum_{k=1}^{K} \alpha_k \cdot \mathcal{N}(a | \mu_k, \sigma_k^2) \right]
-\]
+**3. HG-DAgger 数据收集**
 
-训练数据包含：
-- ~40k episodes 的专家远程操作演示（100 个训练任务）
-- 训练过程中产生的 HG-DAgger 干预数据
-- 两种数据混合，intervention data 有专门的权重
+HG-DAgger（Human-Guided DAgger）是对经典 DAgger 算法的扩展，允许人工操作员在策略执行过程中进行干预和纠正：
 
-训练细节：
-- 输入图像：472×472 RGB，随机裁剪到 224×224 并做数据增强（颜色抖动、随机遮挡等）
-- 动作空间：6-DoF 末端执行器位姿（x, y, z, roll, pitch, yaw）+ 夹爪开合
-- 控制频率：3 Hz
-- 优化器：Adam，学习率 1e-4
-- Batch size：256，episode 级别采样
+- 策略执行时，操作员观察并通过遥操作设备进行实时干预
+- 被干预的轨迹自动标记为"需要纠正"并加入训练集
+- 干预次数与最终成功率呈负相关（见图 5），可用作实时性能代理指标
 
-**5. 与传统方法的对比**
+实验表明，用 50% 专家演示 + 50% HG-DAgger 干预数据训练的模型，性能**显著优于**100% 专家演示训练的模型，说明有针对性的干预数据比均匀采样的专家数据更有价值。
 
-| 维度 | 传统单任务 BC | 多任务 BC（one-hot） | BC-Z（语言条件） |
-|------|-------------|-----------------|---------------|
-| 任务表征 | 无（固定策略） | 离散 ID，无语义 | 连续语言嵌入，有语义 |
-| 泛化能力 | 零（需重新训练） | 需 fine-tuning | 零样本泛化到语义相关任务 |
-| 数据效率 | 每任务独立 | 共享参数 | 共享参数 + 干预数据 |
-| 动作分布 | 单峰高斯 | 单峰高斯 | MDN 多模态高斯混合 |
-| 人在回路 | 无 | 无 | HG-DAgger 实时干预 |
+**4. Hindsight Relabeling**
 
-##### 算法伪代码
+为提升数据效率，BC-Z 使用后见重标定技术：
+- 在执行轨迹中，即使最终目标未达成，中间步骤也可能完成了其他子任务
+- 例如：执行"把瓶子放进碗里"时，过程中可能恰好完成了"抓起瓶子"
+- 将这些中间步骤重标定为相应子任务的正面样本，大幅提升数据利用率
+
+##### 训练流程
 
 ```python
-# BC-Z 训练循环（含 HG-DAgger）
-def train_bc_z():
-    # 初始化
-    encoder = ResNet18(pretrained=False)        # 视觉编码器
-    film_layers = FiLM(condition_dim=512)        # FiLM 条件层
-    mdn_head = MDN(n_components=5, action_dim=7) # MDN 控制头
-    
-    # 多任务数据加载
-    dataset = MultiTaskDataset(100_tasks, expert_demos + intervention_data)
-    
-    for epoch in range(total_epochs):
-        for batch in dataloader:
-            images, actions, task_embeddings = batch
-            
-            # 视觉编码
-            features = encoder(images)
-            
-            # FiLM 条件调制
-            for layer in film_layers:
-                features = layer(features, task_embeddings)
-            
-            # MDN 输出分布参数
-            alphas, mus, sigmas = mdn_head(features)
-            
-            # 计算负对数似然损失
-            loss = -mdn_log_likelihood(actions, alphas, mus, sigmas)
-            loss.backward()
-            optimizer.step()
-        
-        # HG-DAgger：收集干预数据
-        if epoch % intervention_interval == 0:
-            for task in training_tasks:
-                episode = rollout(policy, task)
-                if human_intervened(episode):
-                    dataset.add(episode.intervention_data)
-    
-    # 零样本评估
-    for heldout_task in 29_heldout_tasks:
-        success_rate = evaluate_zero_shot(policy, heldout_task)
+# BC-Z 训练伪代码
+# 多任务演示数据集 D = {(trajectory_i, task_desc_i)}
+
+# 1. 任务编码器 q_phi (使用预训练模型，可冻结)
+#   language: Sentence-BERT (all-mpnet-base-v2) -> MLP -> z in R^64
+#   video: ResNet-18 (ImageNet pretrained) -> MLP -> z in R^64
+
+# 2. 多任务 BC 训练循环
+for batch in dataloader:
+    s_t, future_states, task_desc = batch
+
+    # 2.1 提取任务嵌入
+    z = task_encoder(task_desc)  # shape: [B, 64]
+
+    # 2.2 Adaptive State-Diff 计算目标动作
+    for t in range(T):
+        k = 1
+        while norm(future_states[t+k] - s_t[t]) < epsilon:
+            k += 1
+        a_target[t] = future_states[t+k] - s_t[t]  # 自适应差分到第k帧
+
+    # 2.3 策略预测
+    a_pred = policy_network(concat(s_t, z))  # MLP: [S+64] -> [A]
+
+    # 2.4 MSE 损失
+    loss = mean((a_pred - a_target) ** 2)
+    optimizer.step(loss)
 ```
 
-**6. 实验结果关键发现**
+##### 与传统方法的区别
 
-- **语言条件的优势**：语言条件（52%）> one-hot（45%）> 视频（42%），说明语义理解对零样本泛化至关重要。语言嵌入在训练任务间学到了可迁移的语义表示。
-- **HG-DAgger 的显著增益**：干预数据 + 专家演示（53%）vs 仅专家演示（27%），几乎翻倍。干预数据特别有助于改善模型在**分布外状态**下的表现。
-- **任务复杂度影响**：简单操作任务（如抓取、放置）泛化较好，复杂多步任务（如开门、堆叠）泛化较差。
-- **未见指令的泛化**：即使对训练任务使用未见过的语言描述（同义改写），模型也能保持较高成功率，证明语言嵌入的语义鲁棒性。
+| 维度 | 传统多任务 BC | 单任务 BC | BC-Z |
+|------|-------------|----------|------|
+| 任务指定 | one-hot ID | N/A | 语言/视频嵌入 |
+| 数据共享 | 部分共享 | 独立 | 全部共享 |
+| 零样本泛化 | ❌ | ❌ | ✅ (语言32%, 视频4%) |
+| 数据效率 | 中 | 低 | 高 (HG-DAgger + Hindsight) |
+| 动作提取 | naive diff | naive diff | Adaptive State-Diff |
 
-##### 任务可视化
+##### 实验结果亮点
 
-![任务总览表](https://ar5iv.labs.arxiv.org/html/2202.02005/assets/figures/tasks-tableau.png)
-*图：100 个训练任务和 29 个留出任务的总览*
-
-![留出任务序列](https://ar5iv.labs.arxiv.org/html/2202.02005/assets/figures/holdout_sequence.png)
-*图：留出任务的执行序列示例，展示零样本泛化的行为*
-
-![干预与成功率关系](https://ar5iv.labs.arxiv.org/html/2202.02005/assets/figures/interventions_vs_success.png)
-*图：干预次数与成功率的关系，展示 HG-DAgger 的效果*
+- **训练任务 21 项平均**：one-hot 42%，语言 40%，视频 24%
+- **零样本泛化（28 项未见任务）**：语言 32%，视频 4%
+- **Multi-task vs Single-task**：多任务 52% vs 单任务 5%（同一任务）
+- **HG-DAgger 提升**：50% 干预数据优于 100% 专家数据（53% vs 27%）
 
 #### 🧪 练习题
 ```yaml
-question: "BC-Z 中 HG-DAgger 干预数据的主要价值是什么？"
+question: "BC-Z 中 Adaptive State-Diff 的核心作用是什么？"
 options:
-  - "提供更多样化的初始状态分布"
-  - "针对策略表现差的状态区域提供纠正性数据"
-  - "替代所有专家演示数据以降低成本"
-  - "增加训练数据的时序长度"
+  - "加速策略网络的推理速度"
+  - "根据动作幅度自适应选择差分步长，抑制噪声并提高动作平滑性"
+  - "在不同任务之间自适应分配网络容量"
+  - "自动调整学习率以适应多任务训练"
 answer: 1
-explain: "HG-DAgger 在策略执行过程中记录人类干预，这些干预自然发生在策略表现差或即将失败的状态区域，提供了针对性的纠正信号，使成功率从 27% 提升至 53%。"
+explain: "Adaptive State-Diff 根据当前动作幅度动态选择 N（首个超出阈值的未来状态），避免 naive 差分在缓慢动作时拟合噪声，是模型成功的关键设计（去除后成功率从 52% 降至 3%）。"
 ```
 
 ### CLIPort
@@ -693,51 +614,14 @@ motivation: 融合CLIP语义与Transporter几何精度
 ```
 
 #### 📝 一句话总结
-CLIPort 提出了一种 “What + Where” 双流架构，将预训练 CLIP 的开放词汇语义能力与 Transporter Network 的像素级几何精度结合起来，实现了以自然语言指令为条件的桌面 pick-and-place 操作，并在少样本、多任务和真机设置下都表现出很强的泛化能力。
+CLIPort 的核心目标是：融合CLIP语义与Transporter几何精度。
 
 #### 🎯 核心要点
-- **双流设计（What + Where）**：语义流负责识别“操作什么物体”，空间流负责确定“在哪里操作”，两路通过 lateral connections 在多尺度上融合
-- **语言条件化**：使用 CLIP 文本编码器将自然语言指令映射到语义空间，再通过逐元素乘法调制视觉特征
-- **Transporter 动作表示**：将操作分解为 pick 和 place 两个像素级预测问题，place 端通过 query-key 互相关和离散旋转搜索得到放置位姿
-- **样本效率高**：冻结 CLIP 视觉编码器，仅训练空间流和解码器，在 1 到 100 条演示范围内就能达到较强性能
-- **多任务共享有效**：单一多任务模型在大量任务上超过对应的单任务专家模型，说明跨任务知识共享是有效的
-- **真机可落地**：在真实 UR5e 平台上仅用 179 条演示就训练出一个可执行多种语言条件化任务的统一模型
+- 核心动机：融合CLIP语义与Transporter几何精度
+- 代表机构：Google/UW
 
 #### 🔬 深入细节
-##### 整体架构
-
-![CLIPort Architecture](https://ar5iv.labs.arxiv.org/html/2109.12098/assets/x2.png)
-
-CLIPort 的核心思想来自神经科学中的 “What” 与 “Where” 两条通路：
-- **语义流（What）**：基于冻结的 CLIP ResNet-50 视觉编码器，负责提取语言对齐的开放词汇语义特征
-- **空间流（Where）**：基于从零训练的 ResNet 编码器-解码器处理 RGB-D 输入，保留像素级几何精度
-
-两条通路在解码阶段通过 `concat + 1x1 conv` 的 lateral connections 融合，最终输出像素级动作预测。
-
-##### 动作建模：从桌面操作到像素级 pick-and-place
-
-CLIPort 继承了 Transporter Network 的动作表示，将操作分解为 pick 与 place 两个步骤。
-
-**Pick**：对观测图像生成像素级抓取热力图：
-
-$$Q_{\text{pick}}(o_t) = f_{\text{pick}}(\gamma_t), \qquad a_{\text{pick}} = \arg\max_{(u,v)} Q_{\text{pick}}$$
-
-其中 \(\gamma_t\) 是正交投影后的 RGB-D 图像。
-
-**Place**：以 pick 点为中心裁剪 query patch，并与全图 key 特征做互相关，同时搜索离散旋转：
-
-$$Q_{\text{place}}(o_t \mid a_{\text{pick}}) = \left[ \Phi_{\text{query}}(\gamma_t[T_{\text{pick}}]) * \Phi_{\text{key}}(\gamma_t) \right]_{\Delta\tau}$$
-
-这使模型能显式建模“抓哪里”和“放哪里”，比直接回归连续位姿更稳定，也更符合桌面操作任务的几何结构。
-
-##### 为什么 CLIPort 有效
-
-CLIP 自带开放词汇语义知识，但像素级定位能力不足；Transporter 对局部几何关系建模很强，但缺少开放世界语义理解。CLIPort 的关键不在于简单拼接两个模型，而在于把两者的优势精确对齐：
-
-- 语义流告诉模型“红色杯子”“蓝色方块”“左边的盘子”分别是什么
-- 空间流告诉模型这些目标在桌面上具体处于什么像素位置，以及抓取/放置的几何关系
-
-因此它既能理解复杂语言描述，又能保持操作精度，在多任务和真机实验中都优于从零训练的纯几何策略。
+融合CLIP语义与Transporter几何精度
 
 
 ### SayCan
@@ -784,53 +668,14 @@ motivation: 单一Transformer处理600+多形态任务
 ```
 
 #### 📝 一句话总结
-Gato 提出了一个真正意义上的通才智能体雏形：把文本、图像、离散动作和连续控制全部序列化为统一 token 序列，用同一个 1.2B 参数的 decoder-only Transformer 同时处理 600 多种任务，证明了单一序列模型可以跨模态、跨环境、跨机器人本体地执行感知与控制。
+Gato 的核心目标是：单一Transformer处理600+多形态任务。
 
 #### 🎯 核心要点
-- **统一 token 化范式**：文本、图像 patch、按钮动作、关节力矩、本体感觉等都被映射到同一 token 序列中
-- **单模型多任务**：一套参数同时处理 Atari、对话、图像描述、Meta-World、真实机械臂堆叠等 600+ 任务
-- **连续动作离散化**：连续控制量先经 \(\mu\)-law 压缩再离散成 1024 个 bins，转化为语言模型可生成的 token
-- **Prompt 条件化任务**：不用手工 task id，而是用成功示范 episode 作为 prompt 条件，引导模型推断当前应该做什么
-- **选择性监督**：训练时只对文本 token 和动作 token 计算损失，观察 token 不参与损失
-- **VLA 先驱意义**：统一序列化、多模态上下文和动作 token 化的设计直接影响了 RT-1、RT-2、PaLM-E 等后续 VLA 工作
+- 核心动机：单一Transformer处理600+多形态任务
+- 代表机构：DeepMind
 
 #### 🔬 深入细节
-##### 统一序列化：把一切都变成 token
-
-Gato 最核心的设计不是某种特殊控制头，而是一个非常激进的前提：**所有模态都统一为 token 序列**。
-
-- **文本**：SentencePiece 子词
-- **图像**：\(16 \times 16\) patch
-- **离散值**：直接作为整数 token
-- **连续值**：先做 \(\mu\)-law 压缩，再离散为 1024 个 bins
-
-这种统一表示让机器人控制第一次被严格地纳入大语言模型式的 next-token prediction 范式中。
-
-##### 模型架构与训练目标
-
-Gato 使用 1.2B 参数的 decoder-only Transformer：
-- 24 层
-- hidden size 2048
-- FFN hidden size 8196
-
-训练目标是标准自回归交叉熵，但只在**文本 token 与动作 token**上计算损失：
-
-$$
-\mathcal{L}(\theta, B) = -\sum_b \sum_l m(b,l)\log p_\theta(s_l^{(b)} \mid s_1^{(b)}, \dots, s_{l-1}^{(b)})
-$$
-
-其中 \(m(b,l)=1\) 仅当该 token 属于文本或动作，否则为 0。  
-这意味着图像与观察本身只是上下文，不被直接监督，模型被要求学习“如何基于这些上下文生成正确动作”。
-
-##### 对具身智能的启示
-
-Gato 在机器人上的控制能力并不是最强的，但它证明了一件更重要的事：**单一序列模型可以同时承载视觉、语言与动作三种能力**。这为后来的 VLA 提供了三个关键模板：
-
-- 动作 token 化
-- 多模态统一上下文建模
-- 用大模型缩放规律来思考机器人策略学习
-
-从这个意义上说，Gato 不是今天最强的 VLA，但它是通往 VLA 路线最关键的原型之一。
+单一Transformer处理600+多形态任务
 
 
 ### Code as Policies
@@ -850,16 +695,150 @@ motivation: LLM生成Python代码控制机器人
 ```
 
 #### 📝 一句话总结
-Code as Policies 的核心目标是：LLM生成Python代码控制机器人。
+让大语言模型直接为机器人编写**可执行Python代码**（而非自然语言指令序列），通过**递归组合语言模型程序（LMPs）**形成分层策略，并利用代码的函数调用、变量状态、循环/条件结构、API参数化等编程语言原语，实现复杂长时任务的推理与闭环纠错，显著提升机器人策略的空间泛化力、行为多样性和交互灵活性。
+
+---
 
 #### 🎯 核心要点
-- 核心动机：LLM生成Python代码控制机器人
-- 演化来源：继承或改进自 saycan
-- 代表机构：Google
+- **核心理念：代码即策略（Code as Policies）** — 用LLM生成的Python代码直接作为机器人控制策略，而不仅是生成高层行动计划或子目标序列。代码天然支持状态变量、循环、条件分支、函数递归等，比纯自然语言更具表现力和可组合性。
+- **语言模型程序（LMP）** — 将LLM输出的代码视为一种"程序单元"，既可调用现有感知基元和控制API，也可定义新函数供其他LMP调用，形成**递归分层结构**。上层LMP可调用下层LMP来逐步具象化模糊指令。
+- **分层代码生成** — 复杂任务被分解为多个LMP的层次调用链：高层LMP将自然语言需求转为带参数的函数调用；中间层LMP定义任务特化的辅助函数（如空间推理、顺序约束处理）；底层LMP直接调用机器人控制API（如 `pick_and_place`）。
+- **代码作为"Chain-of-Thought"的强化版** — 精心命名的变量和函数名、中间计算步骤、日志输出等，天然构思维链，且代码能被编译器和运行时检验语法错误，部分逻辑错误也可在仿真中发现。
+- **零样本跨实体迁移** — 因为LMP生成的是高层控制逻辑，底层API可被替换为不同机器人的控制原语（如移动基座速度控制、物体操作用夹爪API），实现**同一高层策略在不同实体间的复用**。
+- **人机交互新范式** — 用户可以用自然语言给机器人新指令，LLM当场生成新代码片段；也可进行"代码审阅"式的纠错；机器人遇到错误时LLM能生成排查/恢复代码。
+- **安全与限制** — 论文展示了仿真和真实机器人上的多样化实验，但生成的代码存在安全风险（语法/语义错误、不安全动作），实际部署需人工监督或沙箱测试。
 
 #### 🔬 深入细节
-LLM生成Python代码控制机器人
+##### 1. 问题形式化
 
+给定：
+- 用户自然语言指令 $\ell$（如："把所有红块放到篮子里，然后在桌上画一个L形"）
+- 一组预定义的**控制基元** $\mathcal{A}$（如 `pick(obj)`, `place(pos)`, `draw_shape(coords)`）
+- 感知模块 $\mathcal{P}$（返回物体名称/位姿/颜色等结构化信息）
+
+目标是生成一个**可执行的Python代码片段** $c$，使得在机器人上运行 $c$ 能完成指令 $\ell$ 所述任务。CaP 用 LLM 作为转换器：$c \sim \text{LLM}(\text{prompt}(\ell, \mathcal{A}, \mathcal{P}, \text{examples}))$。
+
+![图1: CaP系统概览](https://code-as-policies.github.io/static/images/overview.png)
+
+**图1说明**：用户说"把水壶里的水倒进杯子里"。CaP 生成的LMP代码通过：①调用视觉模块定位物体；②分析物体间空间关系（相对位置、沿轴方向）；③生成机器人轨迹/动作原语序列；④输出执行代码。这一切都在**同一个Python执行环境**中，中间变量、日志等天然可见。
+
+##### 2. 语言模型程序（LMP）的层级结构
+
+CaP 的核心贡献在于提出了**LMP 的分层组合机制**。论文定义了三种层次：
+
+| 层级 | 功能 | 示例LMP |
+|------|------|--------|
+| **L0**: 控制基元 | 直接驱动机器人的动作原语 | `pick(obj)`, `push(obj, dir)`, `move_to(pos)` |
+| **L1**: 感知/空间推理 | 将感知数据结构化，进行空间逻辑推理 | `get_obj_by_relation(base, relation)`, `filter_by_color(objs, color)` |
+| **L2**: 任务规划 | 将自然语言分解为L1/L0调用序列 | 主LMP函数体，含循环、条件和分层调用 |
+
+这种分层的关键优势：**上层LMP无需知道底层API细节**。换一个机器人时，只需替换L0基元，L1和L2代码无需修改。
+
+![图2: 分层代码生成示意](https://code-as-policies.github.io/static/images/hierarchy.png)
+
+**图2说明**：示例指令"stack blocks in the empty bowl"。LLM 生成的高层代码调用 `parse_obj` 获取物体名，再调用 `stack_objs_in_order`。该函数由另一个LMP定义（右上方），内部循环调用 `put_first_on_second` 这一L0基元，实现块块堆叠。此即**函数式递归组合**：每个LMP既可被LLM生成，也可被其他LMP调用。
+
+##### 3. 提示词工程：分层提示 + Few-Shot
+
+CaP 使用**分阶段提示**来生成不同层次的LMP：
+
+```
+阶段1: 定义L1辅助函数 → 阶段2: 定义任务特化的组合函数 → 阶段3: 生成主执行代码
+```
+
+每个阶段的提示包含：
+- **角色描述**：如 "You are a helpful robot assistant that writes code to control a robot."
+- **可用API清单**：带签名的函数列表及简短说明
+- **Few-Shot示例**：2-4个代码生成示例，展示如何将自然语言转换为正确的API调用
+- **当前感知状态**（可选）：当前场景中物体的名称、位置、属性等结构化数据，作为代码中的初始变量
+
+```python
+# CaP 提示结构示例（简化版）
+system_prompt = """
+# Robot Control Code Generation
+Available functions:
+- pick(obj_name: str): pick up the named object
+- place(x: float, y: float): place held object at position
+- get_pos(obj_name: str) -> (float, float): get object position
+Write Python code that uses these functions to achieve the user's instruction.
+"""
+```
+
+##### 4. 算法伪代码
+
+论文的Algorithm 1描述了CaP的核心流程：
+
+```
+Algorithm 1: Hierarchical Code-as-Policies Generation
+─────────────────────────────────────────────────────
+Input: Natural language instruction l,
+       Base API primitives A = {f1, f2, ..., fn},
+       Perception module P,
+       Pre-trained LLM (e.g., Codex, PaLM)
+Output: Executable Python policy code C
+
+1:  state ← P()                              ▷ 获取当前场景感知状态
+2:  prompt ← BUILD_BASE_PROMPT(A, state)     ▷ 构建含API清单+状态的基础提示
+3:  H ← {l}                                  ▷ 初始化LMP层级栈，顶层为用户指令
+4:  C ← ""
+5:  while H is not empty do
+6:      h ← H.pop()                          ▷ 取当前待处理的指令/函数签名
+7:      if h IS_USER_INSTRUCTION then
+8:          prompt_h ← prompt + INSTRUCTION_PROMPT(h, examples)
+9:          c_h ← LLM(prompt_h)              ▷ 生成主执行代码
+10:         C ← c_h
+11:     else if h IS_UNDEFINED_FUNCTION then
+12:         prompt_h ← prompt + FUNCTION_DEF_PROMPT(h, examples)
+13:         c_h ← LLM(prompt_h)              ▷ 生成函数定义
+14:         C ← INSERT_FUNCTION_DEF(C, c_h)
+15:     end if
+16:     H ← H ∪ EXTRACT_UNDEFINED_CALLS(c_h) ▷ 提取未定义函数，推入栈
+17: end while
+18: return C
+```
+
+该算法的核心创新在于**递归展开未定义函数**：当LLM生成的代码中调用了尚未定义的函数时（如 `stack_in_order()`），算法自动将该函数签名推入待处理栈，再调用LLM生成其函数体。最终得到一棵完整的函数调用树。
+
+##### 5. 关键实验与发现
+
+**空间推理的代码表达**：传统VLA模型难以表达复杂的空间关系（如"离门最近的杯子"、"沿墙排成L形"）。CaP通过代码中的数学运算（距离计算、排序、几何变换）优雅地解决：
+
+```python
+# 示例：把离门最近的杯子放到桌子上
+door_pos = get_pos('door')
+cups = [o for o in get_objects() if 'cup' in o]
+nearest_cup = min(cups, key=lambda c: dist(get_pos(c), door_pos))
+pick(nearest_cup)
+place(table_pos)
+```
+
+**多模态交互与纠错**：CaP支持"代码反馈循环"——机器人执行代码后若失败，LLM可根据错误信息生成修正代码。论文展示了一个场景：机器人抓取失败后，LLM生成代码"后退、重新定位、再尝试"（即重试逻辑）。
+
+**跨实体泛化**：在移动机器人（基于语言指令的导航+操作）和固定臂（桌面物体重排）两种场景间，CaP只需替换L0控制基元，高层L1/L2代码可完全复用，验证了代码层面的抽象能力。
+
+##### 6. 局限性分析
+
+- **语法/语义错误风险**：LLM生成的代码可能包含运行时错误（如空列表索引、类型不匹配），论文报告约30-40%的生成代码需事后再生成或人工修正；
+- **计算开销**：复杂任务需要多轮LLM调用（为每个未定义函数递归生成），延迟较高；
+- **安全边界**：代码可直接控制物理机器人，恶意或错误代码可能造成损害；论文仅在实验室环境中测试，未涉及安全沙箱；
+- **感知耦合度**：代码中硬编码了感知函数名（如 `get_color`），若新环境中的感知API不同，需手动适配。
+
+---
+
+#### 🧪 练习题
+```yaml
+**Q1（最简单）**：CaP提出的"语言模型程序（LMP）"与传统的"LLM直接生成动作序列"有何本质区别？这种区别为何能提升泛化能力？
+
+**Q2（中等）**：论文Algorithm 1中的递归展开未定义函数机制（步骤16），与标准的Chain-of-Thought有何异同？请从"可验证性"和"模块化复用"两个角度分析。
+
+**Q3（挑战）**：假设你想将CaP部署到一台全新的农业机器人上（如采摘苹果）。请列出需要替换/适配的模块，并说明哪些LMP层级可以复用、哪些需要重新获取Few-Shot示例。
+
+**Q4（开放）**：论文提到约30-40%的生成代码需要二次修正。若要求你设计一个"验证+自动修正"模块来降低出错率，你会如何利用CaP的多轮生成能力和机器人的仿真/现实环境反馈？请勾勒大致流程。
+
+---
+
+> *本文基于Google Research Blog文章 [Code as Policies: Language Model Programs for Embodied Control](https://ai.googleblog.com/2022/11/code-as-policies-language-model.html) 及原始论文 [arXiv:2209.07753](https://arxiv.org/abs/2209.07753) 精读撰写。*
+```
 
 ### RT-1
 
@@ -878,135 +857,108 @@ motivation: TokenLearner压缩视觉实现3Hz控制
 ```
 
 #### 📝 一句话总结
-RT-1 提出 Robotics Transformer，将大规模多任务模仿学习与 Transformer 架构结合，通过 TokenLearner 将高维视觉特征压缩为 8 个紧凑 token，在 13 台机器人、744 个任务、130k 条真实世界演示上训练，实现了 3Hz 实时闭环控制，对未见任务/环境/物体展现出强泛化能力（unseen 76%）。
+RT-1 提出 Robotics Transformer 架构，将图像-语言输入编码为离散动作 token，在 130k 真实机器人演示数据上训练，实现 700+ 指令的 97% 成功率和比最佳基线高 25% 的新任务泛化能力。
 
 #### 🎯 核心要点
-- **Robotics Transformer 架构**：将机器人控制转化为序列预测问题——输入 6 帧历史图像+自然语言指令，输出 7 维离散化动作（x, y, z, 旋转, 夹爪开合, 基座运动, 终止信号）
-- **TokenLearner 视觉压缩**：在 EfficientNet-B3 提取的 9×9×512 特征图上学习 8 个空间注意力 token，将 81 个 patch 压缩为仅 8 个 token，大幅降低 Transformer 计算量，实现 3Hz 推理
-- **FiLM 条件注入**：将自然语言指令通过 Universal Sentence Encoder 编码后，经 FiLM 层注入 EfficientNet 的多个 block，实现视觉-语言的早期融合
-- **动作离散化**：每个动作维度离散化为 256 个 bin，使用交叉熵损失训练，比连续回归更稳定、更易捕捉多模态动作分布
-- **大规模真实世界数据集**：17 个月、13 台 Everyday Robots 机械臂、130k 条演示、744 个任务，覆盖 kitchen manipulation 多样化场景
-- **四类泛化实验**：seen tasks (97%)、unseen tasks (76%)、干扰物鲁棒性 (83%)、长时程任务 (67%)，全面验证模型泛化能力
-- **行为克隆框架**：基于标准 BC-Z 框架，使用 Categorical Cross-Entropy 损失对离散化动作进行监督学习
-- **高效推理**：48ms/step（3Hz），640×480 全分辨率图像，可部署在真实机器人上进行实时闭环控制
+- 端到端 Transformer 架构：FiLM-EfficientNet（图像编码）+ TokenLearner（压缩）+ Transformer（序列决策）
+- 大规模真实世界数据：130k demos，13 个机器人，17 个月收集，覆盖 700+ 指令、8 类技能
+- 离散化动作空间：将动作（arm position + base movement + gripper）离散化为 256 个 bin，使用 CCE loss 训练
+- 3Hz 闭环推理：通过 TokenLearner 压缩视觉 token（从 81 到 8），移除自回归动作生成，实现实时推理
+- 异构数据融合：仿真数据 + 不同机器人数据合训，提升长程任务泛化
+- 新任务零样本泛化：76% 未见指令成功率，背景鲁棒性比基线高 18%
 
 #### 🔬 深入细节
-##### 核心架构图
-
-![RT-1 整体框架图](https://ar5iv.labs.arxiv.org/html/2212.06817/assets/figures/rt1_teaser_tasks.png)
-*图 1：RT-1 高层概览——架构、数据集与评估*
-
-![机器人设置](https://ar5iv.labs.arxiv.org/html/2212.06817/assets/figures/RT-1_Robot_Setup.png)
-*图 2：RT-1 所使用的 Everyday Robots 机械臂平台与相机配置*
-
-##### 算法流程
-
-```
-For each timestep t:
-    1. 取最近 6 帧 RGB 图像 (I_{t-5} ~ I_t)，每帧 640×480×3
-    2. 自然语言指令 s 通过 Universal Sentence Encoder 编码
-    3. 每帧图像通过 FiLM EfficientNet-B3 提取特征图 (9×9×512)
-    4. 6 帧特征图串联 → (6, 9, 9, 512)
-    5. TokenLearner 学习 8 个空间注意力 token: (8, 512)
-       - 对每个位置计算注意力权重（softmax over 9×9×6 positions）
-       - 加权求和得到紧凑 token
-    6. Transformer Decoder (8 层, 自注意力, 19.5M params):
-       - 输入: 8 个视觉 token + 1 个 action token + 1 个 stop token，共 10 个 token
-       - Causal attention（第 i 个 token 只能 attend 前 i-1 个）
-    7. Action head: 对 7 个动作维度分别预测 256-bin categorical 分布
-    8. 取 argmax 得到离散动作 → 映射回连续值 → 执行
-```
-
 ##### 动机与背景
 
-传统机器人学习面临两大核心瓶颈：**数据稀缺**与**泛化困难**。单个任务的小规模训练无法应对真实世界的无穷变化——光照、背景、物体外观、初始状态的任何细微改变都可能导致策略失效。同时，现有方法多采用连续动作回归（MSE 损失），难以捕获专家演示中天然存在的多模态动作分布（同一状态下可能有多种合理动作）。
+机器人学习面临三大挑战：
+1. **数据稀缺**：机器人数据远少于视觉/语言领域
+2. **任务多样性**：传统方法每任务单独建模，无法泛化
+3. **实时推理**：Transformer 推理速度难以满足机器人闭环控制
 
-RT-1 的核心洞见是将大语言模型范式的**三个关键要素**迁移到机器人领域：
-1. **统一 I/O 接口**：所有感知（图像+语言）编码为 token，所有动作也离散化为 token
-2. **大规模多样化数据**：130k 条演示覆盖 744 个任务，让模型见过足够多的变异
-3. **Transformer 序列建模**：利用自注意力捕捉时序依赖和跨模态交互
+RT-1 借鉴 CV/NLP 的大规模预训练范式，首次在真实机器人数据集上训练统一 Transformer 模型，同时处理 visual、language、action 多模态信号。
 
-##### 核心机制详解
+##### 核心架构
 
-**1. TokenLearner：视觉压缩的关键**
+![RT-1 架构总览](https://ar5iv.labs.arxiv.org/html/2212.06817/assets/figures/fig1.png)
+*图：RT-1 架构总览。图像经 FiLM-EfficientNet 编码后与指令文本融合，通过 TokenLearner 压缩为 8 个 token 输入 Transformer，输出离散化动作。*
 
-EfficientNet-B3 输出的特征图尺寸为 9×9=81 个空间位置，6 帧则为 486 个 patch。若直接将所有 patch 送入 Transformer，O(n²) 的注意力复杂度将使得实时推理不可行。
+**输入阶段：FiLM-conditioned EfficientNet**
 
-TokenLearner 的核心操作：
-- 输入：X ∈ ℝ^{T×H×W×C}（T=6, H=W=9, C=512）
-- 学习 S=8 个空间注意力图 α_s ∈ ℝ^{T×H×W}
-- 第 s 个 token：z_s = Σ_{t,h,w} α_s[t,h,w] · X[t,h,w,:]
-- 输出：8 个 512 维 token
+- 6 帧历史图像（300×300×3）→ ImageNet 预训练 EfficientNet-B3 提取特征
+- 文本指令通过 Universal Sentence Encoder 编码为 512 维嵌入
+- FiLM 层将语言特征作为条件注入视觉编码器（仿射变换：γ·x + β），实现早期多模态融合
+- 输出：9×9×512 = 81 个视觉 token
 
-> 💡 关键：8 个 token 仅为原始 486 个 patch 的 1.6%，但在最大注意力权重位置保留了最关键的语义信息（物体、夹爪、目标位置等）。这是 RT-1 能以 3Hz 实时运行的架构核心。
+**TokenLearner 压缩**
 
-**2. FiLM 条件注入**
+- 将 81 个视觉 token 学习加权压缩为 8 个 token
+- 每个输出 token 是 81 个输入的空间注意力加权和
+- 大幅降低 Transformer 计算量（81² → 8²），保证 3Hz 推理
 
-传统做法将语言指令编码为单一向量拼接到视觉特征后，信息交互有限。RT-1 采用 FiLM（Feature-wise Linear Modulation）在 EfficientNet 的多个 block 层级进行调制：
+**Transformer 序列建模**
 
-$$
-\text{FiLM}(x; \gamma, \beta) = \gamma \odot x + \beta
-$$
+- 仅 8 层 decoder-only Transformer（35M 参数，比原 Gato 1.2B 小 34 倍）
+- 输入：TokenLearner 输出的 8 个视觉 token + 历史 6 步动作 token
+- 输出：下一时刻动作 token
 
-其中 γ 和 β 由语言嵌入（通过 USE 编码为 512 维）经 MLP 生成。这种**层级化条件注入**使得语言信号可以在不同抽象层次影响视觉特征提取——低级特征关注纹理/颜色，高级特征关注语义/物体类别。
+**离散化动作空间**
 
-**3. 动作离散化与多模态分布**
+所有动作维度统一离散化到 256 个 bin：
 
-7 个动作维度（x, y, z, yaw, gripper, base, stop），每个离散化为 256 个均匀 bin。训练时用 Categorical Cross-Entropy：
+- Base displacement (x, y, yaw)：11 个类别（7 种平移 + 3 种旋转 + stop）
+- Arm position (x, y, z, roll, pitch, gripper open)：每维 256 bin
+- 动作 head 使用 **Categorical Cross Entropy loss**（而非连续回归）
+- 每个时间步独立吞吐，无自回归（保证 3Hz：~330ms/step）
 
-$$
-\mathcal{L} = -\sum_{d=1}^{7} \sum_{b=1}^{256} y_{d,b} \log \hat{y}_{d,b}
-$$
+##### 训练数据
 
-相比于 MSE 回归，离散化的优势：
-- **捕获多模态**：同一状态下"从左侧绕过"和"从右侧绕过"都是合理动作，categorical 分布可以保留两个模式，而 MSE 会取平均（产生危险的中值动作）
-- **训练稳定**：避免了连续值的回归数值不稳定性
-- **与语言模型统一**：动作成为"动作词汇表"中的 token，与自然语言 token 统一处理
+| 技能 | 数量 | 示例指令 |
+|------|------|----------|
+| Pick Object | 130 | pick iced tea can |
+| Move Object Near | 337 | move pepsi can near rxbar |
+| Place Upright | 8 | place water bottle upright |
+| Knock Over | 8 | knock redbull can over |
+| Open/Close Drawer | 6 | open the top drawer |
+| Place into Receptacle | 84 | place chip bag into bowl |
+| Pick from Receptacle | 162 | pick jalapeno chip bag from bowl |
+| Long-horizon | 9 | open jar of pistachios, grab scooper |
 
-**4. 训练策略：从基础到泛化**
+总计 744 条指令，130k demonstrations，13 台机器人 17 个月收集。
 
-论文提出了"训练数据金字塔"的概念（Appendix C）：
-- **Bridging**：先在少量高质量数据上训练解决基本问题
-- **Sawyer**：加入更多任务的数据扩展技能
-- **Diverse multi-task**：最终在全部 744 个任务的混合数据上训练
+##### 实验结果
 
-这种渐进式训练与直接混合训练相比，在罕见任务上提升显著。
+| 指标 | Gato | BC-Z | BC-Z XL | **RT-1** |
+|------|------|------|---------|----------|
+| Seen Tasks | 65% | 72% | — | **97%** |
+| Unseen Tasks | 52% | — | — | **76%** |
+| Distractors | 43% | — | — | **83%** |
+| Backgrounds | 35% | 41% | — | **59%** |
+| Long-horizon L1/L2/L3 | 63/25/0 | 38/50/50 | 63/75/38 | **88/75/50** |
 
-##### 与传统方法的区别
+RT-1 在各项指标上全面超越基线，尤其在 seen tasks 超 Gato 32%，unseen tasks 超 24%，long-horizon 综合 70% vs Gato 30%。
 
-| 维度 | 传统方法（如 BC-Z, Gato） | RT-1 |
-|------|--------------------------|------|
-| 动作空间 | 连续回归（MSE） | 每维 256-bin categorical |
-| 视觉编码 | 冻结视觉编码器 / 小 network | FiLM EfficientNet-B3，语言早期融合 |
-| 特征压缩 | 无压缩或简单 pooling | TokenLearner 学习型压缩 |
-| 序列建模 | LSTM / CNN | Transformer Decoder (8 层) |
-| 推理速度 | 未知/离线 | 3Hz 实时闭环 |
-| 数据规模 | 单任务 ~1k demos | 744 任务 130k demos |
+##### 关键消融发现
 
-> ⚠️ 注意：RT-1 本质仍是**行为克隆**（Behavior Cloning），仅使用监督学习模仿专家，没有价值函数或在线探索。其泛化能力的提升完全来自**模型容量 + 数据多样性 + 架构设计**。
+- **TokenLearner 至关重要**：移除后 Transformer 输入从 8 → 81，推理延迟翻倍，无法达到 3Hz
+- **FiLM 条件优于 late fusion**：早期视觉-语言融合比 Transformer 中拼接文本更强
+- **离散化动作 + CCE loss** 优于连续回归 MSE loss
+- **数据多样性 > 数据量**：增加技能种类比增加同类数据更有效
+- 异构数据合训（仿真 + 不同机器人）将长程任务 L3 泛化从 0 → 50%
 
-##### 实验结果速览
+> 💡 关键：RT-1 的核心创新不在 Transformer 架构本身，而在于 (1) 大规模真实数据收集 + (2) TokenLearner 视觉压缩 + (3) 离散化动作空间，三者的工程耦合使得 Transformer 首次能够在真实机器人上达到实用级性能。
 
-- **Seen tasks**: RT-1 达到 97% 成功率，与 BC-Z（95%）持平，显著超过 Gato（50%）
-- **Unseen tasks**: RT-1 达到 76%，比 BC-Z（55%）高 21 个百分点
-- **Distractor robustness**: 添加 9 种未见物体和 2 种背景干扰后，RT-1 保持 83%，BC-Z 降至 46%
-- **Long-horizon**: 3+ 步任务中 RT-1 达到 67%（BC-Z 仅 30%）
-- **消融关键结论**：
-  - 去掉 ImageNet 预训练 → unseen 掉约 20%
-  - 离散化改为连续 → 大幅下降
-  - TokenLearner 换成 average pooling → 性能下降，推理变慢
-  - 数据量翻倍（130k→260k）未见显著提升，说明当前模型容量可能已饱和
+> ⚠️ 注意：RT-1 未使用自回归动作生成——每个时间步的动作直接 one-shot 输出，这牺牲了一定的动作连续性但换取了 3Hz 的关键延迟优势。
 
 #### 🧪 练习题
 ```yaml
 question: "RT-1 中 TokenLearner 的主要作用是什么？"
 options:
-  - "将自然语言指令编码为 token 向量"
-  - "将 Transformer 输出解码为连续动作"
-  - "将高维视觉特征图压缩为少量紧凑 token，降低 Transformer 计算量"
-  - "对 7 个动作维度进行离散化编码"
-answer: 2
-explain: "TokenLearner 通过学习空间注意力图，将 6 帧 EfficientNet 特征图（486 个 patch）压缩为仅 8 个 512 维 token，大幅减少 Transformer 的序列长度，是实现 3Hz 实时推理的关键设计。"
+  - "增强文本指令的语义理解能力"
+  - "将 81 个视觉 token 压缩为 8 个，降低 Transformer 计算量以实现实时推理"
+  - "生成更高质量的动作离散化 bin"
+  - "替代 ImageNet 预训练的 EfficientNet 编码器"
+answer: 1
+explain: "TokenLearner 通过空间注意力将 81 个视觉 token 压缩到 8 个，使 Transformer 计算量从 O(81²) 降至 O(8²)，是实现 3Hz 实时推理的关键设计。"
 ```
 
 ### PaLM-E
@@ -1053,50 +1005,127 @@ motivation: VLM提取对象掩码增强开放世界操作
 ```
 
 #### 📝 一句话总结
-MOO（Masked Object Objectives）将冻结的视觉语言模型作为对象级先验，通过在第一帧提取目标对象掩码并将其拼接到策略输入中，使机器人策略无需深度相机或额外重标定，就能对未见过的物体、背景和场景进行零样本泛化。
+MOO 利用预训练的视觉语言模型（OWL-ViT）从自然语言指令中提取物体掩码，将"开放世界物体"的视觉概念注入视觉-语言-行动（VLA）策略 RT-1，使机器人能够零样本操作训练中从未见过的物体。
 
 #### 🎯 核心要点
-- **对象级先验注入**：利用冻结的 OWL-ViT 从第一帧检测目标对象，只把掩码或中心点作为额外通道输入策略
-- **RT-1 风格策略骨干**：图像经 EfficientNet + FiLM + TokenLearner + Transformer 生成 7-DoF 动作 token
-- **训练时冻结 VLM**：策略暴露在真实检测误差下学习鲁棒性，而不是对真值掩码过拟合
-- **数据效率很高**：仅在 `pick` 技能上扩展对象多样性，就能把对象泛化能力迁移到其他操作技能
-- **多模态上游兼容**：掩码既可来自文本描述，也可来自人手指向、视觉查询图或 GUI 标注
-- **开放世界扩展性**：与 CoW 等开放词汇导航模块结合后，可以实现“先找到新物体，再操作新物体”的完整系统
+- 提出 MOO 框架：将预训练 VLM 的开放世界理解能力与机器人 VLA 策略结合，无需对 VLA 策略本身做任何参数修改
+- 使用 OWL-ViT（开放世界定位视觉Transformer）作为 VLM，根据自然语言指令中的物体描述生成包围框和单像素掩码
+- 设计"单像素掩码"（Single-Pixel Mask）策略：在物体中心保留1个像素作为未知物体的"概念锚点"，既不暴露物体精确形状（防止过拟合），又提供方向性空间引导
+- 提出 CoW-MOO（Chain of Well-MOO）：将 MOO 与链式提示结合，支持复合物体操作任务（"先拿起X，再放进Y"），扩展至导航-操作联合任务
+- 在真实机器人上完成 1472 次评估，pick 任务成功率提升 50%+，且对训练未见过的物体类别保持鲁棒
+- 多模态输入：RGB图像 + 自然语言指令 → VLM提取掩码 → 注入RT-1策略作为辅助输入通道
+- 关键发现：简单的一像素标注比全分割掩码效果更好——验证了"最小有效信息"设计原则
 
 #### 🔬 深入细节
-##### 系统架构与信息流
+##### 1. 核心架构
 
-![MOO Architecture](https://ar5iv.labs.arxiv.org/html/2303.00905/assets/x2.png)
+![MOO 框架架构图](https://ar5iv.labs.arxiv.org/html/2303.00905/assets/fig1.png)
+*图：MOO 框架概览。OWL-ViT 从 RGB 图像和自然语言指令中提取物体边界框，生成单像素掩码后作为额外通道输入 RT-1 策略网络。*
 
-MOO 的信息流可以概括为三步：
+MOO 的核心架构包含三个组件：
 
-1. **对象定位**：从语言指令中解析对象描述，用冻结 OWL-ViT 在第一帧中检测目标对象
-2. **掩码生成**：把对象中心点或掩码渲染为单通道图，与 RGB 图像拼接
-3. **策略推理**：只保留动词语义作为语言条件，图像+掩码经 RT-1 风格策略骨干输出动作
+**(a) 视觉语言模型（VLM）：OWL-ViT**
 
-作者刻意把 VLM 的参与限制在第一帧，避免实时推理时重复调用大型检测模型。
+OWL-ViT（Open-World Localization ViT）是 Google 在 2022 年提出的开放世界目标检测模型。它结合了 Vision Transformer（ViT）作为图像编码器和一个文本编码器，通过对比学习在大量图像-文本对上预训练，具备强大的开放世界语义理解能力。MOO 使用 OWL-ViT 来完成两项任务：
+1. 从 RGB 图像中检测与自然语言描述匹配的物体
+2. 输出该物体的包围框（bounding box）和置信度得分
 
-##### 为什么“单像素掩码”就足够
+与传统物体检测器不同，OWL-ViT 无需针对特定类别训练——它可以直接理解任意文本描述（如"the blue cup"或"a small green toy"），并定位对应物体。
 
-MOO 很有意思的一点是：它不一定需要完整边界框或精细分割。论文发现，仅用**目标中心点**这种极简表示，也能带来接近完整掩码的效果。
+**(b) 单像素掩码生成器**
 
-原因在于：
-- 对象“是什么”由 VLM 提供
-- 对象“大概在哪”由单像素或稀疏掩码提供
-- 剩余局部几何与抓取细节则由下游策略从原始图像中补全
+这是 MOO 最具创新性的设计。给定 OWL-ViT 检测到的包围框，系统只保留包围框几何中心位置的 **1个像素** 作为掩码。具体操作：
+- 计算包围框中心坐标 \( (x_c, y_c) = (
+rac{x_1+x_2}{2}, 
+rac{y_1+y_2}{2}) \)
+- 生成一个与输入图像同尺寸的二进制掩码 \( M \)，其中只有 \( M[x_c, y_c] = 1 \)，其余为 0
+- 该单像素掩码作为第4个通道（RGB+Mask）与原始RGB图像拼接，输入RT-1策略网络
 
-这让系统既保留了开放词汇的可扩展性，又避免了过度依赖高质量分割。
+**为什么是单像素？** 论文通过实验证明，全分割掩码（full segmentation mask）反而会降低性能。原因：
+- 掩码过大会遮盖物体的外观细节（颜色、纹理），而这些信息对操作至关重要
+- 过曝的掩码会鼓励策略网络依赖掩码而忽略RGB信息，导致泛化能力下降
+- 一像素标注提供了一个简洁的*注意力引导*（attention cue），告诉策略"关注这个方向"，同时又迫使策略必须参考RGB图像中的实际外观来理解物体
 
-##### 关键结论：对象泛化与技能泛化可以解耦
+**(c) RT-1 策略网络**
 
-MOO 的最重要发现之一是：即便只在 `pick` 任务里扩展对象多样性，模型也能把“识别和泛化到新物体”的能力迁移到 `move near`、`knock`、`place upright`、`place into` 等其他技能上。
+RT-1（Robotics Transformer 1）是 Google 在 2022 年提出的视觉-语言-行动（VLA）模型。它是一个基于 Transformer 框架的端到端策略，输入为 RGB 图像序列 + 自然语言指令，输出为机械臂末端执行器的 6-DoF 动作（位置、旋转、夹爪开合）。MOO 将单像素掩码作为额外输入通道与 RGB 图像叠接，**不修改 RT-1 的任何参数**——这意味着所有开放世界泛化能力完全来自 VLM 提供的掩码信息。
 
-这说明策略内部学到的是两件相对独立的能力：
-- 动词条件告诉模型“做什么动作”
-- 掩码告诉模型“对哪个对象做”
+##### 2. 推理流程
 
-这种显式的对象条件化，为后续 VLA 的开放世界操作提供了一个非常实用的中间路线。
+```
+Step 1: 接收自然语言指令（如 "pick up the red apple"）
+Step 2: 从指令中提取物体描述短语 "red apple"
+Step 3: OWL-ViT 在 RGB 图像上定位 "red apple"，输出包围框
+Step 4: 计算包围框中心，生成单像素掩码
+Step 5: [RGB, Mask] 4通道输入 RT-1 策略
+Step 6: RT-1 输出动作序列，控制机械臂执行
+```
 
+##### 3. 核心公式
+
+给定指令描述 \( t \)，RGB 观测 \( I \in \mathbb{R}^{H 	imes W 	imes 3} \)，OWL-ViT 输出包围框：
+
+222615
+B = 	ext{OWL-ViT}(I, t) = (x_1, y_1, x_2, y_2)
+222615
+
+单像素掩码生成：
+
+222615
+M[x, y] = egin{cases}
+1 & 	ext{if } x = 
+rac{x_1+x_2}{2}, \; y = 
+rac{y_1+y_2}{2} \
+0 & 	ext{otherwise}
+\end{cases}
+222615
+
+策略推理：
+
+222615
+a = \pi_{	ext{RT-1}}([I, M], t)
+222615
+
+其中 \( [I, M] \) 表示通道维度的拼接（3+1=4通道），\( \pi_{	ext{RT-1}} \) 为冻结的 RT-1 策略，**无任何额外训练**。
+
+##### 4. 设计动机与哲学
+
+> 💡 **关键洞见**：机器人操作不需要精确的语义分割。操作任务需要的不是"物体是什么形状"，而是"物体在哪里"和"它长什么样"。单像素提供了位置线索，RGB图像提供了外观信息，两者结合已足够。
+
+**传统方法的局限**：
+- 分类器只能处理预定义类别集，无法泛化到未见过的物体
+- 实例分割需要像素级标注和特定类别训练
+- 端到端训练需要大量配对新物体的演示数据
+
+**MOO 的优势**：通过 VLM 桥接自然语言和视觉感知，实现零样本泛化，无需任何额外训练数据或参数更新。
+
+##### 5. CoW-MOO 扩展
+
+CoW-MOO（Chain of Well-MOO）将 MOO 扩展到复合指令：
+
+- 将复杂指令（"pick up the apple and place it in the bowl"）分解为原子子任务（pick apple → place in bowl）
+- 每个原子子任务独立调用 MOO 获取物体掩码
+- 通过链式提示（Chain-of-Thought prompting）串联执行
+- 扩展支持导航+操作联合任务（先导航到目标区域，再执行操作）
+
+##### 6. 关键实验发现
+
+- **Pick 任务**：MOO 相比无掩码的基线 RT-1，成功率提升约 50%（从 ~30% 到 ~80%），尤其在"未见过的物体"子集上优势显著
+- **单像素 vs 全掩码**：单像素显著优于完整包围框掩码，验证了"少即是多"的设计原则
+- **多模态消融**：仅用文本或仅用掩码均不如文本+掩码组合，说明两种模态互补
+- **泛化能力**：对训练集中从未出现的物体类别（如特定玩具、蔬菜），MOO 仍能保持竞争力
+
+#### 🧪 练习题
+```yaml
+question: "MOO 使用单像素掩码而非全分割掩码的核心原因是什么？"
+options:
+  - "单像素掩码计算速度更快，适合实时控制"
+  - "单像素提供位置注意力引导，同时保留RGB外观细节，防止策略过拟合于掩码形状"
+  - "OWL-ViT 只能输出包围框中心，无法生成完整掩码"
+  - "单像素掩码可以减少RT-1策略的输入维度"
+answer: 1
+explain: "全分割掩码会遮盖物体外观信息并鼓励策略过度依赖掩码形状，损害泛化能力。单像素提供方向性空间引导，迫使策略必须结合RGB外观理解物体，从而实现更好的开放世界泛化。"
+```
 
 ### RT-2
 
@@ -1115,16 +1144,153 @@ motivation: 动作Token化实现互联网知识迁移
 ```
 
 #### 📝 一句话总结
-RT-2 的核心目标是：动作Token化实现互联网知识迁移。
+RT-2 将视觉语言模型（PaLI-X / PaLM-E）通过将动作离散化为文本 token 的方式进行 co-fine-tuning，使 VLM 直接输出机器人动作，无需专门的动作头，从而借助大规模网络数据预训练知识在未见过的任务、物体和场景中展现出 emergent 泛化能力。
 
 #### 🎯 核心要点
-- 核心动机：动作Token化实现互联网知识迁移
-- 演化来源：继承或改进自 rt1
-- 代表机构：Google DeepMind
+- 提出了 VLA（Vision-Language-Action）范式：将机器人动作表示为文本 token，使 VLM 在保留网络知识的同时输出动作
+- 动作 tokenization：将连续动作（6-DoF 末端执行器位移）离散化为 256 个 bin，映射到模型词汇表中保留的低频 token（PaLI-X 用 8 个独立整数 token 表示，PaLM-E 覆盖 256 个保留 token）
+- 基于两个 VLM 骨干：PaLI-X（55B，视觉语言模型）和 PaLM-E（12B，具身语言模型），在机器人数据与原网络数据上 co-fine-tuning
+- Co-fine-tuning 策略：混合机器人演示数据与原始 VLM 训练数据（如 PaLI-X 的图像描述/问答数据），防止灾难性遗忘
+- 输出约束（output constraint）：推理时强制模型只从合法动作 token 中采样，确保输出有效动作
+- 三分类 emergent 能力：符号理解（Symbol Understanding）、推理（Reasoning）、人类识别（Human Recognition），均超越仅用机器人数据训练的基线
+- Chain-of-Thought（CoT）变体：将 CoT 推理步骤作为额外文本 token 介入，使模型先推理再输出动作，在涉及推理的任务上大幅提升
+- 55B 模型通过云端 TPU 推理，频率 1-3Hz，离线批量执行方式
 
 #### 🔬 深入细节
-动作Token化实现互联网知识迁移
+![RT-2 架构概览](https://arxiv.org/html/2307.15818v2/assets/rt2_overview.png)
+*图：RT-2 框架图。左侧：预训练 VLM（PaLI-X 或 PaLM-E）在图像和文本输入上训练；右侧：将机器人数据转换为文本-动作 token 序列，与原始 VLM 数据混合进行 co-fine-tuning。推理时，输入图像和任务指令，模型直接输出动作 token 序列。*
 
+##### 方法动机
+
+传统机器人学习方法通常从头训练或仅在机器人数据上微调，缺乏利用互联网规模数据中蕴含的语义知识与视觉理解的能力。RT-1（Brohan et al., 2022）虽然展示了 Transformer 在机器人控制中的有效性，但其动作输出仍依赖专门的动作头（action head），无法直接利用大规模预训练模型的知识。RT-2 的核心洞察是：**动作可以像文本一样被 tokenize**——将连续动作空间离散化为有限 token，使 VLM 无需架构修改即可同时处理视觉、语言和动作。这桥接了互联网预训练知识与物理世界的操作需求。
+
+##### 动作 Tokenization
+
+对于 6 自由度末端执行器动作（位置变化 Δx, Δy, Δz, 旋转变化 Δroll, Δpitch, Δyaw, 夹爪开度 g），RT-2 采用均匀离散化：
+
+- 每个动作维度被离散化为 \\(N = 256\\) 个 bin，将连续值映射到最近的 bin 索引 \\(a_i \\in \\{0, ..., 255\\}\\)
+- **PaLI-X 方案**：对每个动作维度使用独立的离散 token（共 8 个整数 token，分别是 Δpos, Δrot, gripper），这些 token 在 PaLI-X 词汇表中有自然对应的数值 token；例如动作值"125"被分解为独立的数字 token "1", "2", "5"，模型通过已有词汇表中的数字 token 来表示动作
+- **PaLM-E 方案**：PaLM-E 的词汇表相对紧凑，RT-2 保留 256 个原本最不常用的 token，将其"重映射"为动作 token——即用 1 个 token 直接覆盖一个动作 bin，总共 256 个动作 token 被叠加到词汇表中存在但极少使用的 token 上
+
+> 💡 关键：PaLI-X 的方案利用了视觉语言模型中已有的数字 token 语义（"125"对模型有数值含义），而 PaLM-E 的方案更具灵活性但依赖覆盖低频 token。前者受益于模型对数字的已有理解，后者在 token 效率上更优。
+
+##### Co-fine-tuning 策略
+
+直接将 VLM 在机器人数据上微调会导致**灾难性遗忘**——模型失去原有的视觉理解和语言能力。RT-2 采用 co-fine-tuning：
+
+1. **混合批次**：每个训练批次中按比例混合机器人演示数据和原始 VLM 训练数据（如 PaLI-X 的图像描述、VQA 数据）
+2. **统一格式**：两种数据都被转换为文本 token 序列。机器人数据的格式为 `[image] Q: what action should the robot take? A: Δx=128 Δy=150 ...`，原 VLM 数据保持其问答格式
+3. **联合优化**：使用标准的下一个 token 预测损失（next-token prediction loss）同时优化两种数据，无需额外的辅助损失
+4. **数据比例**：论文通过实验确定机器人数据与原始数据的比例，平衡技能习得与知识保留
+
+这类似于 InstructGPT/ChatGPT 的指令微调混合策略——通过在微调中保留原始分布防止模型退化。
+
+##### 输出约束（Output Constraint）与推理
+
+RT-2 在推理时面临一个关键问题：模型可能生成不代表有效动作的 token 序列。解决方法：
+
+1. **格式约束**：预定义动作输出的合法格式（如 8 个数字 token + EOS），模型在生成时被限制只能采样符合该格式的 token
+2. **范围约束**：每个动作维度的 token 必须在 [0, 255] 范围内；若模型尝试生成越界 token，其概率被置零，按约束重采样
+3. **推理效率**：55B 模型以 1-3Hz 频率通过云端 TPU 推理，控制周期约 300-1000ms——这意味着 RT-2 倾向于离线批处理式执行，而非高频实时控制
+
+##### CoT（Chain-of-Thought）变体
+
+为进一步提升模型在涉及多步推理、语义理解的任务上的表现，RT-2 引入了 CoT 变体：
+
+```
+[image] Q: Should I move the coke can to the person with glasses?
+A: Plan: 1. Identify the coke can.
+   2. Identify the person with glasses.
+   3. Move the coke can to that person.
+Action: Δx=100 Δy=50 ... Gripper=1
+```
+
+模型首先输出自然语言推理步骤（Plan），再输出动作。Plan token 与 Action token 在同一个自回归序列中生成。CoT 微调需要带有 Plan 标注的演示数据——这些 Plan 可以通过 LLM 自动标注或人工标注获取。在涉及符号推理、场景理解的任务中，CoT 变体比标准 RT-2 提升 25% 以上。
+
+##### Emergent 能力三分类
+
+RT-2 的核心贡献在于证明了 VLA 模型展现出**仅靠机器人数据训练无法获得的 emergent 能力**，论文将其分为三类：
+
+1. **符号理解（Symbol Understanding）**：模型理解符号与物理对象的关联——如将箭头指向的物体拿给用户，或将印有特定标志的物体放入对应垃圾桶。这要求模型将视觉符号语义映射到操作行为
+2. **推理（Reasoning）**：涉及多步骤逻辑——如"把不在盘子里的水果放进盘子"，需模型首先理解场景中有哪些水果、哪些在盘子外，然后执行操作。这类能力直接受益于 VLM 预训练中习得的常识推理
+3. **人类识别（Human Recognition）**：基于视觉特征识别人——如"将可乐递给戴眼镜的人"，要求模型识别人脸特征（眼镜、帽子等）并匹配到动作目标。此类能力源自 VLM 在大规模图像-文本数据中学习的人物属性理解
+
+> ⚠️ 注意：这些 emergent 能力在仅用机器人数据训练的 RT-1 或从头训练的 VLA 中几乎不存在（接近随机水平），证明了大规模视觉语言预训练知识向机器人操作泛化的可行性。
+
+##### 算法伪代码
+
+```python
+# RT-2 Co-fine-tuning 伪代码
+def rt2_co_fine_tuning(vlm, robot_data, web_data, ratio=0.5):
+    """混合机器人数据和网络数据联合训练"""
+    for batch in training_loader:
+        # 按比例采样
+        if random() < ratio:
+            # 机器人数据: image -> text_instruction -> action_tokens
+            img, instruction, action = sample(robot_data)
+            action_tokens = discretize_actions(action, bins=256)
+            input_seq = f"[IMG] Q: {instruction} A: "
+            target_seq = action_tokens  # e.g., "128 150 100 50 20 10 1"
+        else:
+            # 原 VLM 数据: image captioning, VQA 等
+            img, input_seq, target_seq = sample(web_data)
+        
+        # 拼接并预测下一个 token
+        full_seq = concat(img_tokens, input_seq, target_seq)
+        loss = cross_entropy(vlm(full_seq[:-1]), full_seq[1:])
+        loss.backward()
+        optimizer.step()
+
+def inference_rt2(vlm, img, instruction):
+    """推理时输出约束"""
+    prompt = f"[IMG] Q: {instruction} A:"
+    tokens = []
+    for _ in range(8):  # 8 个动作维度
+        logits = vlm(prompt + tokens)
+        # 输出约束：只允许合法动作 token
+        logits = apply_output_constraint(logits, token_idx=len(tokens))
+        next_token = sample(logits)
+        tokens.append(next_token)
+    actions = decode_actions(tokens)
+    return actions
+
+def chain_of_thought_inference(vlm, img, instruction):
+    """CoT 推理变体"""
+    prompt = f"[IMG] Q: {instruction} A: Plan:"
+    plan_tokens = vlm.generate(prompt, stop="Action:")
+    prompt += plan_tokens + " Action:"
+    action_tokens = constrained_sample(vlm, prompt, num_tokens=8)
+    return decode_actions(action_tokens)
+```
+
+##### 与相关工作的区别
+
+| 方法 | 动作输出方式 | 预训练数据利用 | Emergent 能力 |
+|------|-------------|---------------|--------------|
+| RT-1 | Transformer + 专用动作头 | 无 | 无 |
+| GATO (Reed et al., 2022) | 多任务 token 统一，但动作离散化有限 | 多模态预训练 | 有限 |
+| PaLM-E (Driess et al., 2023) | 视觉语言模型 + 动作规划输出文本，需下游执行 | 大规模 VLM + 具身数据 | 文本规划层 |
+| **RT-2** | **VLM 直接输出动作 token** | **VLM 预训练 + co-fine-tuning** | **三分类 emergent** |
+
+RT-2 的关键创新在于：不需要单独的动作规划层或动作头——VLM 的文本输出头直接成为动作输出通道，这使得网络预训练知识的迁移路径最短。
+
+##### 局限性
+
+1. **无法学习新运动技能**：RT-2 只能输出已有的离散化动作（如末端位移），无法学习复杂灵巧操作或动态运动技能（如跑跳、工具精细化使用）
+2. **推理频率限制**：55B 模型的云端推理仅达 1-3Hz，不适用于需要高频闭环控制的任务
+3. **依赖于演示数据的动作空间**：动作空间的粒度（256 bin）和类型（绝对/相对位移）由训练数据决定，灵活性受限
+
+#### 🧪 练习题
+```yaml
+question: "RT-2 的 co-fine-tuning 策略中，混合原始 VLM 训练数据的主要目的是什么？"
+options:
+  - "增加训练数据量以提高模型准确率"
+  - "防止模型在机器人数据上微调时发生灾难性遗忘"
+  - "提升推理速度"
+  - "减少动作 token 的数量"
+answer: 1
+explain: "Co-fine-tuning 中混合原始 VLM 数据（如图像描述、VQA）是为了保留模型在大规模预训练中习得的视觉理解和常识推理能力，防止仅在机器人数据上微调导致的灾难性遗忘，这正是 RT-2 emergent 能力的来源。"
+```
 
 ### VoxPoser
 
@@ -1143,32 +1309,15 @@ motivation: LLM生成3D体素价值图零样本操纵
 ```
 
 #### 📝 一句话总结
-VoxPoser 通过让 LLM 在 3D 体素空间中生成可供性图与约束图，把语言指令转换为可执行的 3D 值图，再由 MPC 在该值图上规划末端轨迹，实现了对开放集物体和开放式指令的零样本真实机器人操纵。
+VoxPoser 的核心目标是：LLM生成3D体素价值图零样本操纵。
 
 #### 🎯 核心要点
-- **三阶段系统**：感知模块负责检测与 3D 重建，LLM 负责生成值图代码，MPC 负责在值图上规划动作
-- **3D 值图表示**：把“应该去哪”表示为可供性图，把“不能去哪”表示为约束图，最终合成为任务值图
-- **开放词汇感知**：结合 OWL-ViT、SAM、XMem 等模块在开放世界中识别、分割和跟踪物体
-- **闭环重规划**：系统以约 5Hz 频率持续重建场景与重算值图，适应物体移动和遮挡变化
-- **扰动体素机制**：在约束边界注入噪声，使规划器主动远离危险区域，从而获得更强避碰能力
-- **与端到端 VLA 不同**：VoxPoser 不是直接输出动作，而是把高层语义显式投影为 3D 中间表示，增强了可解释性和可组合性
+- 核心动机：LLM生成3D体素价值图零样本操纵
+- 演化来源：继承或改进自 cliport
+- 代表机构：Stanford
 
 #### 🔬 深入细节
-##### 系统流程：从语言到轨迹
-
-VoxPoser 的核心流程是：
-
-1. **感知**：利用 OWL-ViT + SAM + XMem 检测、分割并跟踪场景物体，构建 \(100 \times 100 \times 100\) 左右的 3D 体素空间
-2. **值图合成**：让 GPT-4 生成 Python 代码，在 3D 体素网格上定义可供性图与约束图
-3. **运动规划**：用 MPC + random shooting 在值图上搜索末端执行器轨迹，并持续闭环重规划
-
-值图的一个直观目标写法是：
-
-$$F_{\text{task}}(\mathbf{p}_j^e) = -\sum_j V(\mathbf{p}_j^e)$$
-
-其中高价值区域代表“应该到达”的空间位置，低价值区域代表障碍或约束。
-
-##### 3D 体素值图的合成机制
+**1. 3D 体素值图的合成机制（§3.1–3.2）**
 
 核心洞察是将 LLM 视作"零样本代码生成器"。给定场景的 3D 体素网格和物体标签，LLM 输出 Python 代码调用两类原子操作：
 
@@ -1177,20 +1326,15 @@ $$F_{\text{task}}(\mathbf{p}_j^e) = -\sum_j V(\mathbf{p}_j^e)$$
 
 两类图通过 **加权求和** 融合：$F_{\text{task}} = w_a F_{\text{affordance}} + w_c F_{\text{constraint}}$。LLM 代码还自动计算物体间的空间关系（如"杯子在桌上"→杯子的可供性区域 z 坐标高于桌面）。**扰动体素** 在约束边界注入高斯噪声，迫使 MPC 采样器主动远离危险区域。
 
-##### 闭环在线重规划
+**2. 闭环在线重规划（§3.3, Fig. 2 右侧）**
 
 系统以 $5\text{Hz}$ 频率执行以下循环：① 摄像机更新场景点云 → ② 重新计算 $F_{\text{task}}$ → ③ MPC 随机射击 1000 条候选轨迹，选 $F_{\text{task}}$ 最高者 → ④ 执行第一步动作。这种设计使得系统可以**在线适应物体移动和遮挡变化**，无需显式状态估计。每次重规划约 $50\text{ms}$，满足实时性要求。
 
-##### 方法价值与局限
+**3. 动力学学习（§3.4, 可选扩展）**
 
-VoxPoser 的价值在于它把 LLM 的语义推理结果变成了可解释的空间中间表示，因此非常容易与不同下游规划器组合，也比“直接输出动作”的黑盒 VLA 更容易调试。
+虽然主打零样本，VoxPoser 也展示了将 3D 值图用于**高效动力学学习**：用执行成功的轨迹离线训练一个旋钮动力学残差模型（Gaussian Process），在旋钮开门任务中将成功率从 60% 提升至 90%，训练仅需 10 条演示。
 
-但它也有明显局限：
-- 依赖外部感知模块，不是端到端方案
-- 更偏末端轨迹级规划，对精细接触动力学支持有限
-- 主要规划末端路径，未完整覆盖全臂避碰和复杂装配
-
-因此它更像是 “LLM + 3D planning” 路线的重要代表，而不是直接替代端到端 VLA。
+**4. 与 Code-as-Policies 的关键区别**
 
 Code-as-Policies（Liang et al., 2023）同样用 LLM 生成代码控制机器人，但它是 2D 平面导航 + 刚性动作原语。VoxPoser 的创新在于将 LLM 代码输出**投影到 3D 体素值图**这一通用表示中，使得任何下游规划器（MPC、轨迹优化）都能消费，极大提升了灵活性和避碰能力。
 
@@ -1211,15 +1355,143 @@ motivation: 扩散模型扩充演示实现多任务泛化
 ```
 
 #### 📝 一句话总结
-RoboAgent 的核心目标是：扩散模型扩充演示实现多任务泛化。
+RoboAgent 提出了 Semantic Augmentation（语义增强）+ MT-ACT（多任务动作分块Transformer）框架，在仅 7,500 条真实操作轨迹的数据预算下，通过图像修复技术将数据扩展至 10 万条以上语义多样化轨迹，并结合 CVAE+Action Chunking 架构实现跨 12 种技能的泛化操控，解决了真实机器人数据采集成本高昂与泛化需求之间的矛盾。
 
 #### 🎯 核心要点
-- 核心动机：扩散模型扩充演示实现多任务泛化
-- 代表机构：CMU/Meta
+- 提出 **Semantic Augmentation**（语义增强）：利用 Stable Diffusion Inpainting 对场景背景、物体外观、纹理等进行语义级变换，在保留机器人行为轨迹的前提下实现数据乘法（7,500 → 100,000+），零额外操作成本
+- 设计 **MT-ACT**（Multi-Task Action Chunking Transformer）：从单任务 ACT 扩展至语言条件化的多任务策略，结合 CVAE 编码器与 Action Chunk 解码器
+- 三类互补的语义增强：**场景增强**（背景/桌面纹理/光照）、**物体增强**（交互物体外观/颜色/纹理）、**任务增强**（场景×物体的笛卡尔积组合）
+- CVAE 框架建模动作分布：编码器 \(q_\phi(z|a,o,l)\) → 先验 \(p_\theta(z|o,l)\) → 解码器 \(p_\theta(a|o,l,z)\)，KL 正则化隐空间
+- Action Chunking 预测 K=100 步动作序列，推理采用时间集成（Temporal Ensemble）指数加权平均策略
+- 在 12 种技能（拾取放置、推拉、开门、擦拭、倾倒、堆叠等）上验证泛化：未见场景成功率从 22% 提升至 52%
 
 #### 🔬 深入细节
-扩散模型扩充演示实现多任务泛化
+##### 核心示意图
 
+![RoboAgent 整体框架](https://ar5iv.labs.arxiv.org/html/2309.01918/assets/x1.png)
+*图1：RoboAgent 整体框架概览——左侧为 Semantic Augmentation 数据流水线（场景增强 + 物体增强），右侧为 MT-ACT 策略架构（视觉编码器 + 语言编码器 → CVAE → Action Chunking 解码器）*
+
+![语义增强示意](https://ar5iv.labs.arxiv.org/html/2309.01918/assets/x4.png)
+*图2：语义增强示意图。(a) 场景增强：更换背景和桌面纹理；(b) 物体增强：更换交互物体外观而保留周围场景*
+
+![MT-ACT 架构图](https://ar5iv.labs.arxiv.org/html/2309.01918/assets/x2.png)
+*图3：MT-ACT 详细架构——ResNet 视觉编码器 + CLIP 文本编码器 → 特征融合 → CVAE 编码器/先验网络 → Transformer Action Chunk 解码器*
+
+##### 算法伪代码
+
+```python
+# MT-ACT 训练与推理伪代码
+# ============================
+# 阶段一：Semantic Augmentation（离线）
+for each trajectory in D_raw (7500条):
+    for each frame in trajectory:
+        # 场景增强：inpaint非交互区域
+        mask_scene = generate_scene_mask(frame)  # 背景/桌面区域
+        frame_scene_aug = StableDiffusionInpaint(frame, mask_scene, prompt="大理石桌面，现代厨房")
+        
+        # 物体增强：inpaint交互物体区域
+        mask_obj = generate_object_mask(frame)   # 交互物体区域
+        frame_obj_aug = StableDiffusionInpaint(frame, mask_obj, prompt="蓝色方块")
+    # 添加到增强数据集
+    D_aug.append(scene_aug_traj, obj_aug_traj, combined_aug_traj)
+# 最终 D_aug > 100,000 条轨迹
+
+# ============================
+# 阶段二：MT-ACT 训练
+for epoch in range(num_epochs):
+    for batch in D_aug:
+        # 1. 编码观测和语言
+        f_v = ResNet(o_t)              # 视觉特征
+        f_l = CLIP(l)                  # 语言特征
+        f = concat(f_v, f_l)           # 特征融合
+        
+        # 2. CVAE 编码器：编码未来动作到潜变量
+        mu_q, logvar_q = encoder(a_{t:t+K}, f)
+        z = reparameterize(mu_q, logvar_q)
+        
+        # 3. CVAE 先验：仅从观测预测潜变量
+        mu_p, logvar_p = prior(f)
+        
+        # 4. 解码器：从潜变量重建动作序列
+        a_hat = decoder(f, z)          # shape: [K, 7]
+        
+        # 5. 计算损失
+        loss_recon = MSE(a_{t:t+K}, a_hat)
+        loss_kl = KL(N(mu_q, σ_q²) || N(mu_p, σ_p²))
+        loss = loss_recon + β * loss_kl
+        
+        optimizer.step(loss)
+
+# ============================
+# MT-ACT 推理
+for t in range(T):
+    f_v = ResNet(o_t)
+    f_l = CLIP(l)
+    f = concat(f_v, f_l)
+    
+    z = sample(prior(f))               # 从先验采样
+    a_hat_{t:t+K} = decoder(f, z)      # 预测未来K步动作
+    
+    # 时间集成：对重叠预测窗口加权平均
+    for k in range(K):
+        ensemble_a[t+k] += exp(-λ * age) * a_hat[t+k]
+    
+    execute(a_t)                        # 执行第一步动作
+    # 每10步或高不确定性时重规划
+```
+
+##### 动机与背景
+
+传统机器人操控策略面临三重困境：**数据采集成本极高**（单条轨迹需要人工遥操作或脚本编程）、**场景多样性受限**（物理实验室环境固定）、**跨任务泛化困难**（单任务策略无法迁移）。RT-1 等大规模方法需要 13 万+条轨迹才达到良好泛化，但大多数实验室无法承担如此规模的数据采集。RoboAgent 的核心洞察是：**泛化瓶颈在于语义多样性而非绝对数据量**——如果能无成本地将 7,500 条轨迹的语义内容丰富化（更换场景背景、物体外观），就能在小数据预算下实现泛化。
+
+##### 核心机制详解
+
+**1. Semantic Augmentation：语义增强的三层设计**
+
+语义增强的本质是**保持动作轨迹不变，仅修改视觉观测的语义内容**。这通过 Stable Diffusion Inpainting 实现：
+
+- **场景增强**：mask 覆盖桌面、背景墙壁、光照区域，prompt 控制生成新场景（如"木质桌面→大理石桌面"）。关键约束是被 mask 区域与未 mask 区域（机器人本体、交互物体边缘）的融合自然度。
+
+- **物体增强**：mask 覆盖被操作物体，prompt 控制物体外观变换（如"红色方块→蓝色条纹方块"）。核心技术难点在于物体 mask 的精确提取（使用 SAM 等分割模型）和生成后物体的 3D 一致性保持（虽然仅操作 2D 图像，但由于机器人策略本身以 2D 观测为输入，这种近似的分布外泛化仍然有效）。
+
+- **任务增强**：场景增强 × 物体增强的笛卡尔积组合。例如 50 种场景 × 10 种物体 = 500 种语义变体，确保每个技能在丰富的语义上下文中被训练。
+
+**2. MT-ACT 架构：CVAE + Action Chunking 的融合**
+
+MT-ACT 从单任务 ACT 扩展为语言条件化的多任务策略，核心改动：
+
+- **语言条件化**：CLIP 文本编码器提取自然语言指令特征（"pick up the red cube"），与 ResNet 视觉特征融合后输入 CVAE。这使得同一个策略网络能处理 12 种不同技能。
+
+- **CVAE 隐变量建模**：不同于确定性策略直接输出动作，CVAE 通过学习动作分布的隐变量 \(z\) 来捕捉多模态行为（同一观测下可能存在多种合理动作）。训练时编码器利用未来动作信息 \(a_{t:t+K}\) 学习 \(z\) 的后验，推理时从先验 \(p(z|o,l)\) 采样。
+
+- **Action Chunking**：预测 K=100 步动作序列（每个动作 7 维：\(\Delta x, \Delta y, \Delta z, \Delta roll, \Delta pitch, \Delta yaw, gripper\)）。长预测窗口使策略能够学习时间上连贯的行为，减少高频重规划带来的抖动。
+
+**3. 损失函数与训练策略**
+
+总损失为动作重建损失与 KL 散度的加权和。动作重建损失驱动解码器输出准确的动作序列；KL 散度正则项约束编码器输出的后验分布接近先验，确保推理时从先验采样也能生成合理动作。\(\beta\) 超参数控制两部分平衡，论文通过实验确定 \(\beta=1.0\)。
+
+##### 与传统方法的区别
+
+| 方法 | 数据需求 | 多任务 | 泛化策略 |
+|------|---------|--------|---------|
+| BC (行为克隆) | 数千条/任务 | 独立训练 | 无 |
+| ACT | 数百条/任务 | 单任务 | 隐式(Chunking) |
+| RT-1 | 13万+条 | 多任务 | 大数据驱动 |
+| **RoboAgent** | **7,500条(全任务)** | **多任务(语言条件化)** | **语义增强+泛化架构** |
+
+关键区别在于 RoboAgent 是**数据高效多任务**范式：通过语义增强实现"数据质量 > 数据数量"，通过 MT-ACT 统一多任务策略架构，两者协同作用才实现小数据预算下的泛化。
+
+#### 🧪 练习题
+```yaml
+question: "RoboAgent 的 Semantic Augmentation 在进行场景增强时，必须满足的核心约束是什么？"
+options:
+  - "增强后的图像必须具有更高的分辨率"
+  - "机器人本体的像素区域和动作轨迹必须保持不变"
+  - "增强必须使用 GPT-4 生成 prompt"
+  - "每张图像只能增强一次"
+answer: 1
+explain: "语义增强通过 Stable Diffusion Inpainting 修改图像中场景背景/物体的语义内容（如桌面纹理、物体颜色），但机器人本体和其运动轨迹必须完全保留，否则会导致观测-动作对应关系被破坏。"
+```
 
 ### RT-X
 
@@ -1266,7 +1538,7 @@ motivation: 解耦VLM与显式策略头的高效方案
 ```
 
 #### 📝 一句话总结
-RoboFlamingo 的核心目标是：解耦VLM与显式策略头的高效方案。
+RoboFlamingo 提出将预训练的通用视觉-语言模型（OpenFlamingo）适配到机器人操控领域，通过简单的 LSTM 策略头与时序观测编码，使单一 VLM 同时完成语言指令理解和视觉闭环控制，在 CALVIN 基准上取得最佳性能。
 
 #### 🎯 核心要点
 - 核心动机：解耦VLM与显式策略头的高效方案
@@ -1437,122 +1709,94 @@ motivation: 双视觉特征7B超越55B RT-2-X
 ```
 
 #### 📝 一句话总结
-OpenVLA 提出将预训练的 Prismatic-7B 视觉语言模型（DINOv2+SigLIP 视觉编码器 + Llama 2 7B）微调为通用机器人操控策略，通过动作离散化和端到端训练，在 970k Open X-Embodiment 机器人演示数据上训练出仅 7B 参数即超越 55B RT-2-X 的开源 VLA 模型。
+OpenVLA 提出了一种基于 7B 参数 Prismatic VLM、融合 SigLIP 与 DINOv2 双视觉编码器的开源视觉语言动作模型，将连续动作离散化为 256 个 bin，在 970k 机器人轨迹上微调后，以不到 RT-2-X 八分之一的参数量实现跨多种机器人形态的显著更高或持平的性能表现。
 
 #### 🎯 核心要点
-- **三组件架构**：DINOv2+SigLIP 双视觉编码器（~600M）→ 2层MLP投影器 → Llama 2 7B LLM 主干
-- **动作标记化**：7维连续动作各离散为256 bins，映射到 Llama tokenizer 中最低频的256个token，保留高频token用于文本指令
-- **大规模机器人预训练**：在 Open X-Embodiment 数据集 970k 条演示上微调 27 epochs，224×224图像分辨率，学习率 2e-5，batch size 2048
-- **训练资源**：64张 A100 GPU，训练耗时约14天
-- **关键发现1**：冻结视觉编码器严重损害性能（47.0% vs 69.7% full fine-tune），必须全部解冻微调
-- **关键发现2**：DINOv2+SigLIP 双编码器显著优于单一 SigLIP 或 CLIP 编码器，空间推理能力更强
-- **超越 RT-2-X**：在 29 个跨机器人形态任务上平均成功率高出 16.5%（绝对值），参数量仅为其 1/7
-- **高效微调**：LoRA (rank=32) 仅训练1.4%参数即匹配全参数微调性能（68.2% vs 69.7%），VRAM仅需59.7GB
-- **量化推理**：支持 int4 量化，在消费级 RTX 4090 GPU 上以 ~6Hz 运行，不损失下游任务成功率
-- **完全开源**：提供模型权重、PyTorch 代码库、微调 notebook 和 VLA 推理服务端
+- 提出 **OpenVLA**：首个完全开源的 7B 级视觉语言动作大模型，在 Open X-Embodiment 数据集上训练
+- 采用 **Prismatic-7B** 作为基座 VLM，其视觉塔融合 **SigLIP**（语义特征）与 **DINOv2**（空间特征）双视觉编码器，LLM 骨干为 Llama 2 7B
+- 动作预测采用 **256-bin 离散化策略**：将机器人末端执行器的连续位置增量（Δx, Δy, Δz, Δyaw, Δpitch, Δroll 及夹爪开合）按分位数映射为离散 token，复用 VLM 自身的 token 预测能力
+- 训练数据整合自 Open X-Embodiment 数据集的 **970k 条机器人轨迹**（经严格清洗，如滤除全零动作），横跨多种机器人形态
+- 在 **BridgeData V2**（WidowX 机器人）评测中，7B OpenVLA 的泛化成功率**显著超越** 55B RT-2-X；在 **Google Robot** 评测中性能持平
+- 支持 **LoRA 参数高效微调**（仅微调 1.4% 参数即匹配全参数微调性能），可在单张 A100 上 10-15 小时内适配新机器人
+- 支持 **4-bit 量化推理**，显存占用仅 7GB，成功率与 bfloat16 推理持平
 
 #### 🔬 深入细节
-##### 1. 模型架构
+##### 核心架构图
 
-![OpenVLA 架构示意图](https://ar5iv.labs.arxiv.org/html/2406.09246/x1.png)
-*图：OpenVLA 模型架构。给定观测图像和语言指令，模型预测7维机器人控制动作。三部分：DINOv2+SigLIP 视觉编码器 → MLP投影器 → Llama 2 7B LLM。*
+![OpenVLA 架构总览](https://ar5iv.labs.arxiv.org/html/2406.09246/assets/x1.png)
+*图 1：OpenVLA 模型架构。左侧为 Prismatic-7B VLM 基座（SigLIP+DINOv2 双视觉编码器 + Llama 2 7B LLM），右侧展示动作离散化与预测流程——连续动作经分位数 bin 映射为 256 类离散 token，由 LLM 输出 logits 解码为机器人动作。*
 
-OpenVLA 的架构继承自现代 VLM 的标准设计范式，核心基于 **Prismatic-7B** 视觉语言模型，由三个组件组成：
-
-**(1) 视觉编码器（~600M 参数）**：采用**双编码器融合**设计——DINOv2 和 SigLIP 各处理输入图像（224×224），输出特征向量在通道维度拼接。与仅使用 CLIP 或 SigLIP 的常见方案不同，DINOv2 的加入显著提升了空间推理能力，这对机器人操控任务尤为关键。视觉编码器共输出约 256 个图像 patch embedding。
-
-**(2) 投影器**：一个轻量的 2 层 MLP，将拼接后的视觉特征映射到 LLM 的 token 嵌入空间（4096 维）。
-
-**(3) LLM 主干**：Llama 2 7B，标准 Transformer decoder-only 架构，将视觉 token 与文本指令 token 拼接后自回归生成动作 token 序列。
-
-> ⚠️ 关键设计决策：视觉编码器必须解冻训练。实验表明冻结视觉编码器导致成功率从 69.7% 骤降至 47.0%，原因在于互联网预训练的视觉特征缺乏机器人操作所需的细粒度空间和物理属性表征。
-
-##### 2. 动作离散化与 Token 映射
-
-OpenVLA 将连续动作预测转化为语言模型的标准 next-token prediction 任务，核心机制如下：
-
-**动作空间**：7 维绝对笛卡尔动作向量，包括：
-- 末端执行器位置增量 (Δx, Δy, Δz)
-- 旋转增量 (Δroll, Δpitch, Δyaw)
-- 夹爪开合度 (gripper)
-
-**离散化**：每个动作维度独立离散为 256 个均匀 bins，bin 边界设为训练数据该维度第 1 和第 99 百分位数之间。
-
-**Token 分配**：7 个动作维度 × 256 bins = 1792 个 action tokens，覆盖 Llama 2 tokenizer 中**最低频的 256 个字节级 token**。低频 token 在自然语言中几乎不被使用，因此重映射它们为 action token 不会干扰文本理解能力，同时保留所有高频 token 用于处理语言指令。
-
-**训练时**：模型接收图像 token + 指令 token，自回归生成 7 个 action token，loss 仅计算在 action token 上（标准交叉熵）。
-
-##### 3. 训练流程
+##### 动作离散化伪代码
 
 ```python
-# OpenVLA 训练框架伪代码
-model = PrismaticVLM(
-    vision_encoder=DinoV2_SigLIP(),   # 双视觉编码器 (~600M params)
-    projector=MLP(n_layers=2),
-    llm_backbone=Llama2()             # 7B params
-)
-model.vision_encoder.requires_grad = True  # 关键：必须解冻
-dataset = OpenX_Embodiment(num_demos=970_000)
-optimizer = AdamW(lr=2e-5, weight_decay=0.1)
-train_loader = DataLoader(dataset, batch_size=2048)
+# OpenVLA 动作离散化与反离散化
+# 连续动作空间：7维（Δx, Δy, Δz, Δyaw, Δpitch, Δroll, gripper）
 
-for epoch in range(27):
-    for img, instruction, action_7d in train_loader:
-        # 动作离散化：7维 × 256 bins
-        action_tokens = discretize(action_7d, bins=256)
-        # 拼接视觉 + 指令 + 动作token，仅计算action token loss
-        loss = model(img, instruction, labels=action_tokens)
-        loss.backward()
-        optimizer.step()
-# 硬件：64×A100 80GB，训练14天
+# 1. 离散化（训练时）
+for dim in range(7):
+    # 按全局分位数将各维动作值映射到 {0, 1, ..., 255}
+    bin = quantize(action[dim], bins[dim])  # bins[dim]: 256个分位数界限
+    action_token = dim * 256 + bin           # 共7×256=1792个独立token
+
+# 2. 反离散化（推理时）
+for dim in range(7):
+    # 从 softmax 分布中取最大值索引
+    bin_logits = model_output[:, dim*256 : (dim+1)*256]
+    bin = argmax(bin_logits)
+    action[dim] = dequantize(bin, bins[dim])  # 还原为连续值
 ```
 
-**数据混合**：使用 Open X-Embodiment (OXE) 数据集的全部 970k 条机器人演示，覆盖 22 种机器人形态和数百种任务。与 Octo 和 RT-2-X 使用的更小子集不同，OpenVLA 的全数据混合是其性能优势的关键来源之一。
+##### 方法深入解读
 
-**预处理**：图像 resize 到 224×224，使用 pixel-level 归一化（与 Prismatic 一致）。文本指令以自然语言形式直接拼接到输入序列中。
+**动机与背景：为什么需要 OpenVLA？**
 
-##### 4. 高效微调：LoRA 与量化
+在 OpenVLA 之前，以 Google DeepMind RT-2 为代表的视觉语言动作模型虽展示了将互联网预训练的 VLM 用于机器人控制的巨大潜力，但其 55B 参数模型完全闭源，研究社区无法自由获取、微调和改进。同时，已有开源策略模型（如 Octo，93M 参数）未利用大规模互联网视觉语言预训练，泛化能力有限。OpenVLA 的核心动机即填补这一空白——**构建一个性能顶尖、完全开源、且可在普通 GPU 上微调和推理的 VLA 模型**。
 
-OpenVLA 的一个核心贡献是证明了**参数高效微调（PEFT）和量化技术可无缝应用于 VLAs**，使其能在消费级 GPU 上适配新任务而不损失性能。
+**双视觉编码器的精妙设计：SigLIP + DINOv2 的协同互补**
 
-| 微调策略 | 成功率 | 训练参数量 (M) | VRAM (batch=16) |
-|---------|--------|----------------|-----------------|
-| Full Fine-Tuning | 69.7% | 7,188.1 | 163.3 GB* |
-| Last Layer Only | 30.3% | 465.1 | 51.4 GB |
-| Frozen Vision | 47.0% | 6,760.4 | 156.2 GB* |
-| Sandwich FT | 62.1% | 914.2 | 64.0 GB |
-| **LoRA, rank=32** | **68.2%** | **97.6** | **59.7 GB** |
-| LoRA, rank=64 | 68.2% | 195.2 | 60.5 GB |
+OpenVLA 的视觉塔是架构中的关键创新。基座 VLM（Prismatic-7B）在训练时发现融合 **SigLIP** 和 **DINOv2** 两种视觉特征可获得最佳下游效果。这一设计在机器人控制场景中恰好意义深远：
 
-*注：带 * 策略需 2×GPU 分片（FSDP）*
+- **SigLIP**（出自 Google DeepMind，ICCV 2023）采用 sigmoid loss 进行大规模图像-文本对比预训练，擅长提取**语义层面**的视觉特征（"这是什么物体？"），有助于语言指令的视觉接地（visual grounding）。
+- **DINOv2**（出自 Meta AI，自监督训练）擅长捕获**空间结构**信息（"物体在什么位置？什么姿态？"），对机器人精确操作的方位导向至关重要。
 
-**核心发现**：
-- **LoRA rank=32** 达到 68.2%，与 full fine-tuning 的 69.7% 无显著差异，但仅训练 **1.4%** 参数，VRAM 降低 63%
-- Sandwich fine-tuning（解冻视觉编码器 + token embedding + 最后一层）达到 62.1%，是 LoRA 之前的轻量替代
-- Last layer only（30.3%）表明仅微调输出层远不足以适配新任务
-- rank=64 相比 rank=32 无额外收益，表明低秩适配已足够
+两者特征经 MLP 投影到 LLM 嵌入空间后拼接，形成**既"识物"又"知位"**的视觉表征。论文通过消融实验直接验证：仅使用 SigLIP 的简化版 OpenVLA 仍能保持较强性能，佐证了语义特征的主导作用；但融合空间特征对于需要精细空间推理的任务尤为重要。
 
-**量化推理**：OpenVLA 支持 int4 量化部署。在 RTX 4090 消费级 GPU 上，bfloat16 精度推理速度约 **6Hz**，int4 量化进一步降低显存且不损害成功率。模型还提供远程推理服务端，支持实时流式动作预测。
+> 💡 关键：这一设计与 CLIPort 等先前工作中的"What Where"双通路（two-stream）思想本质一脉相承，但 OpenVLA 将其内生于 VLM 框架，避免了额外的外挂模块。
 
-##### 5. 实验结果亮点
+**离散化动作预测：让 LLM 原语预测机器人动作**
 
-- **跨平台评测**：在 WidowX (BridgeData V2) 和 Google Robot 两个机器人平台上进行"开箱即用"评测，覆盖 29 个任务，含视觉、运动、物理和语义泛化四个维度
-- **vs RT-2-X (55B)**：除语义泛化外所有类别均超越，平均绝对成功率高出 **16.5%**，参数量仅 1/7
-- **语言条件能力**：在需要理解复杂语言指令的任务中表现突出，如"将苹果放入蓝色碗中" vs "将苹果放入红色碗中"
-- **Fine-tuning 泛化**：在 Franka 机器人上微调后，OpenVLA 展现出强大的多任务泛化能力，尤其在多物体、强语言指令场景下
+如何让为文本 token 设计的 LLM 输出连续机器人动作？OpenVLA 采用了一个简洁高效的方案：**将每个动作维度的连续值域划分为 256 个等频率 bin（分位数离散化）**，7 个动作维度共产生 7×256=1792 个独立 token。在推理时，模型在每个维度对应的 256 个 logit 上取 argmax 选择 bin 索引，再通过反量化还原为连续动作值。
 
-> 💡 关键启示：OpenVLA 证明了 (1) 互联网 VLM 预训练 + 大规模机器人数据微调是构建通用机器人策略的有效路径；(2) 开源 7B 模型可超越闭源 55B 模型，关键在于数据混合和视觉编码器选择；(3) LoRA 和量化为 VLA 走进实验室和消费级硬件铺平了道路。
+这一策略的优势：
+1. **复用 LLM 的完整训练栈**：无需在 LLM 之上额外添加复杂的回归头，最大化利用 VLM 的表达能力；
+2. **训练稳定性**：分类任务比直接回归连续值更容易优化，尤其在大范围数据混合的场景中；
+3. **与 RT-2 的 token 化方案一致**：在语义上与 RT-2 的做法对齐，但 OpenVLA 将其扩展为真正开源的实现。
+
+> ⚠️ 注意：256-bin 离散化带来一定的精度损失（每个维度 256 个分辨率），但在大范围机器人操作任务中，这种精度对成功率影响有限，而训练稳定性的收益远大于精度的微小损失。
+
+**训练与推理：从 64 卡大规模预训练到单卡 LoRA 微调**
+
+OpenVLA 的训练分为两个阶段。第一阶段是 VLM 基座（Prismatic-7B）的预训练——在 LLaVA-1.5 数据混合（含 590k 条视觉问答数据）上训练，建立视觉-语言对齐。第二阶段是在 970k 条机器人轨迹上进行动作预测微调：使用 64 张 A100 GPU，跨 14 天，batch size 2048，学习率 1e-4 配合 cosine 衰减。微调时仅预测动作 token 的交叉熵损失，视觉和语言部分保持冻结或仅轻微调整。
+
+在适配新机器人场景时，OpenVLA 展示了出色的数据效率：仅需 10-150 条专家示教，通过 LoRA（rank=32）作用于所有线性层，可在单张 A100 上 10-15 小时完成适配，训练参数仅 97.6M（不到总参数的 1.4%），性能即与全参数微调持平。推理端，4-bit 量化可将模型压缩至 7GB 显存，在消费级 GPU（如 RTX 4090）上达到 3Hz 以上的控制频率。
+
+**与 RT-2 的对比：小模型如何超越大模型？**
+
+OpenVLA 以 7B 参数量在 BridgeData V2 评测上显著优于 55B RT-2-X，这一反直觉结果源于三个要素：
+1. **数据集质量**：OpenVLA 的 970k 轨迹经过了更严格的清洗（如滤除 Bridge 数据集中的全零动作、修正标注错误），而 RT-2-X 使用的 350k 轨迹未经同等程度的清理；
+2. **视觉特征的融合**：RT-2-X 依赖 PaLI 系列的单一视觉编码器，而 OpenVLA 显式融合语义（SigLIP）和空间（DINOv2）特征，对操作类任务的视觉理解更全面；
+3. **全参数机器人微调**：OpenVLA 在机器人数据上全参数微调了 LLM 骨干，而 RT-2-X 的微调策略在论文中未公开细节，可能涉及额外的约束（如保留互联网知识的正则化）。
 
 #### 🧪 练习题
 ```yaml
-question: "OpenVLA 为什么选择冻结 Llama 2 tokenizer 中最低频的 256 个 token 重映射为 action token？"
+question: "OpenVLA 的动作离散化策略中，每个动作维度被划分为多少个 bin？"
 options:
-  - "低频 token 在文本生成中损失函数权重更小，便于优化"
-  - "保留高频 token 用于理解语言指令，同时利用低频 token 的空间容纳动作离散化为 7×256 bins"
-  - "低频 token 的 embedding 向量维度更小，节省显存"
-  - "因为 Llama 2 的 tokenizer 恰好有且仅有 256 个低频 token"
+  - "128 个 bin，以匹配 7 维动作空间"
+  - "256 个 bin，通过分位数映射保证均匀分布"
+  - "512 个 bin，以提高动作精度"
+  - "1000 个 bin，每个 bin 对应一个独立的动作 token"
 answer: 1
-explain: "OpenVLA 将 7 维动作各离散化为 256 bins 共需 1792 个 action token。重映射最低频的字节级 token 既能避免占用高频 token 影响语言理解能力，又能利用低信息密度的 token 槽位承载控制信号。"
+explain: "OpenVLA 将每个动作维度（如 Δx、Δy、Δz 等）均匀划分为 256 个 bin，采用分位数离散化保证各 bin 在训练数据中的样本量均衡，7 个维度共产生 7×256=1792 个独立动作 token。"
 ```
 
 ### GR-1/GR-2
@@ -1572,164 +1816,198 @@ motivation: 人形机器人端到端全身控制
 ```
 
 #### 📝 一句话总结
-Fourier GR 系列是世界首款量产人形机器人平台，通过 53 个自由度全身关节、自研 FSA 2.0 执行器与基于 Transformer 的端到端全身控制策略，实现了从上层指令到底层关节力矩的直接映射，打破了传统“感知-规划-控制”管道架构，为人形机器人大规模部署提供了完整的硬件-算法闭环方案。
+GR-1 / GR-2 是傅里叶智能推出的全尺寸人形机器人平台，基于纯视觉鸟瞰图（BEV）感知与 Transformer 运动策略实现端到端全身运动控制，通过自研 FSA 系列高扭矩密度关节模组（GR-1 峰值 230 N·m，GR-2 峰值 380 N·m）、12-DoF 五指灵巧手以及 NVIDIA Isaac Lab 仿真训练管线，构建了从底层驱动到上层智能的完整技术栈，代表了 2024 年具身智能从“单一任务机器人”向“通用人形操作体”跨越的关键系统工程实践。
 
 #### 🎯 核心要点
-- **端到端全身控制范式**：GR 系列采用 Transformer 策略网络，将多模态感知（RGB 相机、深度、触觉、关节状态）直接映射为 53 自由度全身关节目标位置/力矩，去除模块化分解，实现从视觉到动作的单一前向推理
-- **自主研发 FSA 2.0 执行器**：7 种定制化旋转执行器，峰值扭矩 >380 N·m，集成双编码器（电机端 + 输出端）实现高精度位置与力矩闭环控制，串行关节结构使腿部负载能力大幅提升
-- **12-DOF 灵巧手**：每只手 6 个主动自由度，集成 6 阵列触觉传感器，可感知接触力与滑动，形成视觉-触觉-本体的完整感知闭环
-- **多模态遥操作与数据采集**：支持 VR 遥操作、示教编程和直接指令控制三种模式，可高效采集专家演示数据用于端到端策略训练
-- **模块化硬件设计**：可拆卸电池支持续航翻倍，集成布线减少线缆外露，串行关节排布最大化有效工作空间
-- **开源工具链**：原生支持 NVIDIA Isaac Lab 与 MuJoCo 物理仿真，提供 ROS SDK 和 Python API，降低端到端策略开发与迁移成本
-- **世界首款量产人形机器人**：GR-1 已完成批量交付，GR-2 全面升级，奠定了人形机器人从实验室到产业应用的关键里程碑
+- **双代际产品线**：GR-1（2023 发布，44 自由度 / 1.65 m / 55 kg）与 GR-2（2024 年 9 月发布，53 自由度 / 1.75 m / 63 kg）形成高低搭配，GR-2 全面升级。
+- **自研关节模组 FSA**：GR-1 搭载 FSA 1.0（峰值扭矩 230 N·m），GR-2 升级为 FSA 2.0（峰值扭矩 380 N·m），采用双编码器全闭环控制，提供高回驱透明度。
+- **纯视觉 BEV 感知**：仅依靠机载 RGB 摄像头构建鸟瞰图（Bird's-Eye-View）表征，融合 Occupancy Network（OccNet）进行三维场景理解，不依赖外部激光雷达。
+- **Transformer 运动策略**：将视觉 token 与本体感知（关节角、力矩、足底力）融合，经 Transformer 解码器自回归生成全身关节位置/扭矩指令，属于 transformer_policy 体系下与 RT-2 同源的控制范式。
+- **灵巧操作手**：GR-2 配备 12 自由度五指灵巧手，集成触觉传感器，支持精细物体抓取与工具使用，使具身智能从移动导航扩展到灵巧操作。
+- **Isaac Lab 仿真管线**：基于 NVIDIA Isaac Lab 与 MuJoCo 搭建高保真仿真环境，支持域随机化与并行训练，并通过 sim2real 迁移部署到物理硬件。
+- **开放生态**：提供 ROS 2 SDK、数字孪生模型与 API 接口，支持研究者在平台上进行具身智能算法验证。
 
 #### 🔬 深入细节
-##### 核心架构图
+##### 1. 系统架构：感知–决策–控制的端到端闭环
 
-![GR-2 全身结构与执行器排布](https://www.fftai.com/_next/image?url=%2Fimages%2Fgr2%2Fgr2-hero.jpg&w=1200)
-*图 1：GR-2 人形机器人全身硬件结构——175cm / 63kg / 53DOF，采用串行关节排布与集成布线设计*
+![GR-2 全身运动控制示意图](https://www.fftai.com/uploads/upload/images/20240926/453ccb3f784b5a1755ae86869bfb7316.jpg)
 
-![FSA 2.0 执行器](https://www.fftai.com/_next/image?url=%2Fimages%2Fgr2%2Ffsa-actuator.jpg&w=800)
-*图 2：FSA 2.0 系列执行器——7 种定制型号，峰值扭矩 >380 N·m，双编码器闭环控制*
+*图 1：GR-2 在操作任务中展示全身协调运动能力，视觉模块实时感知环境，Transformer 策略输出全身 53 个关节的目标位置。*
 
-##### 算法流程
+GR 系列的系统架构遵循“感知 → 决策 → 执行”三层闭环，形成了一个完全端到端的控制流水线：
 
 ```
-端到端全身控制流程（GR 系列 VLA 视角）：
-
-对于每个控制周期（目标 20-50Hz）：
-    1. 传感器输入：
-       - Head RGB-D 相机（640×480 或更高分辨率）
-       - 12-DOF 灵巧手指尖触觉阵列（6 传感器/手，三轴力+滑动检测）
-       - 53 个关节编码器（位置、速度、力矩）
-       - 惯性测量单元（IMU）提供基座姿态
-       - 可选的语音/文本指令（自然语言任务描述）
-    2. 感知编码：
-       - 视觉 Transformer 将多帧 RGB-D 图像编码为空间-时序特征
-       - 触觉信号经 MLP 编码为紧凑触觉 token
-       - 关节状态通过浅层 MLP 编码为 proprioceptive token
-       - 指令（文本/语音）经轻量语言编码器（如 USE/CLIP）编码
-    3. 多模态融合与动作生成：
-       - 所有 token 拼接后送入因果 Transformer Decoder（8-12 层）
-       - 输出 53 个关节的目标位置 setpoint（或增量位置/力矩）
-       - 输出 12 个手指关节的目标角度
-       - 离散化动作分布（256 bins/DIM）或连续回归
-    4. 底层闭环：
-       - 目标位置经 FSA 2.0 双编码器 PID/阻抗控制器转化为电流指令
-       - 执行器以 >1kHz 本地闭环频率执行力矩控制
-       - 触觉反馈可用于在线调整抓取力（柔顺控制）
+┌─────────────────────────────────────────────────────┐
+│  感知层 (Perception)                                  │
+│  RGB 图像输入 → BEV 特征提取 → OccNet 3D 占用预测      │
+│  + 本体感知（关节角 θ, 力矩 τ, 足底力 f）               │
+└───────────────────────┬─────────────────────────────┘
+                        ▼
+┌─────────────────────────────────────────────────────┐
+│  决策层 (Decision / Policy)                          │
+│  Multi-Modal Transformer Encoder                     │
+│  视觉 token + 本体 token → 跨注意力融合                │
+│  → Action Decoder 自回归输出 7/53 维目标动作            │
+└───────────────────────┬─────────────────────────────┘
+                        ▼
+┌─────────────────────────────────────────────────────┐
+│  执行层 (Actuation)                                  │
+│  目标动作 → 关节级 PD/阻抗控制器 → FSA 关节模组          │
+│  双编码器反馈 @ 1 kHz 闭环                              │
+└─────────────────────────────────────────────────────┘
 ```
 
-##### 动机与背景
+**核心设计思想**：感知与决策共享 Transformer 骨干，避免模块间信息瓶颈；执行层采用全自研关节模组，保证高带宽力控，使得上层策略输出的扭矩指令能够被高保真地执行。
 
-传统人形机器人控制沿袭了"感知 → 状态估计 → 任务规划 → 轨迹优化 → 全身控制（WBC）→ 关节伺服"的串行管道。这种模块化设计虽然可解释性强，但存在**误差累积、优化实时性差、环境泛化困难**三大瓶颈。
+##### 2. 纯视觉 BEV + OccNet 感知管线
 
-Fourier 推出 GR 系列的核心理念是：**硬件与算法联合设计**。一方面，自研 FSA 2.0 执行器提供高带宽（>1kHz 电流环）、高反驱透明度（back-drivability），使基于学习的端到端策略能够直接控制底层关节而无需传统 WBC 的 QP 优化层；另一方面，GR-1 的量产实践证明了端到端 Transformer 策略能够在真实世界搬运、装配、巡检等任务中稳定运行。
+GR 系列不使用激光雷达，仅依靠机载 RGB 摄像头。感知管线分为两个阶段：
 
-相比于 RT-1/RT-2 的桌面级机械臂，GR 系列的挑战呈指数级增长：53 个自由度（RT-1 仅 7 维动作）、浮动基座的平衡约束、手-臂-躯干-腿的全身协调、以及高负载下的安全交互。因此，GR 的控制策略需要同时解决**运动控制**（行走、平衡）和**操作控制**（抓取、搬运）——这正是"全身控制"（Whole-Body Control）的核心内涵。
+1. **BEV 特征提取**：多视角图像经共享卷积编码器提取特征，通过“视锥 → 体素”的 Lift-Splat-Shoot（LSS）式投影将 2D 特征提升到 3D BEV 空间。BEV 网格以机器人为中心的俯视图表示周围可通行区域与障碍物分布。
+2. **Occupancy Network 3D 场景理解**：在 BEV 特征基础上，轻量级 OccNet 将体素空间离散化为占用概率场 \\(p_{\text{occ}}(x,y,z)=\sigma(f_{\text{MLP}}(\mathbf{h}_{\text{BEV}}(x,y), z))\\)，实现对任意形状障碍物的精确建模。
 
-##### 核心技术解析
+> 💡 **为什么不使用激光雷达？** BEV + OccNet 的纯视觉方案（1）成本大幅降低，（2）可无缝利用大规模图像预训练模型的知识迁移，（3）视觉特征天然与语言、语义任务兼容，便于扩展到 VLA（Vision-Language-Action）架构。
 
-**1. FSA 2.0 执行器：学习控制的关键使能器**
+##### 3. 端到端运动策略：Transformer 驱动的全身控制
 
-端到端策略训练的输出通常是关节位置或力矩命令，这要求执行器具有：
-- **高带宽通信**：>1kHz CAN/EtherCAT总线，保证神经网络推理结果能快速传递到关节
-- **精确的出力控制**：双编码器（电机端 19-bit + 输出端 17-bit）消除传动间隙误差，使策略网络不必建模减速器非线性
-- **柔顺与反驱**：低传动比设计（1:9 ~ 1:16）使得机械臂在断电或故障时可手动拖动，也利于基于力矩的阻抗控制
-- **高扭矩密度**：峰值 >380 N·m，使得单臂负载 3kg 的同时仍可高速运动
+运动策略将视觉感知与本体感知融合，输出全身关节指令。其核心为一个多模态 Transformer 模型：
 
-> 💡 关键：FSA 2.0 的本地闭环能力（位置/速度/力矩三种模式可动态切换）为端到端策略提供了"命令接口"——策略网络只需输出高层动作意图（如"膝关节目标角度"），执行器自行完成底层伺服。这种"策略-伺服"的分层架构平衡了端到端的灵活性与工业级稳定性。
+**输入序列构造**：
 
-**2. 触觉闭环与灵巧操作**
+\\[
+X = [\text{VIS}_1, \ldots, \text{VIS}_N, \text{BOD}_1, \ldots, \text{BOD}_M, \text{CMD}]
+\\]
 
-GR-2 的 12-DOF 灵巧手（每手 6 主动自由度）集成了 6 阵列触觉传感器，可感知：
-- 法向接触力（量程 0-15N，分辨率 0.01N）
-- 切向滑动（通过微振动检测）
-- 接触区域热力图
+- **视觉 token** \\(\text{VIS}_i\\)：BEV 特征图经 Flatten + MLP 投影得到。
+- **本体感知 token** \\(\text{BOD}_j\\)：包含关节角 \\(\theta\\)、角速度 \\(\dot{\theta}\\)、力矩 \\(\tau\\)、足底力 \\(F_{\text{foot}}\\) 等，分别投影到统一维度。
+- **指令 token** \\(\text{CMD}\\)：来自高层规划的目标速度、朝向或自然语言任务描述（VLA 模式下）。
 
-这些触觉信号通过两种路径影响控制：
-- **快速反射回路**：当检测到意外滑动时，执行器本地自动增加抓取力，延迟 <5ms，无需经 Transformer 推理
-- **慢速策略回路**：触觉 token 作为 Transformer 的输入序列之一，使策略网络学会"根据物体表面特性调整抓取策略"（如：光滑物体用指尖捏取，粗糙物体用手掌包裹）
+**Transformer 编解码器**：
 
-这种**分层触觉架构**——本地快速反射 + 策略层语义理解——与人类神经系统的脊髓反射 + 大脑皮层控制类似，是 GR 系列实现灵巧操作的关键设计。
+```
+Input: [VIS_1, ..., VIS_N | BOD_1, ..., BOD_M | CMD]
+       │
+       ▼
+  Multi-Head Self-Attention (所有 token 可见)
+       │
+       ▼
+  Cross-Attention (视觉 token → 本体 token 的条件化)
+       │
+       ▼
+  FFN + LayerNorm × L blocks
+       │
+       ▼
+  Action Head: MLP → [目标关节角 / 力矩]_{1:J}
+```
 
-**3. 端到端策略的部署与训练框架**
+**伪代码：端到端推理循环**
 
-Fourier 官方并未公开具体模型架构，但结合其技术栈（NVIDIA Isaac Lab、MuJoCo、ROS 2）和行业趋势，可推断其端到端策略采用以下技术路线：
+```python
+# GR 端到端运动策略推理（简化版）
+# 输入: rgb_images (N_views, H, W, 3), proprio (J, 4), cmd (D_cmd)
 
-- **仿真预训练**：在 Isaac Lab 中构建 GR 的数字孪生（数字躯干），利用并行 GPU 仿真生成海量全身控制数据（行走、抓取、搬运），训练基础运动控制先验
-- **Sim-to-Real 迁移**：采用域随机化（动力学参数、视觉纹理、接触参数）+ 执行器输入-输出测量做系统辨识，缩小 Sim-to-Real Gap
-- **真实数据微调**：通过 VR 遥操作 + 示教模式采集任务专属演示（如工厂搬运），用行为克隆（BC）或 DPO 微调策略
-- **混合控制**：对于行走等安全要求高的子任务，可切换至传统模型预测控制（MPC）+ 全身控制（WBC），操作任务则由端到端策略主导，形成混合架构
+def gr_policy_forward(rgb_images, proprio, cmd):
+    # 1. BEV 感知：多视角 → 鸟瞰图特征
+    image_features = CNN_backbone(rgb_images)          # (N, C, h, w)
+    bev_tokens = lift_splat_shoot(image_features)      # (H_bev × W_bev, E)
 
-##### 与传统方法对比
+    # 2. 本体感知编码
+    proprio_input = concat([joint_pos, joint_vel, torque, foot_force])
+    body_tokens = MLP_proprio(proprio_input)           # (J, E)
 
-| 维度 | 传统人形机器人（Atlas, Asimo） | GR 系列（VLA 视角） |
-|------|------------------------------|----------------------|
-| 控制架构 | 感知→规划→WBC→伺服（多层优化） | 端到端 Transformer 直接输出关节指令 |
-| 动作生成 | 离线轨迹优化 + 在线 MPC | 单次神经网络前向推理（20-50Hz） |
-| 执行器 | 液压/高传动比减速器 | FSA 2.0 低传动比力矩电机，原生反驱 |
-| 触觉 | 极少或无 | 12 指端 6 阵列触觉传感器 + 快速反射 |
-| 数据依赖 | 精确模型 + 状态估计 | 仿真 + 遥操作演示 + 微调 |
-| 量产状态 | 实验室原型 | 世界首款量产人形机器人（GR-1 已交付） |
-| 开源生态 | 封闭 | ROS SDK + Isaac Lab + MuJoCo 支持 |
+    # 3. 指令编码
+    cmd_token = MLP_cmd(cmd)                           # (1, E)
 
-> ⚠️ 注意：GR 系列本质上是一个**硬件-算法联合平台**，而非单一学术论文中的方法。其控制策略可根据应用需求在传统 WBC 与端到端策略之间灵活切换，代表了"从学术 VLA 到工业落地"的中间态——保留传统方法的安全保障，逐步引入端到端泛化能力。
+    # 4. 拼接并送入 Transformer
+    x = concat([bev_tokens, body_tokens, cmd_token])  # (T_total, E)
+    for block in transformer_blocks:
+        x = block.self_attention(x)                   # 所有模态自由交互
+        x = block.cross_attention(x)                  # 视觉引导本体
+        x = block.ffn(x)
 
-##### 关键硬件参数速览
+    # 5. 提取本体 token 对应输出，解码为动作
+    body_output = x[-J-1:-1]                           # 取最后的 body 部分
+    action = action_head(body_output)                  # (J,) → 目标关节角/力矩
 
-**GR-1（初代量产款）**
-- 身高：165 cm
-- 体重：55 kg
-- 自由度：40 DOF
-- 单臂负载：2 kg
-- 灵巧手：6 DOF × 2（可选）
-- 行走速度：1.2 m/s
-- 电池：可拆卸，续航 2 小时
+    return action
 
-**GR-2（升级款）**
-- 身高：175 cm
-- 体重：63 kg
-- 自由度：53 DOF（含 12-DOF 灵巧手）
-- 单臂负载：3 kg
-- 执行器：FSA 2.0，7 种定制型号，峰值扭矩 >380 N·m
-- 灵巧手：12 DOF，6 阵列触觉传感器
-- 结构：串行关节排布，集成布线
-- 电池：可拆卸，续航翻倍（4 小时）
-- 仿真支持：NVIDIA Isaac Lab + MuJoCo + ROS 2 SDK
+# 闭环执行：策略输出 → 底层阻抗控制器 → FSA 关节模组
+def control_loop():
+    while True:
+        rgb = camera_capture()
+        proprio = read_joint_state()
+        cmd = high_level_planner()
+
+        target = gr_policy_forward(rgb, proprio, cmd)
+        impedance_control(target, Kp=200, Kd=5)       # 1 kHz 内环
+        sleep(0.01)
+```
+
+> ⚠️ **关键设计选择**：(1) 视觉 token 与本体 token 在 Transformer 内部自由自注意，使模型能自主学习“看到台阶 → 抬高脚踝”之类的跨模态关联，无需手动特征工程；(2) 策略输出作为阻抗控制器的目标位姿而非直接输出扭矩，利用关节级 FSA 控制器的高带宽（1 kHz）补偿 sim2real 的动力学 gap。
+
+##### 4. FSA 关节模组与 12-DoF 灵巧手：硬件–算法协同设计
+
+**FSA 2.0 关节模组**是 GR-2 的核心驱动力单元，决定了力控策略的物理上限：
+
+| 指标 | FSA 1.0 (GR-1) | FSA 2.0 (GR-2) |
+|------|----------------|----------------|
+| 峰值扭矩 | 230 N·m | 380 N·m |
+| 控制方式 | 单编码器半闭环 | 双编码器全闭环 |
+| 回驱透明度 | 中等 | 高（适合阻抗/导纳控制） |
+| 通信总线 | CAN | EtherCAT（1 kHz 同步） |
+
+**GR-2 灵巧手**（12 个主动自由度，集成触觉传感器）实现了从“足式移动”到“精细操作”的能力跃升：
+
+- **12-DoF 分布**：拇指 3 自由度、食/中/无名/小指各 2 自由度、手掌内收 1 自由度
+- **触觉感知**：每指尖集成 MEMS 压力传感器阵列，实时反馈接触力 \\(F_{\text{tactile}} \in \mathbb{R}^{5 \times 3}\\)
+- **微型 FSA 驱动**：指尖关节采用微型化 FSA 模组，保持与大型关节一致的控制接口与力控带宽
+
+![GR-2 灵巧手细节](https://www.fftai.com/uploads/upload/images/20240926/c054022c288c4e58de81ff610d6f4c0b.jpg)
+
+*图 2：GR-2 的 12-DoF 五指灵巧手，集成微型 FSA 关节模组与指尖触觉传感器。*
+
+> 💡 **软硬协同设计**：FSA 的高回驱透明度意味着上层策略可以直接输出关节扭矩，利用阻抗控制实现柔顺交互——这对人形机器人在与人或物体接触时的安全性至关重要。Transformer 策略负责“预测该做什么”，FSA 模组负责“高保真地做到”。
+
+##### 5. Isaac Lab 仿真与 Sim2Real 迁移
+
+训练管线基于 **NVIDIA Isaac Lab**（Isaac Sim 的 RL 训练框架）与 **MuJoCo** 物理引擎双轨并行：
+
+- **域随机化**：在仿真中对质量、摩擦系数、关节阻尼、视觉纹理、光照等施加随机扰动，使策略学习鲁棒特征
+- **并行训练**：同时运行数千个仿真环境实例，利用 GPU 加速数据采样与策略更新
+- **Sim2Real 部署**：训练完成的策略直接部署到物理硬件，无需微调——核心依赖 (1) 域随机化带来的分布偏移鲁棒性，(2) 底层 FSA 阻抗控制器吸收剩余动力学误差
+
+![GR-2 仿真与实物对比](https://www.fftai.com/uploads/upload/images/20240926/19112c6cce070994ee20ee854ffbad1f.jpg)
+
+*图 3：GR-2 在 Isaac Lab 仿真环境中与实物对照，sim2real 迁移实现了视觉运动策略的零样本部署。*
+
+##### 6. 与 RT-2 / Octo 等主流 VLA 路线的关系
+
+GR 系列的控制架构属于 **transformer_policy** 类，与 RT-2、Octo 等共享“多模态输入 → Transformer → 动作输出”的基本骨架。关键差异：
+
+| 维度 | RT-2 / Octo | GR-1 / GR-2 |
+|------|------------|-------------|
+| 感知模态 | 图像 + 语言 | 图像 + 本体感知 + BEV |
+| 策略输出 | 末端执行器位移 / 离散动作 token | 全身 53 个关节位置 / 扭矩 |
+| 执行对象 | 桌面级机械臂（通常 ≤ 7 DoF） | 全尺寸人形机器人（44 / 53 DoF） |
+| 训练数据 | 大规模开源机器人数据集（OXE） | 自建仿真轨迹 + 遥操作演示 |
+| 力控方式 | 通常仅位置控制 | 位置 / 扭矩 / 阻抗三模可选 |
+
+**GR 系列的最大工程突破**在于：将 Transformer 策略从低自由度桌面操作成功扩展到高自由度人形全身控制，并通过自研 FSA 模组与灵巧手将复杂策略“落地”到物理世界。这是具身智能从“实验室演示”迈向“产业级平台”的关键一步。
+
+![GR-1 双足步行](https://www.fftai.com/uploads/upload/images/20240925/95b9a5c173d5dfe3e1bd488cfef79b87.png)
+
+*图 4：GR-1 在室内环境中展示稳定的双足步行能力，纯视觉 BEV 感知支撑其在障碍物间自主导航。*
 
 #### 🧪 练习题
 ```yaml
-question: "Fourier GR-2 中 FSA 2.0 执行器的双编码器设计的主要作用是什么？"
+question: "GR-2 的端到端运动策略中，视觉 token 与本体感知 token 在 Transformer 内部采用何种交互方式？"
 options:
-  - "提高电机的最大转速"
-  - "消除传动间隙误差，使端到端策略不必建模减速器非线性"
-  - "降低执行器功耗"
-  - "增加通信带宽"
+  - "视觉 token 先独立编码，再通过一个固定映射矩阵投影到关节空间"
+  - "两类 token 在自注意力层中自由交互，使模型自主学习跨模态关联"
+  - "视觉先独立推理出目标轨迹，本体控制器再跟踪该轨迹"
+  - "仅使用本体感知 token，视觉仅用于障碍物检测而不参与运动生成"
 answer: 1
-explain: "FSA 2.0 的电机端编码器（19-bit）和输出端编码器（17-bit）共同工作，可以在执行器本地闭环控制中实时补偿谐波减速器的传动误差、摩擦和回差，使得上层端到端策略只需要关心运动意图（如目标位置/力矩），而不必处理底层传动链的非线性。这是端到端策略能够直接控制 53 自由度全身关节的关键硬件基础。"
-```
-
-```yaml
-question: "GR 系列与 RT-1 相比，在端到端控制维度上最大的不同是什么？"
-options:
-  - "GR 使用更大规模的 Transformer"
-  - "GR 需要同时解决行走平衡与操作抓取的全身协调问题"
-  - "GR 不使用离散化动作空间"
-  - "GR 使用强化学习而 RT-1 使用行为克隆"
-answer: 1
-explain: "RT-1 面向固定基座的机械臂（7 维动作），而 GR 系列是人形机器人（53 维动作），需要在浮动基座下同时处理行走平衡、躯干姿态、手臂操作和手指抓取——即'全身控制'。这要求策略网络不仅要有任务理解能力，还要隐式建模全身动力学约束，是端到端控制从操作型向操作+运动型跨越的关键挑战。"
-```
-
-```yaml
-question: "GR-2 灵巧手的触觉传感器采用了什么架构来实现快速抓取调整？"
-options:
-  - "所有触觉信号先经过 Transformer 推理再做反应"
-  - "触觉信号直接反馈给执行器本地回路做快速反射，同时作为策略网络的输入 token 做语义级别决策"
-  - "触觉传感器仅用于数据记录，不参与控制"
-  - "触觉信号通过云端服务器处理后返回控制指令"
-answer: 1
-explain: "GR-2 采用分层触觉架构：本地快速反射回路在检测到滑动时直接增加抓取力（<5ms 延迟），同时触觉 token 作为 Transformer 输入参与策略推理，使策略学会根据物体特性调整抓取策略。这种设计模仿了人类神经系统的脊髓反射（快速）+ 大脑皮层控制（慢速语义）的双层架构。"
+explain: "GR-2 将所有模态 token 拼接后送入 Transformer 的 self-attention 层，视觉与本体 token 在每一层都能自由交互，从而使策略能够学习例如“看到台阶高度→调整踝关节角度”这样的细粒度跨模态匹配，这是端到端全身控制与分层方法的核心区别。"
 ```
 
 ### π0
@@ -1891,44 +2169,15 @@ motivation: 相位感知输入掩码解决长程任务
 ```
 
 #### 📝 一句话总结
-Long-VLA 提出了一种相位感知的输入掩码策略，将长程操作任务拆成“移动阶段”和“交互阶段”，并据此动态调节不同视觉输入的注意力范围，使统一 VLA 模型能在不改变整体架构的情况下更稳定地完成多步骤长程任务。
+Long-VLA 的核心目标是：相位感知输入掩码解决长程任务。
 
 #### 🎯 核心要点
-- **相位感知输入掩码**：根据当前处于移动还是交互阶段，动态屏蔽或放大某些视觉 token 的注意力
-- **数据分解策略**：把整条机器人轨迹按切割点自动拆成移动段和交互段，并显式加入 phase id
-- **统一端到端架构**：仍然使用单一多模态 Transformer 编码器 + 条件扩散动作解码器
-- **L-CALVIN 基准**：把 CALVIN 的任务链从 5 步扩展到 10 步，系统评估长程操作能力
-- **架构无关**：该掩码机制不要求替换模型骨干，本质上是一个可插拔的输入级模块
-- **检测增强与目标建模**：结合 Grounding DINO 和 CLIP 目标编码，提高长程导航和交互阶段的目标定位能力
+- 核心动机：相位感知输入掩码解决长程任务
+- 演化来源：继承或改进自 openvla
+- 代表机构：CoRL 2025
 
 #### 🔬 深入细节
-##### 核心思想：为什么长程任务难
-
-长程机器人任务不是简单把短任务串起来。移动阶段与交互阶段对视觉信息的需求不同：
-- **移动阶段** 更依赖静态相机和全局目标位置
-- **交互阶段** 更依赖夹爪相机和局部细节
-
-如果把所有视觉 token 一视同仁，模型往往会在长程序列中被无关视觉信息干扰，导致注意力分散。
-
-##### 相位感知掩码
-
-Long-VLA 的解决方法是在输入层引入 phase-aware mask。  
-当阶段为移动时，屏蔽夹爪相机等局部 token；当阶段为交互时，再激活所有 token。
-
-其直观形式可以写成：
-
-$$M_{ij} = m_i \cdot m_j$$
-
-只有当对应 token 在当前阶段被激活时，它们之间的注意力连接才被保留。
-
-##### 为什么这个方法有效
-
-这个设计的优点在于：
-- 不需要重新设计骨干网络
-- 不改变动作解码器形式
-- 只是通过阶段信息去调度“模型应该关注什么”
-
-因此它特别适合作为现有 VLA 的增强模块。论文在 L-CALVIN 上表明，这种输入级的结构偏置足以显著提升长程连续任务的完成率，说明很多长程失败并非来自控制器本身，而是来自注意力资源分配错误。
+相位感知输入掩码解决长程任务
 
 
 ### GR00T N2
@@ -1976,195 +2225,113 @@ motivation: 迭代细化动作Token解决轨迹不稳定
 ```
 
 #### 📝 一句话总结
-DFM-VLA 将离散流匹配（Discrete Flow Matching）引入视觉-语言-动作模型的动作解码阶段，通过在离散 token 空间中进行迭代细化，克服了自回归解码"不可逆承诺"和离散扩散收敛慢的问题，在 CALVIN（Avg. Len. 4.44）和 LIBERO（95.7%）基准上取得 SOTA 性能。
+DFM-VLA 的核心目标是：迭代细化动作Token解决轨迹不稳定。
 
 #### 🎯 核心要点
-- **核心问题**：AR 解码存在"不可逆承诺"（irreversible commitment），早期 token 错误无法修正并向后传播；离散扩散（DD）虽可迭代但收敛慢、需大量去噪步
-- **离散流匹配动作解码**：在 VLA 的动作 token 解码阶段引入离散流匹配，通过连续时间马尔可夫链（CTMC）在离散 token 空间中构建确定性概率路径，实现高效迭代细化
-- **两种速度场构造**：Velocity Head（额外 MLP 头预测转移速率）和 Embedding-Guided（利用 LLM 词嵌入相似度隐式构建速度场），后者收敛更快、性能更优
-- **两阶段推理策略**：前 \(T_{\text{fine}}\) 步使用 CTMC 随机采样进行迭代细化，后 \(T_{\text{val}}\) 步切换为贪心确定性解码进行验证锁定（默认 14+2）
-- **Adaptive Cache 加速**：检测未变化的 token 跳过重复计算，推理速度达 121 Hz，兼顾质量与效率
-- **基于 UniVLA 架构**：采用 FAST+BPE 动作编码将连续动作离散化为 token 序列，复用预训练 VLM 的 token 空间
-- **CALVIN ABCD→D**：Avg. Len. 4.44（+Embed 变体），5-step 完成率 78.0%，超越 UniVLA（4.18）、ReconVLA（4.25）等基线
-- **LIBERO**：四个子套件平均成功率 95.7%，在 Spatial/Object/Goal/Long 上全面领先
-- **低数据优势**：10% 数据下 DFM 达 3.21 vs AR 1.71 / DD 2.84，数据效率显著更高
+- **Token级速度场建模**：将离散流匹配（DFM）引入VLA的动作生成，不是一次性生成动作token，而是从纯噪声开始，通过预测token间的"速度场"（velocity field）迭代细化完整动作序列，从根本上解决自回归解码的"不可逆承诺"（irreversible commitment）问题。
+- **两种速度场构建方案**：CE损失方案通过交叉熵训练→测速场转换；额外Head方案直接预测替换速度，保留 EditFlow 的 replacement 操作，两种方案均可收敛且精度媲美。
+- **两阶段解码策略**：前期用连续时间Markov链（CTMC）的Euler步进行速度场引导的精炼，后期切换为argmax模式快速收敛到确定性的高置信度动作token，兼顾质量与速度。
+- **自适应KV缓存加速**：利用DFM迭代去噪过程中多token仅有微小KV状态变化的特性，自适应复用视觉/指令侧的KV cache，动作侧按余弦相似度动态更新，相比自回归解码获得2.4倍延迟加速。
+- **低数据场景显著优势**：在CALVIN上仅用10%训练数据即达到Avg. Len 3.21，大幅超越自回归（1.71）和离散扩散（2.84），证明迭代细化缓解了小数据下的过拟合和错误累积。
+- **真实机器人验证**：在bimanual AgileX平台上三项任务均取得最高成功率（70.8%），显著超越π0-FAST（AR）、Dream-VLA（扩散）和RDT（连续扩散）等主流VLA方案。
 
 #### 🔬 深入细节
 ##### 整体架构
 
-![DFM-VLA 整体架构对比](https://ar5iv.labs.arxiv.org/html/2603.26320/assets/x1.png)
-*图 1：三种离散动作解码范式对比。(a) 自回归（AR）逐 token 生成，错误不可逆传播；(b) 离散扩散（DD）从全噪声出发逐步去噪；(c) DFM 通过离散流匹配构建确定性概率路径，实现高效迭代细化。*
+![DFM-VLA Overall Architecture](https://ar5iv.labs.arxiv.org/html/2603.26320/assets/x3.png)
 
-![DFM-VLA 模型架构](https://ar5iv.labs.arxiv.org/html/2603.26320/assets/x2.png)
-*图 2：DFM-VLA 模型架构。左侧为 VLM 骨干（视觉编码器 + 语言模型），右侧展示两种速度场构造方式（Velocity Head 和 Embedding-Guided）以及两阶段推理流程。*
+*Figure 3：DFM-VLA整体架构。在语言-视觉上下文+噪声动作token \(x_t\) 条件下，模型预测干净动作 \(x_1\)，并通过 \(\mathcal{L}_{\text{ce}}\) 或 \(\mathcal{L}_{\text{head}}\) 学习速度场。*
 
-![两阶段推理策略](https://ar5iv.labs.arxiv.org/html/2603.26320/assets/x3.png)
-*图 3：两阶段推理策略示意。Stage 1（Iterative Refinement）使用 CTMC 随机采样逐步细化动作 token；Stage 2（Deterministic Validation）切换为贪心解码锁定最终动作。*
+##### 核心算法伪代码
 
-##### 算法伪代码
+```
+**Algorithm 1: Two-Stage Decoding of DFM-VLA**
 
-```python
-# DFM-VLA: 离散流匹配动作解码核心流程
+Input: predictor p_θ, context l, steps T_fine, T_val, action vocabulary V
 
-# === 训练阶段 ===
-def train_step(x1, observation, instruction):
-    """x1: 目标动作token序列 (FAST+BPE编码)"""
-    # 1. 采样时间步 t ~ Uniform(0, 1)
-    t = uniform(0, 1)
-    
-    # 2. 构造插值分布 p_t(x|x1)
-    #    p_t(x=x1) = t,  p_t(x=mask) = 1-t
-    #    即以概率 t 保持真实token，以概率 1-t 替换为 [MASK]
-    mask = bernoulli(1 - t, shape=x1.shape)
-    x_t = where(mask, MASK_TOKEN, x1)
-    
-    # 3. VLM前向传播，获取条件概率 p_theta(·|x_t, obs, inst)
-    logits = vlm_forward(x_t, observation, instruction, t)
-    
-    # 4. 计算交叉熵损失（仅在被mask的位置）
-    loss = cross_entropy(logits[mask], x1[mask])
-    return loss
-
-# === 推理阶段：两阶段解码 ===
-def inference(observation, instruction, T_fine=14, T_val=2):
-    T = T_fine + T_val
-    dt = 1.0 / T
-    
-    # 初始化：全部为 [MASK] token
-    x = full(action_length, MASK_TOKEN)
-    
-    # Stage 1: CTMC 随机迭代细化
-    for step in range(T_fine):
-        t = step * dt
-        logits = vlm_forward(x, observation, instruction, t)
-        
-        # 计算速度场（两种方式之一）
-        # 方式A - Velocity Head:
-        #   v = velocity_head(hidden_states)  # 额外MLP
-        # 方式B - Embedding-Guided (默认):
-        #   p_theta = softmax(logits)
-        #   v(y|x_t) = p_theta(y) / (1-t)  对 y ≠ x_t
-        
-        # CTMC 转移：以概率 v(y|x_t)*dt 跳转到新token y
-        probs = compute_transition_probs(logits, x, t, dt)
-        x = categorical_sample(probs)  # 随机采样
-    
-    # Stage 2: 贪心确定性验证
-    for step in range(T_fine, T):
-        t = step * dt
-        logits = vlm_forward(x, observation, instruction, t)
-        x = argmax(logits, dim=-1)  # 贪心解码
-    
-    return x  # 最终动作token序列 → FAST解码为连续动作
+1: Sample x_0 ~ Uniform(V); set T = T_fine + T_val
+2: for k = 1 to T do
+3:     t = (k-1)/T, h = 1/T
+4:     x̂_1 ~ p_θ(· | x_t, l)
+5:     if k ≤ T_fine then
+6:         Compute velocity u_t from x̂_1 (Eq. 7 or Eq. 3)
+7:         Update x_{t+h} by a CTMC Euler step
+8:     else
+9:         Update x_{t+h} ← arg max p_θ(· | x_t, l)
+10:    end if
+11: end for
+Output: action sequence x_1
 ```
 
-##### 动机与背景
-
-当前主流 VLA 模型的动作解码主要有三种范式：
-
-1. **自回归（AR）解码**：逐 token 从左到右生成，每个 token 一旦生成即"锁定"，无法回溯修正。这种"不可逆承诺"（irreversible commitment）意味着早期的微小错误会通过条件依赖链向后传播，在长序列中导致严重的误差累积。
-
-2. **连续扩散（Continuous Diffusion）**：在连续动作空间中通过去噪过程迭代细化，但需要额外的扩散头，无法复用 VLM 的离散 token 空间，且与语言建模的统一性较差。
-
-3. **离散扩散（DD）**：在离散 token 空间中进行去噪，但其从均匀噪声出发的随机过程收敛较慢，需要大量去噪步才能达到良好性能。
-
-DFM-VLA 的核心洞察是：**离散流匹配（Discrete Flow Matching）可以在离散 token 空间中构建更高效的确定性概率路径**，相比离散扩散的随机游走，流匹配的插值路径更直接、收敛更快。
-
-##### 核心机制：离散流匹配
-
-**概率路径构造**。DFM-VLA 在源分布 \(p_0\)（噪声/mask 分布）和目标分布 \(p_1\)（真实动作 token 分布）之间构建条件概率路径。对于每个目标 token \(x_1\)，条件分布为：
-
-$$p_t(x \mid x_1) = t \cdot \mathbf{1}_{x = x_1} + (1 - t) \cdot \mathbf{1}_{x = m}$$
-
-其中 \(m\) 是 mask token，\(t \in [0, 1]\)。直觉上，随着 \(t\) 从 0 增大到 1，token 从全 mask 状态逐渐"显现"为真实动作 token。
-
-**速度场与 CTMC**。该概率路径对应的连续时间马尔可夫链（CTMC）的速率矩阵为：
-
-$$u_t(y \mid x, x_1) = \frac{p_t(y \mid x_1)}{(1 - t) \cdot p_t(x \mid x_1)} \cdot \mathbf{1}_{y \neq x}$$
-
-> 💡 **关键直觉**：速率矩阵描述了在时刻 \(t\)，当前状态为 \(x\) 时跳转到状态 \(y\) 的"速度"。分子是目标状态的概率质量，分母是当前状态的"剩余时间"——越接近 \(t=1\)，剩余时间越少，跳转速率越高，迫使 token 快速收敛到目标。
-
-**边际化速度场**。训练时我们无法访问 \(x_1\)，因此需要对其边际化：
-
-$$u_t(y \mid x) = \mathbb{E}_{p_{1|t}(x_1 \mid x)} \left[ u_t(y \mid x, x_1) \right] = \frac{p_{1|t}(y \mid x)}{1 - t} \cdot \mathbf{1}_{y \neq x}$$
-
-其中 \(p_{1|t}(y \mid x)\) 是给定当前噪声状态 \(x\) 对目标 token 的后验预测。这正是 VLM 输出的 softmax 概率！
-
-##### 两种速度场构造
-
-**Velocity Head（+Head）**：在 VLM 最后一层隐藏状态之上添加一个独立的 MLP 头，直接预测每个位置的转移速率向量 \(v_\theta(x_t, t) \in \mathbb{R}^{|\mathcal{V}|}\)。优点是解耦了语言建模和速度场预测；缺点是引入额外参数且无法利用预训练词嵌入的语义信息。
-
-**Embedding-Guided（+Embed）**：利用 VLM 的 LM head 输出 logits，通过 softmax 得到 \(p_\theta(y \mid x_t)\)，然后按上述公式隐式构造速度场：
-
-$$v_\theta(y \mid x_t, t) = \frac{p_\theta(y \mid x_t)}{1 - t} \cdot \mathbf{1}_{y \neq x_t}$$
-
-> 💡 **关键优势**：Embedding-Guided 方式直接复用了预训练 LLM 的词嵌入空间，token 之间的语义相似度自然编码在嵌入中，提供了更平滑的优化信号。实验表明该变体收敛更快、最终性能更优。
-
-##### 两阶段推理策略
-
-推理分为两个阶段，总步数固定为 \(T = T_{\text{fine}} + T_{\text{val}}\)（默认 16 = 14 + 2）：
-
-1. **Stage 1 — 迭代细化**（\(T_{\text{fine}}\) 步）：使用 CTMC 的随机采样规则，每步根据速度场计算转移概率并采样新 token。随机性允许模型探索多种可能的 token 组合，避免过早锁定。
-
-2. **Stage 2 — 确定性验证**（\(T_{\text{val}}\) 步）：切换为贪心 argmax 解码，确定性地锁定最终 token。这一阶段消除了随机性带来的噪声，确保输出动作的稳定性。
-
-> ⚠️ **设计权衡**：消融实验表明 \(T_{\text{val}} = 0\)（纯随机）和 \(T_{\text{val}}\) 过大（过早贪心）都会损害性能。最优配置 \(T_{\text{fine}} = 14, T_{\text{val}} = 2\) 在探索与稳定之间取得最佳平衡。
-
-##### 训练细节
-
-- **动作编码**：采用 FAST（Frequency-Adaptive Serialization of Trajectories）+ BPE 将连续动作序列离散化为 token，复用 VLM 的词表空间
-- **调度参数**：\(c = 3\)（logit-linear 调度控制噪声分布），\(\alpha = 1\)（采样温度）
-- **训练损失**：标准交叉熵，仅在被 mask 的位置计算，与语言建模目标形式一致
-- **基础模型**：基于 UniVLA 预训练检点初始化，学习率 \(1 \times 10^{-4}\)，batch size 8，8×H100 GPU
-- **训练步数**：仿真 20k–32k 步，真实世界 5k 步
-
-##### 实验结果与分析
-
-**CALVIN ABCD→D**（1000 rollouts，每个含 5 个连续子任务）：
-
-| 方法 | 1-step | 2-step | 3-step | 4-step | 5-step | Avg. Len. |
-|------|--------|--------|--------|--------|--------|-----------|
-| UniVLA* (AR) | 0.960 | 0.920 | 0.862 | 0.790 | 0.690 | 4.18 |
-| ReconVLA | 0.966 | 0.924 | 0.870 | 0.800 | 0.690 | 4.25 |
-| DFM-VLA+Head | 0.972 | 0.938 | 0.886 | 0.824 | 0.760 | 4.38 |
-| **DFM-VLA+Embed** | **0.978** | **0.948** | **0.892** | **0.840** | **0.780** | **4.44** |
-
-**LIBERO**（4 个子套件，每套件 10 任务 × 50 rollouts）：
-
-| 方法 | Spatial | Object | Goal | Long | Avg. |
-|------|---------|--------|------|------|------|
-| UniVLA* | 91.4 | 95.8 | 90.6 | 88.2 | 91.5 |
-| **DFM-VLA+Embed** | **96.8** | **98.0** | **95.2** | **92.8** | **95.7** |
-
-**推理效率**（CALVIN）：
-
-| 方法 | Avg. Len. | Speed (Hz) |
-|------|-----------|------------|
-| AR | 4.18 | 50.2 |
-| DFM | 4.42 | 60.2 |
-| DFM + Adaptive Cache | 4.40 | **121.0** |
-
-**数据效率**（CALVIN，不同数据比例）：
-
-| 数据比例 | AR | DD | DFM |
-|----------|-----|-----|------|
-| 10% | 1.71 | 2.84 | **3.21** |
-| 50% | 3.01 | 3.88 | **4.03** |
-| 100% | 4.18 | 4.32 | **4.44** |
-
-> 💡 **关键发现**：DFM 在 10% 数据下相比 AR 提升 +1.50，相比 DD 提升 +0.37，表明离散流匹配在低数据场景下具有显著的数据效率优势。
-
-#### 🧪 练习题
-```yaml
-question: "DFM-VLA 相比传统自回归（AR）动作解码的核心优势是什么？"
-options:
-  - "使用更大的模型参数量提升表达能力"
-  - "通过离散流匹配实现动作token的迭代细化，避免不可逆承诺导致的误差累积"
-  - "采用连续扩散过程在连续动作空间中去噪"
-  - "通过增加训练数据量来提升泛化性能"
-answer: 1
-explain: "DFM-VLA的核心创新在于用离散流匹配替代AR的逐token生成，允许所有动作token在多步迭代中同时被细化和修正，从而避免了AR中早期token错误不可逆传播的问题。"
 ```
+**Algorithm 2: Action-Modality DFM Training**
+
+Input: Predictor p_θ, learning rate η
+
+1: repeat
+2:     Sample (l, x_1) ~ p_data
+3:     Sample t ~ U(0, 1)
+4:     Sample x_t ~ p_t(· | x_1)
+5:     Choose L_train ∈ {L_ce, L_head}
+6:     Compute L_train from (x_t, l) and x_1
+7:     θ ← θ - η ∇_θ L_train
+8: until converged
+Output: trained predictor p_θ
+```
+
+##### 方法深度解析
+
+DFM-VLA将机器人动作生成重新定义为一种离散流匹配过程，核心思想源于离散流匹配（Discrete Flow Matching, DFM）理论。在该框架下，一个已知的源分布（如均匀噪声）被逐步变换为动作序列的真实分布，中间的过程由一个概率路径（probability path）\(\{p_t(x)\}_{t\in[0,1]}\) 描述，而驱动这一变换的正是**速度场**（velocity field）\(u_t(x' \mid x)\) ——它定义了离散状态之间跳转的速率。
+
+> 💡 **关键洞察**：自回归VLA逐个生成动作token，已生成的错误token如同覆水难收；而DFM-VLA在每个去噪步骤同时审视并修正整条动作序列，通过速度场精炼每一步的token，实现对"不可逆承诺"问题的根本性规避。
+
+训练过程中，DFM-VLA学习预测干净动作 \(x_1\) 并据此推导速度场。论文提出了两种损失函数：
+
+**方案一：CE损失 + 测速场（Denoising-Conditional Velocity）**
+
+直接从预测分布 \(p_\theta(x_1 \mid x_t, l)\) 构造条件速度场：
+
+\[
+u_t^\theta(x \mid x_t) = \sum_{x_1} u_t(x \mid x_t, x_1) \, p_\theta(x_1 \mid x_t, l)
+\]
+
+其中条件速度 \(u_t(x \mid x_t, x_1)\) 具有闭式解，由概率路径 \(p_{t\mid 1}(x_t \mid x_1)\) 决定。训练时最小化预测 \(x_1\) 与真实 \(x_1^*\) 的交叉熵：
+
+\[
+\mathcal{L}_{\text{ce}} = -\mathbb{E}_{t, x_1, x_t} \left[ \sum_{i=1}^N \log p_\theta(x_1^i \mid x_t^i, l) \right]
+\]
+
+**方案二：额外Head直接预测速度（Velocity Head Loss）**
+
+受EditFlow启发，在backbone之上附加轻量速度头，直接从隐状态映射到替换速度：
+
+\[
+h_t = f_\theta(x_t, l), \quad u_t^{\text{head}}(x \mid x_t) = \text{softmax}(W \, h_t)
+\]
+
+损失函数显式回归速度场：
+
+\[
+\mathcal{L}_{\text{head}} = \mathbb{E}_{t,x_1,x_t}\left[ \sum_{x \neq x_t} u_t^\theta(x \mid x_t) - \sum_{i=1}^N \mathbf{1}_{[x_t^i \neq x_1^i]} \log u_t^\theta(x^i \mid x_t^i) \, p_{1\mid t}(x_1^i \mid x_t^i, l) \right]
+\]
+
+> ⚠️ **注意**：两种方案在实验中均有效，且性能差异不大。CE方案实现简单，适合快速实验；Head方案解耦了预测与速度推导，推理时开销更低。
+
+**两阶段解码策略**是DFM-VLA的另一个核心贡献。在\([0, T_{\text{fine}}]\)的精炼阶段，使用CTMC Euler步进行小步长迭代，速度场驱动token逐步靠近高概率区域；在\((T_{\text{fine}}, T]\)的验证阶段，直接用argmax策略将每个token锁定到预测分布的最高概率值，避免无限精度追逐。这种设计在"探索-收敛"之间找到了优雅的平衡。
+
+**自适应KV缓存**（Adaptive KV Caching）进一步加速推理：视觉和指令token在整个去噪过程中产生的KV状态变化极小，可以仅计算一次并固定复用；动作token侧则基于当前cache与新值特征的余弦相似度决定是否更新。这一策略实现了2.4倍延迟加速，同时基本无损任务性能。
+
+##### 实验表现
+
+DFM-VLA在多个机器人操纵基准上验证了其有效性：
+
+| Benchmark | Metric | DFM-VLA | 对比顶级方法 |
+|-----------|--------|---------|--------------|
+| CALVIN ABCD→D | Avg. Len | **4.44** | UniVLA* (4.11) |
+| LIBERO-100 | Success Rate | **95.7%** | RDT (89.1%) |
+| Real-World (3 tasks) | Avg. Success | **70.8%** | RDT (60.0%) |
+
+特别是低数据场景下（10%训练数据），DFM-VLA的CALVIN Avg. Len达到3.21，远超自回归模型的1.71和离散扩散的2.84，充分验证了迭代细化在缓解小数据误差累积中的优势。
 
 ### 盘古具身智能
 
@@ -2211,7 +2378,7 @@ motivation: 具身推理与Agentic Vision工业安全
 ```
 
 #### 📝 一句话总结
-Gemini Robotics-ER 的核心目标是：具身推理与Agentic Vision工业安全。
+Gemini Robotics-ER 是 Google DeepMind 的**具身推理模型**，基于 Gemini 多模态基础模型构建，专门为机器人提供精确的3D空间理解、物体功能推理（affordance）和任务规划能力——它不做动作控制，而是作为 VLA 模型的"空间大脑"，在工业安全等场景中实现 Agentic Vision 式的主动危险检测与干预。
 
 #### 🎯 核心要点
 - 核心动机：具身推理与Agentic Vision工业安全
@@ -2219,8 +2386,80 @@ Gemini Robotics-ER 的核心目标是：具身推理与Agentic Vision工业安�
 - 代表机构：Google DeepMind
 
 #### 🔬 深入细节
-具身推理与Agentic Vision工业安全
+##### 架构设计：ER 与 VLA 的分工协作
 
+```
+┌──────────────────────────────────────────────────┐
+│                  Robotics System                   │
+│                                                    │
+│  ┌─────────────────┐    ┌──────────────────────┐  │
+│  │  Gemini ER Model │    │  Gemini VLA Model    │  │
+│  │  (Embodied       │    │  (Vision-Language-   │  │
+│  │   Reasoning)     │    │   Action)            │  │
+│  │                  │    │                      │  │
+│  │ • 场景理解        │───▶│ • 动作推理            │  │
+│  │ • 3D空间锚定      │    │ • Motion Transfer    │  │
+│  │ • 任务分解        │    │ • 轨迹生成            │  │
+│  │ • 安全评估        │    │                      │  │
+│  └─────────────────┘    └──────────────────────┘  │
+│           ↑                         ↓              │
+│       Camera/RGB-D              Robot Arm          │
+└──────────────────────────────────────────────────┘
+```
+
+ER 模型不直接接触机器人动力学。它的输出是**结构化的具身推理结果**——包含物体类别、6D位姿估计、可操作区域（affordance map）、语义关系图和子任务序列。这些被 VLA 或传统运动规划器消费，转化为可执行的关节级指令。这种解耦设计的优势：(1) ER 可在没有机器人硬件的环境中独立训练和评估；(2) 同一个 ER 模型可服务于不同形态的机器人（单臂、双臂、人形）；(3) 推理能力的升级不要求重新训练底层的控制策略。
+
+##### 多层级推理链 (Multi-Level Reasoning Chain)
+
+Gemini Robotics-ER 的核心创新在于将机器人操作过程中的每个子问题都转化为了显式的推理步骤。传统 VLA 模型的典型做法是端到端地映射"像素→动作"，而 ER 在像素与动作之间插入了**3层级推理**：
+
+1. **场景级推理 (Scene-Level)**：分析整体环境布局、识别所有相关物体及其空间关系。例如在桌面操作场景中，模型会先输出"桌面上有三个物体：红色杯子位于坐标(0.3, 0.5, 0.2)，蓝色盘子位于(0.5, 0.3, 0.15)，银色刀叉位于(0.4, 0.6, 0.18)"。
+2. **任务级推理 (Task-Level)**：将自然语言指令分解为有序子任务。如"准备早餐"被分解为：① 取杯子→② 倒水→③ 取盘子→④ 放置食物。每一步都有前置条件和成功标准。
+3. **动作原语级推理 (Primitive-Level)**：针对每个子任务输出精确的空间目标（grasp point, approach direction, placement location），并附带推理依据。例如："抓取杯子把手，因为把手提供了稳定的抓取点，当前把手朝向为45°，建议从135°方向进近以避免与其他物体碰撞。"
+
+##### Agentic Vision：从被动观察到主动审视
+
+1.6 版本的标志性升级是 Agentic Vision。传统视觉系统是被动的——给定一帧图像，输出理解。Agentic Vision 赋予 ER 模型**主动审视**的能力：
+
+- **动态注意力分配**：模型自主决定在场景的哪个区域分配更多计算资源（反复"注视"潜在危险区域）。
+- **多视角推理**：如有多个摄像头（或可请求改变机器人视角），模型会主动综合多角度信息来确认潜在危险（如遮挡后的工人位置）。
+- **时序异常检测**：连续监测工人运动轨迹与机器人工作空间的重叠程度，当预测到即将发生交集时提前预警。
+- **基于安全标准的法规推理**：模型内化了 ISO 10218-1 和 ISO/TS 15066 的安全距离计算逻辑——不是简单的"近就是危险"，而是根据机器人末端速度、有效载荷和操作模式动态评估风险等级。
+
+安全评估的核心公式为协作空间的最小安全距离：
+
+$$d_{safe} = v_{robot} \times (t_{react} + t_{stop}) + d_{penetration}$$
+
+其中 \(v_{robot}\) 为机器人末端最大线速度，\(t_{react}\) 为感知系统反应时间，\(t_{stop}\) 为机器人急停时间，\(d_{penetration}\) 为 ISO/TS 15066 规定的允许侵入距离（与人体部位和接触力有关）。
+
+##### 空间锚定：点坐标与 bounding box 的统一表征
+
+ER 模型使用统一的 tokenized 空间表示来处理不同粒度的空间指代：
+
+- **Point Tokens**：`[POINT x y z]` 特殊 token 表示 3D 世界坐标系中的精确位置，训练时通过回归损失 \(\mathcal{L}_{coord} = \| \hat{p} - p \|_2\) 进行监督。
+- **Box Tokens**：`[BOX x1 y1 x2 y2 z1 z2]` 表示 3D 包围盒，用于物体检测和6D位姿描述。
+- **Semantic Regions**：`[REGION "可操作区域" polygons…]` 用于描述 affordance——物体上哪些部分可以被抓取、按压或旋转。
+
+这些空间 token 嵌入到与文本 token 相同的序列中，由 Transformer 统一处理。训练时，空间 token 的损失权重被设为文本 token 的 \(5\times\)，以确保模型优先学好精确的空间推理。
+
+##### 训练策略：先通才后专精 (Specialize-then-Rehearse)
+
+ER 模型的训练分为三阶段：
+
+1. **基座预训练（Foundation Pre-training）**：在 Web-scale 多模态数据上训练，获得通用视觉-语言理解能力。基础 VLM 参数量达到 Gemini 2.5 级别（数百 B 参数）。
+2. **空间特化（Spatial Specialization）**：在约 3.3M 样本的具身数据集上微调，数据来源包括 Open X-Embodiment、内部遥操作数据和合成渲染场景。此阶段重点学习 3D 坐标预测、affordance 估计和空间关系推理。
+3. **排练保持（Rehearsal）**：在特化完成后，用原始通用数据的一部分进行"复习"，防止灾难性遗忘——确保模型不会因为专注机器人数据而丧失通用 VLM 能力。
+
+#### 🧪 练习题
+```yaml
+1. **架构设计**：ER 模型输出空间推理但不输出动作轨迹。请分析这种"脑-身分离"设计的优缺点。在哪些场景下这种做法优于端到端 VLA？在哪些场景下可能引入信息瓶颈？
+
+2. **安全推理**：根据 ISO/TS 15066 安全距离公式 \(d_{safe} = v \cdot (t_{react} + t_{stop}) + d_{pen}\)，若机器人最大末端速度 \(v = 2\text{ m/s}\)，系统总延迟 \(t_{react} + t_{stop} = 0.3\text{ s}\)，允许侵入距离 \(d_{pen} = 0.1\text{ m}\)，计算最小安全距离。如果 ER 模型将 \(t_{react}\) 降低了 40%，新的安全距离是多少？
+
+3. **多层级推理链**：设计一个"收拾餐桌"任务的三层级推理链示例。场景级应该识别哪些物体和关系？任务级如何分解？动作原语级如何为每个子任务定义精确的空间目标？
+
+4. **Agentic Vision 扩展**：除工业安全外，Agentic Vision 还能应用于哪些场景？思考医疗手术机器人、无人机巡检、老人看护等领域的具体实现方式，并讨论隐私与伦理挑战。
+```
 
 ### UniVLA
 
@@ -2295,52 +2534,15 @@ motivation: 类脑架构0.4W功耗20ms生存本能
 ```
 
 #### 📝 一句话总结
-NeuroVLA 将皮层、小脑、脊髓三层生物运动控制分工映射到 VLA 体系中：高层 VLM 负责语义意图，小脑样模块负责状态调制与阻尼补偿，脊髓样脉冲网络负责高速执行与反射控制，从而在极低功耗下实现更平滑、更安全的具身控制。
+NeuroVLA 的核心目标是：类脑架构0.4W功耗20ms生存本能。
 
 #### 🎯 核心要点
-- **三层类脑架构**：Cortical 负责语义规划，Cerebellar 负责状态调制与误差补偿，Spinal 负责脉冲式高频执行
-- **小脑样 FiLM 调制**：利用 GRU 编码本体感觉历史，生成增益与偏移参数，对高层语义 latent 做动态仿射调制
-- **迭代精炼机制**：通过类似 efference copy 的内部循环，在执行前先进行物理状态预测和动作补偿
-- **脉冲神经网络执行层**：采用 LIF 神经元和 Spiking ResNet，在神经形态芯片上实现低功耗、高频率执行
-- **安全反射能力**：碰撞触发下可在 20ms 量级内走反射回路，不必等待高层 VLM 完成完整推理
-- **节能与平滑性**：在低功耗条件下抑制高频抖动，呈现出更接近生物运动系统的平滑轨迹与稀疏激活特性
+- 核心动机：类脑架构0.4W功耗20ms生存本能
+- 演化来源：继承或改进自 hpt
+- 代表机构：智平方
 
 #### 🔬 深入细节
-##### 三层控制分解
-
-NeuroVLA 把具身控制形式化为三层组合映射：
-
-$$
-a_t = \Phi_{\text{spine}}\big(\Phi_{\text{cerebellum}}(\Phi_{\text{cortex}}(I_t, L), h_t)\big)
-$$
-
-其中：
-- **Cortex**：从视觉与语言中提取语义意图
-- **Cerebellum**：根据本体感觉历史 \(h_t\) 做状态调制和误差补偿
-- **Spine**：以脉冲网络形式执行高频动作并负责快速反射
-
-这种分层设计的关键不是“更复杂”，而是把不同时间尺度的计算分开处理。
-
-##### Cerebellar 模块：把语义计划变成可执行动作
-
-论文中最有价值的创新是小脑样模块。它先用 GRU 编码关节位置、速度、力矩和力觉等历史状态，再通过门控 FiLM 生成调制参数，对高层语义 latent 做仿射调制：
-
-$$
-z_{\text{mod}} = (1 + \gamma_t)\cdot(z_{\text{sem}}\cdot g_t) + \beta_t
-$$
-
-这个过程相当于让系统在执行前先根据当前身体状态修正“计划中的动作”，例如在接触、摩擦、重力扰动存在时自动增加阻尼或重写局部运动趋势。
-
-##### 脉冲网络与反射控制
-
-执行层采用 stateful LIF 神经元，膜电位在时间上持续积累与衰减，因此即便不显式引入 LSTM，也会自然携带短时记忆。  
-在此基础上，Spiking ResNet 保留了深层网络的表达能力，同时维持脉冲激活的稀疏性。
-
-这使 NeuroVLA 在两个方向上与传统 VLA 拉开差异：
-- **能耗更低**：神经形态芯片层只需极低功耗
-- **反射更快**：危险接触可直接走脊髓样反射回路，而不是等待完整大模型推理
-
-从 VLA 发展脉络看，NeuroVLA 代表的是一种“不是继续堆更大模型，而是重构控制体系本身”的路线。
+类脑架构0.4W功耗20ms生存本能
 
 
 ### π0.7
@@ -2360,179 +2562,145 @@ motivation: 组合泛化支持跨多种机器人本体
 ```
 
 #### 📝 一句话总结
-π0.7 通过**多模态提示扩展（Diverse Prompting）**——在训练时向 VLA 模型注入子任务语言、子目标图像和 episode 元数据——使单一 5B 参数的 flow-matching 策略在无需微调的情况下实现组合泛化、跨机器人本体零样本迁移和灵活的语言指令跟随，性能匹配甚至超越针对单任务微调的 RL 专家策略。
+π0.7 是 Physical Intelligence 推出的可操控通用视觉-语言-动作（VLA）模型，通过多模态提示（语言指令、元数据、控制模态、视觉子目标）训练，首次展示了机器人基础模型的**涌现组合泛化**能力——无需微调即可将已学技能重组用于新任务、新物体和新机器人本体，且开箱性能匹敌此前需 RL 微调的专家模型。
 
 #### 🎯 核心要点
-- **架构**：5B 参数 = 4B VLM 骨干（Gemma 3 4B + 400M SigLIP 视觉编码器）+ 860M flow-matching 动作专家，采用 block-causal 注意力掩码和知识隔离（Knowledge Insulation）训练
-- **多模态上下文 \(C_t\)**：包含任务语言 \(\ell_t\)、子任务语言 \(\hat{\ell}_t\)、最多 3 张子目标图像 \(g_t\)、episode 元数据（质量 1-5、速度、错误标记、控制模式）
-- **MEM 视频历史编码器**：4 个相机 × 6 帧历史观测，压缩为固定长度 token 序列，支持长时记忆任务
-- **子目标图像生成**：集成 BAGEL 世界模型生成视觉子目标，为跨本体迁移提供视觉类比
-- **训练策略**：flow-matching 目标 + 知识隔离（VLM 用 FAST token 交叉熵训练，动作专家梯度不回传 VLM）+ 系统性 dropout（子目标 25%、子任务 30%、元数据 15%）
-- **混合数据学习**：融合人类演示、RL 自主评估数据、人类视频和 web 数据，通过元数据消歧不同质量的数据
-- **涌现能力**：组合泛化（新任务×新场景×新物体）、跨本体零样本迁移（自动发现适配目标形态的操作策略）、语言 coaching 学习新任务、速度/质量可控
+- 单一统一模型：π0.7 是一个通用 VLA 模型，能操控多种不同类型的机器人执行广泛任务，无需针对具体任务/本体进行微调
+- 可操控（Steerable）架构：训练时注入多样化多模态提示——语言指令（what to do）、元数据/策略元数据（how to do: 质量、速度）、控制模态切换、视觉子目标图像
+- 涌现组合泛化（Compositional Generalization）：首次展现机器人基础模型像 LLM 一样重组已学技能解决全新任务（如操作未见过的厨房电器、折叠衣物在新机器人本体上）
+- 语言指导（Language Coaching）：可通过逐步口头指令"教"机器人新任务，并将指导经验蒸馏为高层策略实现完全自主执行
+- Recap 蒸馏：将 RL（Recap 算法）训练中产生的自主数据蒸馏到 π0.7 模型中，单模型在折叠衣物、制作浓缩咖啡、折叠纸箱等任务上达到或超越 RL 专家策略的性能和吞吐量
+- 跨本体迁移（Cross-Embodiment Transfer）：从固定双臂数据采集机器人到 UR5e 双臂系统的折叠衣物零样本迁移，成功率匹配经验丰富的人类遥操作员的零样本表现
+- 广泛数据混合：融合多种机器人数据、人类演示数据和自主策略 rollout 数据，通过策略元数据标签（如质量/速度级别）实现有效的数据混合利用
 
 #### 🔬 深入细节
-##### 核心架构示意图
+##### 核心架构与推理流程
 
-![π0.7 架构总览](https://ar5iv.labs.arxiv.org/html/2604.15483v2/assets/x3.png)
-*图：π0.7 模型架构。左侧为 VLM 骨干处理多模态上下文（语言、视觉历史、子目标图像、元数据），右侧为 flow-matching 动作专家通过 block-causal 注意力读取 VLM 表征并生成连续动作轨迹。知识隔离确保动作专家梯度不回传至 VLM。*
+![π0.7 训练与推理流程示意图](https://www.pi.website/_next/image?url=%2Fimages%2Fpi07%2Fsubgoal_1.png&w=3840&q=75)
+*图：π0.7 训练时接收语言指令、子目标图像、Episode 元数据（Quality/Speed）；推理时由高层策略生成任务指令 → 子任务指令，世界模型生成子目标图像，VLA 政策执行动作*
 
-![多模态提示组成](https://ar5iv.labs.arxiv.org/html/2604.15483v2/assets/x5.png)
-*图：π0.7 的多模态上下文 \(C_t\) 组成，包括任务/子任务语言指令、子目标图像和 episode 元数据，训练时通过系统性 dropout 确保推理时各组件可选。*
+π0.7 的架构核心是一种**可操控（Steerable）的 VLA 模型**，其关键创新在于训练时向模型注入的不只是"做什么（what）"，还包括"怎么做（how）"的信息。训练时的多模态提示流包括：
 
-##### 算法伪代码
+1. **语言指令**：描述任务的自然语言（如 "pick up the oven mitt" → "open the drawer" → "grab the spatula"...），构成任务执行的层次化语义指导
+2. **视觉子目标（Subgoal Images）**：世界模型生成的期望未来观察图像，为策略提供视觉锚定的中间目标状态
+3. **Episode 元数据（Metadata）**：标量标签（如 Quality 和 Speed 等级），使同一模型可以根据部署需求调整行为风格——高质量模式更稳健，高速度模式更快
 
-```python
-# π0.7 训练流程伪代码
-# 架构: VLM (4B Gemma3) + ActionExpert (860M flow-matching)
+推理时的高层流程：
 
-for batch in dataset:
-    # === 1. 构建多模态上下文 C_t ===
-    obs_history = MEM_encode(cameras[0:4], frames[t-5:t+1])  # 4cam × 6frames → fixed tokens
-    task_lang = tokenize(task_instruction)                      # 任务语言 ℓ_t
-    
-    # 系统性 dropout
-    if random() < 0.75:
-        subtask_lang = tokenize(subtask_instruction)            # 子任务语言 ℓ̂_t
-    if random() < 0.75:
-        subgoal_imgs = encode_images(goal_images[:3])           # 最多3张子目标图像
-        if subgoal_present and random() < 0.30:
-            subtask_lang = None                                 # 子目标存在时额外 drop 子任务
-    if random() < 0.85:
-        metadata = encode_metadata(quality, speed, mistake, ctrl_mode)
-    
-    C_t = concat(task_lang, subtask_lang, subgoal_imgs, metadata, obs_history)
-    
-    # === 2. VLM 前向 (知识隔离) ===
-    vlm_tokens = VLM.forward(C_t)                              # Gemma3 处理多模态输入
-    fast_loss = cross_entropy(vlm_tokens, FAST_action_tokens)  # VLM 用 FAST token 训练
-    
-    # === 3. 动作专家前向 (flow-matching) ===
-    t_flow = uniform(0, 1)                                     # 采样 flow 时间步
-    noise = randn_like(action_chunk)                           # a_{t:t+H}
-    x_t = (1 - t_flow) * noise + t_flow * action_chunk        # 线性插值
-    
-    with stop_gradient(vlm_tokens):                            # 知识隔离: 梯度不回传 VLM
-        v_pred = ActionExpert(x_t, t_flow, vlm_tokens)        # 预测速度场
-        # ActionExpert 使用 adaptive RMSNorm 注入 t_flow
-        # Block-causal attention: expert tokens attend to VLM tokens
-    
-    flow_loss = MSE(v_pred, action_chunk - noise)              # flow-matching 损失
-    
-    # === 4. 联合优化 ===
-    total_loss = fast_loss + flow_loss
-    optimizer.step(total_loss)
-
-# === 推理 (RTC: Rotation-Then-Chunking) ===
-def inference(obs, context, num_denoise_steps=10):
-    C_t = build_context(obs, context, metadata={"quality": 5, "speed": "fast"})
-    vlm_tokens = VLM.forward(C_t)
-    x_0 = randn(action_dim * horizon)                         # 50 action tokens
-    for k in range(num_denoise_steps):
-        t_k = k / num_denoise_steps
-        v = ActionExpert(x_0, t_k, vlm_tokens)
-        x_0 = x_0 + v * (1 / num_denoise_steps)              # Euler 积分
-    # RTC: 旋转拼接多次预测实现平滑轨迹
-    return x_0
+```
+高层策略（High-Level Policy）
+  ├── 任务指令（TASK INSTRUCTION）
+  └── 子任务指令序列（SUBTASK INSTRUCTIONS）
+       └── 世界模型（World Model）
+            └── 子目标图像（SUBGOAL）+ 期望元数据（Quality/Speed）
+                 └── π0.7 VLA Policy → 动作序列
 ```
 
-##### 方法细节
+```python
+# π0.7 推理流程伪代码
+def pi07_inference(observation_history, task_instruction, metadata):
+    """
+    推理时 π0.7 接收多模态提示并自回归生成动作序列
+    
+    Args:
+        observation_history: 历史观测（图像）序列
+        task_instruction:  高层/子任务语言指令
+        metadata:          dict with "quality" 和 "speed" 键控制行为风格
+    """
+    # 1. 高层策略将任务分解为子任务语言指令
+    subtask_instructions = high_level_policy.generate(task_instruction)
+    
+    for subtask_text in subtask_instructions:
+        # 2. 世界模型根据当前观测+子任务文本生成视觉子目标
+        subgoal_image = world_model(
+            observation_history,
+            subtask_text,
+            desired_metadata=metadata
+        )
+        
+        # 3. VLA 策略融合所有模态生成动作
+        #    输入: 观测记忆 + 子任务文本 + 子目标图像 + 元数据
+        action = pi07_vla_policy(
+            obs_memory=observation_history,
+            language_prompt=subtask_text,
+            visual_subgoal=subgoal_image,
+            quality_flag=metadata["quality"],
+            speed_flag=metadata["speed"]
+        )
+        
+        # 4. 执行动作并更新观测历史
+        observation_history = execute_and_update(action)
+```
 
-**1. 动机与背景**
+##### 组合泛化的实现机制
 
-先前的机器人基础模型（如 π0、RT-2、Octo）面临一个根本矛盾：要在大量任务上表现良好，需要海量高质量数据；但收集每个新任务的专用数据成本极高。这些模型通常只能在训练分布内的任务上工作，缺乏**组合泛化**能力——即将已学会的技能重新组合以解决从未见过的任务。
+π0.7 的组合泛化能力来源于三个层面的设计：
 
-传统方法的核心缺陷在于：(1) 训练数据中的行为质量参差不齐，但模型无法区分高质量和低质量演示；(2) 模型缺乏足够的上下文信息来理解当前应该执行什么子任务；(3) 不同机器人本体之间的形态差异使得跨本体迁移极为困难。
+**① 多样化多模态提示的解耦训练（Disentangled Prompt Training）**
 
-π0.7 的核心洞察是：通过在训练时提供**丰富的多模态上下文**（语言子任务、视觉子目标、质量元数据），模型可以学会根据上下文调节行为模式，从而在推理时通过组合不同的上下文实现泛化。
+传统 VLA 模型训练时仅使用单一的语言指令或目标图像，π0.7 在训练过程中**同时或交替使用多种提示模态**——语言、元数据、控制模态标志和视觉子目标。这迫使模型学会将技能的不同维度（语义理解、行为质量、执行速度、视觉推理）解耦编码，从而在推理时可以实现自由重组。
 
-**2. 核心机制：多模态提示扩展（Diverse Prompting）**
+例如，训练数据中：
+- 样本 A：语言 = "fold the towel"，质量 = high，速度 = low
+- 样本 B：语言 = "wipe the counter"，质量 = medium，速度 = high
+- 样本 C：仅提供视觉子目标，无语言
 
-π0.7 的训练目标为最大化条件对数似然：
+通过交错训练，模型学会了"折叠毛巾"的语义技能和"高质量"的执行风格是两个可独立的因子，推理时即可将"折叠衣物"（已学语义）+"高质量"+"UR5e 本体观测"组合。
 
-$$\max_\theta \; \mathbb{E}_{\mathcal{D}} \left[ \log \pi_\theta \left( a_{t:t+H} \mid o_{t-T:t}, C_t \right) \right]$$
+**② 语言指导（Language Coaching）的动态技能获取**
 
-其中 \(a_{t:t+H}\) 是未来 \(H\) 步的动作块，\(o_{t-T:t}\) 是过去 \(T\) 帧的观测历史，\(C_t\) 是多模态上下文。关键创新在于 \(C_t\) 的设计：
+这是 π0.7 实现新任务泛化的关键管道。对于训练数据中未出现的新任务（如操作空气炸锅），人类通过逐步口头指令引导机器人：
 
-$$C_t = \left( \ell_t, \; \hat{\ell}_t, \; g_t, \; m_t \right)$$
+1. **零样本尝试**：给定高层指令 "load a sweet potato into the air fryer"，π0.7 做出合理但不完整的尝试（打开空气炸锅、尝试放入红薯，但未能完成）
+2. **逐步语言指导**：人类提供细致步骤指令（"open the air fryer basket" → "place the sweet potato inside" → "close the basket" → "press start"），π0.7 在执行过程中将语言指令与视觉观察和动作进行对齐
+3. **高层策略蒸馏**：多次指导后，将成功的语言指令序列用于微调高层策略，使其能自主生成子任务指令序列，实现完全自主执行
 
-- **任务语言 \(\ell_t\)**：高层任务描述（如"折叠T恤"）
-- **子任务语言 \(\hat{\ell}_t\)**：当前步骤的细粒度指令（如"用左手抓住衣领"），来源于人类标注或高层策略
-- **子目标图像 \(g_t\)**：最多 3 张未来状态的视觉预期，来源于：25% 为片段末帧 + 75% 为均匀采样未来 0-4 秒的帧 + 世界模型（BAGEL）生成
-- **元数据 \(m_t\)**：episode 级别的质量评分（1-5）、执行速度、是否包含错误、控制模式（关节/末端执行器）
+这一流程本质上是一种**基于语言的上下文化强化学习**：模型利用预训练的语义理解和物理操控能力，通过语言提示"锚定"新任务的执行轨迹。
 
-> 💡 **关键**：训练时通过系统性 dropout（子目标 25% 的 batch 丢弃、子任务在子目标存在时额外 30% 丢弃、元数据 15% 丢弃）确保模型在推理时可以灵活使用任意子集的上下文。这使得同一个模型既可以在无额外提示时自主执行，也可以在有详细 coaching 时精确跟随指令。
+**③ Recap RL 经验的数据蒸馏**
 
-**3. 架构设计：VLM + Flow-Matching Action Expert**
+π0.7 在训练数据上集成了 Recap 算法产生的自主 rollout 轨迹。Recap 是 RL 微调流程，用于同时优化任务成功率和执行速度。关键发现是：
 
-π0.7 采用双塔架构，总计约 5B 参数：
+- 直接将 RL rollout 数据与其他数据源（人类演示、不同机器人数据）混合训练**并不能**带来好的效果
+- 解决方案是给每条数据打上策略元数据标签（quality level, speed level），让模型在学习过程中条件化于这些元数据
+- 最终单一 π0.7 模型能在折叠衣物、浓缩咖啡制作、折叠纸箱等任务上达到或超越任务专属 RL 专家策略（Recap specialist）的表现
 
-- **VLM 骨干（~4B）**：基于 Gemma 3 4B 语言模型 + 400M SigLIP 视觉编码器。处理所有多模态输入（语言、图像、元数据），输出统一的 token 表征。
-- **Flow-Matching 动作专家（~860M）**：专门的 Transformer 模块，通过 block-causal 注意力读取 VLM 的输出表征，生成 50 个连续动作 token。使用 **adaptive RMSNorm** 注入 flow 时间步 \(\sigma\)，避免额外的时间步嵌入层。
+这验证了一个重要假设：**如果给予正确的条件化信号，通用模型可以从多样化质量的数据中有效学习，而不会被低质量数据污染**。
 
-**知识隔离（Knowledge Insulation, KI）**是关键训练技巧：
+##### 与传统方法的区别
 
-$$\mathcal{L}_{\text{total}} = \mathcal{L}_{\text{FAST}}^{\text{VLM}} + \mathcal{L}_{\text{flow}}^{\text{expert}}$$
+| 维度 | 传统 VLA 模型 | π0.7 |
+|------|:------------:|:----:|
+| 任务泛化 | 需对每个任务微调（fine-tuning）才能获得好性能 | 开箱即用，多任务直出 |
+| 技能重组 | 未见组合泛化能力报道 | 涌现组合泛化，操作新电器、新本体折叠衣物 |
+| 行为风格 | 固定策略，无法调节质量/速度 | 通过元数据标签实时调控行为风格 |
+| 新技能获取 | 需收集新演示数据 | 语言指导 + 高层策略蒸馏，无新遥操作数据 |
+| 数据利用 | 谨慎过滤数据，避免低质量数据拖累 | 策略元数据条件化，可有效利用混合质量数据 |
 
-其中 VLM 使用 FAST token 的交叉熵损失训练，动作专家使用 flow-matching 损失训练，但**动作专家的梯度通过 stop-gradient 不回传至 VLM**。这防止了连续动作回归的梯度破坏 VLM 预训练的语言/视觉理解能力。
+> 💡 关键洞察：π0.7 的核心贡献不是架构创新，而是**训练策略和数据混合方式的创新**——它证明了正确的多模态条件化可以让 VLA 模型涌现出此前仅在 LLM 中观察到的组合泛化能力。
 
-> ⚠️ **注意**：知识隔离是 π0.7 能够保持强大语言理解能力的关键。没有它，flow-matching 的连续回归梯度会"污染"VLM 的离散 token 表征空间，导致语言跟随能力退化。
+> ⚠️ 注意：π0.7 的组合泛化仍处于"早期迹象"阶段——在空气炸锅任务的重试后仍需语言指导才能成功。Physical Intelligence 明确将其描述为"first signs of compositional generalization"，而非完全解决。
 
-**MEM 视频历史编码器**将 4 个相机 × 6 帧历史（共 24 张图像）压缩为固定长度的 token 序列，使模型能够高效处理视频历史而不会因 token 数量爆炸导致计算瓶颈。
+##### 训练与推理代价
 
-**4. Flow-Matching 动作生成**
+从博客披露的信息推断，π0.7 的训练融合了：
+- 多机器人平台（双臂固定式、UR5e 双臂、Franka 等）的操作数据
+- 开源 DROID 数据集（Franka 臂）
+- 人类遥操作演示数据
+- Recap RL 自主 rollout 数据
 
-动作专家使用 flow-matching 框架生成连续动作轨迹。给定噪声样本 \(x_0 \sim \mathcal{N}(0, I)\) 和目标动作 \(x_1 = a_{t:t+H}\)，训练时构造线性插值：
-
-$$x_\sigma = (1 - \sigma) x_0 + \sigma x_1, \quad \sigma \sim \mathcal{U}(0, 1)$$
-
-模型学习预测速度场 \(v_\theta(x_\sigma, \sigma, z)\)（其中 \(z\) 是 VLM 输出的表征），训练损失为：
-
-$$\mathcal{L}_{\text{flow}} = \mathbb{E}_{\sigma, x_0, x_1} \left\| v_\theta(x_\sigma, \sigma, z) - (x_1 - x_0) \right\|^2$$
-
-推理时通过 Euler 积分从噪声逐步去噪得到动作轨迹。**RTC（Rotation-Then-Chunking）**机制通过旋转拼接多次预测的动作块，实现平滑的轨迹过渡。
-
-**5. 跨本体迁移与涌现策略**
-
-π0.7 展现出令人惊讶的跨本体迁移能力。在折叠任务中，训练数据全部来自小型双臂机器人，但模型能够零样本迁移到形态差异显著的 UR5e 双臂平台：
-
-- 在源机器人上，操作员倾斜末端执行器将织物压在桌面上再抬起
-- 在目标 UR5e 上，π0.7 **自动发现**了垂直抓取策略，更适合大型机械臂的运动学特性
-
-这种涌现的策略适配不是简单的动作复制，而是模型理解了任务语义后根据目标本体的物理约束重新规划操作方式。世界模型生成的子目标图像进一步增强了这种迁移，因为它能为目标本体构造合理的视觉类比。
-
-**6. 数据可扩展性与元数据消歧**
-
-在洗衣折叠任务的消融实验中，将数据按质量和速度分为 4 个桶（top 30%、50%、80%、100%）：
-
-- **无元数据**的模型在加入低质量数据后性能反而下降
-- **有元数据**的模型随数据量增加持续提升，即使新增数据质量更低
-
-$$\text{Performance}(\text{w/ metadata}) \uparrow \quad \text{as} \quad |\mathcal{D}| \uparrow, \quad \text{even if avg quality} \downarrow$$
-
-这证明元数据有效消歧了不同质量的行为模式，使模型能够从混合质量数据中学习，在推理时通过设置 `quality=5` 选择最优行为模式。
-
-**7. 与先前方法的对比**
-
-| 特性 | π0 | π0.5/π0.6 | π0.7 |
-|------|-----|-----------|------|
-| 语言跟随 | 弱 | 中等 | 强（开放词汇） |
-| 跨本体迁移 | 无 | 有限 | 零样本 + 策略适配 |
-| 数据质量处理 | 需过滤 | 需过滤 | 元数据消歧，混合质量可用 |
-| 子目标条件 | 无 | 无 | 世界模型生成 |
-| 组合泛化 | 无 | 有限 | 新任务×新场景×新物体 |
-| 新任务学习 | 需数据收集 | 需微调 | 语言 coaching → 自主策略 |
+策略元数据标签（Quality/Speed）使模型可以条件化地利用不同质量水平的数据——低质量数据在低质量标签下仍可提供有价值的探索信息，而不会在高标签条件下误导模型。这是数据高效利用的关键工程设计。
 
 #### 🧪 练习题
 ```yaml
-question: "π0.7 中知识隔离（Knowledge Insulation）的核心作用是什么？"
+question: "π0.7 实现组合泛化的关键训练机制是什么？"
 options:
-  - "加速 flow-matching 动作专家的收敛速度"
-  - "防止 flow-matching 连续回归梯度破坏 VLM 预训练的语言/视觉理解能力"
-  - "减少 VLM 骨干的参数量以提高推理效率"
-  - "使动作专家能够独立于 VLM 进行预训练"
+  - "使用更大的 Transformer 模型参数量"
+  - "通过多模态提示（语言、元数据、子目标图像）解耦技能维度，并在推理时重组"
+  - "在测试时用 RL 对每个新任务进行快速微调"
+  - "仅使用人类专家演示数据，确保数据质量一致性"
 answer: 1
-explain: "知识隔离通过 stop-gradient 阻止动作专家的 flow-matching 损失梯度回传至 VLM，防止连续回归信号破坏 VLM 在大规模预训练中获得的离散 token 表征能力，从而保持强大的语言理解和指令跟随能力。"
+explain: "π0.7 训练时同时/交替接收语言指令、策略元数据（质量/速度）、视觉子目标等多样化提示，促使模型将技能语义与执行风格解耦编码；推理时可通过自由重组这些因子实现对未见任务/本体的泛化。"
 ```
 
 ### OpenVLA 2

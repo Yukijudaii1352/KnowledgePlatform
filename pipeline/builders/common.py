@@ -20,8 +20,12 @@ PAGES_DIR = ROOT / "pages"
 
 # 可编译源文档扫描目录（递归）
 CONTENT_DIRS = [
-    PIPELINE_DIR / "examples",
     ROOT / "content",
+]
+
+# 示例文档目录：默认不参与站点全量编译，只在显式指定或 --include-examples 时参与
+EXAMPLE_CONTENT_DIRS = [
+    PIPELINE_DIR / "examples",
 ]
 
 

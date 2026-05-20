@@ -3,13 +3,13 @@
 ```yaml
 id: ipo
 name: IPO
-full_name: "恒等偏好优化 (Identity Preference Optimization, A General Theoretical Paradigm to Decouple Reward and Policy)"
-year: "2023"
+full_name: "恒等映射偏好优化 (Identity Preference Optimization)"
+year: "2023.10"
 org: "Google DeepMind"
 paper_url: "https://arxiv.org/abs/2310.12036"
-category: "alignment"
-parent: "DPO"
-motivation: "提出ΨPO统一框架，推导出IPO算法，移除Bradley-Terry假设直接从偏好学习，缓解DPO的过拟合问题"
+category: "preference"
+parent: "dpo"
+motivation: "移除BT假设缓解过拟合"
 ```
 
 #### 📝 一句话总结

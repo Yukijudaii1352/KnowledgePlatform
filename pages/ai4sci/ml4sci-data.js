@@ -1,5 +1,5 @@
 /**
- * ml4sci-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:00 自动生成。
+ * ml4sci-data.js — 由 pipeline/build.py 于 2026-05-20 16:45:34 自动生成。
  * 源文件：content/ai4sci/ml4sci.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,25 +9,27 @@ window.PAGE_CONFIG = {
     "topic_id": "ml4sci",
     "topic_name": "ml4sci",
     "page_title": "科学机器学习技术演进",
-    "page_subtitle": "2026-05-18 版",
+    "page_subtitle": "2026-05-20 版",
     "page_desc": "从物理信息神经网络（PINN）到神经算子、可微分仿真与科学计算加速的技术发展脉络",
     "page_icon": "⚛️",
     "hero_pills": [
       "🏷️ PINN · Neural Operators · Differentiable Physics · AI4Science"
     ],
     "count_pill": "{count} 个算法",
-    "image_base": ""
+    "image_base": "",
+    "overview_from_doc": true,
+    "latest_overview_from_doc": true
   },
   "overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：阶段性领域总结",
+      "body_html": "<p>请补充一篇纵观一段时间以来的总结性文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "latest_overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：最近一个月最新动向",
+      "body_html": "<p>请补充最近一个月该领域最新动向的综述文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "graph": {

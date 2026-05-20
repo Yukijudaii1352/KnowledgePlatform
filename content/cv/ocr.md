@@ -2,12 +2,12 @@
 domain: cv
 topic_id: ocr
 topic_name: ocr
-page_icon: "\U0001F4DC"
+page_icon: 📜
 page_title: OCR 技术演进图谱
 page_subtitle: '{build_date} 版'
 page_desc: 梳理从传统检测识别到端到端文档理解的技术演进，涵盖文本检测、识别、版面分析与视觉文档理解四大方向。
 hero_pills:
-- "\U0001F3F7️ Text Detection · Recognition · Document AI"
+- 🏷️ Text Detection · Recognition · Document AI
 count_pill: '{count} 个算法'
 categories:
   detection:
@@ -26,8 +26,13 @@ categories:
 
 ## 领域综述
 
-### 待定
-待定。
+### 待补充：阶段性领域总结
+请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+
+## 最新进展综述
+
+### 待补充：最近一个月最新动向
+请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
 
 ## 算法演化关系
 

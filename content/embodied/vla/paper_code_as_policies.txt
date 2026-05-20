@@ -1,0 +1,9319 @@
+Asymptotic Fermat for signature
+(
+4
+,
+2
+,
+p
+)
+4
+2
+𝑝
+(4,2,p)
+over number fields
+Lucas Villagra Torcomian
+FAMAF-CIEM, Universidad Nacional de Córdoba. C.P: 5000,
+Córdoba, Argentina.
+lucas.villagra@unc.edu.ar
+Abstract.
+Let
+K
+𝐾
+K
+be a number field. Using the modular method, we prove asymptotic results on solutions of the Diophantine equation
+x
+4
+−
+y
+2
+=
+z
+p
+superscript
+𝑥
+4
+superscript
+𝑦
+2
+superscript
+𝑧
+𝑝
+x^{4}-y^{2}=z^{p}
+over
+K
+𝐾
+K
+, assuming some deep but standard conjectures of the Langlands programme when
+K
+𝐾
+K
+has at least one complex embedding. On the other hand, we give unconditional results in the case of totally real extensions having odd narrow class number and a unique prime above
+2
+2
+2
+. When modularity of elliptic curves over
+K
+𝐾
+K
+is known, for example when
+K
+𝐾
+K
+is real quadratic or the
+r
+𝑟
+r
+-layer of the cyclotomic
+ℤ
+2
+subscript
+ℤ
+2
+\mathbb{Z}_{2}
+-extension of
+ℚ
+ℚ
+{\mathbb{Q}}
+, effective asymptotic results hold.
+Key words and phrases:
+Fermat equations, modular method
+2010 Mathematics Subject Classification:
+11D41, 11F80
+The author was supported by a CONICET grant.
+1.
+Introduction
+1.1.
+Historical background
+The study of Diophantine equations is one of the oldest problems in the area of number theory. Since Wiles’ proof of Fermat’s Last Theorem
+[
+Wil95
+]
+, special attention has been paid in the so called Fermat-type equations, namely those of the form
+(1)
+A
+​
+x
+q
++
+B
+​
+y
+r
+=
+C
+​
+z
+p
+,
+𝐴
+superscript
+𝑥
+𝑞
+𝐵
+superscript
+𝑦
+𝑟
+𝐶
+superscript
+𝑧
+𝑝
+Ax^{q}+By^{r}=Cz^{p},
+where
+A
+𝐴
+A
+,
+B
+𝐵
+B
+and
+C
+𝐶
+C
+are fixed non-zero pairwise coprime integers. In general, finding all solutions of a Diophantine equation is an extremely difficult problem, since there is no known algorithm to do that. On the other hand, Wiles’ strategy used in his famous proof, referred to as the
+modular method
+, can be used to prove the non-existence of (certain type of) solutions. The case
+A
+=
+B
+=
+C
+=
+1
+𝐴
+𝐵
+𝐶
+1
+A=B=C=1
+is of special interest, where the modular method (together sometimes with other techniques) can be used to solve many of these equations. We refer to Tables 1 and 2 of
+[
+IKO20
+]
+to see the known results until 2020. It is important to remark that the results collected in those tables are for integers solutions, i.e solutions with
+x
+,
+y
+,
+z
+∈
+ℤ
+𝑥
+𝑦
+𝑧
+ℤ
+x,y,z\in{\mathbb{Z}}
+. The triple
+(
+q
+,
+r
+,
+p
+)
+𝑞
+𝑟
+𝑝
+(q,r,p)
+of (
+1
+) is called the
+signature
+of the equation and a
+primitive
+solution
+(
+x
+,
+y
+,
+z
+)
+=
+(
+a
+,
+b
+,
+c
+)
+𝑥
+𝑦
+𝑧
+𝑎
+𝑏
+𝑐
+(x,y,z)=(a,b,c)
+is a solution where
+a
+𝑎
+a
+,
+b
+𝑏
+b
+and
+c
+𝑐
+c
+are pairwise coprime. We also say that
+(
+a
+,
+b
+,
+c
+)
+𝑎
+𝑏
+𝑐
+(a,b,c)
+is
+non-trivial
+if
+a
+​
+b
+​
+c
+≠
+0
+𝑎
+𝑏
+𝑐
+0
+abc\neq 0
+.
+In
+[
+DG95
+]
+, Darmon and Granville proved that given a number field
+K
+𝐾
+K
+and a signature
+(
+q
+,
+r
+,
+p
+)
+𝑞
+𝑟
+𝑝
+(q,r,p)
+such that
+1
+/
+q
++
+1
+/
+r
++
+1
+/
+p
+<
+1
+1
+𝑞
+1
+𝑟
+1
+𝑝
+1
+1/q+1/r+1/p<1
+, there are finitely many primitive solutions
+(
+a
+,
+b
+,
+c
+)
+𝑎
+𝑏
+𝑐
+(a,b,c)
+of (
+1
+) with
+a
+,
+b
+,
+c
+∈
+𝒪
+K
+𝑎
+𝑏
+𝑐
+subscript
+𝒪
+𝐾
+a,b,c\in{\mathscr{O}}_{K}
+, where
+𝒪
+K
+subscript
+𝒪
+𝐾
+{\mathscr{O}}_{K}
+is the ring of integers of
+K
+𝐾
+K
+. Although their result works for number fields, equation (
+1
+) has been mainly studied for
+K
+=
+ℚ
+𝐾
+ℚ
+K={\mathbb{Q}}
+. One of the main reasons is that modularity of elliptic curves plays a crucial role in the modular method, so the lack of results for modularity of elliptic curves over number fields is a big obstruction. Nevertheless, during the last years there has been lot of progress in that direction, and Diophantine results came to light. In 2015, using modularity of elliptic curves over real quadratic fields
+[
+FLHS15
+]
+, Freitas and Siksek
+[
+FS15
+]
+shown that asymptotic Fermat for signature
+(
+p
+,
+p
+,
+p
+)
+𝑝
+𝑝
+𝑝
+(p,p,p)
+holds for infinitely many real quadratic fields
+K
+𝐾
+K
+. That is, there exists a bound
+B
+K
+subscript
+𝐵
+𝐾
+B_{K}
+(depending only on
+K
+𝐾
+K
+) such that if
+p
+>
+B
+K
+𝑝
+subscript
+𝐵
+𝐾
+p>B_{K}
+, then the only solutions
+(
+a
+,
+b
+,
+c
+)
+∈
+𝒪
+K
+3
+𝑎
+𝑏
+𝑐
+superscript
+subscript
+𝒪
+𝐾
+3
+(a,b,c)\in{\mathscr{O}}_{K}^{3}
+of
+x
+p
++
+y
+p
+=
+z
+p
+superscript
+𝑥
+𝑝
+superscript
+𝑦
+𝑝
+superscript
+𝑧
+𝑝
+x^{p}+y^{p}=z^{p}
+are the trivial ones. In 2018, Şengün and Siksek
+[
+ŞS18
+]
+gave sufficient conditions in order to asymptotic Fermat for signature
+(
+p
+,
+p
+,
+p
+)
+𝑝
+𝑝
+𝑝
+(p,p,p)
+holds for a given number field
+K
+𝐾
+K
+. In that case, the authors assumed deep conjectures of then Langlands programme, such as modularity of elliptic curves over
+K
+𝐾
+K
+. For similar results of equation (
+1
+) with different values of
+A
+𝐴
+A
+,
+B
+𝐵
+B
+and
+C
+𝐶
+C
+and signature
+(
+p
+,
+p
+,
+p
+)
+𝑝
+𝑝
+𝑝
+(p,p,p)
+we refer the reader to
+[
+Dec16
+,
+KO20
+]
+. Following the same methodology, in 2020 Işik, Kara and Özman
+[
+IKO20
+]
+worked with signature
+(
+p
+,
+p
+,
+2
+)
+𝑝
+𝑝
+2
+(p,p,2)
+over totally real fields. In 2022, they also obtained asymptotic results for signature
+(
+p
+,
+p
+,
+3
+)
+𝑝
+𝑝
+3
+(p,p,3)
+over arbitrary number fields (assuming same conjectures than
+[
+ŞS18
+]
+, see
+[
+IKO22
+]
+); in the same year Mocanu
+[
+Moc22
+]
+made improvements for both signatures assuming
+K
+𝐾
+K
+to be totally real.
+In the preset article, we are going to work with signature
+(
+4
+,
+2
+,
+p
+)
+4
+2
+𝑝
+(4,2,p)
+, where
+p
+𝑝
+p
+is an odd prime. Here we have a brief summary of the background for this case. When
+A
+=
+C
+=
+1
+𝐴
+𝐶
+1
+A=C=1
+, we have the equation
+(2)
+x
+4
++
+B
+​
+y
+2
+=
+z
+p
+.
+superscript
+𝑥
+4
+𝐵
+superscript
+𝑦
+2
+superscript
+𝑧
+𝑝
+x^{4}+By^{2}=z^{p}.
+In this case the first asymptotic result was obtained by Ellenberg
+[
+Ell04
+]
+for
+B
+=
+1
+𝐵
+1
+B=1
+and
+K
+=
+ℚ
+𝐾
+ℚ
+K={\mathbb{Q}}
+, proving that there are no non-trivial primitive solutions if
+p
+≥
+211
+𝑝
+211
+p\geq 211
+. Then, a similar result over
+ℚ
+ℚ
+{\mathbb{Q}}
+was proved for
+B
+=
+2
+,
+3
+𝐵
+2
+3
+B=2,3
+and
+p
+≥
+349
+,
+131
+𝑝
+349
+131
+p\geq 349,131
+, respectively, by Dieulefait and Jiménez–Urroz
+[
+DU09
+]
+. In
+[
+PV22a
+]
+and
+[
+PV22b
+]
+, Pacetti and the author gave a recipe (using the modular method) to get asymptotic results for
+K
+=
+ℚ
+𝐾
+ℚ
+K={\mathbb{Q}}
+and
+B
+𝐵
+B
+an arbitrary integer, and explicit bounds for
+p
+𝑝
+p
+were given when
+B
+=
+5
+,
+6
+,
+7
+𝐵
+5
+6
+7
+B=5,6,7
+. Nevertheless, one question still unanswered in general is the following: given
+B
+𝐵
+B
+, is there a bound
+B
+′
+superscript
+𝐵
+′
+B^{\prime}
+such that there are no non-trivial primitive solutions of (
+2
+) for
+p
+>
+B
+′
+𝑝
+superscript
+𝐵
+′
+p>B^{\prime}
+?.
+Note that a solution
+(
+a
+,
+b
+,
+c
+)
+∈
+ℤ
+3
+𝑎
+𝑏
+𝑐
+superscript
+ℤ
+3
+(a,b,c)\in\mathbb{Z}^{3}
+of (
+2
+) induces a solution
+(
+a
+,
+−
+B
+​
+b
+,
+c
+)
+∈
+𝒪
+K
+3
+𝑎
+𝐵
+𝑏
+𝑐
+superscript
+subscript
+𝒪
+𝐾
+3
+(a,\sqrt{-B}b,c)\in{\mathscr{O}}_{K}^{3}
+of the equation
+(3)
+x
+4
+−
+y
+2
+=
+z
+p
+,
+superscript
+𝑥
+4
+superscript
+𝑦
+2
+superscript
+𝑧
+𝑝
+x^{4}-y^{2}=z^{p},
+where
+K
+=
+ℚ
+​
+(
+−
+B
+)
+𝐾
+ℚ
+𝐵
+K={\mathbb{Q}}(\sqrt{-B})
+(the reader can also note that equation (
+3
+) is the same as (
+1
+) with
+A
+=
+B
+=
+C
+=
+1
+𝐴
+𝐵
+𝐶
+1
+A=B=C=1
+and signature
+(
+4
+,
+p
+,
+2
+)
+4
+𝑝
+2
+(4,p,2)
+, if
+p
+𝑝
+p
+is odd). Then, instead of studying equation (
+2
+) over
+ℚ
+ℚ
+{\mathbb{Q}}
+for different values of
+B
+𝐵
+B
+, it would be enough to understand solutions of (
+3
+) over quadratic fields, or more generally over arbitrary number fields. This is the direction in which we focus. The goal of the present article is to give asymptotic results for equation (
+3
+) over a number field
+K
+𝐾
+K
+.
+1.2.
+Main results
+Let
+K
+𝐾
+K
+be a number field and denote by
+h
+K
++
+superscript
+subscript
+ℎ
+𝐾
+h_{K}^{+}
+its narrow class number. Let
+S
+K
+=
+{
+𝔓
+:
+𝔓
+​
+is a prime of
+​
+K
+​
+above
+​
+2
+}
+.
+subscript
+𝑆
+𝐾
+conditional-set
+𝔓
+𝔓
+is a prime of
+𝐾
+above
+2
+S_{K}=\{{\mathfrak{P}}:{\mathfrak{P}}\text{ is a prime of }K\text{ above }2\}.
+We denote by
+T
+K
+subscript
+𝑇
+𝐾
+T_{K}
+the subset of
+S
+K
+subscript
+𝑆
+𝐾
+S_{K}
+defined by
+T
+K
+:=
+{
+𝔓
+∈
+S
+K
+:
+|
+v
+𝔓
+​
+(
+α
+/
+β
+)
+|
+≤
+6
+​
+v
+𝔓
+​
+(
+2
+)
+​
+for every
+​
+(
+α
+,
+β
+,
+γ
+)
+∈
+𝒪
+S
+K
+×
+×
+𝒪
+S
+K
+×
+×
+𝒪
+S
+K
+​
+satisfying
+​
+α
++
+β
+=
+γ
+2
+}
+.
+assign
+subscript
+𝑇
+𝐾
+conditional-set
+𝔓
+subscript
+𝑆
+𝐾
+subscript
+𝑣
+𝔓
+𝛼
+𝛽
+6
+subscript
+𝑣
+𝔓
+2
+for every
+𝛼
+𝛽
+𝛾
+superscript
+subscript
+𝒪
+subscript
+𝑆
+𝐾
+superscript
+subscript
+𝒪
+subscript
+𝑆
+𝐾
+subscript
+𝒪
+subscript
+𝑆
+𝐾
+satisfying
+𝛼
+𝛽
+superscript
+𝛾
+2
+T_{K}:=\left\{{\mathfrak{P}}\in S_{K}:|v_{\mathfrak{P}}(\alpha/\beta)|\leq 6v_{{\mathfrak{P}}}(2)\text{ for every }(\alpha,\beta,\gamma)\in{\mathscr{O}}_{S_{K}}^{\times}\times{\mathscr{O}}_{S_{K}}^{\times}\times{\mathscr{O}}_{S_{K}}\text{ satisfying }\alpha+\beta=\gamma^{2}\right\}.
+The following are two important hypothesis that we will use:
+(
+H
+1
+)
+:
+2
+∤
+h
+K
++
+and
+#
+S
+K
+=
+1
+,
+(
+H
+2
+)
+:
+C
+S
+K
+(
+K
+)
+[
+2
+]
+=
+{
+1
+}
+and
+T
+K
+≠
+∅
+.
+\textbf{(}\textbf{H}_{\textbf{1}}\textbf{)}:2\nmid h_{K}^{+}\ \text{ and }\ \#S_{K}=1,\qquad\textbf{(}\textbf{H}_{\textbf{2}}\textbf{)}:C_{S_{K}}(K)[2]=\{1\}\ \text{ and }\ T_{K}\neq\emptyset.
+We follow the notation used in
+[
+Moc22
+]
+, where
+Cl
+S
+⁡
+(
+K
+)
+subscript
+Cl
+𝑆
+𝐾
+\operatorname{Cl}_{S}(K)
+means
+Cl
+⁡
+(
+K
+)
+/
+⟨
+[
+𝔓
+]
+⟩
+𝔓
+∈
+S
+Cl
+𝐾
+subscript
+delimited-⟨⟩
+delimited-[]
+𝔓
+𝔓
+𝑆
+\operatorname{Cl}(K)/\langle[{\mathfrak{P}}]\rangle_{{\mathfrak{P}}\in S}
+and
+Cl
+S
+⁡
+(
+K
+)
+​
+[
+n
+]
+subscript
+Cl
+𝑆
+𝐾
+delimited-[]
+𝑛
+\operatorname{Cl}_{S}(K)[n]
+denotes the set of its
+n
+𝑛
+n
+-torsion elements. When all
+𝔓
+∈
+S
+𝔓
+𝑆
+{\mathfrak{P}}\in S
+are principal,
+Cl
+S
+⁡
+(
+K
+)
+subscript
+Cl
+𝑆
+𝐾
+\operatorname{Cl}_{S}(K)
+is just the class group
+Cl
+⁡
+(
+K
+)
+Cl
+𝐾
+\operatorname{Cl}(K)
+. In such a case, if
+p
+𝑝
+p
+is a prime number then the condition of
+Cl
+S
+⁡
+(
+K
+)
+​
+[
+p
+]
+subscript
+Cl
+𝑆
+𝐾
+delimited-[]
+𝑝
+\operatorname{Cl}_{S}(K)[p]
+being trivial is just that
+p
+∤
+h
+K
+not-divides
+𝑝
+subscript
+ℎ
+𝐾
+p\nmid h_{K}
+. Moreover, if
+2
+∤
+h
+K
++
+not-divides
+2
+superscript
+subscript
+ℎ
+𝐾
+2\nmid h_{K}^{+}
+then
+Cl
+S
+K
+⁡
+(
+K
+)
+​
+[
+p
+]
+=
+{
+1
+}
+subscript
+Cl
+subscript
+𝑆
+𝐾
+𝐾
+delimited-[]
+𝑝
+1
+\operatorname{Cl}_{S_{K}}(K)[p]=\{1\}
+. We can now formulate our results.
+Theorem 1.1
+.
+Let
+K
+𝐾
+K
+be a number field satisfying
+(H
+1
+1
+{}_{\textbf{1}}
+)
+or
+(H
+2
+2
+{}_{\textbf{2}}
+)
+. If
+K
+𝐾
+K
+has at least one complex embedding, assume furthermore Conjectures
+1
+and
+2
+. Let
+𝔓
+𝔓
+{\mathfrak{P}}
+the only prime in
+S
+K
+subscript
+𝑆
+𝐾
+S_{K}
+in case that
+(H
+1
+1
+{}_{\textbf{1}}
+)
+holds or be an element of
+T
+K
+subscript
+𝑇
+𝐾
+T_{K}
+in case that
+(H
+2
+2
+{}_{\textbf{2}}
+)
+holds. Then, there exists a bound
+B
+K
+subscript
+𝐵
+𝐾
+B_{K}
+(depending only on
+K
+𝐾
+K
+) such that if
+p
+>
+B
+K
+𝑝
+subscript
+𝐵
+𝐾
+p>B_{K}
+the equation
+x
+4
+−
+y
+2
+=
+z
+p
+superscript
+𝑥
+4
+superscript
+𝑦
+2
+superscript
+𝑧
+𝑝
+x^{4}-y^{2}=z^{p}
+does not have non-trivial primitive solutions
+(
+a
+,
+b
+,
+c
+)
+∈
+𝒪
+K
+3
+𝑎
+𝑏
+𝑐
+superscript
+subscript
+𝒪
+𝐾
+3
+(a,b,c)\in{\mathscr{O}}_{K}^{3}
+with
+𝔓
+∣
+c
+conditional
+𝔓
+𝑐
+{\mathfrak{P}}\mid c
+.
+Remark 1
+.
+The condition
+𝔓
+∣
+c
+conditional
+𝔓
+𝑐
+{\mathfrak{P}}\mid c
+for a putative solution
+(
+a
+,
+b
+,
+c
+)
+𝑎
+𝑏
+𝑐
+(a,b,c)
+is necessary. Otherwise Theorem
+1.1
+would be false, since
+K
+=
+ℚ
+​
+(
+2
+)
+𝐾
+ℚ
+2
+K={\mathbb{Q}}(\sqrt{2})
+satisfies
+(H
+1
+1
+{}_{\textbf{1}}
+)
+but
+(
+±
+1
+,
+±
+2
+,
+−
+1
+)
+plus-or-minus
+1
+plus-or-minus
+2
+1
+(\pm 1,\pm\sqrt{2},-1)
+is a non-trivial primitive solution for every
+p
+>
+2
+𝑝
+2
+p>2
+. The solution
+(
+±
+1
+,
+±
+2
+,
+−
+1
+)
+plus-or-minus
+1
+plus-or-minus
+2
+1
+(\pm 1,\pm\sqrt{2},-1)
+is non-trivial according to our definition, but it is special in the sense that it is solution of (
+3
+) for every odd prime exponent
+p
+𝑝
+p
+. It is clear that this phenomenon is possible just if
+c
+∈
+{
+0
+,
+±
+1
+}
+𝑐
+0
+plus-or-minus
+1
+c\in\{0,\pm 1\}
+. Note that there are also non-trivial primitive solutions with
+c
+≠
+1
+𝑐
+1
+c\neq 1
+odd and
+p
+𝑝
+p
+relatively large (i.e.
+1
+/
+4
++
+1
+/
+2
++
+1
+/
+p
+<
+1
+1
+4
+1
+2
+1
+𝑝
+1
+1/4+1/2+1/p<1
+). For instance over
+K
+=
+ℚ
+𝐾
+ℚ
+K={\mathbb{Q}}
+we have
+11
+4
+−
+122
+2
+=
+(
+−
+3
+)
+5
+.
+superscript
+11
+4
+superscript
+122
+2
+superscript
+3
+5
+11^{4}-122^{2}=(-3)^{5}.
+We say that the constant
+B
+K
+subscript
+𝐵
+𝐾
+B_{K}
+it is
+effective
+when is effectively computable. We have important consequences when we restrict our attention to particular families of totally real number fields, such as some quadratic extensions and the
+r
+𝑟
+r
+-th layers of the cyclotomic
+ℤ
+2
+subscript
+ℤ
+2
+{\mathbb{Z}}_{2}
+-extension
+ℚ
+r
+,
+2
+:=
+ℚ
+​
+(
+ζ
+2
+r
++
+2
+)
++
+assign
+subscript
+ℚ
+𝑟
+2
+ℚ
+superscript
+subscript
+𝜁
+superscript
+2
+𝑟
+2
+{\mathbb{Q}}_{r,2}:={\mathbb{Q}}(\zeta_{2^{r+2}})^{+}
+. The effectivity of the bound in these cases will follow from modularity of elliptic curves over real quadratic fields
+[
+FLHS15
+]
+for the first family, and for the extensions
+ℚ
+r
+,
+2
+subscript
+ℚ
+𝑟
+2
+{\mathbb{Q}}_{r,2}
+by the more recent work of Thorne
+[
+Tho19
+]
+in which modularity of elliptic curves over
+ℚ
+∞
+subscript
+ℚ
+{\mathbb{Q}}_{\infty}
+is proven.
+Corollary 1.2
+.
+Let
+d
+>
+0
+𝑑
+0
+d>0
+be a rational prime satisfying
+d
+≡
+5
+(
+mod
+8
+)
+𝑑
+annotated
+5
+𝑝𝑚𝑜𝑑
+8
+d\equiv 5\pmod{8}
+. Then, there is an effective constant
+B
+d
+subscript
+𝐵
+𝑑
+B_{d}
+such that
+for any rational prime
+p
+>
+B
+d
+𝑝
+subscript
+𝐵
+𝑑
+p>B_{d}
+, the equation a
+x
+4
+−
+y
+2
+=
+z
+p
+superscript
+𝑥
+4
+superscript
+𝑦
+2
+superscript
+𝑧
+𝑝
+x^{4}-y^{2}=z^{p}
+does not have
+non-trivial primitive
+solutions
+(
+a
+,
+b
+,
+c
+)
+∈
+𝒪
+ℚ
+​
+(
+d
+)
+3
+𝑎
+𝑏
+𝑐
+superscript
+subscript
+𝒪
+ℚ
+𝑑
+3
+(a,b,c)\in{\mathscr{O}}_{{\mathbb{Q}}(\sqrt{d})}^{3}
+with
+2
+∣
+c
+conditional
+2
+𝑐
+2\mid c
+.
+Corollary 1.3
+.
+Let
+𝔓
+𝔓
+{\mathfrak{P}}
+the only prime of
+ℚ
+r
+,
+2
+subscript
+ℚ
+𝑟
+2
+{\mathbb{Q}}_{r,2}
+above
+2
+2
+2
+. Then, there exists an effective bound
+B
+r
+subscript
+𝐵
+𝑟
+B_{r}
+such that if
+p
+>
+B
+r
+𝑝
+subscript
+𝐵
+𝑟
+p>B_{r}
+then the equation
+x
+4
+−
+y
+2
+=
+z
+p
+superscript
+𝑥
+4
+superscript
+𝑦
+2
+superscript
+𝑧
+𝑝
+x^{4}-y^{2}=z^{p}
+does not have non-trivial primitive solutions
+(
+a
+,
+b
+,
+c
+)
+∈
+𝒪
+ℚ
+r
+,
+2
+3
+𝑎
+𝑏
+𝑐
+superscript
+subscript
+𝒪
+subscript
+ℚ
+𝑟
+2
+3
+(a,b,c)\in{\mathscr{O}}_{{\mathbb{Q}}_{r,2}}^{3}
+such that
+𝔓
+∣
+c
+conditional
+𝔓
+𝑐
+{\mathfrak{P}}\mid c
+.
+1.3.
+The strategy
+Let
+K
+𝐾
+K
+be a number field and let
+Gal
+K
+:=
+Gal
+⁡
+(
+ℚ
+¯
+/
+K
+)
+assign
+subscript
+Gal
+𝐾
+Gal
+¯
+ℚ
+𝐾
+\operatorname{Gal}_{K}:=\operatorname{Gal}(\overline{{\mathbb{Q}}}/K)
+its absolute Galois group. If
+E
+𝐸
+E
+is an elliptic curve over
+K
+𝐾
+K
+and
+p
+𝑝
+p
+a rational prime we denote by
+ρ
+E
+,
+p
+:
+Gal
+K
+→
+GL
+2
+​
+(
+ℤ
+p
+)
+:
+subscript
+𝜌
+𝐸
+𝑝
+→
+subscript
+Gal
+𝐾
+subscript
+GL
+2
+subscript
+ℤ
+𝑝
+\rho_{E,p}:\operatorname{Gal}_{K}\to{\rm GL}_{2}(\mathbb{Z}_{p})
+the Galois representation obtained from the action of
+Gal
+K
+subscript
+Gal
+𝐾
+\operatorname{Gal}_{K}
+on the
+p
+𝑝
+p
+-adic Tate module
+T
+p
+​
+(
+E
+)
+subscript
+𝑇
+𝑝
+𝐸
+T_{p}(E)
+. We denote by
+ρ
+¯
+E
+,
+p
+subscript
+¯
+𝜌
+𝐸
+𝑝
+\overline{\rho}_{E,p}
+its mod
+p
+𝑝
+p
+reduction. Let
+𝔓
+𝔓
+{\mathfrak{P}}
+be a fixed prime in
+K
+𝐾
+K
+dividing
+2
+2
+2
+, i.e,
+𝔓
+∈
+S
+K
+𝔓
+subscript
+𝑆
+𝐾
+{\mathfrak{P}}\in S_{K}
+. The strategy of the modular method applied to this case can be summarized in the following steps.
+(i)
+Frey curve:
+To a putative non-trivial primitive solution
+(
+a
+,
+b
+,
+c
+)
+∈
+𝒪
+K
+3
+𝑎
+𝑏
+𝑐
+superscript
+subscript
+𝒪
+𝐾
+3
+(a,b,c)\in{\mathscr{O}}_{K}^{3}
+of equation (
+3
+) with
+𝔓
+∣
+c
+conditional
+𝔓
+𝑐
+{\mathfrak{P}}\mid c
+we will attach a Frey elliptic curve
+E
+(
+a
+,
+b
+,
+c
+)
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+E_{(a,b,c)}
+over
+K
+𝐾
+K
+with a
+K
+𝐾
+K
+-rational point of order
+2
+2
+2
+, semistable reduction outside
+S
+K
+subscript
+𝑆
+𝐾
+S_{K}
+and potentially multiplicative reduction at
+𝔓
+𝔓
+{\mathfrak{P}}
+.
+(ii)
+Modularity and lowering the level:
+Assuming some hypothesis and results for elliptic curves over number fields and Galois representations, we will get an authomorphic form
+𝔣
+𝔣
+{\mathfrak{f}}
+over
+K
+𝐾
+K
+which lies in a space that does not depend on the solution
+(
+a
+,
+b
+,
+c
+)
+𝑎
+𝑏
+𝑐
+(a,b,c)
+neither on
+p
+𝑝
+p
+such that
+ρ
+¯
+E
+(
+a
+,
+b
+,
+c
+)
+,
+p
+∼
+ρ
+¯
+𝔣
+,
+ϖ
+,
+similar-to
+subscript
+¯
+𝜌
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+𝑝
+subscript
+¯
+𝜌
+𝔣
+italic-ϖ
+\overline{\rho}_{E_{(a,b,c)},p}\sim\overline{\rho}_{{\mathfrak{f}},\varpi},
+where
+ϖ
+italic-ϖ
+\varpi
+is some prime of
+ℚ
+𝔣
+subscript
+ℚ
+𝔣
+{\mathbb{Q}}_{\mathfrak{f}}
+dividing
+p
+𝑝
+p
+.
+(iii)
+Eichler-Shimura:
+The idea of this step is to prove (assuming
+p
+𝑝
+p
+large enough) the existence of an elliptic curve
+E
+𝔣
+subscript
+𝐸
+𝔣
+E_{\mathfrak{f}}
+over
+K
+𝐾
+K
+arising from
+𝔣
+𝔣
+{\mathfrak{f}}
+. Then, using (
+ii
+) we can prove that
+E
+𝔣
+subscript
+𝐸
+𝔣
+E_{\mathfrak{f}}
+has a
+K
+𝐾
+K
+-rational point of order
+2
+2
+2
+, good reduction outside
+S
+K
+subscript
+𝑆
+𝐾
+S_{K}
+and potentially multiplicative reduction at
+𝔓
+𝔓
+{\mathfrak{P}}
+.
+(iv)
+Contradiction:
+Using hypothesis
+(H
+1
+1
+{}_{\textbf{1}}
+)
+or
+(H
+2
+2
+{}_{\textbf{2}}
+)
+, we can prove that there are no elliptic curves over
+K
+𝐾
+K
+with a
+K
+𝐾
+K
+-rational point of order
+2
+2
+2
+, good reduction outside
+S
+K
+subscript
+𝑆
+𝐾
+S_{K}
+and potentially multiplicative reduction at
+𝔓
+𝔓
+{\mathfrak{P}}
+, getting a contradiction.
+Remark 2
+.
+The reason that makes signatures
+(
+p
+,
+p
+,
+p
+)
+𝑝
+𝑝
+𝑝
+(p,p,p)
+,
+(
+p
+,
+p
+,
+2
+)
+𝑝
+𝑝
+2
+(p,p,2)
+and
+(
+p
+,
+p
+,
+3
+)
+𝑝
+𝑝
+3
+(p,p,3)
+special is that in every case there exists a rational prime
+ℓ
+ℓ
+\ell
+(
+ℓ
+=
+2
+,
+2
+,
+3
+ℓ
+2
+2
+3
+\ell=2,2,3
+respectively) and a Frey elliptic curve
+E
+𝐸
+E
+over
+K
+𝐾
+K
+(attached to a certain type of solution over
+𝒪
+K
+3
+superscript
+subscript
+𝒪
+𝐾
+3
+{\mathscr{O}}_{K}^{3}
+) such that
+E
+𝐸
+E
+has potentially multiplicative reduction in a fixed prime above
+ℓ
+ℓ
+\ell
+, semistable reduction outside
+ℓ
+ℓ
+\ell
+and a
+K
+𝐾
+K
+-rational point of order
+ℓ
+ℓ
+\ell
+. To the best of the author’s knowledge, signature
+(
+4
+,
+2
+,
+p
+)
+4
+2
+𝑝
+(4,2,p)
+is the only remaining case with such properties.
+The next section is devoted to the study of equation (
+3
+), following the above strategy. To make the aforementioned steps more accessible, each subsection is rendered as self-contained as possible, repeating the relevant material, specially from
+[
+FS15
+,
+ŞS18
+]
+. At the end of the section we will prove the main results, and we will see how the same approach can be used to get new asymptotic results for signature
+(
+p
+,
+p
+,
+2
+)
+𝑝
+𝑝
+2
+(p,p,2)
+.
+Acknowledgments
+I am very grateful to Ariel Pacetti for his support, many useful conversations and for helpful comments to improve this article. I also thank Diana Mocanu for the useful discussions and for the reading of this paper. Finally, I would like to thank Nuno Freitas, for the careful reading and helpful remarks.
+2.
+The equation
+x
+4
+−
+y
+2
+=
+z
+p
+superscript
+𝑥
+4
+superscript
+𝑦
+2
+superscript
+𝑧
+𝑝
+x^{4}-y^{2}=z^{p}
+2.1.
+Frey curve and related facts
+For
+(
+a
+,
+b
+,
+c
+)
+∈
+𝒪
+K
+3
+𝑎
+𝑏
+𝑐
+superscript
+subscript
+𝒪
+𝐾
+3
+(a,b,c)\in{\mathscr{O}}_{K}^{3}
+solution of (
+3
+) we associate the Frey elliptic curve
+(3)
+E
+(
+a
+,
+b
+,
+c
+)
+:
+y
+2
+=
+x
+3
++
+4
+​
+a
+​
+x
+2
++
+2
+​
+(
+a
+2
++
+b
+)
+​
+x
+,
+:
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+superscript
+𝑦
+2
+superscript
+𝑥
+3
+4
+𝑎
+superscript
+𝑥
+2
+2
+superscript
+𝑎
+2
+𝑏
+𝑥
+E_{(a,b,c)}:y^{2}=x^{3}+4ax^{2}+2(a^{2}+b)x,
+defined over
+K
+𝐾
+K
+. Note that
+(
+0
+,
+0
+)
+0
+0
+(0,0)
+is a
+K
+𝐾
+K
+-rational point of order
+2
+2
+2
+. Its discriminant equals
+Δ
+E
+(
+a
+,
+b
+,
+c
+)
+=
+2
+9
+​
+(
+a
+2
++
+b
+)
+​
+c
+p
+subscript
+Δ
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+superscript
+2
+9
+superscript
+𝑎
+2
+𝑏
+superscript
+𝑐
+𝑝
+\Delta_{E_{(a,b,c)}}=2^{9}(a^{2}+b)c^{p}
+and its
+j
+𝑗
+j
+-invariant equals
+j
+E
+(
+a
+,
+b
+,
+c
+)
+=
+2
+6
+​
+(
+5
+​
+a
+2
+−
+3
+​
+b
+)
+3
+c
+p
+​
+(
+a
+2
++
+b
+)
+subscript
+𝑗
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+superscript
+2
+6
+superscript
+5
+superscript
+𝑎
+2
+3
+𝑏
+3
+superscript
+𝑐
+𝑝
+superscript
+𝑎
+2
+𝑏
+j_{E_{(a,b,c)}}=\frac{2^{6}(5a^{2}-3b)^{3}}{c^{p}(a^{2}+b)}
+. We denote by
+𝔑
+E
+(
+a
+,
+b
+,
+c
+)
+subscript
+𝔑
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+{\mathfrak{N}}_{E_{(a,b,c)}}
+its conductor. As was mentioned in the introduction, we only want to consider primitive solutions of (
+3
+), since we know that there are finitely many. Lemma
+2.1
+below proves that there are infinitely many solutions removing this hypothesis. Then, from now on we will assume
+(
+a
+,
+b
+,
+c
+)
+𝑎
+𝑏
+𝑐
+(a,b,c)
+to be primitive.
+Lemma 2.1
+.
+Let
+p
+>
+3
+𝑝
+3
+p>3
+be a rational prime. Then equation (
+3
+) has infinitely non-primitive solutions.
+Proof.
+Let
+u
+,
+v
+∈
+𝒪
+K
+𝑢
+𝑣
+subscript
+𝒪
+𝐾
+u,v\in{\mathscr{O}}_{K}
+arbitrary elements such that
+r
+=
+u
+4
+−
+v
+2
+𝑟
+superscript
+𝑢
+4
+superscript
+𝑣
+2
+r=u^{4}-v^{2}
+is not equal to
+±
+1
+plus-or-minus
+1
+\pm 1
+. If
+p
+≡
+1
+(
+mod
+4
+)
+𝑝
+annotated
+1
+pmod
+4
+p\equiv 1\pmod{4}
+then
+(
+u
+​
+r
+p
+−
+1
+4
+,
+v
+​
+r
+p
+−
+1
+2
+,
+r
+)
+𝑢
+superscript
+𝑟
+𝑝
+1
+4
+𝑣
+superscript
+𝑟
+𝑝
+1
+2
+𝑟
+(ur^{\frac{p-1}{4}},vr^{\frac{p-1}{2}},r)
+is solution of (
+3
+). If
+p
+≡
+3
+(
+mod
+4
+)
+𝑝
+annotated
+3
+pmod
+4
+p\equiv 3\pmod{4}
+then
+(
+u
+​
+r
+3
+​
+p
+−
+1
+4
+,
+v
+​
+r
+3
+​
+p
+−
+1
+2
+,
+r
+3
+)
+𝑢
+superscript
+𝑟
+3
+𝑝
+1
+4
+𝑣
+superscript
+𝑟
+3
+𝑝
+1
+2
+superscript
+𝑟
+3
+(ur^{\frac{3p-1}{4}},vr^{\frac{3p-1}{2}},r^{3})
+is solution of (
+3
+).
+∎
+Remark 3
+.
+Fix
+𝔓
+∈
+S
+K
+𝔓
+subscript
+𝑆
+𝐾
+{\mathfrak{P}}\in S_{K}
+. Let
+(
+a
+,
+b
+,
+c
+)
+∈
+𝒪
+K
+3
+𝑎
+𝑏
+𝑐
+superscript
+subscript
+𝒪
+𝐾
+3
+(a,b,c)\in{\mathscr{O}}_{K}^{3}
+a primitive solution of (
+3
+), where
+p
+>
+2
+​
+v
+𝔓
+​
+(
+2
+)
+𝑝
+2
+subscript
+𝑣
+𝔓
+2
+p>2v_{\mathfrak{P}}(2)
+and
+𝔓
+∣
+c
+conditional
+𝔓
+𝑐
+{\mathfrak{P}}\mid c
+. Since
+(
+a
+2
++
+b
+)
+​
+(
+a
+2
+−
+b
+)
+=
+c
+p
+superscript
+𝑎
+2
+𝑏
+superscript
+𝑎
+2
+𝑏
+superscript
+𝑐
+𝑝
+(a^{2}+b)(a^{2}-b)=c^{p}
+and
+a
+2
++
+b
+=
+(
+a
+2
+−
+b
+)
++
+2
+​
+b
+superscript
+𝑎
+2
+𝑏
+superscript
+𝑎
+2
+𝑏
+2
+𝑏
+a^{2}+b=(a^{2}-b)+2b
+then
+𝔓
+∣
+gcd
+⁡
+(
+a
+2
++
+b
+,
+a
+2
+−
+b
+)
+conditional
+𝔓
+superscript
+𝑎
+2
+𝑏
+superscript
+𝑎
+2
+𝑏
+{\mathfrak{P}}\mid\gcd(a^{2}+b,a^{2}-b)
+. Moreover, if
+v
+𝔓
+​
+(
+a
+2
+−
+b
+)
+>
+v
+𝔓
+​
+(
+2
+)
+subscript
+𝑣
+𝔓
+superscript
+𝑎
+2
+𝑏
+subscript
+𝑣
+𝔓
+2
+v_{\mathfrak{P}}(a^{2}-b)>v_{\mathfrak{P}}(2)
+then
+v
+𝔓
+​
+(
+a
+2
++
+b
+)
+=
+v
+𝔓
+​
+(
+2
+)
+subscript
+𝑣
+𝔓
+superscript
+𝑎
+2
+𝑏
+subscript
+𝑣
+𝔓
+2
+v_{\mathfrak{P}}(a^{2}+b)=v_{\mathfrak{P}}(2)
+, since
+𝔓
+∤
+b
+not-divides
+𝔓
+𝑏
+{\mathfrak{P}}\nmid b
+. On the other hand, if
+v
+𝔓
+​
+(
+a
+2
+−
+b
+)
+≤
+v
+𝔓
+​
+(
+2
+)
+subscript
+𝑣
+𝔓
+superscript
+𝑎
+2
+𝑏
+subscript
+𝑣
+𝔓
+2
+v_{\mathfrak{P}}(a^{2}-b)\leq v_{\mathfrak{P}}(2)
+we have that
+v
+𝔓
+​
+(
+a
+2
++
+b
+)
+≥
+v
+𝔓
+​
+(
+a
+2
+−
+b
+)
+subscript
+𝑣
+𝔓
+superscript
+𝑎
+2
+𝑏
+subscript
+𝑣
+𝔓
+superscript
+𝑎
+2
+𝑏
+v_{\mathfrak{P}}(a^{2}+b)\geq v_{\mathfrak{P}}(a^{2}-b)
+. Thus,
+v
+𝔓
+​
+(
+a
+2
++
+b
+)
+>
+v
+𝔓
+​
+(
+2
+)
+subscript
+𝑣
+𝔓
+superscript
+𝑎
+2
+𝑏
+subscript
+𝑣
+𝔓
+2
+v_{\mathfrak{P}}(a^{2}+b)>v_{\mathfrak{P}}(2)
+, since otherwise we would have
+p
+≤
+p
+​
+v
+𝔓
+​
+(
+c
+)
+≤
+2
+​
+v
+𝔓
+​
+(
+a
+2
++
+b
+)
+≤
+2
+​
+v
+𝔓
+​
+(
+2
+)
+.
+𝑝
+𝑝
+subscript
+𝑣
+𝔓
+𝑐
+2
+subscript
+𝑣
+𝔓
+superscript
+𝑎
+2
+𝑏
+2
+subscript
+𝑣
+𝔓
+2
+p\leq pv_{\mathfrak{P}}(c)\leq 2v_{\mathfrak{P}}(a^{2}+b)\leq 2v_{\mathfrak{P}}(2).
+Hence,
+min
+⁡
+{
+v
+𝔓
+​
+(
+a
+2
++
+b
+)
+,
+v
+𝔓
+​
+(
+a
+2
+−
+b
+)
+}
+>
+v
+𝔓
+​
+(
+2
+)
+subscript
+𝑣
+𝔓
+superscript
+𝑎
+2
+𝑏
+subscript
+𝑣
+𝔓
+superscript
+𝑎
+2
+𝑏
+subscript
+𝑣
+𝔓
+2
+\min\{v_{\mathfrak{P}}(a^{2}+b),v_{\mathfrak{P}}(a^{2}-b)\}>v_{\mathfrak{P}}(2)
+. Then, interchanging
+b
+𝑏
+b
+by
+−
+b
+𝑏
+-b
+if necessary, we can assume
+v
+𝔓
+​
+(
+a
+2
++
+b
+)
+=
+v
+𝔓
+​
+(
+2
+)
+subscript
+𝑣
+𝔓
+superscript
+𝑎
+2
+𝑏
+subscript
+𝑣
+𝔓
+2
+v_{\mathfrak{P}}(a^{2}+b)=v_{\mathfrak{P}}(2)
+and
+v
+𝔓
+​
+(
+a
+2
+−
+b
+)
+=
+p
+​
+v
+𝔓
+​
+(
+c
+)
+−
+v
+𝔓
+​
+(
+2
+)
+subscript
+𝑣
+𝔓
+superscript
+𝑎
+2
+𝑏
+𝑝
+subscript
+𝑣
+𝔓
+𝑐
+subscript
+𝑣
+𝔓
+2
+v_{\mathfrak{P}}(a^{2}-b)=pv_{\mathfrak{P}}(c)-v_{\mathfrak{P}}(2)
+.
+Let
+K
+𝐾
+K
+be a number field,
+E
+/
+K
+𝐸
+𝐾
+E/K
+an elliptic curve of conductor
+𝔑
+E
+subscript
+𝔑
+𝐸
+{\mathfrak{N}}_{E}
+and
+p
+𝑝
+p
+a rational prime. Define
+𝔐
+p
+=
+∏
+𝔮
+∣
+∣
+𝔑
+E
+p
+∣
+v
+𝔮
+​
+(
+Δ
+𝔮
+)
+𝔮
+,
+𝔑
+p
+=
+𝔑
+E
+𝔐
+p
+,
+{\mathfrak{M}}_{p}=\prod_{\begin{subarray}{c}{\mathfrak{q}}\mid\mid{\mathfrak{N}}_{E}\\
+p\mid v_{\mathfrak{q}}(\Delta_{\mathfrak{q}})\end{subarray}}{\mathfrak{q}},\qquad{\mathfrak{N}}_{p}=\frac{{\mathfrak{N}}_{E}}{{\mathfrak{M}}_{p}},
+where
+Δ
+𝔮
+subscript
+Δ
+𝔮
+\Delta_{\mathfrak{q}}
+is the discriminant of a local minimal model of
+E
+𝐸
+E
+at
+𝔮
+𝔮
+{\mathfrak{q}}
+.
+Lemma 2.2
+.
+For all primes
+𝔮
+∉
+S
+K
+𝔮
+subscript
+𝑆
+𝐾
+{\mathfrak{q}}\notin S_{K}
+, the model of
+E
+(
+a
+,
+b
+,
+c
+)
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+E_{(a,b,c)}
+given in (
+3
+) is minimal, semistable and satisfies
+p
+∣
+v
+𝔮
+​
+(
+Δ
+E
+(
+a
+,
+b
+,
+c
+)
+)
+conditional
+𝑝
+subscript
+𝑣
+𝔮
+subscript
+Δ
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+p\mid v_{\mathfrak{q}}(\Delta_{E_{(a,b,c)}})
+. The representation
+ρ
+¯
+E
+(
+a
+,
+b
+,
+c
+)
+,
+p
+subscript
+¯
+𝜌
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+𝑝
+\overline{\rho}_{E_{(a,b,c)},p}
+is odd, its determinant is the cyclotomic character and is finite flat at every prime
+𝔭
+𝔭
+{\mathfrak{p}}
+of
+K
+𝐾
+K
+dividing
+p
+𝑝
+p
+. Moreover,
+𝔑
+E
+(
+a
+,
+b
+,
+c
+)
+=
+∏
+𝔓
+∈
+S
+K
+𝔓
+r
+𝔓
+​
+∏
+𝔮
+∣
+c
+,
+𝔮
+∉
+S
+K
+𝔮
+,
+𝔑
+p
+=
+∏
+𝔓
+∈
+S
+K
+𝔓
+r
+𝔓
+′
+,
+formulae-sequence
+subscript
+𝔑
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+subscript
+product
+𝔓
+subscript
+𝑆
+𝐾
+superscript
+𝔓
+subscript
+𝑟
+𝔓
+subscript
+product
+conditional
+𝔮
+𝑐
+𝔮
+subscript
+𝑆
+𝐾
+𝔮
+subscript
+𝔑
+𝑝
+subscript
+product
+𝔓
+subscript
+𝑆
+𝐾
+superscript
+𝔓
+subscript
+superscript
+𝑟
+′
+𝔓
+{\mathfrak{N}}_{E_{(a,b,c)}}=\prod_{{\mathfrak{P}}\in S_{K}}{\mathfrak{P}}^{r_{\mathfrak{P}}}\prod_{\begin{subarray}{c}{\mathfrak{q}}\mid c,\\
+{\mathfrak{q}}\notin S_{K}\end{subarray}}{\mathfrak{q}},\qquad{\mathfrak{N}}_{p}=\prod_{{\mathfrak{P}}\in S_{K}}{\mathfrak{P}}^{r^{\prime}_{\mathfrak{P}}},
+where
+0
+≤
+r
+𝔓
+′
+≤
+r
+𝔓
+≤
+2
++
+6
+​
+v
+𝔓
+​
+(
+2
+)
+0
+subscript
+superscript
+𝑟
+′
+𝔓
+subscript
+𝑟
+𝔓
+2
+6
+subscript
+𝑣
+𝔓
+2
+0\leq r^{\prime}_{\mathfrak{P}}\leq r_{\mathfrak{P}}\leq 2+6v_{\mathfrak{P}}(2)
+.
+Proof.
+Let
+(
+a
+,
+b
+,
+c
+)
+𝑎
+𝑏
+𝑐
+(a,b,c)
+a primitive solution of (
+3
+). From the discriminant formula, clearly
+v
+𝔮
+​
+(
+Δ
+E
+(
+a
+,
+b
+,
+c
+)
+)
+=
+p
+​
+v
+𝔮
+​
+(
+c
+)
++
+v
+𝔮
+​
+(
+a
+2
++
+b
+)
+subscript
+𝑣
+𝔮
+subscript
+Δ
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+𝑝
+subscript
+𝑣
+𝔮
+𝑐
+subscript
+𝑣
+𝔮
+superscript
+𝑎
+2
+𝑏
+v_{{\mathfrak{q}}}(\Delta_{E_{(a,b,c)}})=pv_{{\mathfrak{q}}}(c)+v_{{\mathfrak{q}}}(a^{2}+b)
+. If
+𝔮
+∣
+gcd
+⁡
+(
+a
+2
++
+b
+,
+a
+2
+−
+b
+)
+conditional
+𝔮
+superscript
+𝑎
+2
+𝑏
+superscript
+𝑎
+2
+𝑏
+{\mathfrak{q}}\mid\gcd(a^{2}+b,a^{2}-b)
+then
+𝔮
+∣
+2
+conditional
+𝔮
+2
+{\mathfrak{q}}\mid 2
+(because
+(
+a
+,
+b
+,
+c
+)
+𝑎
+𝑏
+𝑐
+(a,b,c)
+is primitive), hence the equality
+c
+p
+=
+a
+4
+−
+b
+2
+=
+(
+a
+2
++
+b
+)
+​
+(
+a
+2
+−
+b
+)
+superscript
+𝑐
+𝑝
+superscript
+𝑎
+4
+superscript
+𝑏
+2
+superscript
+𝑎
+2
+𝑏
+superscript
+𝑎
+2
+𝑏
+c^{p}=a^{4}-b^{2}=(a^{2}+b)(a^{2}-b)
+implies
+p
+∣
+v
+𝔮
+​
+(
+a
+2
++
+b
+)
+conditional
+𝑝
+subscript
+𝑣
+𝔮
+superscript
+𝑎
+2
+𝑏
+p\mid v_{\mathfrak{q}}(a^{2}+b)
+for all
+𝔮
+∉
+S
+K
+𝔮
+subscript
+𝑆
+𝐾
+{\mathfrak{q}}\notin S_{K}
+. Moreover,
+gcd
+⁡
+(
+5
+​
+a
+2
+−
+3
+​
+b
+,
+c
+)
+5
+superscript
+𝑎
+2
+3
+𝑏
+𝑐
+\gcd(5a^{2}-3b,c)
+is supported on
+S
+K
+subscript
+𝑆
+𝐾
+S_{K}
+. Thus, if
+𝔮
+∉
+S
+K
+𝔮
+subscript
+𝑆
+𝐾
+{\mathfrak{q}}\not\in S_{K}
+is a prime dividing
+Δ
+E
+(
+a
+,
+b
+,
+c
+)
+subscript
+Δ
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+\Delta_{E_{(a,b,c)}}
+then
+v
+𝔓
+​
+(
+j
+E
+(
+a
+,
+b
+,
+c
+)
+)
+<
+0
+subscript
+𝑣
+𝔓
+subscript
+𝑗
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+0
+v_{\mathfrak{P}}(j_{E_{(a,b,c)}})<0
+. Hence, the given model is minimal at
+𝔮
+𝔮
+{\mathfrak{q}}
+and
+E
+(
+a
+,
+b
+,
+c
+)
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+E_{(a,b,c)}
+is semistable away from
+S
+K
+subscript
+𝑆
+𝐾
+S_{K}
+. Furthermore,
+v
+𝔮
+​
+(
+Δ
+𝔮
+)
+=
+v
+𝔮
+​
+(
+Δ
+E
+(
+a
+,
+b
+,
+c
+)
+)
+=
+p
+​
+v
+𝔮
+​
+(
+c
+)
++
+v
+𝔮
+​
+(
+a
+2
++
+b
+)
+,
+subscript
+𝑣
+𝔮
+subscript
+Δ
+𝔮
+subscript
+𝑣
+𝔮
+subscript
+Δ
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+𝑝
+subscript
+𝑣
+𝔮
+𝑐
+subscript
+𝑣
+𝔮
+superscript
+𝑎
+2
+𝑏
+v_{\mathfrak{q}}(\Delta_{\mathfrak{q}})=v_{\mathfrak{q}}(\Delta_{E_{(a,b,c)}})=pv_{\mathfrak{q}}(c)+v_{\mathfrak{q}}(a^{2}+b),
+so
+v
+𝔮
+​
+(
+Δ
+𝔮
+)
+subscript
+𝑣
+𝔮
+subscript
+Δ
+𝔮
+v_{\mathfrak{q}}(\Delta_{\mathfrak{q}})
+is divisible by
+p
+𝑝
+p
+. It follows from
+[
+Ser87
+]
+that
+ρ
+¯
+E
+(
+a
+,
+b
+,
+c
+)
+,
+p
+subscript
+¯
+𝜌
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+𝑝
+\overline{\rho}_{E_{(a,b,c)},p}
+is unramified at
+𝔮
+𝔮
+{\mathfrak{q}}
+if
+𝔮
+∤
+p
+not-divides
+𝔮
+𝑝
+{\mathfrak{q}}\nmid p
+and is finite flat at every
+𝔭
+𝔭
+{\mathfrak{p}}
+dividing
+p
+𝑝
+p
+. On the other hand, if
+𝔓
+∈
+S
+K
+𝔓
+subscript
+𝑆
+𝐾
+{\mathfrak{P}}\in S_{K}
+then, by
+[
+Sil94
+, Theorem IV.10.4]
+,
+r
+𝔓
+=
+v
+𝔓
+​
+(
+𝔑
+E
+(
+a
+,
+b
+,
+c
+)
+)
+≤
+2
++
+6
+​
+v
+𝔓
+​
+(
+2
+)
+subscript
+𝑟
+𝔓
+subscript
+𝑣
+𝔓
+subscript
+𝔑
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+2
+6
+subscript
+𝑣
+𝔓
+2
+r_{\mathfrak{P}}=v_{\mathfrak{P}}({\mathfrak{N}}_{E_{(a,b,c)}})\leq 2+6v_{\mathfrak{P}}(2)
+. The formula for
+𝔑
+p
+subscript
+𝔑
+𝑝
+{\mathfrak{N}}_{p}
+follows easily from its definition. The statement about the determinant is a well-known consequence of the
+theory of the Weil pairing on
+E
+(
+a
+,
+b
+,
+c
+)
+​
+[
+p
+]
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+delimited-[]
+𝑝
+E_{(a,b,c)}[p]
+. This immediately implies oddness.
+∎
+Remark 4
+.
+Note that the Serre conductor of
+ρ
+¯
+E
+(
+a
+,
+b
+,
+c
+)
+,
+p
+subscript
+¯
+𝜌
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+𝑝
+\overline{\rho}_{E_{(a,b,c)},p}
+(prime-to-
+p
+𝑝
+p
+part of its Artin conductor) is supported on
+S
+K
+subscript
+𝑆
+𝐾
+S_{K}
+, and belongs to a finite set depending only on
+K
+𝐾
+K
+.
+To ease notation, and considering Remark
+3
+, we define for
+𝔓
+∈
+S
+K
+𝔓
+subscript
+𝑆
+𝐾
+{\mathfrak{P}}\in S_{K}
+the set
+W
+𝔓
+=
+{
+(
+a
+,
+b
+,
+c
+)
+:
+(
+a
+,
+b
+,
+c
+)
+∈
+𝒪
+K
+3
+​
+is a non-trivial primitive solution of
+​
+(
+3
+)
+​
+such that
+​
+v
+𝔓
+​
+(
+a
+2
++
+b
+)
+=
+v
+𝔓
+​
+(
+2
+)
+}
+.
+subscript
+𝑊
+𝔓
+conditional-set
+𝑎
+𝑏
+𝑐
+𝑎
+𝑏
+𝑐
+superscript
+subscript
+𝒪
+𝐾
+3
+is a non-trivial primitive solution of
+3
+such that
+subscript
+𝑣
+𝔓
+superscript
+𝑎
+2
+𝑏
+subscript
+𝑣
+𝔓
+2
+W_{\mathfrak{P}}=\{(a,b,c):(a,b,c)\in{\mathscr{O}}_{K}^{3}\text{ is a non-trivial primitive solution of }(\ref{eq:42p})\text{ such that }v_{\mathfrak{P}}(a^{2}+b)=v_{\mathfrak{P}}(2)\}.
+Lemma 2.3
+.
+Let
+𝔓
+𝔓
+{\mathfrak{P}}
+be a prime of
+K
+𝐾
+K
+above
+2
+2
+2
+and let
+p
+>
+8
+​
+v
+𝔓
+​
+(
+2
+)
+𝑝
+8
+subscript
+𝑣
+𝔓
+2
+p>8v_{\mathfrak{P}}(2)
+. If
+(
+a
+,
+b
+,
+c
+)
+∈
+W
+𝔓
+𝑎
+𝑏
+𝑐
+subscript
+𝑊
+𝔓
+(a,b,c)\in W_{\mathfrak{P}}
+then
+E
+(
+a
+,
+b
+,
+c
+)
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+E_{(a,b,c)}
+has potentially multiplicative reduction at
+𝔓
+𝔓
+{\mathfrak{P}}
+and
+p
+∣
+#
+​
+ρ
+¯
+E
+(
+a
+,
+b
+,
+c
+)
+,
+p
+​
+(
+I
+𝔓
+)
+conditional
+𝑝
+#
+subscript
+¯
+𝜌
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+𝑝
+subscript
+𝐼
+𝔓
+p\mid\#\overline{\rho}_{E_{(a,b,c)},p}(I_{{\mathfrak{P}}})
+.
+Proof.
+Since
+𝔓
+∤
+a
+​
+b
+not-divides
+𝔓
+𝑎
+𝑏
+{\mathfrak{P}}\nmid ab
+and
+5
+​
+a
+2
+−
+3
+​
+b
+=
+5
+​
+(
+a
+2
++
+b
+)
+−
+8
+​
+b
+5
+superscript
+𝑎
+2
+3
+𝑏
+5
+superscript
+𝑎
+2
+𝑏
+8
+𝑏
+5a^{2}-3b=5(a^{2}+b)-8b
+then we have
+v
+𝔓
+​
+(
+5
+​
+a
+2
+−
+3
+​
+b
+)
+=
+v
+𝔓
+​
+(
+2
+)
+subscript
+𝑣
+𝔓
+5
+superscript
+𝑎
+2
+3
+𝑏
+subscript
+𝑣
+𝔓
+2
+v_{{\mathfrak{P}}}(5a^{2}-3b)=v_{{\mathfrak{P}}}(2)
+. The statement about the Galois representation follows from
+[
+ŞS18
+, Lemma 5.1]
+and the fact that
+v
+𝔓
+​
+(
+j
+E
+(
+a
+,
+b
+,
+c
+)
+)
+=
+8
+​
+v
+𝔓
+​
+(
+2
+)
+−
+p
+​
+v
+𝔓
+​
+(
+c
+)
+.
+subscript
+𝑣
+𝔓
+subscript
+𝑗
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+8
+subscript
+𝑣
+𝔓
+2
+𝑝
+subscript
+𝑣
+𝔓
+𝑐
+v_{{\mathfrak{P}}}(j_{E_{(a,b,c)}})=8v_{{\mathfrak{P}}}(2)-pv_{{\mathfrak{P}}}(c).
+∎
+2.2.
+Modularity
+If
+E
+𝐸
+E
+is an elliptic curve over a number field
+K
+𝐾
+K
+, we say that
+E
+𝐸
+E
+is modular if there is an isomorphism of compatible systems of Galois representations
+(4)
+ρ
+E
+,
+p
+∼
+ρ
+𝔣
+,
+ϖ
+,
+similar-to
+subscript
+𝜌
+𝐸
+𝑝
+subscript
+𝜌
+𝔣
+italic-ϖ
+\rho_{E,p}\sim\rho_{{\mathfrak{f}},\varpi},
+where
+𝔣
+𝔣
+{\mathfrak{f}}
+is an authomorphic form over
+K
+𝐾
+K
+of weight
+2
+2
+2
+with coefficient field
+ℚ
+𝔣
+subscript
+ℚ
+𝔣
+{\mathbb{Q}}_{\mathfrak{f}}
+and
+ϖ
+italic-ϖ
+\varpi
+is a prime in
+ℚ
+𝔣
+subscript
+ℚ
+𝔣
+{\mathbb{Q}}_{\mathfrak{f}}
+above
+p
+𝑝
+p
+.
+2.2.1.
+Totally real case
+In the totally real case,
+𝔣
+𝔣
+{\mathfrak{f}}
+comes from a Hilbert eigenform of parallel weight
+2
+2
+2
+over
+K
+𝐾
+K
+. We have the following result due to Freitas, Le Hung and Siksek.
+Theorem 2.4
+(
+[
+FLHS15
+]
+, Theorems 1 and 5)
+.
+Let
+K
+𝐾
+K
+be a totally real field. There are at most finitely many
+K
+¯
+¯
+𝐾
+\overline{K}
+-isomorphism classes of non-modular elliptic curves
+E
+𝐸
+E
+over
+K
+𝐾
+K
+. Moreover, if
+K
+𝐾
+K
+is real quadratic, then all elliptic curves over
+K
+𝐾
+K
+are modular.
+Corollary 2.5
+.
+Let
+K
+𝐾
+K
+be a totally real field and let
+𝔓
+𝔓
+{\mathfrak{P}}
+a fixed prime in
+S
+K
+subscript
+𝑆
+𝐾
+S_{K}
+. There is some constant
+A
+K
+subscript
+𝐴
+𝐾
+A_{K}
+such that if
+p
+>
+A
+K
+𝑝
+subscript
+𝐴
+𝐾
+p>A_{K}
+and
+(
+a
+,
+b
+,
+c
+)
+∈
+W
+𝔓
+𝑎
+𝑏
+𝑐
+subscript
+𝑊
+𝔓
+(a,b,c)\in W_{{\mathfrak{P}}}
+then
+E
+(
+a
+,
+b
+,
+c
+)
+/
+K
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+𝐾
+E_{(a,b,c)}/K
+is modular.
+Proof.
+By Theorem
+2.4
+, there are at most finitely many possible
+K
+¯
+¯
+𝐾
+\overline{K}
+-isomorphism
+classes of elliptic curves over
+E
+𝐸
+E
+which are not modular. Let
+j
+1
+,
+j
+2
+,
+⋯
+,
+j
+n
+∈
+K
+subscript
+𝑗
+1
+subscript
+𝑗
+2
+⋯
+subscript
+𝑗
+𝑛
+𝐾
+j_{1},j_{2},\cdots,j_{n}\in K
+be the
+j
+𝑗
+j
+-invariants of these classes. Since
+(
+a
+,
+b
+,
+c
+)
+𝑎
+𝑏
+𝑐
+(a,b,c)
+is non-trivial we can define
+λ
+:=
+2
+2
+​
+(
+a
+2
+−
+b
+)
+a
+2
++
+b
+assign
+𝜆
+superscript
+2
+2
+superscript
+𝑎
+2
+𝑏
+superscript
+𝑎
+2
+𝑏
+\lambda:=\frac{2^{2}(a^{2}-b)}{a^{2}+b}
+, a non-zero element. The
+j
+𝑗
+j
+-invariant of
+E
+(
+a
+,
+b
+,
+c
+)
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+E_{(a,b,c)}
+is
+j
+​
+(
+λ
+)
+=
+2
+8
+​
+(
+λ
++
+1
+)
+3
+​
+λ
+−
+1
+.
+𝑗
+𝜆
+superscript
+2
+8
+superscript
+𝜆
+1
+3
+superscript
+𝜆
+1
+j(\lambda)=2^{8}(\lambda+1)^{3}\lambda^{-1}.
+Each equation
+j
+​
+(
+λ
+)
+=
+j
+i
+𝑗
+𝜆
+subscript
+𝑗
+𝑖
+j(\lambda)=j_{i}
+has at most three solutions
+λ
+∈
+K
+𝜆
+𝐾
+\lambda\in K
+. Thus there are values
+λ
+1
+,
+⋯
+,
+λ
+m
+subscript
+𝜆
+1
+⋯
+subscript
+𝜆
+𝑚
+\lambda_{1},\cdots,\lambda_{m}
+(where
+m
+≤
+3
+​
+n
+𝑚
+3
+𝑛
+m\leq 3n
+) such that if
+λ
+≠
+λ
+k
+𝜆
+subscript
+𝜆
+𝑘
+\lambda\neq\lambda_{k}
+for al
+k
+𝑘
+k
+then
+E
+(
+a
+,
+b
+,
+c
+)
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+E_{(a,b,c)}
+is modular. If
+λ
+=
+λ
+k
+𝜆
+subscript
+𝜆
+𝑘
+\lambda=\lambda_{k}
+for some
+k
+𝑘
+k
+, then using
+v
+𝔓
+​
+(
+a
+2
++
+b
+)
+=
+v
+𝔓
+​
+(
+2
+)
+subscript
+𝑣
+𝔓
+superscript
+𝑎
+2
+𝑏
+subscript
+𝑣
+𝔓
+2
+v_{\mathfrak{P}}(a^{2}+b)=v_{\mathfrak{P}}(2)
+we have
+v
+𝔓
+​
+(
+λ
+k
+)
+=
+p
+​
+v
+𝔓
+​
+(
+c
+)
+≥
+p
+.
+subscript
+𝑣
+𝔓
+subscript
+𝜆
+𝑘
+𝑝
+subscript
+𝑣
+𝔓
+𝑐
+𝑝
+v_{{\mathfrak{P}}}(\lambda_{k})=pv_{{\mathfrak{P}}}(c)\geq p.
+Finally, taking
+A
+K
+:=
+max
+{
+v
+𝔓
+(
+λ
+k
+)
+}
+k
+=
+1
+m
+A_{K}:=\max\{v_{\mathfrak{P}}(\lambda_{k})\}_{k=1}^{m}
+we get the desired bound.
+∎
+Remark 5
+.
+In order to prove the finiteness of
+K
+¯
+¯
+𝐾
+\overline{K}
+-isomorphism classes of elliptic curves
+E
+𝐸
+E
+which are not modular, in
+[
+FLHS15
+]
+the authors proved that such a curve
+E
+𝐸
+E
+gives rise to a
+K
+𝐾
+K
+-rational point on a modular curve of genus
+g
+>
+1
+𝑔
+1
+g>1
+. Then by Falting’s theorem
+[
+Fal83
+]
+there are finitely many curves
+E
+𝐸
+E
+. Since Falting’s theorem is ineffective so is the bound
+A
+K
+subscript
+𝐴
+𝐾
+A_{K}
+.
+2.2.2.
+General case
+When
+K
+𝐾
+K
+is an arbitrary number field (admitting possibly a complex embedding), the
+𝔣
+𝔣
+{\mathfrak{f}}
+of (
+4
+) will be a (weight 2) complex eigenform over
+K
+𝐾
+K
+. We refer to
+[
+ŞS18
+, Section 2]
+to see all the concepts regarding complex eigenforms and mod
+p
+𝑝
+p
+eigenforms over
+K
+𝐾
+K
+. Since there are no modularity results in general, we have to make use of the following conjecture.
+Conjecture 1
+(
+[
+FKS20
+]
+, Conjecture 4.1)
+.
+Let
+ρ
+¯
+:
+Gal
+K
+→
+GL
+2
+​
+(
+𝔽
+¯
+p
+)
+:
+¯
+𝜌
+→
+subscript
+Gal
+𝐾
+subscript
+GL
+2
+subscript
+¯
+𝔽
+𝑝
+\overline{\rho}:\operatorname{Gal}_{K}\to{\rm GL}_{2}(\overline{\mathbb{F}}_{p})
+be an odd, irreducible, continuous representation with Serre conductor
+𝔑
+𝔑
+{\mathfrak{N}}
+and
+such that
+det
+(
+ρ
+¯
+)
+=
+χ
+p
+¯
+𝜌
+subscript
+𝜒
+𝑝
+\det(\overline{\rho})=\chi_{p}
+is the mod
+p
+𝑝
+p
+cyclotomic character. Assume that
+p
+𝑝
+p
+is unramified in
+K
+𝐾
+K
+and that
+ρ
+¯
+|
+Gal
+K
+𝔭
+evaluated-at
+¯
+𝜌
+subscript
+Gal
+subscript
+𝐾
+𝔭
+\overline{\rho}|_{\operatorname{Gal}_{K_{{\mathfrak{p}}}}}
+arises from a finite-flat group scheme over
+𝒪
+K
+𝔭
+subscript
+𝒪
+subscript
+𝐾
+𝔭
+{\mathscr{O}}_{K_{\mathfrak{p}}}
+for every prime
+𝔭
+∣
+p
+conditional
+𝔭
+𝑝
+{\mathfrak{p}}\mid p
+. Then
+there is a weight two, mod
+p
+𝑝
+p
+eigenform
+θ
+𝜃
+\theta
+over
+K
+𝐾
+K
+of level
+𝔑
+𝔑
+\mathfrak{N}
+such that for all primes
+𝔮
+𝔮
+{\mathfrak{q}}
+coprime
+to
+p
+​
+𝔑
+𝑝
+𝔑
+p{\mathfrak{N}}
+, we have
+Tr
+⁡
+(
+ρ
+¯
+​
+(
+Frob
+𝔮
+)
+)
+=
+θ
+​
+(
+T
+𝔮
+)
+,
+Tr
+¯
+𝜌
+subscript
+Frob
+𝔮
+𝜃
+subscript
+𝑇
+𝔮
+\operatorname{{\mathrm{Tr}}}(\overline{\rho}(\operatorname{Frob}_{\mathfrak{q}}))=\theta(T_{\mathfrak{q}}),
+where
+T
+𝔮
+subscript
+𝑇
+𝔮
+T_{{\mathfrak{q}}}
+denotes de Hecke operator at
+𝔮
+𝔮
+{\mathfrak{q}}
+.
+2.3.
+Level reduction and Eichler-Shimura
+In order to prove the surjectivity of our residual Galois representation we use the following well-known result about subgroups of
+GL
+2
+​
+(
+𝔽
+p
+)
+subscript
+GL
+2
+subscript
+𝔽
+𝑝
+{\rm GL}_{2}(\mathbb{F}_{p})
+(see
+[
+SD75
+, Lemma 2]
+and
+[
+Etr15
+, Propositions 2.3 and 2.6]
+).
+Proposition 2.6
+.
+Let
+E
+𝐸
+E
+be an elliptic curve over a number field
+K
+𝐾
+K
+of degree
+d
+𝑑
+d
+and let
+G
+≤
+GL
+2
+​
+(
+𝔽
+p
+)
+𝐺
+subscript
+GL
+2
+subscript
+𝔽
+𝑝
+G\leq{\rm GL}_{2}(\mathbb{F}_{p})
+be the image of the mod
+p
+𝑝
+p
+Galois representation of
+E
+𝐸
+E
+. Then the following holds:
+•
+if
+p
+∣
+#
+​
+G
+conditional
+𝑝
+#
+𝐺
+p\mid\#G
+then either
+G
+𝐺
+G
+is reducible or
+G
+𝐺
+G
+contains
+SL
+2
+​
+(
+𝔽
+p
+)
+subscript
+SL
+2
+subscript
+𝔽
+𝑝
+{\rm SL}_{2}(\mathbb{F}_{p})
+and hence is absolutely irreducible.
+•
+if
+p
+∤
+#
+​
+G
+not-divides
+𝑝
+#
+𝐺
+p\nmid\#G
+and
+p
+>
+15
+​
+d
++
+1
+𝑝
+15
+𝑑
+1
+p>15d+1
+then
+G
+𝐺
+G
+is contained in a Cartan subgroup or
+G
+𝐺
+G
+is contained
+in the normalizer of Cartan subgroup but not the Cartan subgroup itself.
+Proposition 2.7
+(
+[
+ŞS18
+]
+, Proposition 6.1)
+.
+Let
+L
+𝐿
+L
+be a Galois number field and let
+𝔮
+𝔮
+{\mathfrak{q}}
+be a prime of
+L
+𝐿
+L
+. There
+is a constant
+B
+L
+,
+𝔮
+subscript
+𝐵
+𝐿
+𝔮
+B_{L,{\mathfrak{q}}}
+such that the following is true: let
+p
+>
+B
+L
+,
+𝔮
+𝑝
+subscript
+𝐵
+𝐿
+𝔮
+p>B_{L,{\mathfrak{q}}}
+be a rational prime and let
+E
+/
+L
+𝐸
+𝐿
+E/L
+be an elliptic curve that is semistable at all
+𝔭
+∣
+p
+conditional
+𝔭
+𝑝
+{\mathfrak{p}}\mid p
+, having potentially
+multiplicative reduction at
+𝔮
+𝔮
+{\mathfrak{q}}
+. Then
+ρ
+¯
+E
+,
+p
+subscript
+¯
+𝜌
+𝐸
+𝑝
+\overline{\rho}_{E,p}
+is irreducible.
+Lemma 2.8
+.
+Let
+K
+𝐾
+K
+be a number field and let
+𝔓
+∈
+S
+K
+𝔓
+subscript
+𝑆
+𝐾
+{\mathfrak{P}}\in S_{K}
+. There is a constant
+C
+K
+subscript
+𝐶
+𝐾
+C_{K}
+such that if
+p
+>
+C
+K
+𝑝
+subscript
+𝐶
+𝐾
+p>C_{K}
+and
+(
+a
+,
+b
+,
+c
+)
+∈
+W
+𝔓
+𝑎
+𝑏
+𝑐
+subscript
+𝑊
+𝔓
+(a,b,c)\in W_{\mathfrak{P}}
+then
+ρ
+¯
+E
+(
+a
+,
+b
+,
+c
+)
+,
+p
+subscript
+¯
+𝜌
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+𝑝
+\overline{\rho}_{E_{(a,b,c)},p}
+is surjective.
+Proof.
+The proof follows the same argument given in
+[
+ŞS18
+, Corollary 6.2]
+. By Lemma
+2.3
+, if
+p
+>
+8
+​
+v
+𝔓
+​
+(
+2
+)
+𝑝
+8
+subscript
+𝑣
+𝔓
+2
+p>8v_{\mathfrak{P}}(2)
+, we have that
+E
+(
+a
+,
+b
+,
+c
+)
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+E_{(a,b,c)}
+has potentially multiplicative reduction at
+𝔓
+𝔓
+{\mathfrak{P}}
+and, by Lemma
+2.2
+, it is
+semistable away from
+S
+K
+subscript
+𝑆
+𝐾
+S_{K}
+. Let
+L
+𝐿
+L
+be a Galois closure of
+K
+𝐾
+K
+, and let
+𝔮
+𝔮
+{\mathfrak{q}}
+be a prime of
+L
+𝐿
+L
+above
+𝔓
+𝔓
+{\mathfrak{P}}
+. Now, applying Proposition
+2.7
+we get a constant
+C
+L
+,
+𝔮
+subscript
+𝐶
+𝐿
+𝔮
+C_{L,{\mathfrak{q}}}
+such
+that
+ρ
+¯
+E
+(
+a
+,
+b
+,
+c
+)
+,
+p
+​
+(
+Gal
+L
+)
+subscript
+¯
+𝜌
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+𝑝
+subscript
+Gal
+𝐿
+\overline{\rho}_{E_{(a,b,c)},p}(\operatorname{Gal}_{L})
+is irreducible whenever
+p
+>
+C
+L
+,
+𝔮
+𝑝
+subscript
+𝐶
+𝐿
+𝔮
+p>C_{L,{\mathfrak{q}}}
+. Since there are only finitely many primes
+𝔮
+𝔮
+{\mathfrak{q}}
+in
+L
+𝐿
+L
+dividing
+𝔓
+𝔓
+{\mathfrak{P}}
+, and
+L
+𝐿
+L
+only depends on
+K
+𝐾
+K
+then at the end we can obtain a bound depending only on
+K
+𝐾
+K
+and we denote it by
+C
+K
+subscript
+𝐶
+𝐾
+C_{K}
+(we assume
+C
+K
+>
+8
+​
+v
+𝔓
+​
+(
+2
+)
+subscript
+𝐶
+𝐾
+8
+subscript
+𝑣
+𝔓
+2
+C_{K}>8v_{\mathfrak{P}}(2)
+, since we applied Lemma
+2.3
+). Now, applying Lemma
+2.3
+again, we see that the image of
+ρ
+¯
+E
+(
+a
+,
+b
+,
+c
+)
+,
+p
+subscript
+¯
+𝜌
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+𝑝
+\overline{\rho}_{E_{(a,b,c)},p}
+contains an element of order
+p
+𝑝
+p
+. By Proposition
+2.6
+any subgroup of
+GL
+2
+​
+(
+𝔽
+p
+)
+subscript
+GL
+2
+subscript
+𝔽
+𝑝
+{\rm GL}_{2}(\mathbb{F}_{p})
+having an element of order
+p
+𝑝
+p
+is either
+reducible or contains
+SL
+2
+​
+(
+𝔽
+p
+)
+subscript
+SL
+2
+subscript
+𝔽
+𝑝
+{\rm SL}_{2}(\mathbb{F}_{p})
+. As
+p
+>
+C
+K
+>
+8
+​
+v
+𝔭
+​
+(
+2
+)
+𝑝
+subscript
+𝐶
+𝐾
+8
+subscript
+𝑣
+𝔭
+2
+p>C_{K}>8v_{\mathfrak{p}}(2)
+, the image contains
+SL
+2
+​
+(
+𝔽
+p
+)
+subscript
+SL
+2
+subscript
+𝔽
+𝑝
+{\rm SL}_{2}(\mathbb{F}_{p})
+.
+Finally, again taking
+C
+K
+subscript
+𝐶
+𝐾
+C_{K}
+large enough if needed, we can ensure that
+K
+∩
+ℚ
+​
+(
+ζ
+p
+)
+=
+ℚ
+𝐾
+ℚ
+subscript
+𝜁
+𝑝
+ℚ
+K\cap{\mathbb{Q}}(\zeta_{p})={\mathbb{Q}}
+. Therefore,
+χ
+p
+=
+det
+(
+ρ
+¯
+E
+(
+a
+,
+b
+,
+c
+)
+,
+p
+)
+subscript
+𝜒
+𝑝
+subscript
+¯
+𝜌
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+𝑝
+\chi_{p}=\det(\overline{\rho}_{E_{(a,b,c)},p})
+is surjective, giving the following short exact sequence
+1
+→
+SL
+2
+​
+(
+𝔽
+p
+)
+→
+ρ
+¯
+E
+(
+a
+,
+b
+,
+c
+)
+,
+p
+​
+(
+Gal
+K
+)
+→
+det
+𝔽
+p
+×
+→
+1
+absent
+→
+1
+subscript
+SL
+2
+subscript
+𝔽
+𝑝
+absent
+→
+subscript
+¯
+𝜌
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+𝑝
+subscript
+Gal
+𝐾
+→
+superscript
+subscript
+𝔽
+𝑝
+absent
+→
+1
+1\xrightarrow{}{\rm SL}_{2}(\mathbb{F}_{p})\xrightarrow{}\overline{\rho}_{E_{(a,b,c)},p}(\operatorname{Gal}_{K})\xrightarrow{\det}\mathbb{F}_{p}^{\times}\xrightarrow{}1
+and completing the proof.
+∎
+2.3.1.
+Totally real case
+Theorem 2.9
+(
+[
+FS15
+]
+, Theorem 7)
+.
+Let
+K
+𝐾
+K
+be a totally real field and
+E
+/
+K
+𝐸
+𝐾
+E/K
+an elliptic curve of conductor
+𝔑
+𝔑
+{\mathfrak{N}}
+. Let
+p
+𝑝
+p
+be a rational prime. For a prime
+𝔮
+𝔮
+{\mathfrak{q}}
+of
+K
+𝐾
+K
+, let
+Δ
+𝔮
+subscript
+Δ
+𝔮
+\Delta_{\mathfrak{q}}
+and
+𝔑
+p
+subscript
+𝔑
+𝑝
+{\mathfrak{N}}_{p}
+as in the previous subsection. Suppose the following statements hold:
+•
+p
+≥
+5
+𝑝
+5
+p\geq 5
+, the ramification index
+e
+​
+(
+𝔭
+∣
+p
+)
+<
+p
+−
+1
+𝑒
+conditional
+𝔭
+𝑝
+𝑝
+1
+e({\mathfrak{p}}\mid p)<p-1
+, and
+ℚ
+​
+(
+ζ
+p
+)
++
+⊄
+K
+not-subset-of
+ℚ
+superscript
+subscript
+𝜁
+𝑝
+𝐾
+{\mathbb{Q}}(\zeta_{p})^{+}\not\subset K
+,
+•
+E
+𝐸
+E
+is modular,
+•
+ρ
+¯
+E
+,
+p
+subscript
+¯
+𝜌
+𝐸
+𝑝
+\overline{\rho}_{E,p}
+is irreducible,
+•
+E
+𝐸
+E
+is semistable at all
+𝔭
+∣
+p
+conditional
+𝔭
+𝑝
+{\mathfrak{p}}\mid p
+,
+•
+p
+∣
+v
+𝔭
+​
+(
+Δ
+𝔮
+)
+conditional
+𝑝
+subscript
+𝑣
+𝔭
+subscript
+Δ
+𝔮
+p\mid v_{\mathfrak{p}}(\Delta_{\mathfrak{q}})
+for all
+𝔭
+∣
+p
+conditional
+𝔭
+𝑝
+{\mathfrak{p}}\mid p
+.
+Then, there is a Hilbert eigenform
+𝔣
+𝔣
+{\mathfrak{f}}
+of parallel weight
+2
+2
+2
+that is new at level
+𝔑
+p
+subscript
+𝔑
+𝑝
+{\mathfrak{N}}_{p}
+and some prime
+ϖ
+italic-ϖ
+\varpi
+of
+ℚ
+𝔣
+subscript
+ℚ
+𝔣
+{\mathbb{Q}}_{\mathfrak{f}}
+above
+p
+𝑝
+p
+such that
+ρ
+¯
+E
+,
+p
+∼
+ρ
+¯
+𝔣
+,
+ϖ
+similar-to
+subscript
+¯
+𝜌
+𝐸
+𝑝
+subscript
+¯
+𝜌
+𝔣
+italic-ϖ
+\overline{\rho}_{E,p}\sim\overline{\rho}_{{\mathfrak{f}},\varpi}
+.
+Assuming
+K
+𝐾
+K
+totally real, and following the works of Blasius
+[
+Bla04
+]
+, Darmon
+[
+Dar04
+]
+and Zhang
+[
+Zha01
+]
+, Freitas and Siksek obtained the following result.
+Theorem 2.10
+(
+[
+FS15
+]
+, Corollary 2.2)
+.
+Let
+E
+𝐸
+E
+be an elliptic curve over a totally real field
+K
+𝐾
+K
+, and
+p
+𝑝
+p
+be and odd prime. Suppose that
+ρ
+¯
+E
+,
+p
+subscript
+¯
+𝜌
+𝐸
+𝑝
+\overline{\rho}_{E,p}
+is irreducible, and
+ρ
+¯
+E
+,
+p
+∼
+ρ
+¯
+𝔣
+,
+ϖ
+similar-to
+subscript
+¯
+𝜌
+𝐸
+𝑝
+subscript
+¯
+𝜌
+𝔣
+italic-ϖ
+\overline{\rho}_{E,p}\sim\overline{\rho}_{\mathfrak{f},\varpi}
+for some Hilbert newform
+𝔣
+𝔣
+\mathfrak{f}
+over
+K
+𝐾
+K
+of level
+𝔑
+𝔑
+{\mathfrak{N}}
+and parallel weight
+2
+2
+2
+which satisfies
+ℚ
+𝔣
+=
+ℚ
+subscript
+ℚ
+𝔣
+ℚ
+{\mathbb{Q}}_{\mathfrak{f}}={\mathbb{Q}}
+. Let
+𝔮
+∤
+p
+not-divides
+𝔮
+𝑝
+{\mathfrak{q}}\nmid p
+be a prime ideal of
+𝒪
+K
+subscript
+𝒪
+𝐾
+{\mathscr{O}}_{K}
+such that
+•
+E
+𝐸
+E
+has potentially multiplicative reduction at
+𝔮
+𝔮
+{\mathfrak{q}}
+,
+•
+p
+∣
+#
+​
+ρ
+¯
+E
+,
+p
+​
+(
+I
+𝔮
+)
+conditional
+𝑝
+#
+subscript
+¯
+𝜌
+𝐸
+𝑝
+subscript
+𝐼
+𝔮
+p\mid\#\overline{\rho}_{E,p}(I_{\mathfrak{q}})
+,
+•
+p
+∤
+(
+Norm
+K
+/
+ℚ
+​
+(
+𝔮
+)
+±
+1
+)
+not-divides
+𝑝
+plus-or-minus
+subscript
+Norm
+𝐾
+ℚ
+𝔮
+1
+p\nmid(\text{Norm}_{K/{\mathbb{Q}}}({\mathfrak{q}})\pm 1)
+.
+Then there is an elliptic curve
+E
+𝔣
+/
+K
+subscript
+𝐸
+𝔣
+𝐾
+E_{\mathfrak{f}}/K
+of conductor
+𝔑
+𝔑
+{\mathfrak{N}}
+with the same
+L
+𝐿
+L
+-function as
+𝔣
+𝔣
+\mathfrak{f}
+.
+Let
+K
+𝐾
+K
+be a totally real and
+𝔓
+∈
+S
+K
+𝔓
+subscript
+𝑆
+𝐾
+{\mathfrak{P}}\in S_{K}
+a fixed prime. If
+(
+a
+,
+b
+,
+c
+)
+∈
+W
+𝔓
+𝑎
+𝑏
+𝑐
+subscript
+𝑊
+𝔓
+(a,b,c)\in W_{\mathfrak{P}}
+with
+p
+𝑝
+p
+large enough, then by Corollary
+2.5
+E
+(
+a
+,
+b
+,
+c
+)
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+E_{(a,b,c)}
+is modular and
+ρ
+¯
+E
+(
+a
+,
+b
+,
+c
+)
+,
+p
+subscript
+¯
+𝜌
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+𝑝
+\overline{\rho}_{E_{(a,b,c)},p}
+is irreducible, by Lemma
+2.8
+. Applying Lemma
+2.2
+and Theorem
+2.9
+we have that
+ρ
+¯
+E
+(
+a
+,
+b
+,
+c
+)
+,
+p
+∼
+ρ
+¯
+𝔣
+,
+ϖ
+similar-to
+subscript
+¯
+𝜌
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+𝑝
+subscript
+¯
+𝜌
+𝔣
+italic-ϖ
+\overline{\rho}_{E_{(a,b,c)},p}\sim\overline{\rho}_{{\mathfrak{f}},\varpi}
+for a Hilbert newform
+𝔣
+𝔣
+{\mathfrak{f}}
+of level
+𝔑
+p
+subscript
+𝔑
+𝑝
+{\mathfrak{N}}_{p}
+and some prime
+ϖ
+∣
+p
+conditional
+italic-ϖ
+𝑝
+\varpi\mid p
+of
+ℚ
+𝔣
+subscript
+ℚ
+𝔣
+{\mathbb{Q}}_{\mathfrak{f}}
+. Enlarging
+p
+𝑝
+p
+if necessary we can assume
+ℚ
+𝔣
+=
+ℚ
+subscript
+ℚ
+𝔣
+ℚ
+{\mathbb{Q}}_{\mathfrak{f}}={\mathbb{Q}}
+(see
+[
+ŞS18
+, Lemma 7.2]
+). Then, Theorem
+2.10
+gives the existence of a curve
+E
+𝔣
+subscript
+𝐸
+𝔣
+E_{\mathfrak{f}}
+with conductor
+𝔑
+p
+subscript
+𝔑
+𝑝
+{\mathfrak{N}}_{p}
+such that
+ρ
+¯
+E
+(
+a
+,
+b
+,
+c
+)
+,
+p
+∼
+ρ
+¯
+E
+𝔣
+,
+p
+similar-to
+subscript
+¯
+𝜌
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+𝑝
+subscript
+¯
+𝜌
+subscript
+𝐸
+𝔣
+𝑝
+\overline{\rho}_{E_{(a,b,c)},p}\sim\overline{\rho}_{E_{\mathfrak{f}},p}
+.
+2.3.2.
+General case
+In general if
+K
+𝐾
+K
+admits a complex embedding, we assume Conjectures
+1
+and
+2
+and we apply the following proposition to prove Lemma
+2.12
+.
+Proposition 2.11
+(
+[
+ŞS18
+]
+, Proposition 2.1)
+.
+There is an integer
+B
+​
+(
+𝔑
+)
+𝐵
+𝔑
+B({\mathfrak{N}})
+, depending only on
+𝔑
+𝔑
+{\mathfrak{N}}
+, such
+that for any prime
+p
+>
+B
+​
+(
+𝔑
+)
+𝑝
+𝐵
+𝔑
+p>B({\mathfrak{N}})
+, every weight two mod
+p
+𝑝
+p
+eigenform of level
+𝔑
+𝔑
+{\mathfrak{N}}
+lifts to a complex
+one.
+Conjecture 2
+(
+[
+ŞS18
+]
+, Conjecture 4.1)
+.
+Let
+𝔣
+𝔣
+{\mathfrak{f}}
+be a weight
+2
+2
+2
+complex eigenform over
+K
+𝐾
+K
+of level
+𝔑
+𝔑
+{\mathfrak{N}}
+that is non-trivial and new. If
+K
+𝐾
+K
+has some real place, then there exists an elliptic curve
+E
+𝔣
+/
+K
+subscript
+𝐸
+𝔣
+𝐾
+E_{\mathfrak{f}}/K
+of conductor
+𝔑
+𝔑
+{\mathfrak{N}}
+such that
+(5)
+#
+​
+E
+𝔣
+​
+(
+𝒪
+K
+/
+𝔮
+)
+=
+1
++
+Norm
+K
+/
+ℚ
+​
+(
+𝔮
+)
+−
+𝔣
+​
+(
+T
+𝔮
+)
+​
+for all
+​
+𝔮
+∤
+𝔑
+.
+#
+subscript
+𝐸
+𝔣
+subscript
+𝒪
+𝐾
+𝔮
+1
+subscript
+Norm
+𝐾
+ℚ
+𝔮
+𝔣
+subscript
+𝑇
+𝔮
+for all
+𝔮
+not-divides
+𝔑
+\#E_{\mathfrak{f}}({\mathscr{O}}_{K}/{\mathfrak{q}})=1+\text{ Norm}_{K/{\mathbb{Q}}}({\mathfrak{q}})-{\mathfrak{f}}(T_{\mathfrak{q}})\text{ for all }{\mathfrak{q}}\nmid{\mathfrak{N}}.
+If
+K
+𝐾
+K
+is totally complex, then there exists either an elliptic curve
+E
+𝔣
+subscript
+𝐸
+𝔣
+E_{\mathfrak{f}}
+of conductor
+𝔑
+𝔑
+{\mathfrak{N}}
+satisfying (
+5
+) or a fake elliptic curve
+A
+𝔣
+subscript
+𝐴
+𝔣
+A_{\mathfrak{f}}
+, of conductor
+𝔑
+2
+superscript
+𝔑
+2
+{\mathfrak{N}}^{2}
+, such that
+(6)
+#
+​
+A
+𝔣
+​
+(
+𝒪
+K
+/
+𝔮
+)
+=
+(
+1
++
+Norm
+K
+/
+ℚ
+​
+(
+𝔮
+)
+−
+𝔣
+​
+(
+T
+𝔮
+)
+)
+2
+​
+for all
+​
+𝔮
+∤
+𝔑
+.
+#
+subscript
+𝐴
+𝔣
+subscript
+𝒪
+𝐾
+𝔮
+superscript
+1
+subscript
+Norm
+𝐾
+ℚ
+𝔮
+𝔣
+subscript
+𝑇
+𝔮
+2
+for all
+𝔮
+not-divides
+𝔑
+\#A_{\mathfrak{f}}({\mathscr{O}}_{K}/{\mathfrak{q}})=(1+\text{ Norm}_{K/{\mathbb{Q}}}({\mathfrak{q}})-{\mathfrak{f}}(T_{\mathfrak{q}}))^{2}\text{ for all }{\mathfrak{q}}\nmid{\mathfrak{N}}.
+Lemma 2.12
+.
+There is a non-trivial new, weight
+2
+2
+2
+complex eigenform
+𝔣
+𝔣
+\mathfrak{f}
+which has an associated elliptic curve
+E
+𝔣
+/
+K
+subscript
+𝐸
+𝔣
+𝐾
+E_{\mathfrak{f}}/K
+of conductor
+𝔑
+′
+superscript
+𝔑
+′
+\mathfrak{N}^{\prime}
+dividing
+𝔑
+p
+subscript
+𝔑
+𝑝
+{\mathfrak{N}}_{p}
+.
+Proof.
+By Lemma
+2.8
+,
+ρ
+¯
+E
+(
+a
+,
+b
+,
+c
+)
+,
+p
+subscript
+¯
+𝜌
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+𝑝
+\overline{\rho}_{E_{(a,b,c)},p}
+is surjective hence absolutely irreducible for
+p
+>
+C
+K
+𝑝
+subscript
+𝐶
+𝐾
+p>C_{K}
+. Now, by Conjecture
+1
+there is a weight
+2
+mod
+p
+modulo
+2
+𝑝
+2\mod p
+eigenform
+θ
+𝜃
+\theta
+over
+K
+𝐾
+K
+of level
+𝔑
+p
+subscript
+𝔑
+𝑝
+\mathfrak{N}_{p}
+such that for all primes
+𝔮
+𝔮
+{\mathfrak{q}}
+coprime to
+p
+​
+𝔑
+p
+𝑝
+subscript
+𝔑
+𝑝
+p\mathfrak{N}_{p}
+we have
+Tr
+⁡
+(
+ρ
+¯
+E
+(
+a
+,
+b
+,
+c
+)
+,
+p
+​
+(
+Frob
+𝔮
+)
+)
+=
+θ
+​
+(
+T
+𝔮
+)
+.
+Tr
+subscript
+¯
+𝜌
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+𝑝
+subscript
+Frob
+𝔮
+𝜃
+subscript
+𝑇
+𝔮
+\operatorname{{\mathrm{Tr}}}(\overline{\rho}_{E_{(a,b,c)},p}(\operatorname{Frob}_{\mathfrak{q}}))=\theta(T_{\mathfrak{q}}).
+Since there are only finitely many possible values for
+𝔑
+p
+subscript
+𝔑
+𝑝
+\mathfrak{N}_{p}
+(depending only on
+K
+𝐾
+K
+, see Remark
+4
+) taking
+p
+𝑝
+p
+large enough we have that for any level
+𝔑
+p
+subscript
+𝔑
+𝑝
+\mathfrak{N}_{p}
+there will be a weight
+2
+2
+2
+complex eigenform
+𝔣
+𝔣
+\mathfrak{f}
+with level
+𝔑
+p
+subscript
+𝔑
+𝑝
+\mathfrak{N}_{p}
+that is a lift of
+θ
+𝜃
+\theta
+, by Proposition
+2.11
+.
+Recall that we can assume
+ℚ
+𝔣
+=
+ℚ
+subscript
+ℚ
+𝔣
+ℚ
+{\mathbb{Q}}_{\mathfrak{f}}={\mathbb{Q}}
+for
+p
+𝑝
+p
+large enough. Note that
+𝔣
+𝔣
+{\mathfrak{f}}
+is non-trivial, since
+ρ
+¯
+E
+(
+a
+,
+b
+,
+c
+)
+,
+p
+subscript
+¯
+𝜌
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+𝑝
+\overline{\rho}_{E_{(a,b,c)},p}
+is irreducible. If
+𝔣
+𝔣
+{\mathfrak{f}}
+is not new, we can
+replace it with an equivalent new eigenform that is of smaller level. Then, we can obtain
+𝔣
+𝔣
+{\mathfrak{f}}
+new and with level
+𝔑
+′
+superscript
+𝔑
+′
+{\mathfrak{N}}^{\prime}
+dividing
+𝔑
+p
+subscript
+𝔑
+𝑝
+{\mathfrak{N}}_{p}
+.
+Applying Conjecture
+2
+we get that
+𝔣
+𝔣
+{\mathfrak{f}}
+either has an associated elliptic curve
+E
+𝔣
+/
+K
+subscript
+𝐸
+𝔣
+𝐾
+E_{\mathfrak{f}}/K
+of conductor
+𝔑
+′
+superscript
+𝔑
+′
+{\mathfrak{N}}^{\prime}
+, or has an associated fake elliptic curve
+A
+𝔣
+/
+K
+subscript
+𝐴
+𝔣
+𝐾
+A_{\mathfrak{f}}/K
+of conductor
+𝔑
+′
+⁣
+2
+superscript
+𝔑
+′
+2
+{\mathfrak{N}}^{\prime 2}
+. The fake elliptic curve case can be discarded by
+[
+ŞS18
+, Lemma 7.3]
+.
+∎
+In either case (
+K
+𝐾
+K
+totally real or not), we denote by
+E
+′
+superscript
+𝐸
+′
+E^{\prime}
+the elliptic curve
+E
+𝔣
+subscript
+𝐸
+𝔣
+E_{\mathfrak{f}}
+. We have that
+ρ
+¯
+E
+(
+a
+,
+b
+,
+c
+)
+,
+p
+∼
+ρ
+¯
+E
+′
+,
+p
+similar-to
+subscript
+¯
+𝜌
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+𝑝
+subscript
+¯
+𝜌
+superscript
+𝐸
+′
+𝑝
+\overline{\rho}_{E_{(a,b,c)},p}\sim\overline{\rho}_{E^{\prime},p}
+.
+Lemma 2.13
+.
+If
+E
+′
+superscript
+𝐸
+′
+E^{\prime}
+does not have a
+K
+𝐾
+K
+-rational point of order
+2
+2
+2
+and is not isogenous to an elliptic curve with a
+K
+𝐾
+K
+-rational point of order
+2
+2
+2
+then
+p
+<
+C
+E
+′
+𝑝
+subscript
+𝐶
+superscript
+𝐸
+′
+p<C_{E^{\prime}}
+, where
+C
+E
+′
+subscript
+𝐶
+superscript
+𝐸
+′
+C_{E^{\prime}}
+is a constant depending only on
+E
+′
+superscript
+𝐸
+′
+E^{\prime}
+.
+Proof.
+It follows from
+[
+Kat81
+, Theorem 2]
+. For the proof we refer the reader to
+[
+IKO22
+, Lemma 3.6]
+.
+∎
+Theorem 2.14
+.
+Let
+K
+𝐾
+K
+be a number field. If
+K
+𝐾
+K
+has at least one complex embedding assume Conjectures
+1
+and
+2
+. Let
+𝔓
+∈
+S
+K
+𝔓
+subscript
+𝑆
+𝐾
+{\mathfrak{P}}\in S_{K}
+some fixed prime. There exists a constant
+B
+K
+subscript
+𝐵
+𝐾
+B_{K}
+depending only on
+K
+𝐾
+K
+such that if
+(
+a
+,
+b
+,
+c
+)
+∈
+W
+𝔓
+𝑎
+𝑏
+𝑐
+subscript
+𝑊
+𝔓
+(a,b,c)\in W_{\mathfrak{P}}
+and
+p
+>
+B
+K
+𝑝
+subscript
+𝐵
+𝐾
+p>B_{K}
+then there is an elliptic curve
+E
+′
+/
+K
+superscript
+𝐸
+′
+𝐾
+E^{\prime}/K
+such that the following hold:
+(i)
+E
+′
+superscript
+𝐸
+′
+E^{\prime}
+has good reduction outside
+S
+K
+subscript
+𝑆
+𝐾
+S_{K}
+.
+(ii)
+E
+′
+superscript
+𝐸
+′
+E^{\prime}
+has a
+K
+𝐾
+K
+-rational point of order
+2
+2
+2
+.
+(iii)
+ρ
+¯
+E
+(
+a
+,
+b
+,
+c
+)
+,
+p
+∼
+ρ
+¯
+E
+′
+,
+p
+similar-to
+subscript
+¯
+𝜌
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+𝑝
+subscript
+¯
+𝜌
+superscript
+𝐸
+′
+𝑝
+\overline{\rho}_{E_{(a,b,c)},p}\sim\overline{\rho}_{E^{\prime},p}
+.
+(iv)
+v
+𝔓
+​
+(
+j
+′
+)
+<
+0
+subscript
+𝑣
+𝔓
+superscript
+𝑗
+′
+0
+v_{{\mathfrak{P}}}(j^{\prime})<0
+, where
+j
+′
+superscript
+𝑗
+′
+j^{\prime}
+is the
+j
+𝑗
+j
+-invariant of
+E
+′
+superscript
+𝐸
+′
+E^{\prime}
+.
+Proof.
+If
+E
+′
+superscript
+𝐸
+′
+E^{\prime}
+does not have a
+K
+𝐾
+K
+-rational point of order
+2
+2
+2
+then it is isogenous to an elliptic curve
+E
+′′
+superscript
+𝐸
+′′
+E^{\prime\prime}
+with a
+K
+𝐾
+K
+-rational point of order
+2
+2
+2
+(if
+p
+>
+C
+E
+′
+𝑝
+subscript
+superscript
+𝐶
+′
+𝐸
+p>C^{\prime}_{E}
+), so
+ρ
+¯
+E
+(
+a
+,
+b
+,
+c
+)
+,
+p
+∼
+ρ
+¯
+E
+′′
+,
+p
+similar-to
+subscript
+¯
+𝜌
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+𝑝
+subscript
+¯
+𝜌
+superscript
+𝐸
+′′
+𝑝
+\overline{\rho}_{E_{(a,b,c)},p}\sim\overline{\rho}_{E^{\prime\prime},p}
+. In such a case, we can replace
+E
+′
+superscript
+𝐸
+′
+E^{\prime}
+by
+E
+′′
+superscript
+𝐸
+′′
+E^{\prime\prime}
+and find an elliptic curve satisfying (i), (ii) and (iii). It remains to prove that
+v
+𝔓
+​
+(
+j
+′
+)
+<
+0
+subscript
+𝑣
+𝔓
+superscript
+𝑗
+′
+0
+v_{{\mathfrak{P}}}(j^{\prime})<0
+. By Lemma
+2.3
+,
+p
+∣
+#
+​
+ρ
+E
+′
+,
+p
+​
+(
+I
+𝔓
+)
+conditional
+𝑝
+#
+subscript
+𝜌
+superscript
+𝐸
+′
+𝑝
+subscript
+𝐼
+𝔓
+p\mid\#\rho_{E^{\prime},p}(I_{{\mathfrak{P}}})
+(since
+#
+​
+ρ
+¯
+E
+′
+,
+p
+​
+(
+I
+𝔓
+)
+=
+#
+​
+ρ
+¯
+E
+(
+a
+,
+b
+,
+c
+)
+,
+p
+​
+(
+I
+𝔓
+)
+#
+subscript
+¯
+𝜌
+superscript
+𝐸
+′
+𝑝
+subscript
+𝐼
+𝔓
+#
+subscript
+¯
+𝜌
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+𝑝
+subscript
+𝐼
+𝔓
+\#\overline{\rho}_{E^{\prime},p}(I_{{\mathfrak{P}}})=\#\overline{\rho}_{E_{(a,b,c)},p}(I_{{\mathfrak{P}}})
+). Assuming
+p
+>
+24
+𝑝
+24
+p>24
+this gives the result, by
+[
+ŞS18
+, Lemma 5.1]
+.
+∎
+2.4.
+Contradiction and proof of the main results
+In this subsection we will handle the last step of the modular method, giving the proof of Theorem
+1.1
+. Then, we will prove Corollaries
+1.2
+and
+1.3
+, and we will finish with a remark about how to extent the known results for signature
+(
+p
+,
+p
+,
+2
+)
+𝑝
+𝑝
+2
+(p,p,2)
+.
+According to our strategy, we need to contradict Theorem
+2.14
+. Here is where we use hypothesis
+(H
+1
+1
+{}_{\textbf{1}}
+)
+or
+(H
+2
+2
+{}_{\textbf{2}}
+)
+.
+The following proposition follows from the proof of
+[
+Moc22
+, Theorem 3]
+. We write a proof in order to clarify.
+Proposition 2.15
+(Mocanu)
+.
+Let
+K
+𝐾
+K
+be a number field satisfying
+(H
+2
+2
+{}_{\textbf{2}}
+)
+and let
+𝔓
+∈
+T
+K
+𝔓
+subscript
+𝑇
+𝐾
+{\mathfrak{P}}\in T_{K}
+. Then, there are no elliptic curves
+E
+/
+K
+𝐸
+𝐾
+E/K
+satisfying the following:
+•
+E
+𝐸
+E
+has good reduction outside
+S
+K
+subscript
+𝑆
+𝐾
+S_{K}
+,
+•
+E
+𝐸
+E
+has a
+K
+𝐾
+K
+-rational point of order
+2
+2
+2
+,
+•
+v
+𝔓
+​
+(
+j
+)
+<
+0
+subscript
+𝑣
+𝔓
+𝑗
+0
+v_{{\mathfrak{P}}}(j)<0
+, where
+j
+𝑗
+j
+is the
+j
+𝑗
+j
+-invariant of
+E
+𝐸
+E
+.
+Proof.
+Suppose there is an elliptic curve
+E
+𝐸
+E
+satisfying (i)–(iii). Since it has a
+K
+𝐾
+K
+-rational point of order
+2
+2
+2
+then we can assume that is of the form
+E
+:
+y
+2
+=
+x
+2
++
+a
+​
+x
+2
++
+b
+​
+x
+,
+:
+𝐸
+superscript
+𝑦
+2
+superscript
+𝑥
+2
+𝑎
+superscript
+𝑥
+2
+𝑏
+𝑥
+E:y^{2}=x^{2}+ax^{2}+bx,
+with
+j
+𝑗
+j
+-invariant
+j
+=
+2
+8
+​
+(
+a
+2
+−
+3
+​
+b
+)
+3
+b
+2
+​
+(
+a
+2
+−
+4
+​
+b
+)
+𝑗
+superscript
+2
+8
+superscript
+superscript
+𝑎
+2
+3
+𝑏
+3
+superscript
+𝑏
+2
+superscript
+𝑎
+2
+4
+𝑏
+j=\frac{2^{8}(a^{2}-3b)^{3}}{b^{2}(a^{2}-4b)}
+. Since
+E
+𝐸
+E
+has good reduction outside
+S
+K
+subscript
+𝑆
+𝐾
+S_{K}
+then
+v
+𝔮
+​
+(
+j
+)
+≥
+0
+subscript
+𝑣
+𝔮
+𝑗
+0
+v_{\mathfrak{q}}(j)\geq 0
+for all
+𝔮
+∉
+S
+K
+𝔮
+subscript
+𝑆
+𝐾
+{\mathfrak{q}}\not\in S_{K}
+, therefore
+j
+∈
+𝒪
+S
+K
+𝑗
+subscript
+𝒪
+subscript
+𝑆
+𝐾
+j\in{\mathscr{O}}_{S_{K}}
+. Consider
+λ
+:=
+a
+2
+b
+assign
+𝜆
+superscript
+𝑎
+2
+𝑏
+\lambda:=\frac{a^{2}}{b}
+and
+μ
+:=
+λ
+−
+4
+=
+a
+2
+−
+4
+​
+b
+b
+assign
+𝜇
+𝜆
+4
+superscript
+𝑎
+2
+4
+𝑏
+𝑏
+\mu:=\lambda-4=\frac{a^{2}-4b}{b}
+. By
+[
+Moc22
+, Lemma 17 (i)]
+we get that
+λ
+​
+𝒪
+K
+=
+I
+2
+​
+J
+,
+where
+​
+J
+​
+is an
+​
+S
+K
+​
+-ideal.
+𝜆
+subscript
+𝒪
+𝐾
+superscript
+𝐼
+2
+𝐽
+where
+𝐽
+is an
+subscript
+𝑆
+𝐾
+-ideal.
+\lambda{\mathscr{O}}_{K}=I^{2}J,\quad\text{ where }J\text{ is an }S_{K}\text{-ideal.}
+Then, as elements of
+Cl
+⁡
+(
+K
+)
+Cl
+𝐾
+\operatorname{Cl}(K)
+,
+[
+J
+]
+−
+1
+=
+[
+I
+]
+2
+superscript
+delimited-[]
+𝐽
+1
+superscript
+delimited-[]
+𝐼
+2
+[J]^{-1}=[I]^{2}
+and also
+[
+J
+]
+∈
+⟨
+S
+K
+⟩
+delimited-[]
+𝐽
+delimited-⟨⟩
+subscript
+𝑆
+𝐾
+[J]\in\langle S_{K}\rangle
+. This implies that
+[
+I
+]
+∈
+Cl
+S
+K
+⁡
+(
+K
+)
+​
+[
+2
+]
+=
+{
+1
+}
+delimited-[]
+𝐼
+subscript
+Cl
+subscript
+𝑆
+𝐾
+𝐾
+delimited-[]
+2
+1
+[I]\in\operatorname{Cl}_{S_{K}}(K)[2]=\{1\}
+, so
+[
+I
+]
+∈
+⟨
+S
+K
+⟩
+delimited-[]
+𝐼
+delimited-⟨⟩
+subscript
+𝑆
+𝐾
+[I]\in\langle S_{K}\rangle
+. In other words, there exist
+γ
+∈
+𝒪
+K
+𝛾
+subscript
+𝒪
+𝐾
+\gamma\in{\mathscr{O}}_{K}
+and an
+S
+K
+subscript
+𝑆
+𝐾
+S_{K}
+-ideal
+I
+~
+~
+𝐼
+\tilde{I}
+such that
+I
+=
+γ
+​
+I
+~
+𝐼
+𝛾
+~
+𝐼
+I=\gamma\tilde{I}
+. Then,
+λ
+​
+𝒪
+K
+=
+γ
+2
+​
+I
+~
+2
+​
+J
+,
+where both
+​
+I
+~
+​
+and
+​
+J
+​
+are
+​
+S
+K
+​
+-ideals
+.
+𝜆
+subscript
+𝒪
+𝐾
+superscript
+𝛾
+2
+superscript
+~
+𝐼
+2
+𝐽
+where both
+~
+𝐼
+and
+𝐽
+are
+subscript
+𝑆
+𝐾
+-ideals
+\lambda{\mathscr{O}}_{K}=\gamma^{2}\tilde{I}^{2}J,\quad\text{ where both }\tilde{I}\text{ and }J\text{ are }S_{K}\text{-ideals}.
+Finally,
+λ
+γ
+2
+​
+𝒪
+K
+𝜆
+superscript
+𝛾
+2
+subscript
+𝒪
+𝐾
+\frac{\lambda}{\gamma^{2}}{\mathscr{O}}_{K}
+is an
+S
+K
+subscript
+𝑆
+𝐾
+S_{K}
+-ideal, which implies that
+u
+:=
+λ
+γ
+2
+assign
+𝑢
+𝜆
+superscript
+𝛾
+2
+u:=\frac{\lambda}{\gamma^{2}}
+is an
+S
+K
+subscript
+𝑆
+𝐾
+S_{K}
+-unit. Now, dividing
+μ
++
+4
+=
+λ
+𝜇
+4
+𝜆
+\mu+4=\lambda
+by
+u
+𝑢
+u
+, we get
+(7)
+α
++
+β
+=
+γ
+2
+,
+𝛼
+𝛽
+superscript
+𝛾
+2
+\alpha+\beta=\gamma^{2},
+where
+α
+:=
+μ
+u
+∈
+𝒪
+S
+K
+×
+assign
+𝛼
+𝜇
+𝑢
+superscript
+subscript
+𝒪
+subscript
+𝑆
+𝐾
+\alpha:=\frac{\mu}{u}\in{\mathscr{O}}_{S_{K}}^{\times}
+,
+β
+:=
+4
+u
+∈
+𝒪
+S
+K
+×
+assign
+𝛽
+4
+𝑢
+superscript
+subscript
+𝒪
+subscript
+𝑆
+𝐾
+\beta:=\frac{4}{u}\in{\mathscr{O}}_{S_{K}}^{\times}
+. In order to get a contradiction, it is enough to see that
+v
+𝔓
+​
+(
+j
+)
+≥
+0
+subscript
+𝑣
+𝔓
+𝑗
+0
+v_{\mathfrak{P}}(j)\geq 0
+. Using that
+α
+β
+=
+μ
+4
+𝛼
+𝛽
+𝜇
+4
+\frac{\alpha}{\beta}=\frac{\mu}{4}
+and equation (
+7
+), we can rewrite condition
+|
+v
+𝔓
+​
+(
+α
+β
+)
+|
+≤
+6
+​
+v
+𝔓
+​
+(
+2
+)
+subscript
+𝑣
+𝔓
+𝛼
+𝛽
+6
+subscript
+𝑣
+𝔓
+2
+|v_{\mathfrak{P}}(\frac{\alpha}{\beta})|\leq 6v_{\mathfrak{P}}(2)
+as
+−
+4
+​
+v
+𝔓
+​
+(
+2
+)
+≤
+v
+𝔓
+​
+(
+μ
+)
+≤
+8
+​
+v
+𝔓
+​
+(
+2
+)
+.
+4
+subscript
+𝑣
+𝔓
+2
+subscript
+𝑣
+𝔓
+𝜇
+8
+subscript
+𝑣
+𝔓
+2
+-4v_{\mathfrak{P}}(2)\leq v_{\mathfrak{P}}(\mu)\leq 8v_{\mathfrak{P}}(2).
+Now, the proof follows identically as in
+[
+Moc22
+, Theorem 3]
+, analizing the possibles values of
+v
+𝔓
+​
+(
+μ
+)
+subscript
+𝑣
+𝔓
+𝜇
+v_{\mathfrak{P}}(\mu)
+, and using that
+v
+𝔓
+​
+(
+j
+)
+=
+8
+​
+v
+𝔓
+​
+(
+2
+)
++
+3
+​
+v
+𝔓
+​
+(
+μ
++
+1
+)
+−
+v
+𝔓
+​
+(
+μ
+)
+.
+subscript
+𝑣
+𝔓
+𝑗
+8
+subscript
+𝑣
+𝔓
+2
+3
+subscript
+𝑣
+𝔓
+𝜇
+1
+subscript
+𝑣
+𝔓
+𝜇
+v_{\mathfrak{P}}(j)=8v_{\mathfrak{P}}(2)+3v_{\mathfrak{P}}(\mu+1)-v_{\mathfrak{P}}(\mu).
+∎
+Regarding
+(H
+1
+1
+{}_{\textbf{1}}
+)
+, we will make use of the following Theorem of Freitas, Kraus and Siksek (with
+ℓ
+=
+2
+ℓ
+2
+\ell=2
+).
+Theorem 2.16
+(
+[
+FKS20
+]
+, Theorem 1)
+.
+Let
+ℓ
+ℓ
+\ell
+be a rational prime. Let
+K
+𝐾
+K
+be a number field satisfying the following conditions:
+•
+ℚ
+​
+(
+ζ
+ℓ
+)
+⊂
+K
+ℚ
+subscript
+𝜁
+ℓ
+𝐾
+{\mathbb{Q}}(\zeta_{\ell})\subset K
+, where
+ζ
+ℓ
+subscript
+𝜁
+ℓ
+\zeta_{\ell}
+is a primitive
+ℓ
+ℓ
+\ell
+-th root of unity;
+•
+K
+𝐾
+K
+has a unique prime
+λ
+𝜆
+\lambda
+above
+ℓ
+ℓ
+\ell
+;
+•
+gcd
+⁡
+(
+h
+K
++
+,
+ℓ
+​
+(
+ℓ
+−
+1
+)
+)
+=
+1
+superscript
+subscript
+ℎ
+𝐾
+ℓ
+ℓ
+1
+1
+\gcd(h_{K}^{+},\ell(\ell-1))=1
+.
+Then there are no elliptic curves
+E
+/
+K
+𝐸
+𝐾
+E/K
+with a
+K
+𝐾
+K
+-rational
+ℓ
+ℓ
+\ell
+-isogeny, good reduction
+away from
+λ
+𝜆
+\lambda
+and potentially multiplicative reduction at
+λ
+𝜆
+\lambda
+.
+Now we are in conditions to prove the main theorem and its implications.
+Proof of Theorem
+1.1
+.
+Let
+K
+𝐾
+K
+be a number field satisfying
+(H
+1
+1
+{}_{\textbf{1}}
+)
+or
+(H
+2
+2
+{}_{\textbf{2}}
+)
+and let
+𝔓
+𝔓
+{\mathfrak{P}}
+in
+S
+K
+subscript
+𝑆
+𝐾
+S_{K}
+in the former case and
+𝔓
+𝔓
+{\mathfrak{P}}
+in
+T
+K
+subscript
+𝑇
+𝐾
+T_{K}
+in the latest. Take
+B
+K
+subscript
+𝐵
+𝐾
+B_{K}
+as in Theorem
+2.14
+. Suppose there is a non-trivial primitive solution
+(
+a
+,
+b
+,
+c
+)
+𝑎
+𝑏
+𝑐
+(a,b,c)
+of (
+3
+) with exponent
+p
+>
+B
+K
+𝑝
+subscript
+𝐵
+𝐾
+p>B_{K}
+such that
+𝔓
+∣
+c
+conditional
+𝔓
+𝑐
+{\mathfrak{P}}\mid c
+. By Remark
+3
+, we can assume
+(
+a
+,
+b
+,
+c
+)
+∈
+W
+𝔓
+𝑎
+𝑏
+𝑐
+subscript
+𝑊
+𝔓
+(a,b,c)\in W_{\mathfrak{P}}
+, otherwise
+(
+a
+,
+−
+b
+,
+c
+)
+𝑎
+𝑏
+𝑐
+(a,-b,c)
+would be in
+W
+𝔓
+subscript
+𝑊
+𝔓
+W_{\mathfrak{P}}
+. By Theorem
+2.14
+we can find an elliptic curve
+E
+′
+superscript
+𝐸
+′
+E^{\prime}
+having a
+K
+𝐾
+K
+-rational point of order
+2
+2
+2
+, good reduction outside
+S
+K
+subscript
+𝑆
+𝐾
+S_{K}
+, multiplicative reduction at
+𝔓
+𝔓
+{\mathfrak{P}}
+and related by
+ρ
+¯
+E
+(
+a
+,
+b
+,
+c
+)
+,
+p
+∼
+ρ
+¯
+E
+′
+,
+p
+similar-to
+subscript
+¯
+𝜌
+subscript
+𝐸
+𝑎
+𝑏
+𝑐
+𝑝
+subscript
+¯
+𝜌
+superscript
+𝐸
+′
+𝑝
+\overline{\rho}_{E_{(a,b,c)},p}\sim\overline{\rho}_{E^{\prime},p}
+. If
+(H
+1
+1
+{}_{\textbf{1}}
+)
+is satisfied, Theorem
+2.16
+gives a contradiction. In case that
+(H
+2
+2
+{}_{\textbf{2}}
+)
+is satisfied, then Proposition
+2.15
+gives the desired contradiction.
+∎
+Proof of Corollary
+1.2
+.
+Note that if
+K
+=
+ℚ
+​
+(
+d
+)
+𝐾
+ℚ
+𝑑
+K={\mathbb{Q}}(\sqrt{d})
+with
+d
+>
+0
+𝑑
+0
+d>0
+a prime number such that
+d
+≡
+5
+(
+mod
+8
+)
+𝑑
+annotated
+5
+pmod
+8
+d\equiv 5\pmod{8}
+then
+2
+2
+2
+is inert in
+K
+𝐾
+K
+. Since
+d
+𝑑
+d
+is prime, by
+[
+Lem10
+, Proposition 1.3.2]
+we have
+2
+∤
+h
+K
++
+not-divides
+2
+superscript
+subscript
+ℎ
+𝐾
+2\nmid h_{K}^{+}
+so
+(H
+1
+1
+{}_{\textbf{1}}
+)
+holds . Moreover, the effectivity of the bound follows from modularity of curves over real quadratic fields (see Theorem
+2.4
+).
+∎
+Remark 6
+.
+It is easy to see that Corollary
+1.2
+still holds for
+d
+<
+0
+𝑑
+0
+d<0
+if we assume Conjectures
+1
+and
+2
+.
+Proof of Corollary
+1.3
+.
+Since
+ℚ
+r
+,
+2
+subscript
+ℚ
+𝑟
+2
+{\mathbb{Q}}_{r,2}
+is a totally real field with odd narrow class number (see
+[
+Iwa56
+, II]
+) then
+(H
+1
+1
+{}_{\textbf{1}}
+)
+is satisfied and we can apply Theorem
+1.1
+. The effectivity of the bound follows from modularity of curves over
+ℤ
+p
+subscript
+ℤ
+𝑝
+{\mathbb{Z}}_{p}
+-extensions of
+ℚ
+ℚ
+{\mathbb{Q}}
+proved by Thorne
+[
+Tho19
+]
+.
+∎
+Remark 7
+.
+As was mentioned in Remark
+2
+, the same strategy applies for others signatures. In the particular case of signature
+(
+p
+,
+p
+,
+2
+)
+𝑝
+𝑝
+2
+(p,p,2)
+, we also have
+ℓ
+=
+2
+ℓ
+2
+\ell=2
+(following the remark notation). In
+[
+Moc22
+]
+just
+(H
+2
+2
+{}_{\textbf{2}}
+)
+was used as a possible hypothesis, but in that case Theorem
+2.16
+could also be applied in the last step of the strategy, so
+(H
+1
+1
+{}_{\textbf{1}}
+)
+would also work. Note that just assuming
+(H
+1
+1
+{}_{\textbf{1}}
+)
+, Theorems 5 and 7 of
+[
+Moc22
+]
+can be generalized. In the general case, we can get the following result.
+Theorem 2.17
+.
+Let
+K
+𝐾
+K
+be a number field satisfying
+(H
+1
+1
+{}_{\textbf{1}}
+)
+or
+(H
+2
+2
+{}_{\textbf{2}}
+)
+. If
+K
+𝐾
+K
+has at least one complex embedding, assume Conjectures
+1
+and
+2
+. Let
+𝔓
+𝔓
+{\mathfrak{P}}
+the only prime in
+S
+K
+subscript
+𝑆
+𝐾
+S_{K}
+in case that
+(H
+1
+1
+{}_{\textbf{1}}
+)
+holds or be in
+T
+K
+subscript
+𝑇
+𝐾
+T_{K}
+in case that
+(H
+2
+2
+{}_{\textbf{2}}
+)
+holds. Then, there exists a bound
+B
+K
+subscript
+𝐵
+𝐾
+B_{K}
+(depending only on
+K
+𝐾
+K
+) such that if
+p
+>
+B
+K
+𝑝
+subscript
+𝐵
+𝐾
+p>B_{K}
+the equation
+x
+p
++
+y
+p
+=
+z
+2
+superscript
+𝑥
+𝑝
+superscript
+𝑦
+𝑝
+superscript
+𝑧
+2
+x^{p}+y^{p}=z^{2}
+does not have non-trivial primitive solutions
+(
+a
+,
+b
+,
+c
+)
+∈
+𝒪
+K
+3
+𝑎
+𝑏
+𝑐
+superscript
+subscript
+𝒪
+𝐾
+3
+(a,b,c)\in{\mathscr{O}}_{K}^{3}
+with
+𝔓
+∣
+b
+conditional
+𝔓
+𝑏
+{\mathfrak{P}}\mid b
+.
+References
+[Bla04]
+Don Blasius.
+Elliptic curves, Hilbert modular forms, and the Hodge conjecture.
+In
+Contributions to automorphic forms, geometry, and number
+theory
+, pages 83–103. Johns Hopkins Univ. Press, Baltimore, MD, 2004.
+[Dar04]
+Henri Darmon.
+Rational points on modular elliptic curves
+, volume 101 of
+CBMS Regional Conference Series in Mathematics
+.
+Published for the Conference Board of the Mathematical Sciences,
+Washington, DC; by the American Mathematical Society, Providence, RI, 2004.
+[Dec16]
+Heline Deconinck.
+On the generalized Fermat equation over totally real fields.
+Acta Arith.
+, 173(3):225–237, 2016.
+[DG95]
+Henri Darmon and Andrew Granville.
+On the equations
+z
+m
+=
+F
+​
+(
+x
+,
+y
+)
+superscript
+𝑧
+𝑚
+𝐹
+𝑥
+𝑦
+z^{m}=F(x,y)
+and
+A
+​
+x
+p
++
+B
+​
+y
+q
+=
+C
+​
+z
+r
+𝐴
+superscript
+𝑥
+𝑝
+𝐵
+superscript
+𝑦
+𝑞
+𝐶
+superscript
+𝑧
+𝑟
+Ax^{p}+By^{q}=Cz^{r}
+.
+Bull. London Math. Soc.
+, 27(6):513–543, 1995.
+[DU09]
+Luis Dieulefait and Jorge Jiménez Urroz.
+Solving Fermat-type equations via modular
+ℚ
+ℚ
+\mathbb{Q}
+-curves
+over polyquadratic fields.
+J. Reine Angew. Math.
+, 633:183–195, 2009.
+[Ell04]
+Jordan S. Ellenberg.
+Galois representations attached to
+ℚ
+ℚ
+\mathbb{Q}
+-curves and the
+generalized Fermat equation
+A
+4
++
+B
+2
+=
+C
+p
+superscript
+𝐴
+4
+superscript
+𝐵
+2
+superscript
+𝐶
+𝑝
+A^{4}+B^{2}=C^{p}
+.
+Amer. J. Math.
+, 126(4):763–787, 2004.
+[Etr15]
+Anastassia Etropolski.
+Local-global principles for certain images of galois representations,
+2015.
+[Fal83]
+G. Faltings.
+Endlichkeitssätze für abelsche varietäten über zahlkörpern.
+Inventiones mathematicae
+, 73:349–366, 1983.
+[FKS20]
+Nuno Freitas, Alain Kraus, and Samir Siksek.
+Class field theory, Diophantine analysis and the asymptotic
+Fermat’s last theorem.
+Adv. Math.
+, 363:37, 2020.
+Id/No 106964.
+[FLHS15]
+Nuno Freitas, Bao V. Le Hung, and Samir Siksek.
+Elliptic curves over real quadratic fields are modular.
+Invent. Math.
+, 201(1):159–206, 2015.
+[FS15]
+Nuno Freitas and Samir Siksek.
+The asymptotic Fermat’s Last Theorem for five-sixths of real
+quadratic fields.
+Compos. Math.
+, 151(8):1395–1415, 2015.
+[IKO20]
+Erman Işik, Yasemin Kara, and Ekin Özman.
+On ternary Diophantine equations of signature
+(
+p
+,
+p
+,
+2
+)
+𝑝
+𝑝
+2
+(p,p,2)
+over
+number fields.
+Turkish J. Math.
+, 44(4):1197–1211, 2020.
+[IKO22]
+Erman Işik, Yasemin Kara, and Ekin Özman.
+On ternary Diophantine equations of signature
+(
+p
+,
+p
+,
+3
+)
+𝑝
+𝑝
+3
+(p,p,3)
+over
+number fields.
+Canadian Journal of Mathematics
+, pages 1–21, 2022.
+[Iwa56]
+Kenkichi Iwasawa.
+A note on class numbers of algebraic number fields.
+Abh. Math. Sem. Univ. Hamburg
+, 20:257–258, 1956.
+[Kat81]
+Nicholas M. Katz.
+Galois properties of torsion points on abelian varieties.
+Invent. Math.
+, 62(3):481–502, 1981.
+[KO20]
+Yasemin Kara and Ekin Özman.
+Asymptotic generalized Fermat’s last theorem over number fields.
+Int. J. Number Theory
+, 16(5):907–924, 2020.
+[Lem10]
+F. Lemmermeyer.
+Class Field Towers.
+September 7, 2010.
+[Moc22]
+Diana Mocanu.
+Asymptotic Fermat for signatures
+(
+p
+,
+p
+,
+2
+)
+𝑝
+𝑝
+2
+(p,p,2)
+and
+(
+p
+,
+p
+,
+3
+)
+𝑝
+𝑝
+3
+(p,p,3)
+over
+totally real fields, 2022.
+[PV22a]
+Ariel Pacetti and Lucas Villagra Torcomian.
+ℚ
+ℚ
+\mathbb{Q}
+-curves, Hecke characters and some Diophantine
+equations.
+Mathematics of Computation
+, to appear, 2022.
+[PV22b]
+Ariel Pacetti and Lucas Villagra Torcomian.
+ℚ
+ℚ
+\mathbb{Q}
+-curves, Hecke characters and some Diophantine
+equations II.
+Publicacions Matemàtiques
+, to appear, 2022.
+[SD75]
+H. P. F. Swinnerton-Dyer.
+Correction to: “On
+l
+𝑙
+l
+-adic representations and congruences for
+coefficients of modular forms” (Modular functions of one variable, III
+(Proc. Internat. Summer School, Univ. Antwerp, 1972), pp. 1–55,
+Lecture Notes in Math., Vol. 350, Springer, Berlin, 1973).
+In
+Modular functions of one variable, IV (Proc. Internat.
+Summer School, Univ. Antwerp, Antwerp, 1972)
+, pages 149. Lecture
+Notes in Math., Vol. 476, 1975.
+[Ser87]
+Jean-Pierre Serre.
+Sur les représentations modulaires de degré
+2
+2
+2
+de
+Gal
+​
+(
+ℚ
+¯
+/
+ℚ
+)
+Gal
+¯
+ℚ
+ℚ
+{\rm Gal}(\overline{\mathbb{Q}}/{\mathbb{Q}})
+.
+Duke Math. J.
+, 54(1):179–230, 1987.
+[Sil94]
+Joseph H. Silverman.
+Advanced topics in the arithmetic of elliptic curves
+, volume
+151 of
+Graduate Texts in Mathematics
+.
+Springer-Verlag, New York, 1994.
+[ŞS18]
+Mehmet Haluk Şengün and Samir Siksek.
+On the asymptotic Fermat’s last theorem over number fields.
+Comment. Math. Helv.
+, 93(2):359–375, 2018.
+[Tho19]
+Jack A. Thorne.
+Elliptic curves over
+ℚ
+∞
+subscript
+ℚ
+\mathbb{Q}_{\infty}
+are modular.
+J. Eur. Math. Soc. (JEMS)
+, 21(7):1943–1948, 2019.
+[Wil95]
+Andrew Wiles.
+Modular elliptic curves and Fermat’s last theorem.
+Ann. of Math. (2)
+, 141(3):443–551, 1995.
+[Zha01]
+Shouwu Zhang.
+Heights of Heegner points on Shimura curves.
+Ann. of Math. (2)
+, 153(1):27–147, 2001.

@@ -288,7 +288,7 @@ function ensureGraphToolbar(container) {
   CFG.overview.forEach(sec => {
     const el = document.createElement('div');
     el.className = 'field-overview-section';
-    el.innerHTML = `<h3>${sec.title}</h3>${sec.body_html}`;
+    el.innerHTML = `${sec.title ? `<h3>${sec.title}</h3>` : ''}${sec.body_html}`;
     root.appendChild(el);
   });
 })();
@@ -297,10 +297,16 @@ function ensureGraphToolbar(container) {
 (function renderLatestOverview() {
   const root = document.getElementById('latest-progress-overview');
   if (!root) return;
+  if (!CFG.meta.latest_overview_from_doc) {
+    const note = document.createElement('div');
+    note.className = 'warn-box';
+    note.textContent = '当前“最新进展综述”仍是编译器注入的模板占位，请在源知识文档中补充最近一个月的真实内容。';
+    root.appendChild(note);
+  }
   (CFG.latest_overview || []).forEach(sec => {
     const el = document.createElement('div');
     el.className = 'field-overview-section';
-    el.innerHTML = `<h3>${sec.title}</h3>${sec.body_html}`;
+    el.innerHTML = `${sec.title ? `<h3>${sec.title}</h3>` : ''}${sec.body_html}`;
     root.appendChild(el);
   });
 })();

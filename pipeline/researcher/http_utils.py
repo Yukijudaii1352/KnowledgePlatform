@@ -122,10 +122,16 @@ class HttpClient:
         )
 
     # --- 反爬 fallback：优先直连，失败再 r.jina.ai ---
-    def fetch_text(self, url: str, prefer_raw: bool = True) -> Dict[str, str]:
+    def fetch_text(
+        self,
+        url: str,
+        prefer_raw: bool = True,
+        allow_jina_fallback: Optional[bool] = None,
+    ) -> Dict[str, str]:
         """
         返回 {"html": ..., "source": "direct|jina|fail", "status": int}
         """
+        # allow_jina_fallback 用于按站点关闭慢且无效的 fallback。
         # 1) 直连
         try:
             r = self.get(url, timeout=self.timeout)
@@ -136,7 +142,9 @@ class HttpClient:
             status = -1
 
         # 2) r.jina.ai fallback（免 key 的阅读代理，返回 markdown 文本）
-        if self.enable_jina_fallback:
+        if allow_jina_fallback is None:
+            allow_jina_fallback = self.enable_jina_fallback
+        if allow_jina_fallback:
             try:
                 jina_url = "https://r.jina.ai/" + url
                 r2 = requests.get(

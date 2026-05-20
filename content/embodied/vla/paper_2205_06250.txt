@@ -1,0 +1,4166 @@
+An Integrative Analysis of the Rich Planetary System of the Nearby Star e Eridani: Ideal Targets For Exoplanet Imaging and Biosignature Searches
+Ritvik Basant
+Steward Observatory and Department of Astronomy, The University of Arizona, Tucson, AZ 85721, USA
+Jeremy Dietrich
+Steward Observatory and Department of Astronomy, The University of Arizona, Tucson, AZ 85721, USA
+Dániel Apai
+Steward Observatory and Department of Astronomy, The University of Arizona, Tucson, AZ 85721, USA
+Lunar and Planetary Laboratory and Department of Planetary Sciences, The University of Arizona, Tucson, AZ 85721, USA
+Abstract
+e Eridani (catalog )
+, the fifth-closest Sun-like star, hosts at least three planets and could possibly harbor more. However, the veracity of the planet candidates in the system and its full planetary architecture remain unknown. Here we analyze the planetary architecture of
+e Eridani (catalog )
+via
+DYNAMITE
+, a method providing an integrative assessment of the system architecture (and possibly yet-undetected planets) by combining statistical, exoplanet-population level knowledge with incomplete but specific information available on the system.
+DYNAMITE
+predicts the most likely location of an additional planet in the system based on the Kepler population demographic information from more than 2000 planets. Additionally, we analyze the dynamical stability of
+e Eridani (catalog )
+system via N-body simulations. Our
+DYNAMITE
+and dynamical stability analyses provide support for planet candidates g, c, and f, and also predict one additional planet candidate with an orbital period between 549 – 733 days, in the habitable zone of the system. We find that planet candidate f, if it exists, would also lie in the habitable zone. Our dynamical stability analysis also shows that the
+e Eridani (catalog )
+planetary eccentricities, as reported, do not allow for a stable system, suggesting that they are lower. We introduce a new statistical approach for estimating the equilibrium and surface temperatures of exoplanets, based on a prior on the planetary albedo distribution.
+e Eridani (catalog )
+is a rich planetary system with a possibility of containing two potentially habitable planets, and its vicinity to our Solar System makes it an important target for future imaging studies and biosignature searches.
+†
+†
+journal:
+AJ
+1
+Introduction
+Despite the rapid progress in discovering extrasolar planets, the exoplanet population of the solar neighborhood remains mostly unexplored: for example, around the approximately 1,500 stars known within 15 pc
+(e.g., Gaia Collaboration et al.,
+2021
+)
+, which may host
+several thousand
+planets, only 159 are known. Given that planets are intrinsically faint, those that are the closest to us (i.e., orbit the closest stars) are set to play key roles in the future of exoplanet studies and, especially, in searches for atmospheric biosignatures
+(e.g. The LUVOIR Team,
+2019
+; Gaudi et al.,
+2020
+)
+. Therefore, it is strategically important to explore nearby planetary systems and to identify those that are the most likely to harbor potentially habitable worlds.
+While the information on specific planetary systems almost always remains incomplete and often uncertain, the emerging body of information on exoplanet demographics and on planet formation and evolution can be combined in the future to improve the understanding of individual planetary systems
+(e.g., Apai et al.,
+2019
+)
+.
+The goal of this paper is to study the planetary system of
+e Eridani (catalog )
+(also known as 82 Eridani,
+GJ 139 (catalog )
+, and
+HD 20794 (catalog )
+; not to be confused with
+ϵ
+italic-ϵ
+\epsilon
+Eridani), the fifth-closest Sun-like star, via a novel integrative analysis. Through this analysis, we predict the orbits and properties of yet-undetected planets. Such predictions can help the interpretation of planet candidates identified at low significance levels and can also guide follow-up observations of the planetary system.
+At a distance of
+6.04
+6.04
+6.04
+pc,
+e Eridani (catalog )
+is one of the nearest and brightest stars in the sky that is known to host super-Earth planets
+(e.g., Ma et al.,
+2018
+)
+. The first evidence for planets in the
+e Eridani (catalog )
+system was found in radial velocity data by
+(Pepe et al.,
+2011
+, hereafter
+P11
+)
+, who confirmed two planets and suggested the presence of another. Follow-up observations by
+Feng et al. (
+2017a
+, hereafter
+F17
+)
+provided additional evidence for several other planets, with up to six potential planets and candidates known in the system.
+The planetary system around
+e Eridani (catalog )
+not only has an astronomical significance, but it also has a special place in science fiction and visions of humanity’s future. It is featured in various novels and short stories as a system with habitable worlds which foster intelligent life (c.f., Anderson’s
+Orbit Unlimited
+and Pournelle’s short story
+He Fell into a Dark Hole
+, or Kube-McDowell’s story that envisioned it as a home to a primitive human colony). These stories predated the discovery of planets in the
+e Eridani (catalog )
+system, but modern methods finally enable exploring the planetary architecture of the
+e Eridani (catalog )
+system and the properties of its worlds.
+In this paper, we integrate specific information on the
+e Eridani (catalog )
+planetary system (constraints on planets and their orbits) with population-level information on exoplanets (exoplanet demographics) to provide a robust assessment of the
+e Eridani (catalog )
+planetary system. Specifically, we use the
+DYNAMITE
+1
+1
+1
+https://github.com/JeremyDietrich/dynamite
+(Dietrich & Apai,
+2020
+)
+integrated analysis software package, which was recently successfully utilized in multiple studies (see below).
+DYNAMITE
+asks the question: If an additional planet exists in a planetary system, what are the probability distributions of its orbital period, eccentricity, inclination, and planet size?
+To answer this question,
+DYNAMITE
+uses robust trends identified in the Kepler exoplanet demographics data (orbital period distribution, planet-size distribution, etc., based on the
+∼
+similar-to
+\sim
+2,400 exoplanets that form the Kepler population) with specific data for a given single exoplanet system (detected planets and constraints on their orbits and sizes). Based on this information,
+DYNAMITE
+uses a Monte Carlo approach to map the likelihood of different planetary architectures, also considering orbital dynamical stability and allowing for freedom of statistical model choice.
+By now,
+DYNAMITE
+has been used successfully in a multitude of studies:
+Dietrich & Apai (
+2020
+)
+first demonstrated the capabilities of
+DYNAMITE
+on 45 TESS-discovered transiting planetary systems to predict yet undiscovered planets. In that study, when a known transiting planet – Kepler-154 f – was deliberately hidden from the algorithm,
+DYNAMITE
+not only retrieved the planet but also predicted its size and inclination accurately. When the known non-transiting planet Kepler-20 g was removed from the Kepler-20 system,
+DYNAMITE
+again recovered the planet. When removing multiple planets from the TOI-174 system,
+DYNAMITE
+again indicated the likelihood of an additional planet at the location of the purposely removed planets. Even when the periods of other planets are altered within
+3
+​
+σ
+3
+𝜎
+3\sigma
+, the predictions are mostly unaffected by this, and only slightly shifted if all the planetary periods were changed in the same direction. Lastly, when analyzing the HD 219134 system, another planet with a period
+∼
+similar-to
+\sim
+12 days is predicted between current planet c and candidate f, along with an additional planet external to planet candidate g (see also Dietrich et al. 2021, submitted).
+When
+DYNAMITE
+was applied to the
+τ
+𝜏
+\tau
+Ceti system
+(Dietrich & Apai,
+2021
+)
+, it provided contextual and statistical evidence for unconfirmed planets b, c, and d, which were found in one earlier study but have marginal evidence over a decade of observations
+(Tuomi et al.,
+2013
+; Feng et al.,
+2017b
+)
+. In addition,
+DYNAMITE
+also predicted another yet-unobserved planet in the habitable zone.
+Hardegree-Ullman et al. (
+2021
+)
+used
+DYNAMITE
+on the K2-138 planetary system and accurately predicted planets c and e while analyzing different scenarios in their study. In tests focusing on the inner Solar System,
+DYNAMITE
+also successfully predicted the positions and sizes of Venus and Earth when one of them was removed from the inner Solar System
+(Dietrich et al.,
+2022
+)
+. While
+DYNAMITE
+provides a robust way of predicting the likely positions where additional planets could exist in a system, we emphasize that the analysis is based on the available exoplanet demographics data. Therefore, the validity of extrapolating from these results to planet mass
+<
+1
+​
+M
+⊕
+absent
+1
+subscript
+𝑀
+direct-sum
+<1M_{\oplus}
+or
+>
+4
+​
+M
+⊕
+absent
+4
+subscript
+𝑀
+direct-sum
+>4M_{\oplus}
+and to non-planetary objects (like planetesimal belts) could not be ascertained. Consequently, our analysis and predictions from
+DYNAMITE
+are likely to be correct for typical planetary systems but not expected to hold for rare planets or outliers among planetary architectures.
+In addition to applying
+DYNAMITE
+to
+e Eridani (catalog )
+, in this study we also present an additional module that statistically determines the possible equilibrium and surface temperatures of the planets studied. We also compare the temperature results for the
+e Eridani (catalog )
+system and the inner Solar System. Though the model we use for this specific task is simple, it still provides some useful insights into the possible temperatures of the planets in the system.
+This paper is organized as follows. Section
+2
+delineates the current knowledge of the
+e Eridani (catalog )
+system. We describe the
+DYNAMITE
+package and our implementation of it, the predictive temperature analysis, and the eccentricity analysis in Section
+3
+. Section
+4
+summarizes the results of our analysis of the planetary architecture, the equilibrium and surface temperatures of the planets, and the results of our eccentricity analysis. We discuss the results of the architectural analysis (including the likely number of planets and their eccentricities) in Section
+5
+. In Section
+6
+, we motivate our prior on the planetary Bond albedo distribution and then discuss the results of the predicted equilibrium and surface temperature likelihood distributions, as well as the potential for habitable worlds in the
+e Eridani (catalog )
+system. Finally, in Section
+7
+, we discuss the potential for habitable worlds in the
+e Eridani (catalog )
+system.
+2
+The e Eridani planetary System
+2.1
+Stellar Parameters
+e Eridani (catalog )
+is a G8V, broadly Sun-like star
+(
+P11
+, )
+located at a distance of
+6.0414
+±
+0.0029
+plus-or-minus
+6.0414
+0.0029
+6.0414\pm 0.0029
+pc
+(Gaia Collaboration et al.,
+2016
+,
+2018
+)
+from Earth, with a luminosity of
+0.656
+±
+0.003
+​
+L
+⊙
+plus-or-minus
+0.656
+0.003
+subscript
+𝐿
+direct-product
+0.656\pm 0.003L_{\odot}
+(Sousa et al.,
+2008
+)
+.
+Its key stellar parameters are summarized in Table
+1
+.
+Table 1:
+Stellar parameters for
+e Eridani (catalog )
+Parameter Name
+Value
+Ref.
+Spectral Type
+G8V
+(a)
+Mass [
+M
+⊙
+subscript
+𝑀
+direct-product
+M_{\odot}
+]
+0.813
+−
+0.012
++
+0.018
+superscript
+subscript
+0.813
+0.012
+0.018
+0.813_{-0.012}^{+0.018}
+(b)
+Radius [
+R
+⊙
+subscript
+𝑅
+direct-product
+R_{\odot}
+]
+0.92
+±
+0.02
+plus-or-minus
+0.92
+0.02
+0.92\pm 0.02
+(c)
+Luminosity [
+L
+⊙
+subscript
+𝐿
+direct-product
+L_{\odot}
+]
+0.656
+±
+0.003
+plus-or-minus
+0.656
+0.003
+0.656\pm 0.003
+(d)
+Temperature [K]
+5401
+±
+17
+plus-or-minus
+5401
+17
+5401\pm 17
+(d)
+Distance [pc]
+6.0414
+±
+0.0029
+plus-or-minus
+6.0414
+0.0029
+6.0414\pm 0.0029
+(e)
+P
+(
+R
+H
+​
+K
+′
+r
+​
+o
+​
+t
+{}_{rot}(R^{\prime}_{HK}
+)  [d]
+33.19
+±
+3.61
+plus-or-minus
+33.19
+3.61
+33.19\pm 3.61
+(a)
+[
+F
+​
+e
+/
+H
+]
+delimited-[]
+𝐹
+𝑒
+𝐻
+[Fe/H]
+[dex]
+−
+0.40
+±
+0.01
+plus-or-minus
+0.40
+0.01
+-0.40\pm 0.01
+(d)
+Age (
+R
+v
+H
+​
+K
+′
+subscript
+superscript
+𝑅
+′
+subscript
+𝑣
+𝐻
+𝐾
+R^{\prime}_{v_{HK}}
+) [Gyr]
+5.76
+±
+0.66
+plus-or-minus
+5.76
+0.66
+5.76\pm 0.66
+(a)
+>
+12.08
+absent
+12.08
+>12.08
+(c)
+13.5
+(f)
+Notes
+: (a)
+Pepe et al. (
+2011
+)
+, (b)
+Ramírez et al. (
+2013
+)
+, (c)
+Takeda et al. (
+2007
+)
+, (d)
+Sousa et al. (
+2008
+)
+, (e)
+Gaia Collaboration et al. (
+2018
+)
+, (f)
+Valenti & Fischer (
+2005
+)
+Ramírez et al. (
+2013
+)
+calculated the mass of
+e Eridani (catalog )
+to be
+0.813
+−
+0.012
++
+0.018
+​
+M
+⊙
+superscript
+subscript
+0.813
+0.012
+0.018
+subscript
+𝑀
+direct-product
+0.813_{-0.012}^{+0.018}M_{\odot}
+based on stellar evolution models. The stellar radius of
+0.92
+±
+0.02
+​
+R
+⊙
+plus-or-minus
+0.92
+0.02
+subscript
+𝑅
+direct-product
+0.92\pm 0.02R_{\odot}
+was calculated by
+Takeda et al. (
+2007
+)
+through a dense grid of evolutionary tracks. The calculated stellar radius value lies within the range of stellar radii calculated by
+Stassun et al. (
+2019
+)
+for this star based on
+Gaia
+parallaxes and the Stefan–Boltzmann Law. We adopted the derived luminosity, metallicity, and effective temperature values from
+Sousa et al. (
+2008
+)
+, who carried out a detailed spectroscopic analysis of the HARPS Guaranteed Time Observations (GTO) “high precision” data. We note that a
+4.68
+%
+percent
+4.68
+4.68\%
+higher luminosity than we adopted from
+Sousa et al. (
+2008
+)
+was calculated by
+Gaia Collaboration et al. (
+2018
+)
+, but this slightly higher value would not appreciably impact the boundaries of the habitable zone or any of our results. Though
+e Eridani (catalog )
+’s stellar spectral classification is not yet fully settled, we note that – based on the values of mass, radius, luminosity, and temperature –
+e Eridani (catalog )
+is more likely to be a late G-type star than an early K-type star. However, our analysis relies on the derived luminosity and effective temperature values and not on the spectral type. The age of
+e Eridani (catalog )
+is likely old, but its exact value remains uncertain:
+5.76
+5.76
+5.76
+Gyr is reported by
+P11
+, an age
+>
+12.08
+absent
+12.08
+>12.08
+Gyr is found by
+Takeda et al. (
+2007
+)
+, and
+13.5
+13.5
+13.5
+Gyr is derived by
+Valenti & Fischer (
+2005
+)
+. The latter two ages have been determined by isochrone fitting, while
+P11
+used the activity-rotation-age calibration method to calculate the age, following the method given by
+Mamajek & Hillenbrand (
+2008
+)
+. While such a large disparity in the star’s age could affect the potential habitability of the system, the age itself is not utilized in our statistical analysis.
+2.2
+Planetary system
+In 2011,
+P11
+announced the discovery of two planets orbiting
+e Eridani (catalog )
+with orbital periods of 18 days (planet b) and 90 days (planet d). These planets were found using radial velocity (RV) measurements and were identified as likely super-Earths, given their measured
+m
+​
+sin
+⁡
+i
+𝑚
+𝑖
+m\sin i
+values. The analysis also found weak evidence for an additional planet, planet candidate c, at a 40-day period. In a follow-up study by
+F17
+, six different signals were found at periods of 11.9 d (planet g), 18.33 d (confirming planet b), 43.17 d (planet c), 88.9 d (confirming planet d), 147.02 d (planet e), and 331.41 d (planet f). The three additional signals found in the
+Feng et al. (
+2017a
+)
+study resulted from an extended set of observations, more sophisticated data analysis, and superior noise model. Of the six radial velocity peaks reported, three (belonging to planets b, d, and e) were strong while the other three needed further analysis to confirm them. This newer analysis found marginal evidence for the original planet candidate c from
+P11
+at a slightly longer 43-day period.
+The planetary signal at an orbital period of 12 days corresponding to planet g is relatively weak, but it consistently appears in the majority of the datasets. Lastly, the planetary signal at 331.41-day period, planet f, is estimated to lie in the habitable zone of the system, as calculated by
+Kopparapu et al. (
+2013
+,
+2014
+)
+for a 5
+M
+⊕
+subscript
+𝑀
+direct-sum
+M_{\oplus}
+planet and 1
+M
+⊕
+subscript
+𝑀
+direct-sum
+M_{\oplus}
+planet around
+e Eridani (catalog )
+.
+F17
+state that the signal for planet f needs more observation to be confirmed, as the signal is close to the annual sampling period from Earth.
+The proximity of this orbit to a 2:1 resonance with planets b and d, while not actually residing in the resonant orbit, provides some support for its planetary nature, as
+Mulders et al. (
+2018
+)
+found that the most common period ratio between neighboring pairs of planets in the Kepler population was
+1.9
+1.9
+1.9
+. Similarly,
+Steffen & Hwang (
+2015
+)
+found that 2:1 resonances between exoplanets are not intrinsically rare.
+The eccentricities of the planets in this system remain poorly constrained.
+P11
+found that the uncertainties for the eccentricities were of similar order to the values and therefore fixed all eccentricities to 0 (circular orbits).
+F17
+allowed for both circular and Keplerian (non-zero eccentricity) orbits and found that moderate eccentricities (
+∼
+similar-to
+\sim
+0.1-0.3) fit their data best. However, they also state this is likely due to instrumental noise and fitting bias, and so the actual eccentricities are likely lower: Indeed, the orbits of planets d and e would cross and very likely be unstable given the currently reported values. Later in this paper we explore the possible range of eccentricities that lead to stable systems.
+We summarize the relevant parameters of the six planets and planet candidates in Table
+2
+.
+Table 2:
+Planet and Planet Candidate Parameters
+Name
+Period
+Semi-major axis
+Eccentricity
+msin i
+Notes
+[days]
+[au]
+[
+M
+⊕
+subscript
+𝑀
+direct-sum
+M_{\oplus}
+]
+g
+11.86
+−
+0.02
++
+0.01
+superscript
+subscript
+11.86
+0.02
+0.01
+11.86_{-0.02}^{+0.01}
+0.095
+−
+0.001
++
+0.001
+superscript
+subscript
+0.095
+0.001
+0.001
+0.095_{-0.001}^{+0.001}
+0.20
+−
+0.19
++
+0.15
+superscript
+subscript
+0.20
+0.19
+0.15
+0.20_{-0.19}^{+0.15}
+1.03
+−
+0.30
++
+0.49
+superscript
+subscript
+1.03
+0.30
+0.49
+1.03_{-0.30}^{+0.49}
+Candidate: Reported in F17
+b
+18.33
+−
+0.02
++
+0.01
+superscript
+subscript
+18.33
+0.02
+0.01
+18.33_{-0.02}^{+0.01}
+0.127
+−
+0.001
++
+0.001
+superscript
+subscript
+0.127
+0.001
+0.001
+0.127_{-0.001}^{+0.001}
+0.27
+−
+0.22
++
+0.04
+superscript
+subscript
+0.27
+0.22
+0.04
+0.27_{-0.22}^{+0.04}
+2.82
+−
+0.80
++
+0.10
+superscript
+subscript
+2.82
+0.80
+0.10
+2.82_{-0.80}^{+0.10}
+Confirmed: Reported in P11, confirmed in F17
+c
+43.17
+−
+0.10
++
+0.12
+superscript
+subscript
+43.17
+0.10
+0.12
+43.17_{-0.10}^{+0.12}
+0.225
+−
+0.003
++
+0.002
+superscript
+subscript
+0.225
+0.003
+0.002
+0.225_{-0.003}^{+0.002}
+0.17
+−
+0.16
++
+0.10
+superscript
+subscript
+0.17
+0.16
+0.10
+0.17_{-0.16}^{+0.10}
+2.52
+−
+0.83
++
+0.52
+superscript
+subscript
+2.52
+0.83
+0.52
+2.52_{-0.83}^{+0.52}
+Candidate: Reported in both P11 and F17
+d
+88.90
+−
+0.41
++
+0.37
+superscript
+subscript
+88.90
+0.41
+0.37
+88.90_{-0.41}^{+0.37}
+0.364
+−
+0.004
++
+0.004
+superscript
+subscript
+0.364
+0.004
+0.004
+0.364_{-0.004}^{+0.004}
+0.25
+−
+0.21
++
+0.16
+superscript
+subscript
+0.25
+0.21
+0.16
+0.25_{-0.21}^{+0.16}
+3.52
+−
+1.01
++
+0.58
+superscript
+subscript
+3.52
+1.01
+0.58
+3.52_{-1.01}^{+0.58}
+Confirmed: Reported in P11, confirmed in F17
+e
+147.02
+−
+0.91
++
+1.43
+superscript
+subscript
+147.02
+0.91
+1.43
+147.02_{-0.91}^{+1.43}
+0.509
+−
+0.006
++
+0.006
+superscript
+subscript
+0.509
+0.006
+0.006
+0.509_{-0.006}^{+0.006}
+0.29
+−
+0.18
++
+0.14
+superscript
+subscript
+0.29
+0.18
+0.14
+0.29_{-0.18}^{+0.14}
+4.77
+−
+0.86
++
+0.96
+superscript
+subscript
+4.77
+0.86
+0.96
+4.77_{-0.86}^{+0.96}
+Confirmed: Reliable detection in F17
+f
+331.41
+−
+3.01
++
+5.08
+superscript
+subscript
+331.41
+3.01
+5.08
+331.41_{-3.01}^{+5.08}
+0.875
+−
+0.010
++
+0.011
+superscript
+subscript
+0.875
+0.010
+0.011
+0.875_{-0.010}^{+0.011}
+0.05
+−
+0.05
++
+0.06
+superscript
+subscript
+0.05
+0.05
+0.06
+0.05_{-0.05}^{+0.06}
+10.26
+−
+1.47
++
+1.89
+superscript
+subscript
+10.26
+1.47
+1.89
+10.26_{-1.47}^{+1.89}
+Candidate: Reported in F17
+Note
+: These planetary parameters have been collected from
+Feng et al. (
+2017a
+)
+.
+Although not used in our study, for completeness we note that the
+e Eridani (catalog )
+system was also found to host a debris disk, revealed by infrared excess detected with the
+Spitzer Space Telescope
+(Wyatt et al.,
+2012
+)
+. Follow-up observations with the
+Herschel Space Observatory
+marginally resolved the disk emission and the disk’s inner and outer radii were estimated to be around 20 and 30 au, with the disk relatively depleted beyond 30 au
+(Kennedy et al.,
+2015
+)
+. Modeling of the disk spectral energy distribution argued for a cold disk (T
+=
+e
+​
+q
+80
+−
+30
++
+70
+K
+{}_{eq}=80^{+70}_{-30}~{}K
+) with blackbody disk radius about 10 au, based on disk temperature
+(Kennedy et al.,
+2015
+)
+. The debris disk provides evidence for a planetesimal belt exterior to the known planets, similarly to the Solar System’s Kuiper Belt. In the future, studies of this planetesimal belt may provide constraints on the outer planetary system in the future.
+3
+Analysis
+3.1
+The
+DYNAMITE
+Package
+Here we briefly explain the functionality of the
+DYNAMITE
+software package and the mode that we use in our study. As stated earlier,
+DYNAMITE
+amalgamates various statistical distributions identified in the Kepler exoplanet population data and combines that general information with the specific data of a given planetary system. It then integrates this with a dynamical stability criterion and tests the probability density functions (via Monte Carlo injections) for orbital period, planetary radius, and planetary inclination. Finally,
+DYNAMITE
+also considers the orbital stability of the different planetary architectures. This combined information allows the algorithm to estimate the likelihoods for the parameters of one additional unknown planet in the system. The basic assumptions we used to constrain the probability distribution in
+DYNAMITE
+are:
+1.
+The period, planet radius, and orbital inclination are independent of each other.
+2.
+The orbital periods considered range from 0.5 days to 2 years, corresponding to the approximate range for which strong constraints exists on planetary architectures and planet properties from the Kepler mission-discovered exoplanet population.
+3.
+The planet radius range considered extends from 0.5 to 5
+R
+⊕
+subscript
+𝑅
+direct-sum
+R_{\oplus}
+. Here the lower limit comes from the Kepler population and the upper limit empirically contains a large majority of the TESS multi-planet systems.
+(Dietrich & Apai,
+2020
+)
+. Planets larger than 5
+R
+⊕
+subscript
+𝑅
+direct-sum
+R_{\oplus}
+tend to be rare and may have distinct orbital period, size, and mass distributions
+(e.g., He et al.,
+2019
+)
+.
+4.
+The range of allowed planetary inclinations is 0
+∘
+– 180
+∘
+.
+5.
+The dynamical stability is determined either via N-body simulations and the spectral fraction analysis from
+Volk & Malhotra (
+2020
+)
+or via the mutual Hill parameter for neighboring pairs of planets
+Δ
+c
+≥
+8
+subscript
+Δ
+𝑐
+8
+\Delta_{c}\geq 8
+(Chambers et al.,
+1996
+)
+, depending on user input.
+For a detailed discussion of these assumptions, please see
+Dietrich & Apai (
+2020
+)
+. In our analysis, we used the period ratio model from
+Mulders et al. (
+2018
+)
+, which assumes a broken power law for location of the first planet in period space (with the break at 12 days) and equal period ratios between pairs of planets. Therefore, this model inserts planets roughly symmetrically in gaps as a consequence of this chosen distribution, with the highest probability occurring when the period ratios are closest to the Kepler population period ratio mean of 1.9.
+The inclination distribution, in the case of no known planetary inclinations, is isotropic but limited to non-transiting values for each planet (as the planets are known not to transit). The planetary radius distribution is a Lognormal distribution around a central cluster, which is fit to the radii of the known planets, or if the planet radii are unknown, from the assumed radii derived from the known mass or m sin i values and the
+Otegi et al. (
+2020
+)
+M-R relationship). After injecting a planet, we calculate the dynamical stability parameter and compare it to the threshold value to see if the system would stably exist with that planet addition.
+Through 10
+6
+Monte Carlo iterations, we build up the likelihoods for the additional planet parameters. While the results are reliant on the specific data for the given system being accurate, they are not sensitive to the exact values. We utilize the default parameter set for each planet from the NASA Exoplanet Archive
+2
+2
+2
+https://exoplanetarchive.ipac.caltech.edu/
+, and the uncertainties on most of these parameters are low enough to enable a robust analysis. We explore the impact of uncertainties on the
+DYNAMITE
+output predictions in Section
+5.1
+and Appendix
+B
+.
+3.2
+Planetary Configuration Hypotheses
+Given the uncertain nature of three planet candidates in the system, we proceeded in our analysis by constructing hypotheses that explore all possible combinations of the planet candidates being genuine or not. For each hypothesis, we provide
+DYNAMITE
+predictions. As explained later, we found that the predicted planetary orbits that results from these different hypotheses are very similar. In the main body of the current paper we present four hypotheses, while in the Appendix
+B
+we show that results of the additional hypotheses.
+The hypotheses are constructed by starting from the three confirmed planets, and by adding planet candidates one by one, in the order of decreasing evidence for their existence. Thus, our first hypothesis (H[a]) includes only the three confirmed planets (b, d, e), and our second hypothesis (H[b]) adds to this set the planet candidate for which evidence is the most convincing (planet c, detected in two papers). Then, in our third hypothesis (H[c]), we included planet candidate f as a genuine planet (stronger candidate signal detected by
+F17
+). Finally, we assume that all planet candidates are genuine planets (Hypothesis H[d]).
+We note that, in the above sequence of hypotheses, predictions from each of the hypotheses motivates the next one, as described (i.e., H[a] predicts a planetary architecture consistent with H[b], etc.). As discussed in §
+5
+, our predictions for the planetary architecture are robust and do not display strong dependence on the presence or absence of any single planet. Our analysis of the planetary architecture assesses different scenarios to reflect the yet unsettled nature of the candidate planets. We organize these possibilities into four hypotheses, corresponding to four different potential states of the planetary system given current constraints:
+•
+Hypothesis H[a]:
+Only the three planets b, d, and e are taken as known planets. None of the three planet candidates (g, c, f) are genuine detections.
+•
+Hypothesis H[b]:
+In addition to the three planets (b, d, and e), planet candidate c is assumed to be a genuine planet. Planet candidates f and g are not considered to be real detections.
+•
+Hypothesis H[c]:
+Planets b, c, d, e, and f are all genuine detections, but the peak corresponding to planet g is not a detection.
+•
+Hypothesis H[d]:
+All six planet detections (g, b, c, d, e and f) proposed by
+F17
+are real planets.
+We do not fix the inclinations of the planets and planet candidates, as those values are unknown due to the inability to measure them with RV observations alone, although we can constrain the inclination upper bound via the determination that these planets do not transit. We give the entire range of inclination possibilities to
+DYNAMITE
+, thus lowering the chances of biasing the model towards any specific planetary architecture type. The orbital eccentricity of the planets was also input based on multiplicity-dependent statistical distributions from the Kepler population
+(He et al.,
+2020
+)
+. Non-zero eccentricities and the statistical distribution of orbital eccentricities are explored further in
+(Dietrich et al.,
+2022
+)
+.
+We also predict the planet radius and mass of additional planets for each hypothesis. We use a clustered planet radius model from
+He et al. (
+2019
+)
+that fits the currently known planet radii to a Lognormal distribution, from which the values are drawn for the Monte Carlo iterations of the additional planets. These planet radii are also converted into mass values via the mass-radius relationship from
+Otegi et al. (
+2020
+)
+, specifically using the “volatile-rich” power-law for planets in the mass range
+5
+−
+25
+​
+M
+⊕
+5
+25
+subscript
+𝑀
+direct-sum
+5-25M_{\oplus}
+, with planets below
+5
+​
+M
+⊕
+5
+subscript
+𝑀
+direct-sum
+5M_{\oplus}
+assumed to be rocky and planets above
+25
+​
+M
+⊕
+25
+subscript
+𝑀
+direct-sum
+25M_{\oplus}
+assumed to contain a large gaseous envelope. We expect the planets in this system of sufficient mass orbit far enough away from
+e Eridani (catalog )
+that they would accrete and retain a significant gaseous envelope, instead of it being stripped away via photoevaporation
+(e.g., Owen & Wu,
+2017
+)
+.
+3.3
+Surface Temperature Assessment
+With 3-6 planets possible in the planetary system of
+e Eridani (catalog )
+, the potential equilibrium and surface temperatures of these worlds are of great interest. As available data are scarce, we will follow a statistical approach to explore the potential range of temperatures on these worlds. We do so by expanding our
+DYNAMITE
+modeling framework with statistical predictions of the equilibrium and approximate surface temperatures. Our analysis should be taken only as an initial exploratory assessment, until more constraining data on the planets are available; nevertheless, as shown later in the manuscript, our analysis provides interesting insights into the planets’ possible natures. In the following text we will describe the methodology used to provide the initial, exploratory assessment of the potential range of planetary temperatures for the predicted planets.
+The calculation of
+T
+e
+​
+q
+subscript
+𝑇
+𝑒
+𝑞
+T_{eq}
+is based on two assumptions: first, the planet (with its atmosphere) is a blackbody, and second, the complete system is in radiative equilibrium with its surroundings. This is a very good approximation of the average temperature (i.e., disregarding day/night side variations) for an airless body (e.g., the Moon, Mars), and is accurate within 10% for planets without an atmospheric greenhouse effect. For
+e Eridani (catalog )
+, we adopt the
+a
+p
+​
+l
+​
+a
+​
+n
+​
+e
+​
+t
+subscript
+𝑎
+𝑝
+𝑙
+𝑎
+𝑛
+𝑒
+𝑡
+{a_{planet}}
+(the semi-major axis) and
+P
+p
+​
+l
+​
+a
+​
+n
+​
+e
+​
+t
+subscript
+𝑃
+𝑝
+𝑙
+𝑎
+𝑛
+𝑒
+𝑡
+P_{planet}
+(orbital period) values for the planets and planet candidates from the recent RV study by
+F17
+.
+For every orbital period from the Monte Carlo iterations from
+DYNAMITE
+, we draw an albedo from a normal distribution with mean
+μ
+=
+0.3
+𝜇
+0.3
+\mu=0.3
+and standard deviation
+σ
+=
+0.1
+𝜎
+0.1
+\sigma=0.1
+and calculate the radiative equilibrium temperature of the planets via Eq.
+1
+(
+A
+B
+subscript
+𝐴
+𝐵
+A_{B}
+is the Bond albedo,
+T
+s
+​
+t
+​
+a
+​
+r
+subscript
+𝑇
+𝑠
+𝑡
+𝑎
+𝑟
+T_{star}
+and
+R
+S
+​
+t
+​
+a
+​
+r
+subscript
+𝑅
+𝑆
+𝑡
+𝑎
+𝑟
+R_{Star}
+are the surface temperature and radius of the star respectively, and
+a
+p
+​
+l
+​
+a
+​
+n
+​
+e
+​
+t
+subscript
+𝑎
+𝑝
+𝑙
+𝑎
+𝑛
+𝑒
+𝑡
+a_{planet}
+is planet’s semi-major axis).
+T
+e
+​
+q
+=
+T
+s
+​
+t
+​
+a
+​
+r
+​
+(
+1
+−
+A
+B
+)
+1
+4
+​
+R
+s
+​
+t
+​
+a
+​
+r
+2
+​
+a
+p
+​
+l
+​
+a
+​
+n
+​
+e
+​
+t
+,
+subscript
+𝑇
+𝑒
+𝑞
+subscript
+𝑇
+𝑠
+𝑡
+𝑎
+𝑟
+superscript
+1
+subscript
+𝐴
+𝐵
+1
+4
+subscript
+𝑅
+𝑠
+𝑡
+𝑎
+𝑟
+2
+subscript
+𝑎
+𝑝
+𝑙
+𝑎
+𝑛
+𝑒
+𝑡
+T_{eq}=T_{star}(1-A_{B})^{\frac{1}{4}}\sqrt{\frac{R_{star}}{2a_{planet}}},
+(1)
+A detailed discussion of our choice of a Gaussian distribution for the Bond albedo with the above mentioned parameters is given in Appendix
+A
+.
+We note here that the available data on exoplanet albedos is very sparse, and there remain uncertainties on the mass-radius conversion. These may lead to systematic offsets in our albedo model. Nevertheless, our results are not very sensitive to the exact albedo values, in part because our assumed albedo distribution is relatively wide. For example, the assumption that the albedo of planet b in the
+e Eridani (catalog )
+system is 0.6, instead of 0.3, results in a temperature decrease of
+∼
+13
+%
+similar-to
+absent
+percent
+13
+\sim 13\%
+from the equilibrium temperature calculated with albedo of 0.3. Moreover, as the albedo distribution we adopted is relatively broad and is derived using the bodies in the Solar system, few objects are expected to lie outside of this range.
+Perhaps the most important limitation of our simple model is the lack of an atmosphere and the associated greenhouse effect. To address this, we calculated the surface equilibrium temperatures using a leaky greenhouse atmosphere model
+(Marshall & Plumb,
+2008
+)
+, wherein we assume a single-layered atmosphere (which approximates to a blackbody) that absorbs a fraction
+α
+𝛼
+\alpha
+of the radiation from the planet. Our single-layer leaky greenhouse model is a reasonable first approximation for planets without heavy atmospheres and very strong greenhouse warming. Additionally, more comprehensive models could provide more realistic predictions of the surface temperatures, but would – in turn – also require assumptions on the atmospheric compositions and cloud properties which are unconstrained for most exoplanets. Therefore, a simple model with just one free parameter is a better choice. We use a normal distribution for
+α
+𝛼
+\alpha
+(
+μ
+=
+0.5
+𝜇
+0.5
+\mu=0.5
+and
+σ
+=
+0.1
+𝜎
+0.1
+\sigma=0.1
+) so that nearly
+100
+%
+percent
+100
+100\%
+of the values lie between 0 and 1. Due to the isotropic nature of the thermal emission, the atmosphere then radiates equal amounts of energy towards the planet as well as away from it. The energy balance of the stellar irradiation, surface emission, and single-layer greenhouse absorber can then be described as follows:
+T
+s
+​
+u
+​
+r
+​
+f
+​
+a
+​
+c
+​
+e
+=
+(
+2
+2
+−
+α
+)
+1
+4
+​
+T
+e
+​
+q
+,
+subscript
+𝑇
+𝑠
+𝑢
+𝑟
+𝑓
+𝑎
+𝑐
+𝑒
+superscript
+2
+2
+𝛼
+1
+4
+subscript
+𝑇
+𝑒
+𝑞
+T_{surface}=\left(\frac{2}{2-\alpha}\right)^{\frac{1}{4}}T_{eq},
+(2)
+where
+T
+\text
+​
+s
+​
+u
+​
+r
+​
+f
+​
+a
+​
+c
+​
+e
+subscript
+𝑇
+\text
+𝑠
+𝑢
+𝑟
+𝑓
+𝑎
+𝑐
+𝑒
+T_{\text{surface}}
+is the surface temperature.
+To report the most likely equilibrium and surface temperatures for planet candidates, we select the median along with the 16th and 84th percentiles of orbital period distribution from
+DYNAMITE
+and convert those into the mean temperatures and their standard deviations. Thus, our temperature measurements mostly depend on the uncertainties in the predictions of the location of planet candidates by
+DYNAMITE
+; the uncertainties of the orbital period are (relatively) much smaller than the uncertainties typical to the other orbital parameters or planetary masses. The results are plotted as a 2-D histogram in Figure
+4
+and Figure
+5
+.
+For statistically predicting the equilibrium and possible surface temperatures of planets (b, d, and e) in the
+e Eridani (catalog )
+system, we plot another histogram using a linear orbital period distribution centered at the planet’s proposed orbital period and extends as per the uncertainties proposed by
+F17
+. With the orbital period prior, we use the same approach of calculating relative likelihood of surface temperatures with normally drawn albedos between 0 and 1 with
+μ
+=
+0.3
+𝜇
+0.3
+\mu=0.3
+and
+σ
+=
+0.1
+𝜎
+0.1
+\sigma=0.1
+.
+3.4
+The Eccentricity Assessment
+With multiple planets on close orbits, the analysis of the long term stability of the
+e Eridani (catalog )
+system can provide important insights.
+F17
+acknowledged that the planetary eccentricities in their best-fit multi-planet radial velocity models were, in fact, moderate-to-high, which may cause instability in the system. Our goal here is to evaluate the stability of the system with the eccentricities provided by
+F17
+and provide updated bounds on the eccentricities of the planets in the
+e Eridani (catalog )
+system. In order to analyse the stability of the system, we use REBOUND
+(Rein & Liu,
+2012
+; Rein et al.,
+2019
+)
+software package to run N-body simulations with two different eccentricity distributions: (1) a Normal distribution for each planet’s eccentricity with parameters provided by
+F17
+and (2) a Lognormal distribution for each planet’s eccentricity with parameters provided by
+He et al. (
+2020
+)
+.
+The dynamical stability criterion that we use for each randomly drawn eccentricity checks the system for four different conditions:
+1.
+The orbits of neighboring planets crossing each other before the N-body integration begins.
+2.
+Close encounters and ejections during N-body integration.
+3.
+The orbits of neighboring planets crossing each other during N-body integration.
+4.
+Spectral Fraction
+(Volk & Malhotra,
+2020
+)
+, as explained below.
+The spectral fraction analysis executes short N-body integrations (
+∼
+5
+×
+10
+6
+similar-to
+absent
+5
+superscript
+10
+6
+\sim 5\times 10^{6}
+orbits of the innermost planet) to predict the long-term (
+∼
+5
+×
+10
+9
+similar-to
+absent
+5
+superscript
+10
+9
+\sim 5\times 10^{9}
+orbits of the innermost planet) stability of the system. This is done by determining the “spectral fraction”, or the fraction of frequencies having power
+≥
+5
+%
+absent
+percent
+5
+\geq 5\%
+of the peak frequency in the power spectrum of the angular momentum deficit (AMD, the difference between the total angular momentum and planar circular angular momentum). If the spectral fraction is
+≤
+5
+%
+absent
+percent
+5
+\leq 5\%
+, then the system is assumed to be likely stable long-term. Else, the system is assumed to be unstable long-term.
+After assessing the likely planetary architectures for
+e Eridani (catalog )
+using
+DYNAMITE
+, we identify two limiting architectures for the system – Hypotheses H[a] and H[d] – which drive the loosest and the tightest constraints on the planetary eccentricities. Therefore, we explore these two specific architectures – the 3-planet system and the 6-planet system – to help us analyze the potential planetary eccentricities for this system. For each simulation, we iterate over 1000 randomly drawn eccentricities from the chosen distributions mentioned above and report the number of stable and unstable iterations. For every stable and unstable iteration, we calculate the combined average eccentricity of all the planets involved in the run. We then report the combined mean eccentricity for the planets in the system and associated standard deviation of all the cases that resulted in a stable and an unstable configuration in the simulation.
+4
+Results
+4.1
+System Architecture Analysis
+Figure 1:
+Hypotheses and Analysis Predictions for the planetary System
+e Eridani (catalog )
+.
+Figure 2:
+The upper left plot shows the
+DYNAMITE
+analysis without planet candidates g, c, and f. The upper right plot shows
+DYNAMITE
+analysis without planet candidates g and f. The lower left plot shows
+DYNAMITE
+analysis without planet candidate g while the lower right plot shows the
+DYNAMITE
+analysis with all the planets and planet candidates.
+Hypothesis a: planets b, d, and e
+In our first hypothesis, Hypothesis H[a], we only placed the planets b, d, and e in the system. We found two roughly equally significant peaks in the probability distribution, H[a]–PxP–1 (i.e., Predicted eXoPlanet 1 in Hypothesis H[a]) at 10.9 [7.7, 12] (
+16
+t
+​
+h
+superscript
+16
+𝑡
+ℎ
+16^{th}
+and
+84
+t
+​
+h
+superscript
+84
+𝑡
+ℎ
+84^{th}
+percentiles) days (interior to planet b) and H[a]–PxP–2 at 40.7 [34.2, 52.4] days between planets b and d. A third, slightly larger probability distribution peak is identified as H[a]–PxP–3 at 271 [269, 520] days, exterior to planet e.
+Hypothesis b: Accepting planet candidate c
+We considered planet candidate c as a real planet in the system. In our analysis of this hypothesis, we recovered peaks H[a]–PxP–1 and H[a]–PxP–3 as H[b]–PxP–1 and H[b]–PxP–2, respectively. In addition to these two peaks, we also found two small regions of non-zero probability in the period space, between planets b and c, and planets c and d, but the injection probability of any additional planet in those gaps is relatively low. Therefore, this hypothesis predicts two planets, H[b]–PxP–1 and H[b]–PxP–2 at 10.9 and 271 days, respectively.
+Hypothesis c: Accepting planet candidates c and f
+In Hypothesis H[c], we considered planet candidate f and c to be genuine planets along with planets (b, d and e), due to the support given by H[b]–PxP–2. In Hypothesis H[b], the distribution of potential orbital periods of the outermost planet is wider as compared to other predictions because
+DYNAMITE
+only has one neighbouring planet to use in constraining the orbit. However, as this predicted orbit also matches the period of planet candidate f closely, this prediction provides support for existence of planet candidate f under the assumption of lower planetary eccentricities. In this case, we found a new peak for H[c]–PxP–2, the most exterior likelihood peak, at 611 [549, 733] days, and we also recovered H[b]–PxP–1 as H[c]–PxP–1. The newly found peak, H[c]–PxP–2, hints at the presence of an additional planet in the system in the habitable zone of this system, near the outer edge. However, as this peak is again an extrapolation, lying beyond the longest-period confirmed planet, the predictions are here less constraining. Furthermore, we also found 3 regions between planets b and c, c and d, and e and f where the probability for an exoplanet to exist is comparatively low but non-zero.
+Hypothesis d: Additional planets
+Finally in Hypothesis H[d], we assumed (given the support from the previous hypotheses) that all the planet candidates (g, c and f) are real and added them in the system along with the planets (b, d and e). In Hypothesis H[c], the inner peak is better constrained due to two reasons: (1) the presence of an inner known planet and (2) the broken power law on the period followed by the first planet from the orbital period model. As the peak of the broken power law occurs at
+∼
+similar-to
+\sim
+12 days, very near the orbital period of planet candidate g, this provides support for the genuine nature of planet candidate g. In our analysis of this planetary architecture, we retrieve the H[c]–PxP–2 peak at 611 days as H[d]–PxP–1, as well as four small regions in the period space with low injection probability interior to planet g and between planets b and c, c and d, and e and f. While there is no direct evidence for the existence of the predicted exoplanet H[d]–PxP–1 yet, our prediction is based on robust statistics from thousands of Kepler multi-planet systems. By construction, DYNAMITE predicts the most likely position in orbital period space for an additional planet to exist. When the system has low probability of finding an additional planet interior to the outermost system (i.e., when the system is dynamically packed like the
+e Eridani (catalog )
+system with all candidates treated as genuine planets), then the most likely orbit for an additional planet will be beyond the orbit of the outermost known planet. We also note that this prediction is only valid under the assumption that the eccentricities of the planets in the
+e Eridani (catalog )
+system are lower (see section
+4.3
+) than previously reported.
+For such an additional planet in the
+e Eridani (catalog )
+system, we find the most probable planet radius to be
+1.4
+−
+0.365
++
+0.525
+​
+R
+⊕
+limit-from
+subscript
+superscript
+1.4
+0.525
+0.365
+𝑅
+direct-sum
+1.4^{+0.525}_{-0.365}R\oplus
+, from fitting a Lognormal distribution to the most likely planet radii given the known planet minimum masses and the “volatile-rich” mass-radius relationship from
+Otegi et al. (
+2020
+)
+. From this, we find the most likely planet mass to be
+2.91
+−
+1.88
++
+5.79
+​
+M
+⊕
+limit-from
+subscript
+superscript
+2.91
+5.79
+1.88
+𝑀
+direct-sum
+2.91^{+5.79}_{-1.88}M\oplus
+. These values are estimated by
+DYNAMITE
+, given the minimum masses of the planets, the above mass-radius relationship, dynamical stability considerations with the six-planet system architecture, a uniform prior on the inclination assuming the planet is likely not transiting, and the distribution in planet radii assuming size clustering in a system
+(e.g., He et al.,
+2019
+, and see §
+3.2
+)
+.
+4.2
+Potential Equilibrium and Surface Temperatures
+We estimated the equilibrium temperature of planet b to be
+641
+±
+23
+plus-or-minus
+641
+23
+641\pm 23
+K, planet d to be
+379
+±
+14
+plus-or-minus
+379
+14
+379\pm 14
+K, and planet e to be
+320
+±
+12
+plus-or-minus
+320
+12
+320\pm 12
+K. The uncertainty in the equilibrium temperature of planets is the standard deviation of the temperature distribution calculated via a linear prior on the orbital period, with limits on the orbital period uncertainty provided by
+F17
+. With the help of the orbital period probability distribution from
+DYNAMITE
+, we estimated the equilibrium temperature of planet candidate g to be
+791
+±
+42
+plus-or-minus
+791
+42
+791\pm 42
+K, planet candidate c to be
+486
+±
+26
+plus-or-minus
+486
+26
+486\pm 26
+K, and planet candidate f to be
+241
+±
+17
+plus-or-minus
+241
+17
+241\pm 17
+K. We calculated these temperatures assuming that only the planets b, d, and e are genuine, but even if a peak in the distribution is not occupied by a genuine planet, the other peaks remain unaffected.
+Radiative equilibrium temperatures, however, may underestimate surface temperatures of bodies with significant atmospheres due to additional heat trapping by greenhouse gases. To account for this, we expanded our findings of equilibrium temperatures and calculated the possible surface temperatures of the planets and planet candidates in the system (see §
+3.3
+). These surface temperatures are calculated assuming thin atmospheres and low greenhouse warming, in this case a simple one-layer “leaky greenhouse” model. Based on this model, we estimate the possible surface equilibrium temperature of planet b to be
+689
+±
+27
+plus-or-minus
+689
+27
+689\pm 27
+K, planet d to be
+407
+±
+16
+plus-or-minus
+407
+16
+407\pm 16
+K, and planet e to be
+344
+±
+14
+plus-or-minus
+344
+14
+344\pm 14
+K. These results are shown in Figure
+6
+. For the planet candidates, we calculate the surface temperature of planet candidate g to be approximately
+849
+±
+52
+plus-or-minus
+849
+52
+849\pm 52
+K, planet candidate c to be
+519
+±
+29
+plus-or-minus
+519
+29
+519\pm 29
+K, and planet candidate f to be
+259
+±
+19
+plus-or-minus
+259
+19
+259\pm 19
+K. These results can be found in Figure
+4
+and Figure
+5
+. The uncertainties in the surface temperature are calculated in the same way as calculated for equilibrium temperature.
+In Hypothesis H[d], where we assumed that all six planetary signals found by
+F17
+are genuine planets, we found a significant peak we call H[d]–PxP–1 at an orbital period of 611 days. When performing our temperature analysis on this planet candidate, we found that the equilibrium temperature of this planet would likely be
+196
+±
+9
+plus-or-minus
+196
+9
+196\pm 9
+K. We also explored the potential greenhouse warming on this planet and estimate its surface temperature to be
+210
+±
+10
+plus-or-minus
+210
+10
+210\pm 10
+K.
+4.3
+Eccentricity Analysis
+In the following we report the fraction of stable and unstable orbital configuration iterations for four different hypotheses – system architecture hypotheses H[a] and H[d], each with both Normal and Lognormal eccentricity distributions. In essence, the normal distribution represents the solution reported by
+Feng et al. (
+2017a
+)
+, while the Lognormal eccentricity distribution represents an agnostic approach based on typical planetary eccentricities. For each of our four cases, we report the combined mean eccentricity and its standard deviation. The results are also shown in Figure
+13
+in Appendix
+D
+.
+Hypothesis H[a] - Normal Distributions
+Assuming that the
+e Eridani (catalog )
+system has only 3 planets – b, d, and e – and a Normal eccentricity distribution centered on the values reported by
+F17
+resulted in only
+1.2
+%
+percent
+1.2
+1.2\%
+of iterations being stable configurations via the criteria established in §
+3.4
+. Planets in the stable configurations have a mean eccentricity of
+0.16
+±
+0.02
+plus-or-minus
+0.16
+0.02
+0.16\pm 0.02
+, whereas the planets in the unstable configurations have a mean eccentricity of
+0.24
+±
+0.04
+plus-or-minus
+0.24
+0.04
+0.24\pm 0.04
+.
+Hypothesis H[a] - Lognormal Distributions
+Under the above planetary architecture assumption but with a Lognormal eccentricity distribution from SysSim
+(He et al.,
+2020
+)
+instead, we observe that
+98.3
+%
+percent
+98.3
+98.3\%
+of our N-body integrations yield stable configurations. Using this distribution, planets in the stable configurations have a mean eccentricity of
+0.05
+±
+0.02
+plus-or-minus
+0.05
+0.02
+0.05\pm 0.02
+while planets in the unstable configurations have a mean eccentricity of
+0.14
+±
+0.03
+plus-or-minus
+0.14
+0.03
+0.14\pm 0.03
+.
+Hypothesis H[d] - Normal Distributions
+When we assumed that the
+e Eridani (catalog )
+system consists of 6 planets – g, b, c, d, e, and f – and that these planets have a Normal eccentricity distribution, we find that only one out of thousand iterations resulted in stable configurations. The eccentricities for each planet in the stable iteration were 0.069, 0.127, 0.161, 0.137, 0.15, and 0.064 for planets g, b, c, d, e, and f respectively. All the other 999 iterations resulted in unstable configurations.
+Hypothesis H[d] - Lognormal Distributions
+Lastly, for a 6 planet system with the planets having eccentricities as per Lognormal distribution resulted in
+98.9
+%
+percent
+98.9
+98.9\%
+of iterations being stable configurations. The mean eccentricity for all the planets in stable configurations was
+0.026
+±
+0.008
+plus-or-minus
+0.026
+0.008
+0.026\pm 0.008
+, while it was
+0.065
+±
+0.018
+plus-or-minus
+0.065
+0.018
+0.065\pm 0.018
+for all the planets in unstable configurations.
+Figure 3:
+Relationship between Bond albedos and calculated radiative equilibrium temperatures for planets, satellites, and asteroids in the Solar System. For the adopted Gaussian albedo prior (
+μ
+=
+0.3
+𝜇
+0.3
+\mu=0.3
+,
+σ
+=
+0.1
+𝜎
+0.1
+\sigma=0.1
+), roughly
+69
+%
+percent
+69
+69\%
+and
+99.8
+%
+percent
+99.8
+99.8\%
+of the drawn albedo value fall below
+A
+B
+=
+0.35
+subscript
+𝐴
+𝐵
+0.35
+A_{B}=0.35
+and
+A
+B
+=
+0.63
+subscript
+𝐴
+𝐵
+0.63
+A_{B}=0.63
+respectively. Thus our adopted albedo prior is consistent with known Solar System and exoplanet constrains.
+5
+Discussion - System Architecture
+5.1
+Sensitivity to Radial Velocity Solutions
+In terms of planetary system-specific information, our analysis uses the results of planet detections from
+Pepe et al. (
+2011
+)
+and
+Feng et al. (
+2017a
+)
+. These detections are results of multi-parameter fits to the observed radial velocity modulations. To some extent, the results of such orbital fits depend on the underlying assumptions. A particular challenge in fits to radial velocity curves in multi-planet systems is the inter-dependence of the planets’ orbital parameters (for example, fitting for three planets may yield planets with different eccentricities than a fit assuming four planets). While these effects have been considered carefully in
+Feng et al. (
+2017a
+)
+– by increasing step-by-step the complexity of fits and relying on Bayesian Information Criteria to identify the preferred solutions – it is not trivial how such correlated uncertainties propagate into our analysis.
+Therefore, we will now discuss to what extent uncertainties in these studies and choices made by their authors may impact our results. The specific questions we will explore are as follows:
+How does the number of planets detected impact our results?
+and
+How do the radial velocity models (and their setup) impact our predictions?
+Ultimately, our analysis is based on the veracity of the three confirmed planets (b, d, and e, see Table
+2
+). In essence, these confirmed planets anchor the orbital architecture of the system. These three planets have been identified independently in two studies (b, and d) or detected in one state-of-the-art study at high significance level (e). Therefore, given the current knowledge on the system, the existence of these planets is safe to assume. As uncertainties remain on the orbital parameters of these planets, it is possible that their orbital periods, minimum mass, or eccentricities is somewhat different than currently inferred from the data. However, our results show that the planetary system architectures derived are insensitive to small- to moderate changes in the orbital parameters of these planets.
+We note, however, that should one of these three planets turn out to be highly eccentric (not consistent with current orbital fits,
+Feng et al.
+2017a
+) or a spurious detection, then our analysis must be repeated and results may change. While such a development is unlikely in the face of the available data, it is prudent to discuss how our results may be affected by the existence and specific orbital parameters of the yet unconfirmed planet candidates (g, c, and f). Here, our analysis can provide a clear demonstration that the parameters or existence of these planet candidates does not have an effect on our prediction. This is the case because through the comprehensive set of hypotheses we tested (see §
+3.2
+and Appendix
+B
+), every combination of the genuine or spurious nature of these planet candidates has been explored. These repeated, independent assessments all converged to the same general planetary architecture, regardless of the existence or properties of the three candidate planets. Therefore, we conclude that our analysis is insensitive to the presence of the planet candidates, but would be affected if one of the three confirmed planets would, in fact, turn out to be a spurious detection.
+5.2
+Eccentricity Bounds
+Our eccentricity analysis relies on the Normal and Lognormal eccentricity distributions parameters estimated by
+F17
+and
+He et al. (
+2020
+)
+, respectively. We tested the
+e Eridani (catalog )
+planetary system for the 3-planet and 6-planet architectures for both the above mentioned eccentricity distributions. In our analysis, we first integrated every planet’s orbit for
+∼
+5
+×
+10
+6
+similar-to
+absent
+5
+superscript
+10
+6
+\sim 5\times 10^{6}
+orbits of the innermost planet and then predicted its long-term stability (
+∼
+5
+×
+10
+9
+similar-to
+absent
+5
+superscript
+10
+9
+\sim 5\times 10^{9}
+innermost planet’s orbits) using spectral analysis. For the specific case of the
+e Eridani (catalog )
+system, our long term analysis thus corresponds to roughly 1.2 Gyr in the future. Any iteration that resulted in a collision, ejection, crossing of orbits during integration, or a high spectral fraction was considered as an unstable configuration. Stable pairs of planets with crossing orbits can exist, such as Neptune–Pluto (due to their 3:2 resonance) or potential planet pairs with relatively high mutual inclination and equal mass ratios
+(Rice et al.,
+2018
+)
+, but in this system we are very unlikely to encounter such a situation (as these planets are likely non-resonant).
+Our analysis suggests that even if the system has only 3 planets (b, d, and e), with the eccentricity parameters calculated by
+F17
+it is still highly unlikely that the system will remain dynamically stable over 1.2 billion years. If the system instead has 6 planets, then the likelihood of the system being dynamically stable over 1.2 billion years reduces even further to nearly zero. For this analysis, we used the minimum masses and the semi-major axes of the planets and planet candidates as calculated by
+F17
+. When we used the Lognormal parameters from
+He et al. (
+2020
+)
+for our stability analysis, we found that more than 98% of iterations were stable for both system architectures tested. Thus, these results convey that the chances of the system being dynamically stable for at least a billion years with any planetary architecture are highly likely.
+F17
+acknowledged that their eccentricity solutions were high and that factors like instrumental noise could be one of the reasons for such high eccentricities. Given that the
+e Eridani (catalog )
+system is thought to be older than 5.76 billion years, arguably the system is now – and has been – in a dynamically stable configuration. Our stability analysis, however, shows that stability is only possible if the planets indeed have lower eccentricities than those reported by
+F17
+. We estimate that if the
+e Eridani (catalog )
+system has three planets – b, d, and e – and the planet period and minimum mass parameters are close to those calculated by
+F17
+then each planet’s eccentricity would be of order
+0.05
+±
+0.02
+plus-or-minus
+0.05
+0.02
+0.05\pm 0.02
+. Similarly, if
+e Eridani (catalog )
+is a 6-planet system – with planets g, b, c, d, e, and f – then the most likely eccentricity for each planet would be of order
+0.026
+±
+0.008
+plus-or-minus
+0.026
+0.008
+0.026\pm 0.008
+.
+We note that if the eccentricity vales are updated and better constrained in the future, then our analyses would have to be repeated. We also want to point out that our results from
+DYNAMITE
+analysis are valid under the assumption that the planets, and the candidates if they exits, will have lower eccentricity values than those estimated by
+(
+F17
+, )
+in order for the planetary system to be dynamically stable.
+6
+Exploration of Planetary Temperatures
+Here we explore the potential temperatures for the predicted exoplanets, considering the ranges of their predicted semi-major axes as well as a simple statistical prior on planetary Bond albedos. As little is known yet about the planets and predicted planets discussed here, the following discussion aims to provide only a simple, initial exploration of the potential temperatures of the planets in order to further our understanding of the potential natures of these worlds. The results presented in §
+4.2
+are an extension of the Stefan-Boltzmann Law. We motivate and discuss our choice of Bond albedo prior in Appendix
+A
+. Later, we also discuss the possibility of habitable planets in the
+e Eridani (catalog )
+system.
+6.1
+Equilibrium and Surface temperatures
+For planets b and d, we estimated the equilibrium temperatures to be in the ranges of
+618
+−
+664
+618
+664
+618-664
+K and
+365
+−
+393
+365
+393
+365-393
+K, respectively. These ranges are
+±
+1
+​
+σ
+plus-or-minus
+1
+𝜎
+\pm 1\sigma
+from the median values. Our results are fairly consistent with those of
+P11
+, stated above. For planet e, we estimate its equilibrium temperature to be in the range
+308
+−
+332
+308
+332
+308-332
+K. We estimate the equilibrium temperature of planet candidate g to be in the range
+735
+−
+819
+735
+819
+735-819
+K, planet candidate c to be
+455
+−
+509
+455
+509
+455-509
+K, and planet candidate f to be
+224
+−
+258
+224
+258
+224-258
+K. Our results for equilibrium temperature of planet candidate c is consistent with that of
+P11
+.
+The most likely surface temperature of planet e lies in the range of
+330
+−
+358
+330
+358
+330-358
+K, making it possible for planet e to harbor liquid water on its surface. The surface temperature of planet candidate f, estimated to be in the range of
+240
+−
+278
+240
+278
+240-278
+K, is very similar to that of the Earth and makes it a candidate for harboring liquid water as well. If planet f has a mass greater than
+10
+​
+M
+⊕
+10
+subscript
+𝑀
+direct-sum
+10M_{\oplus}
+, then based on the mass-radius relationship by
+Otegi et al. (
+2020
+)
+, the planet will likely be gaseous rather than rocky, making it uninhabitable. We estimate that planet candidate g’s surface temperature will be in the range of
+788
+−
+882
+788
+882
+788-882
+K, making its surface nearly as hot as that of Venus. Planet candidate H[d]–PxP–1 would have a similar equilibrium and surface temperature to Mars, so if it is rocky and massive enough to maintain a significant atmosphere to increase the greenhouse effect, it could also be potentially habitable. The surface temperatures of planets and candidates are shown in Figure
+4
+and Figure
+5
+. In addition to applying our model to the
+e Eridani (catalog )
+planetary system – as a simple test of the new temperature prediction module – we also used it to estimate the surface temperature of Mars. Specifically, when Mars was hidden from the algorithm, based on the other inner Solar System planets,
+DYNAMITE
+not only ”predicted” Mars’ orbit but also predicted a surface temperature to lie between
+184
+−
+220
+184
+220
+184-220
+K. While running the
+DYNAMITE
+analysis, we excluded Jupiter from the inner Solar system and ran the simulation with Mercury, Venus, and Earth. In comparison, the measured temperature range is
+165
+−
+235
+165
+235
+165-235
+K
+(Martínez et al.,
+2017
+)
+. Thus, at least for planets without thick atmospheres and strong greenhouse effect, our approach provides a good initial estimate.
+A more detailed description of what we did is given in Appendix
+C
+and the results are shown in Figure
+12
+.
+Though our process for temperature estimates is simplistic, it is a reasonable approach given how little is known about the planets – detected or predicted – in the
+e Eridani (catalog )
+system. As planet properties are refined in the future, the single-layer leaky greenhouse model used in our study should be replaced with more comprehensive models.
+Figure 4:
+This plot shows a side-by-side comparison of the
+DYNAMITE
+planet prediction and the new module of
+DYNAMITE
+that allows statistical prediction of surface temperatures of planets and candidates for Hypotheses H[a] and H[d]. Eccentricities for all planets were set to zero for calculating these temperatures, but utilizing the expected low eccentricity values typical of these multi-planet systems does not significantly affect the temperature.
+Figure 5:
+The upper plot shows the predictions of surface temperatures of
+DYNAMITE
+predicted planets in the
+e Eridani (catalog )
+system for Hypothesis H[a]. The lower plot shows the predictions of surface temperature of
+DYNAMITE
+predicted planet in the
+e Eridani (catalog )
+system for Hypothesis H[d]. Eccentricities for all planets in the system were set to zero for calculating these temperatures, but utilizing the expected low eccentricity values typical of these multi-planet systems does not significantly affect the temperature.
+Figure 6:
+Likelihood of surface temperatures for planets b, d, and e in the system
+e Eridani (catalog )
+.
+6.2
+Potential for Habitable Worlds
+A key component of planetary surface habitability is the planet’s ability to host stable liquid water on its surface. Consequently, a simple constraint on the surface temperature of the planet might seem a valid first step towards characterizing a planet’s habitability. Surface temperatures of planet e and planet candidate f lie between 273 to 373 K, which makes them potentially suitable for hosting liquid water on their surfaces. However, even after this constraint, the planet might be uninhabitable due to several factors like insufficient surface gravity for atmospheric retention, or accretion of massive
+H
+2
+−
+H
+​
+e
+subscript
+𝐻
+2
+𝐻
+𝑒
+H_{2}-He
+envelope.
+The minimum mass of planet candidate f, as determined by
+F17
+, is
+10.26
+−
+1.47
++
+1.89
+​
+M
+⊕
+subscript
+superscript
+10.26
+1.89
+1.47
+subscript
+𝑀
+direct-sum
+10.26^{+1.89}_{-1.47}M_{\oplus}
+, which likely makes it a gaseous planet. Thus, planet candidate f, even after lying close to the inner edge of the habitable zone of the
+e Eridani (catalog )
+system, might not be habitable.
+Selsis et al. (
+2007
+)
+demonstrated that a necessary, but insufficient on its own, condition for a planet to be potentially habitable is that the equilibrium temperature of the planet must be below
+270
+270
+270
+K. They further show that in such a case, if the surface temperature of the planet remains below the critical temperature of water (
+T
+c
+=
+647
+subscript
+𝑇
+𝑐
+647
+T_{c}=647
+K), the thermal emission of the planet will not exceed the greenhouse runaway limit of 300
+W
+​
+m
+−
+2
+𝑊
+superscript
+𝑚
+2
+Wm^{-2}
+. In case the equilibrium temperature exceeds 270 K, either the planet will have insignificant water or its surface temperature will exceed 1400 K. In both cases, the planet will become uninhabitable, thus planet e (with an estimated equilibrium temperature of
+320
+±
+12
+plus-or-minus
+320
+12
+320\pm 12
+) might not be potentially habitable.
+As outlined by
+Kaltenegger & Sasselov (
+2011
+)
+, the equilibrium temperature of a planet near the outer edge of the habitable zone lies in the range 175 – 200 K based on selective cloud coverage. Thus, we believe that the newly predicted planet H[d]–PxP–1 at 611 days would be a potentially habitable planet candidate if it has the right mass, has an equilibrium temperature between
+175
+−
+200
+175
+200
+175-200
+K and can even lie in the habitable zone as determined by
+Kopparapu et al. (
+2013
+)
+. However, for this newly predicted planet to have the possibility of being habitable, it likely must have a significant amount of water, such that it can host liquid water for any temperature between 273 – 647 K, and it likely must be geologically active so that
+C
+​
+O
+2
+𝐶
+subscript
+𝑂
+2
+CO_{2}
+accumulates in the atmosphere as soon as the surface temperature drops below 273 K
+(Selsis et al.,
+2007
+)
+.
+7
+Biosignature Studies with Future Telescopes and Missions
+The combination of three factors make it very likely that the
+e Eridani (catalog )
+system will play pivotal roles in the future of exoplanet exploration. First – as our study highlights – it hosts a rich planetary system with (possibly) six small planets. Second,
+e Eridani (catalog )
+is among the closest Sun-like stars and the closest system with such a large number of discovered/predicted exoplanets. Third, one – perhaps two – of its small planets would orbit in the habitable zone.
+The very proximity of
+e Eridani (catalog )
+makes it an ideal target for near-future direct imaging studies: its habitable zone extends from 0.15″ to 0.23″ in projection (see §
+2.2
+). As a southern star (Declination
+−
+-
+43
+∘
+), it is an ideal target for both the European Extremely Large Telescope’s (E-ELT) PCS high-contrast, extreme adaptive optics imaging/spectrograph
+(Kasper et al.,
+2021
+)
+, as well as for the Giant Magellan Telescope’s high-contrast imaging systems (e.g., GMagAO-X,
+Males et al.
+2019
+). With its habitable zone planets seen at about 160 mas separation from
+e Eridani (catalog )
+, these instruments will likely be able to detect it in visible/near-infrared reflected/scattered light.
+The detectability of the planets within the habitable zone will depend, fundamentally, on whether the given telescope’s inner working angle (IWA) will be smaller than the projected star–planet separation and, if so, whether the star–planet contrast will be detectable considering instrumental and astrophysical background signal. To explore which planets may be viable candidates for future instruments, in Table
+3
+we compare their maximum angular separation with the inner working angle typical to those instruments. For example, The LUVOIR mission concept’s ECLIPS coronagraph would provide continuous coverage at wavelengths ranging from 200 nm to 2.0 µm at a spectral resolving power of R=140 (in the visible) and R=70–200 (in the near-infrared). The inner working angle (IWA) of ECLIPS would be 4
+λ
+/
+D
+𝜆
+𝐷
+\lambda/D
+(in the ultraviolet) and 3.5
+λ
+𝜆
+\lambda
+/D (in the visible and near-infrared). Coronagraphic imagers on HabEx
+(Gaudi et al.,
+2020
+)
+and on large ground-based telescopes (e.g.,
+Males et al.
+2019
+and
+Kasper et al.
+2021
+) will also allow very similar contrast-limited performance, but coupled to different diameter mirrors. Assuming a 4
+λ
+/
+D
+𝜆
+𝐷
+\lambda/D
+limit, for each planet we calculate the required minimum mirror diameter at 0.4 µm and at 1.5
+µm
+µm
+\micron{}
+. These minimum diameters are shown in Table
+3
+. We determine the detectability (last three columns) by comparing the inner working angle for the given instrument to the maximum projected separation of the planet. Our assessment suggests that planets close to or within the habitable zone (f and H[d]-PxP-1) are excellent candidates for both space- and ground-based high-contrast imaging.
+Furthermore, future thermal infrared imagers at the VLT – perhaps building on the NEAR concept
+(e.g., Kasper et al.,
+2017
+; Wagner et al.,
+2021
+)
+– may also be able to detect some of the planets close to the habitable zone of
+e Eridani (catalog )
+. In fact,
+e Eridani (catalog )
+has also been identified among the highest-priority targets for the high-resolution thermal infrared imaging with the E-ELT’s METIS instrument
+(Bowens et al.,
+2021
+)
+.
+Table 3:
+Assessment of the planets and planet candidates for direct imaging potential.
+Planet
+Period
+Semi-major
+Max. Proj.
+Min. Mirror Diam. [m]
+Detectability
+Name
+[days]
+axis [au]
+Sep. [mas]
+at 0.5 µm
+at 1.5 µm
+ELTs
+LUVOIR
+HabEx
+g
+11.86
+−
+0.02
++
+0.01
+superscript
+subscript
+11.86
+0.02
+0.01
+11.86_{-0.02}^{+0.01}
+0.095
+−
+0.001
++
+0.001
+superscript
+subscript
+0.095
+0.001
+0.001
+0.095_{-0.001}^{+0.001}
+16
+32
+95
+N
+N
+N
+b
+18.33
+−
+0.02
++
+0.01
+superscript
+subscript
+18.33
+0.02
+0.01
+18.33_{-0.02}^{+0.01}
+0.127
+−
+0.001
++
+0.001
+superscript
+subscript
+0.127
+0.001
+0.001
+0.127_{-0.001}^{+0.001}
+21
+24
+72
+Y
+N
+N
+c
+43.17
+−
+0.10
++
+0.12
+superscript
+subscript
+43.17
+0.10
+0.12
+43.17_{-0.10}^{+0.12}
+0.225
+−
+0.003
++
+0.002
+superscript
+subscript
+0.225
+0.003
+0.002
+0.225_{-0.003}^{+0.002}
+37
+14
+40
+Y
+Y
+N
+d
+88.90
+−
+0.41
++
+0.37
+superscript
+subscript
+88.90
+0.41
+0.37
+88.90_{-0.41}^{+0.37}
+0.364
+−
+0.004
++
+0.004
+superscript
+subscript
+0.364
+0.004
+0.004
+0.364_{-0.004}^{+0.004}
+60
+8.4
+25
+Y
+Y
+N
+e
+147.02
+−
+0.91
++
+1.43
+superscript
+subscript
+147.02
+0.91
+1.43
+147.02_{-0.91}^{+1.43}
+0.509
+−
+0.006
++
+0.006
+superscript
+subscript
+0.509
+0.006
+0.006
+0.509_{-0.006}^{+0.006}
+84
+6.0
+18
+Y
+Y
+N
+f
+331.41
+−
+3.01
++
+5.08
+superscript
+subscript
+331.41
+3.01
+5.08
+331.41_{-3.01}^{+5.08}
+0.875
+−
+0.010
++
+0.011
+superscript
+subscript
+0.875
+0.010
+0.011
+0.875_{-0.010}^{+0.011}
+144
+3.5
+10
+Y
+Y
+Y
+H[d]-PxP-1
+611
+0.99.
+163
+3.0
+9
+Y
+Y
+Y
+Note: The required minimum mirror diameter assumes the planet is observed at maximum elongation and assumes an inner working angle of 4.0
+λ
+𝜆
+\lambda
+/D.
+Finally, future interferometric missions focusing on habitable planets – such as the LIFE mission concept
+(Quanz et al.,
+2021
+)
+– will likely focus on
+e Eridani (catalog )
+due to its relatively easy-to-observe yet rich planetary system and likely presence of potentially habitable planets.
+8
+Summary
+We analyzed
+e Eridani (catalog )
+system for its multiplicity, the planetary architecture and orbital parameters of the planets, the equilibrium and surface temperature of the planets and potential candidates, and the dynamical stability of the system based on varying planetary eccentricities.
+Starting from the assumption that the system consisted of only three planets – b, d, and e – the
+DYNAMITE
+analysis predicted three more potential candidates – g, c, and f – which had also been reported in earlier studies but could not be confirmed. No information about the potential candidates was used as an input while running the
+DYNAMITE
+analysis. The planetary parameters for these planet candidates were in good agreement with those reported in previous works (
+F17
+and
+P11
+). Subsequently, when all the 6 planets were used as an input,
+DYNAMITE
+predicted one additional planet in the habitable zone of the system (P = 611 d) with a likely radius and mass of
+1.25
+−
+5.16
+​
+R
+⊕
+1.25
+5.16
+subscript
+𝑅
+direct-sum
+1.25-5.16R_{\oplus}
+and
+1.03
+−
+8.7
+​
+M
+⊕
+1.03
+8.7
+subscript
+𝑀
+direct-sum
+1.03-8.7M_{\oplus}
+, respectively.
+Our analysis of the equilibrium and surface temperatures of the planets was based on an albedo prior derived from the celestial bodies in the Solar system and the assumption of thin atmosphere. We find that though planet candidate f lies in habitable zone, its likely gaseous nature will make it uninhabitable. We find that the newly predicted planet (H[d]-PxP-1) might be habitable.
+From our eccentricity analysis, we find that if
+e Eridani (catalog )
+is a three-planet system with planets b, d, and e, then the combined mean eccentricity for the system to be stable is
+∼
+0.05
+similar-to
+absent
+0.05
+\sim 0.05
+. If the system is a six-planet system instead, then the combined mean eccentricity for the system to be stable is of order
+∼
+0.026
+similar-to
+absent
+0.026
+\sim 0.026
+. In either case, we find that the eccentricity of each planet should be significantly lower than the value fitted to the RV data, as also proposed by
+Feng et al. (
+2017a
+)
+.
+As the planetary system’s stability necessitates a lower-than-reported eccentricity for the planets, our analysis is based on this assumption. If better constraints on the eccentricities become available in future, then our analysis could be repeated again with the updated values.
+Our assessment of the
+e Eridani (catalog )
+system provides support for a seven-planet architecture with one planet candidate in the habitable zone of the system. Given its proximity and – in projection – large habitable zone as well as its rich inner planetary system, the nearby
+e Eridani (catalog )
+is likely to further ascend on the lists of planetary systems that are the most promising for exploration via direct imaging and for the search for life.
+The results reported herein benefited from collaborations and/or information exchange within the program “Alien Earths” (supported by the National Aeronautics and Space Administration under Agreement No. 80NSSC21K0593) for NASA’s Nexus for Exoplanet System Science (NExSS) research coordination network sponsored by NASA’s Science Mission Directorate. We acknowledge use of the software packages NumPy
+(Harris et al.,
+2020
+)
+, SciPy
+(Virtanen et al.,
+2020
+)
+, and Matplotlib
+(Hunter,
+2007
+)
+. This paper includes data collected by the Kepler mission. Funding for the Kepler mission is provided by the NASA Science Mission Directorate. We obtain the data set from the NASA Exoplanet Archive
+(NASA Exoplanet Archive,
+2022
+)
+3
+3
+3
+Accessed on 2022-01-23 at 09:00, returning 1 row.)
+This dataset or service is made available by the NASA Exoplanet Science Institute at IPAC, which is operated by the California Institute of Technology under contract with the National Aeronautics and Space Administration. The citations in this paper have made use of NASA’s Astrophysics Data System Bibliographic Services. This research uses data from the Solar System Dynamics Small-Body Database, which is hosted by the Jet Propulsion Laboratory and sponsored by NASA under Contract NAS7-030010. This work has made use of data from the European Space Agency (ESA) mission
+Gaia
+(
+https://www.cosmos.esa.int/gaia
+), processed by the
+Gaia
+Data Processing and Analysis Consortium (DPAC,
+https://www.cosmos.esa.int/web/gaia/dpac/consortium
+). Funding for the DPAC has been provided by national institutions, in particular the institutions participating in the
+Gaia
+Multilateral Agreement.
+References
+Apai et al. (2019)
+Apai, D., Banzatti, A., Ballering, N. P., et al. 2019, BAAS, 51, 475
+Ashkenazy (2016)
+Ashkenazy, Y. 2016, arXiv e-prints, arXiv:1608.07372.
+https://arxiv.org/abs/1608.07372
+Bowens et al. (2021)
+Bowens, R., Meyer, M. R., Delacroix, C., et al. 2021, arXiv e-prints,
+arXiv:2107.06375.
+https://arxiv.org/abs/2107.06375
+Buratti et al. (2008)
+Buratti, B. J., Soderlund, K., Bauer, J., et al. 2008, Icarus, 193,
+309, doi:
+10.1016/j.icarus.2007.09.014
+Buratti et al. (2017)
+Buratti, B. J., Hofgartner, J. D., Hicks, M. D., et al. 2017, Icarus,
+287, 207, doi:
+10.1016/j.icarus.2016.11.012
+Buratti et al. (2019)
+Buratti, B. J., Hicks, M. D., Hillier, J. H., et al. 2019, ApJ, 874,
+L3, doi:
+10.3847/2041-8213/ab0bff
+Chambers et al. (1996)
+Chambers, J. E., Wetherill, G. W., & Boss, A. P. 1996, Icarus, 119,
+261, doi:
+10.1006/icar.1996.0019
+Dietrich & Apai (2020)
+Dietrich, J., & Apai, D. 2020, AJ, 160, 107,
+doi:
+10.3847/1538-3881/aba61d
+Dietrich & Apai (2021)
+—. 2021, AJ, 161, 17, doi:
+10.3847/1538-3881/abc560
+Dietrich et al. (2022)
+Dietrich, J., Apai, D., & Malhotra, R. 2022, AJ, 163, 88,
+doi:
+10.3847/1538-3881/ac4166
+Feng et al. (2017a)
+Feng, F., Tuomi, M., & Jones, H. R. A. 2017a, A&A, 605,
+A103, doi:
+10.1051/0004-6361/201730406
+Feng et al. (2017b)
+Feng, F., Tuomi, M., Jones, H. R. A., et al. 2017b, AJ,
+154, 135, doi:
+10.3847/1538-3881/aa83b4
+Gaia Collaboration et al. (2016)
+Gaia Collaboration, Prusti, T., de Bruijne, J. H. J., et al. 2016,
+A&A, 595, A1, doi:
+10.1051/0004-6361/201629272
+Gaia Collaboration et al. (2018)
+Gaia Collaboration, Brown, A. G. A., Vallenari, A., et al. 2018, A&A,
+616, A1, doi:
+10.1051/0004-6361/201833051
+Gaia Collaboration et al. (2021)
+Gaia Collaboration, Smart, R. L., Sarro, L. M., et al. 2021, A&A, 649,
+A6, doi:
+10.1051/0004-6361/202039498
+Gaudi et al. (2020)
+Gaudi, B. S., Seager, S., Mennesson, B., et al. 2020, arXiv e-prints,
+arXiv:2001.06683.
+https://arxiv.org/abs/2001.06683
+Hardegree-Ullman et al. (2021)
+Hardegree-Ullman, K. K., Christiansen, J. L., Ciardi, D. R., et al.
+2021, AJ, 161, 219, doi:
+10.3847/1538-3881/abeab0
+Harris et al. (2020)
+Harris, C. R., Millman, K. J., van der Walt, S. J., et al. 2020, Nature, 585,
+357–362, doi:
+10.1038/s41586-020-2649-2
+Hayne et al. (2017)
+Hayne, P. O., Bandfield, J. L., Siegler, M. A., et al. 2017, Journal of
+Geophysical Research (Planets), 122, 2371, doi:
+10.1002/2017JE005387
+He et al. (2019)
+He, M. Y., Ford, E. B., & Ragozzine, D. 2019, MNRAS, 490, 4575,
+doi:
+10.1093/mnras/stz2869
+He et al. (2020)
+He, M. Y., Ford, E. B., Ragozzine, D., & Carrera, D. 2020, AJ, 160,
+276, doi:
+10.3847/1538-3881/abba18
+Helled & Fortney (2020)
+Helled, R., & Fortney, J. J. 2020, Philosophical Transactions of the Royal
+Society of London Series A, 378, 00474, doi:
+10.1098/rsta.2019.0474
+Heng et al. (2021)
+Heng, K., Morris, B. M., & Kitzmann, D. 2021, arXiv e-prints,
+arXiv:2103.02673.
+https://arxiv.org/abs/2103.02673
+Hillier et al. (1991)
+Hillier, J., Helfenstein, P., Verbiscer, A., & Veverka, J. 1991, J. Geophys. Res.,
+96, 19203, doi:
+10.1029/91JA01736
+Hunter (2007)
+Hunter, J. D. 2007, Computing in Science and Engineering, 9, 90,
+doi:
+10.1109/MCSE.2007.55
+Jansen & Kipping (2018)
+Jansen, T., & Kipping, D. 2018, MNRAS, 478, 3025,
+doi:
+10.1093/mnras/sty1149
+Jontof-Hutter (2019)
+Jontof-Hutter, D. 2019, Annual Review of Earth and Planetary Sciences, 47,
+141, doi:
+10.1146/annurev-earth-053018-060352
+Kaltenegger & Sasselov (2011)
+Kaltenegger, L., & Sasselov, D. 2011, ApJ, 736, L25,
+doi:
+10.1088/2041-8205/736/2/L25
+Karkoschka (2001)
+Karkoschka, E. 2001, Icarus, 151, 51, doi:
+10.1006/icar.2001.6596
+Kasper et al. (2017)
+Kasper, M., Arsenault, R., Käufl, H. U., et al. 2017, The
+Messenger, 169, 16, doi:
+10.18727/0722-6691/5033
+Kasper et al. (2021)
+Kasper, M., Cerpa Urra, N., Pathak, P., et al. 2021, The Messenger,
+182, 38, doi:
+10.18727/0722-6691/5221
+Kennedy et al. (2015)
+Kennedy, G. M., Matrà, L., Marmier, M., et al. 2015, MNRAS, 449,
+3121, doi:
+10.1093/mnras/stv511
+Kopparapu et al. (2014)
+Kopparapu, R. K., Ramirez, R. M., SchottelKotte, J., et al. 2014,
+ApJ, 787, L29, doi:
+10.1088/2041-8205/787/2/L29
+Kopparapu et al. (2013)
+Kopparapu, R. K., Ramirez, R., Kasting, J. F., et al. 2013, ApJ, 765,
+131, doi:
+10.1088/0004-637X/765/2/131
+Li et al. (2007)
+Li, J.-Y., A’Hearn, M. F., McFadden, L. A., & Belton, M. J. S. 2007,
+Icarus, 188, 195, doi:
+10.1016/j.icarus.2006.11.015
+Li et al. (2018)
+Li, L., Jiang, X., West, R. A., et al. 2018, Nature Communications, 9,
+3709, doi:
+10.1038/s41467-018-06107-2
+Ma et al. (2018)
+Ma, B., Ge, J., Muterspaugh, M., et al. 2018, MNRAS, 480, 2411,
+doi:
+10.1093/mnras/sty1933
+Males et al. (2019)
+Males, J., Close, L. M., Guyon, O., et al. 2019, in Bulletin of the
+American Astronomical Society, Vol. 51, 236
+Mallama (2017)
+Mallama, A. 2017, arXiv e-prints, arXiv:1703.02670.
+https://arxiv.org/abs/1703.02670
+Mamajek & Hillenbrand (2008)
+Mamajek, E. E., & Hillenbrand, L. A. 2008, ApJ, 687, 1264,
+doi:
+10.1086/591785
+Mankovich & Fortney (2020)
+Mankovich, C. R., & Fortney, J. J. 2020, ApJ, 889, 51,
+doi:
+10.3847/1538-4357/ab6210
+Mansfield et al. (2019)
+Mansfield, M., Kite, E. S., Hu, R., et al. 2019, ApJ, 886, 141,
+doi:
+10.3847/1538-4357/ab4c90
+Marshall & Plumb (2008)
+Marshall, J., & Plumb, R. A. 2008, Atmopshere, ocean, and climate
+dynamics (Academic Press)
+Martínez et al. (2017)
+Martínez, G. M., Newman, C. N., De Vicente-Retortillo, A., et al.
+2017, Space Sci. Rev., 212, 295, doi:
+10.1007/s11214-017-0360-x
+Mulders et al. (2018)
+Mulders, G. D., Pascucci, I., Apai, D., & Ciesla, F. J. 2018, AJ,
+156, 24, doi:
+10.3847/1538-3881/aac5ea
+NASA Exoplanet Archive (2022)
+NASA Exoplanet Archive. 2022, Planetary Systems, Version: 2022-01-23 09:00,
+NExScI-Caltech/IPAC, doi:
+10.26133/NEA12
+Neff et al. (1985)
+Neff, J. S., Ellis, T. A., Apt, J., & Bergstralh, J. T. 1985, Icarus,
+62, 425, doi:
+10.1016/0019-1035(85)90185-X
+Otegi et al. (2020)
+Otegi, J. F., Bouchy, F., & Helled, R. 2020, A&A, 634, A43,
+doi:
+10.1051/0004-6361/201936482
+Owen & Wu (2017)
+Owen, J. E., & Wu, Y. 2017, ApJ, 847, 29,
+doi:
+10.3847/1538-4357/aa890a
+Pepe et al. (2011)
+Pepe, F., Lovis, C., Ségransan, D., et al. 2011, A&A, 534, A58,
+doi:
+10.1051/0004-6361/201117055
+Pitman et al. (2010)
+Pitman, K. M., Buratti, B. J., & Mosher, J. A. 2010, in Lunar and
+Planetary Science Conference, Lunar and Planetary Science Conference, 2035
+Quanz et al. (2021)
+Quanz, S. P., Ottiger, M., Fontanet, E., et al. 2021, arXiv e-prints,
+arXiv:2101.07500.
+https://arxiv.org/abs/2101.07500
+Ramírez et al. (2013)
+Ramírez, I., Allende Prieto, C., & Lambert, D. L. 2013, ApJ, 764,
+78, doi:
+10.1088/0004-637X/764/1/78
+Rein & Liu (2012)
+Rein, H., & Liu, S. F. 2012, A&A, 537, A128,
+doi:
+10.1051/0004-6361/201118085
+Rein et al. (2019)
+Rein, H., Hernandez, D. M., Tamayo, D., et al. 2019, MNRAS, 485, 5490,
+doi:
+10.1093/mnras/stz769
+Rice et al. (2018)
+Rice, D. R., Rasio, F. A., & Steffen, J. H. 2018, MNRAS, 481, 2205,
+doi:
+10.1093/mnras/sty2418
+Rivkin et al. (2014)
+Rivkin, A. S., Asphaug, E., & Bottke, W. F. 2014, Icarus, 243, 429,
+doi:
+10.1016/j.icarus.2014.08.007
+Selsis et al. (2007)
+Selsis, F., Kasting, J. F., Levrard, B., et al. 2007, A&A, 476, 1373,
+doi:
+10.1051/0004-6361:20078091
+Sheets & Deming (2014)
+Sheets, H. A., & Deming, D. 2014, ApJ, 794, 133,
+doi:
+10.1088/0004-637X/794/2/133
+Sheets & Deming (2017)
+—. 2017, AJ, 154, 160, doi:
+10.3847/1538-3881/aa88b9
+Shevchenko et al. (2019)
+Shevchenko, V. G., Belskaya, I. N., Mikhalchenko, O. I., et al. 2019,
+A&A, 626, A87, doi:
+10.1051/0004-6361/201935588
+Simonelli et al. (1998)
+Simonelli, D. P., Wisz, M., Switala, A., et al. 1998, Icarus, 131, 52,
+doi:
+10.1006/icar.1997.5800
+Sousa et al. (2008)
+Sousa, S. G., Santos, N. C., Mayor, M., et al. 2008, A&A, 487, 373,
+doi:
+10.1051/0004-6361:200809698
+Squyres & Veverka (1981)
+Squyres, S. W., & Veverka, J. 1981, Icarus, 46, 137,
+doi:
+10.1016/0019-1035(81)90203-7
+Stassun et al. (2019)
+Stassun, K. G., Oelkers, R. J., Paegert, M., et al. 2019, AJ, 158,
+138, doi:
+10.3847/1538-3881/ab3467
+Steffen & Hwang (2015)
+Steffen, J. H., & Hwang, J. A. 2015, MNRAS, 448, 1956,
+doi:
+10.1093/mnras/stv104
+Sucerquia et al. (2019)
+Sucerquia, M., Alvarado-Montes, J. A., Zuluaga, J. I., Cuello, N., &
+Giuppone, C. 2019, MNRAS, 489, 2313, doi:
+10.1093/mnras/stz2110
+Takahashi et al. (2011)
+Takahashi, J., Itoh, Y., & Takahashi, S. 2011, PASJ, 63, 499,
+doi:
+10.1093/pasj/63.3.499
+Takeda et al. (2007)
+Takeda, G., Ford, E. B., Sills, A., et al. 2007, ApJS, 168, 297,
+doi:
+10.1086/509763
+The LUVOIR Team (2019)
+The LUVOIR Team. 2019, arXiv e-prints, arXiv:1912.06219.
+https://arxiv.org/abs/1912.06219
+Thomas et al. (1996)
+Thomas, P. C., Adinolfi, D., Helfenstein, P., Simonelli, D., &
+Veverka, J. 1996, Icarus, 123, 536, doi:
+10.1006/icar.1996.0177
+Tuomi et al. (2013)
+Tuomi, M., Jones, H. R. A., Jenkins, J. S., et al. 2013, A&A, 551,
+A79, doi:
+10.1051/0004-6361/201220509
+Valenti & Fischer (2005)
+Valenti, J. A., & Fischer, D. A. 2005, ApJS, 159, 141,
+doi:
+10.1086/430500
+Virtanen et al. (2020)
+Virtanen, P., Gommers, R., Oliphant, T. E., et al. 2020, Nature
+Methods, 17, 261, doi:
+10.1038/s41592-019-0686-2
+Volk & Malhotra (2020)
+Volk, K., & Malhotra, R. 2020, AJ, 160, 98,
+doi:
+10.3847/1538-3881/aba0b0
+Wagner et al. (2021)
+Wagner, K., Boehle, A., Pathak, P., et al. 2021, Nature Communications,
+12, 922, doi:
+10.1038/s41467-021-21176-6
+Wyatt et al. (2012)
+Wyatt, M. C., Kennedy, G., Sibthorpe, B., et al. 2012, MNRAS, 424,
+1206, doi:
+10.1111/j.1365-2966.2012.21298.x
+Zollinger et al. (2017)
+Zollinger, R. R., Armstrong, J. C., & Heller, R. 2017, MNRAS, 472, 8,
+doi:
+10.1093/mnras/stx1861
+Appendix A
+Selection of Bond Albedos for planets
+Our estimate of the equilibrium temperatures is informed and influenced by a prior Bond albedo distribution. Though the albedo distribution of exoplanets is not yet determined, we can provide a reasonable prior on the Bond albedos considering current observational constraints on exoplanets and data on Solar System bodies.
+Sheets & Deming (
+2014
+)
+devised a statistical method to estimate the average albedo of an ensemble of exoplanets. They stacked multiple light curves of sub-Saturn planet candidates from the Kepler Object of Interest table, between
+2
+​
+R
+⊕
+−
+6
+​
+R
+⊕
+2
+subscript
+𝑅
+direct-sum
+6
+subscript
+𝑅
+direct-sum
+2R_{\oplus}-6R_{\oplus}
+, and measured the average depth of the light curve, from which they estimated the average albedo of the ensemble. They considered two different cases: including the planet Kepler-10b and excluding it, such that Kepler-10b does not dominate the results due to its unusually deep secondary eclipse.
+In a follow-up study,
+Sheets & Deming (
+2017
+)
+expanded the sample size of the ensemble and divided the ensemble into three sub categories:
+1
+−
+2
+​
+R
+⊕
+1
+2
+subscript
+𝑅
+direct-sum
+1-2R_{\oplus}
+,
+2
+−
+4
+​
+R
+⊕
+2
+4
+subscript
+𝑅
+direct-sum
+2-4R_{\oplus}
+, and
+4
+−
+6
+​
+R
+⊕
+4
+6
+subscript
+𝑅
+direct-sum
+4-6R_{\oplus}
+. They then subdivided each class further into two different lists based on if the false-positive probability was less than
+1
+%
+percent
+1
+1\%
+. In addition, the analysis provided two cases, one case assuming that the planet completely redistributed the heat and the second assuming instantaneous re-radiation of heat by the planet.
+Jansen & Kipping (
+2018
+)
+used a different statistical approach for estimating the average albedo of Terran and Neptunian planet ensembles. Instead of using light curves and planet candidates, multiple phase curves of confirmed planets were stacked, in order to estimate the albedos of the ensemble from the resulting average phase curve. The resulting albedos from all these works can be found in Table
+4
+.
+Solar System bodies offer greater amount of information and with higher precision than current exoplanet studies, albeit for objects that may differ in nature from the exoplanets such as those found in the
+e Eridani (catalog )
+system. Nevertheless, we consider the approximate range and distribution of the Bond albedos for Solar System bodies as a general context for our prior. Our discussion starts with asteroids and then continues with moons, rocky planets, and giant planets.
+Shevchenko et al. (
+2019
+)
+calculated phase integral values of Solar System asteroids as a function of their geometric albedos and classified all the asteroids in three main classes: low albedo, medium albedo, and high albedo asteroids. Bond albedo is defined as
+A
+B
+=
+A
+g
+​
+q
+subscript
+𝐴
+𝐵
+subscript
+𝐴
+𝑔
+𝑞
+A_{B}=A_{g}q
+, where
+A
+g
+subscript
+𝐴
+𝑔
+A_{g}
+is the geometric albedo of the body and
+q
+𝑞
+q
+is the phase integral. Therefore, the Bond albedos can be calculated for numerous asteroids listed in the dataset provided by the Jet Propulsion Laboratory through its Solar System Dynamics Small-Body Database
+4
+4
+4
+https://ssd.jpl.nasa.gov/sbdb_query.cgi
+. On using the average phase integral values of the three asteroid classes, we find two discontinuities in the Bond Albedo distribution of asteroids. To remove these discontinuities in the Bond Albedo distribution, instead of using the average phase integral for different classes, we use the linear fit equation, q = 0.359 + 0.47p
+(Shevchenko et al.,
+2019
+, with the variables as above)
+to calculate the phase integral, from which we calculate the Bond albedo of each asteroid. Besides asteroids, we also collected Bond albedos of the eight planets and many satellites in our Solar System, which can be found in Table
+5
+.
+We compared the Bond albedos of various bodies in our Solar System with the constraints placed on Bond albedos by various studies (as presented in Table
+4
+). Venus might be an outlier as it is not consistent with the results from the studies by
+Sheets & Deming (
+2014
+)
+,
+Jansen & Kipping (
+2018
+)
+, and
+Sheets & Deming (
+2017
+)
+. Earth’s albedo is consistent with
+Jansen & Kipping (
+2018
+)
+, but it is only consistent with the results of
+Sheets & Deming (
+2017
+)
+under the assumptions of complete heat redistribution and include Kepler-10b, along with those of
+Sheets & Deming (
+2014
+)
+which exclude Kepler-10b. Mars’ albedo is almost consistent with
+Jansen & Kipping (
+2018
+)
+. Lastly, the albedos of Uranus and Neptune are consistent with both
+Jansen & Kipping (
+2018
+)
+and
+Sheets & Deming (
+2017
+)
+, but are only consistent with those results of
+Sheets & Deming (
+2014
+)
+which exclude Kepler-10b. When using
+DYNAMITE
+to predict the size of the planets around
+e Eridani (catalog )
+, we find that the radii of planets lie roughly in
+1
+−
+2
+​
+R
+⊕
+1
+2
+subscript
+𝑅
+direct-sum
+1-2R_{\oplus}
+range, and likely to be Terran or Neptunian in nature. As a result, we chose the upper limits placed on the Bond albedo by
+Jansen & Kipping (
+2018
+)
+, as it is a broad range which meaningfully captures maximum data points and matches the likely natures of the
+e Eridani (catalog )
+planets. With these upper limits, nearly 69% and 99.8% of albedos drawn from our adopted Gaussian distribution fall below
+A
+B
+=
+0.35
+subscript
+𝐴
+𝐵
+0.35
+A_{B}=0.35
+and
+A
+B
+=
+0.63
+subscript
+𝐴
+𝐵
+0.63
+A_{B}=0.63
+. Thus, we conclude that the Gaussian distribution of albedos is a reasonable prior for our initial, exploratory estimate of the equilibrium temperatures of the predicted planets in the system.
+From these albedos, we calculated the equilibrium temperature of various bodies using two simple assumptions: the celestial bodies radiate as a blackbody, and they are in radiative equilibrium with their surroundings. We also used the Leaky Greenhouse Model (see §
+4.2
+) to calculate equilibrium temperature of those bodies which are larger than Mercury in size. We show the Bond albedos and Equilibrium Temperatures of all these bodies in Figure
+3
+, as well as a histogram showing the Bond albedo distribution of various bodies. For bodies of the size of Mercury or larger, the median Bond albedo is 0.3 and the standard deviation is 0.178. On the right hand side of this figure, we show our adopted Gaussian Distribution of Bond Albedos centered at
+μ
+=
+0.3
+𝜇
+0.3
+\mu=0.3
+with
+σ
+=
+0.1
+𝜎
+0.1
+\sigma=0.1
+.
+Table 4:
+Albedo Estimation for various ensemble of planets
+Reference
+Planetary Radius [
+R
+⊕
+subscript
+𝑅
+direct-sum
+R_{\oplus}
+]
+Bond Albedo
+Notes
+Sheets & Deming (
+2014
+)
+1
+−
+6
+1
+6
+1-6
+0.
+33
+±
+0.09
+plus-or-minus
+33
+0.09
+33\pm 0.09
+Excluding Kepler-10b
+0.56
+±
+0.08
+plus-or-minus
+0.56
+0.08
+0.56\pm 0.08
+Including Kepler-10b
+Sheets & Deming (
+2017
+)
+1
+−
+2
+1
+2
+1-2
+0.166
+±
+0.09
+plus-or-minus
+0.166
+0.09
+0.166\pm 0.09
+Original list, Excluding Kepler-10b,
+f
+=
+1
+/
+4
+𝑓
+1
+4
+f=1/4
+<
+0.26
+absent
+0.26
+<0.26
+Original list, Excluding Kepler-10b,
+f
+=
+2
+/
+3
+𝑓
+2
+3
+f=2/3
+0.166
+±
+0.09
+plus-or-minus
+0.166
+0.09
+0.166\pm 0.09
+Shortened list, Excluding Kepler-10b,
+f
+=
+1
+/
+4
+𝑓
+1
+4
+f=1/4
+<
+0.26
+absent
+0.26
+<0.26
+Shortened list, Excluding Kepler-10b,
+f
+=
+2
+/
+3
+𝑓
+2
+3
+f=2/3
+0.29
+±
+0.06
+plus-or-minus
+0.29
+0.06
+0.29\pm 0.06
+Original list, Including Kepler-10b,
+f
+=
+1
+/
+4
+𝑓
+1
+4
+f=1/4
+0.06
+±
+0.11
+plus-or-minus
+0.06
+0.11
+0.06\pm 0.11
+Original list, Including Kepler-10b,
+f
+=
+2
+/
+3
+𝑓
+2
+3
+f=2/3
+0.29
+±
+0.06
+plus-or-minus
+0.29
+0.06
+0.29\pm 0.06
+Shortened list, Including Kepler-10b,
+f
+=
+1
+/
+4
+𝑓
+1
+4
+f=1/4
+0.03
+−
+0.12
++
+0.11
+subscript
+superscript
+0.03
+0.11
+0.12
+0.03^{+0.11}_{-0.12}
+Shortened list, Including Kepler-10b,
+f
+=
+2
+/
+3
+𝑓
+2
+3
+f=2/3
+2
+−
+4
+2
+4
+2-4
+0.11
+±
+0.05
+plus-or-minus
+0.11
+0.05
+0.11\pm 0.05
+Original list,
+f
+=
+1
+/
+4
+𝑓
+1
+4
+f=1/4
+<
+0.06
+absent
+0.06
+<0.06
+Original list,
+f
+=
+2
+/
+3
+𝑓
+2
+3
+f=2/3
+0.08
+±
+0.06
+plus-or-minus
+0.08
+0.06
+0.08\pm 0.06
+Shortened list,
+f
+=
+1
+/
+4
+𝑓
+1
+4
+f=1/4
+<
+0.11
+absent
+0.11
+<0.11
+Shortened list,
+f
+=
+2
+/
+3
+𝑓
+2
+3
+f=2/3
+4
+−
+6
+4
+6
+4-6
+0.18
+±
+0.12
+plus-or-minus
+0.18
+0.12
+0.18\pm 0.12
+Original list,
+f
+=
+1
+/
+4
+𝑓
+1
+4
+f=1/4
+0.14
+±
+0.12
+plus-or-minus
+0.14
+0.12
+0.14\pm 0.12
+Original list,
+f
+=
+2
+/
+3
+𝑓
+2
+3
+f=2/3
+0.35
+±
+0.17
+plus-or-minus
+0.35
+0.17
+0.35\pm 0.17
+Shorted list,
+f
+=
+1
+/
+4
+𝑓
+1
+4
+f=1/4
+0.32
+±
+0.17
+plus-or-minus
+0.32
+0.17
+0.32\pm 0.17
+Shorted list,
+f
+=
+2
+/
+3
+𝑓
+2
+3
+f=2/3
+Jansen & Kipping (
+2018
+)
+0.61
+−
+1.25
+0.61
+1.25
+0.61-1.25
+<
+0.63
+absent
+0.63
+<0.63
+With
+95
+%
+percent
+95
+95\%
+confidence
+1.28
+−
+5.47
+1.28
+5.47
+1.28-5.47
+<
+0.35
+absent
+0.35
+<0.35
+With
+95
+%
+percent
+95
+95\%
+confidence
+Table 5:
+Albedos of planets, Satellites and Asteroids
+Name
+Bond Albedo
+Reference
+Mercury
+0.088
+±
+0.003
+plus-or-minus
+0.088
+0.003
+0.088\pm 0.003
+Mallama (
+2017
+)
+Venus
+0.77
+Jontof-Hutter (
+2019
+)
+Earth
+0.3
+Heng et al. (
+2021
+)
+Mars
+0.25
+Zollinger et al. (
+2017
+)
+Jupiter
+0.503
+±
+0.012
+plus-or-minus
+0.503
+0.012
+0.503\pm 0.012
+Li et al. (
+2018
+)
+Saturn
+0.5
+Mankovich & Fortney (
+2020
+)
+Uranus
+0.3
+±
+0.049
+plus-or-minus
+0.3
+0.049
+0.3\pm 0.049
+Helled & Fortney (
+2020
+)
+Neptune
+0.29
+±
+0.067
+plus-or-minus
+0.29
+0.067
+0.29\pm 0.067
+Moon
+0.12
+Hayne et al. (
+2017
+)
+Pluto
+0.72
+±
+0.07
+plus-or-minus
+0.72
+0.07
+0.72\pm 0.07
+Buratti et al. (
+2017
+)
+Charon
+0.29
+±
+0.05
+plus-or-minus
+0.29
+0.05
+0.29\pm 0.05
+Buratti et al. (
+2019
+)
+Rhea
+0.48
+±
+0.09
+plus-or-minus
+0.48
+0.09
+0.48\pm 0.09
+Pitman et al. (
+2010
+)
+Dione
+0.52
+±
+0.08
+plus-or-minus
+0.52
+0.08
+0.52\pm 0.08
+Tethys
+0.61
+±
+0.09
+plus-or-minus
+0.61
+0.09
+0.61\pm 0.09
+Mimas
+0.67
+±
+0.10
+plus-or-minus
+0.67
+0.10
+0.67\pm 0.10
+Enceladus
+0.85
+±
+0.11
+plus-or-minus
+0.85
+0.11
+0.85\pm 0.11
+Io
+0.6
+Mansfield et al. (
+2019
+)
+Portia Group
+0.026
+±
+0.005
+plus-or-minus
+0.026
+0.005
+0.026\pm 0.005
+Karkoschka (
+2001
+)
+Puck
+0.035
+±
+0.006
+plus-or-minus
+0.035
+0.006
+0.035\pm 0.006
+Miranda
+0.2
+±
+0.03
+plus-or-minus
+0.2
+0.03
+0.2\pm 0.03
+Ariel
+0.23
+±
+0.025
+plus-or-minus
+0.23
+0.025
+0.23\pm 0.025
+Umbriel
+0.1
+±
+0.01
+plus-or-minus
+0.1
+0.01
+0.1\pm 0.01
+Titania
+0.17
+±
+0.015
+plus-or-minus
+0.17
+0.015
+0.17\pm 0.015
+Oberon
+0.14
+±
+0.015
+plus-or-minus
+0.14
+0.015
+0.14\pm 0.015
+Phobos
+0.021
+±
+0.005
+plus-or-minus
+0.021
+0.005
+0.021\pm 0.005
+Simonelli et al. (
+1998
+)
+Deimos
+0.027
+±
+0.004
+plus-or-minus
+0.027
+0.004
+0.027\pm 0.004
+Thomas et al. (
+1996
+)
+Callisto
+0.13
+Squyres & Veverka (
+1981
+)
+Ganymede
+0.42
+Rivkin et al. (
+2014
+)
+Europa
+0.68
+±
+0.05
+plus-or-minus
+0.68
+0.05
+0.68\pm 0.05
+Ashkenazy (
+2016
+)
+Titan
+0.27
+±
+0.02
+plus-or-minus
+0.27
+0.02
+0.27\pm 0.02
+Neff et al. (
+1985
+)
+Triton
+0.85
+±
+0.05
+plus-or-minus
+0.85
+0.05
+0.85\pm 0.05
+Hillier et al. (
+1991
+)
+Phoebe
+0.023
+±
+0.007
+plus-or-minus
+0.023
+0.007
+0.023\pm 0.007
+Buratti et al. (
+2008
+)
+Eris
+0.96
+Sucerquia et al. (
+2019
+)
+Comet 19P/Borelly
+0.018
+Li et al. (
+2007
+)
+11 Parthenope
+0.07
+Takahashi et al. (
+2011
+)
+Note
+: Albedos of Venus, Earth, Mars, Saturn, Moon, Io, Callisto, Ganymede, Eris, Borelly and 11 Parthenope did not have any uncertainity attached.
+Appendix B
+Additional Hypotheses
+The four hypotheses presented in §
+3
+do not capture all the possible configurations of confirmed planets and unconfirmed planet candidates in the
+e Eridani (catalog )
+system. Therefore, we present here all the remaining possible combinations of the three confirmed planets and three planet candidates in the system, which is summarized in Table
+6
+. As before, the starting point of our
+DYNAMITE
+analysis for all scenarios are the three confirmed planets. When we use
+DYNAMITE
+with planets b, d, and e, there are three strong likelihood predictions near the locations of the unconfirmed planet candidates g, c, and f. We then progress through each of the possible planet candidates, assuming one additional candidate is a genuine planet. Finally, we show what the
+DYNAMITE
+predictions give for the full 6-planet system.
+Table 6:
+Results for DYNAMITE analysis on additional configurations in the planetary system
+e Eridani (catalog )
+Starting Point
+First addition
+Second Addition
+Third Addition
+Figure
+Predictions
+Planets b, d and e
+Planet candidate c
+Planet candidate g
+Planet candidate f
+Figure
+7
+Strong prediction for a planet
+Planet candidate f
+Planet candidate c
+Planet candidate g
+Figure
+8
+to exist at an orbital period
+Planet candidate g
+Planet candidate c
+Figure
+9
+of 611 days with a radius
+Planet candidate g
+Planet candidate c
+Planet candidate f
+Figure
+10
+of
+1.1
+−
+2.0
+1.1
+2.0
+1.1-2.0
+R
+⊕
+subscript
+𝑅
+direct-sum
+R_{\oplus}
+and mass of
+Planet candidate f
+Planet candidate c
+Figure
+11
+1.25
+−
+5.16
+1.25
+5.16
+1.25-5.16
+M
+⊕
+subscript
+𝑀
+direct-sum
+M_{\oplus}
+.
+Figure 7:
+The upper left plot shows the
+DYNAMITE
+analysis without planet candidates g, c, and f. The upper right plot shows
+DYNAMITE
+analysis without planet candidates g and f. The lower left plot shows
+DYNAMITE
+analysis without planet candidate f while the lower right plot shows the
+DYNAMITE
+analysis with all the planets and planet candidates.
+Figure 8:
+The upper left plot shows the
+DYNAMITE
+analysis without planet candidates g, c, and f. The upper right plot shows
+DYNAMITE
+analysis without planet candidates g and c. The lower left plot shows
+DYNAMITE
+analysis without planet candidate g while the lower right plot shows the
+DYNAMITE
+analysis with all the planets and planet candidates.
+Figure 9:
+The upper left plot shows the
+DYNAMITE
+analysis without planet candidates g, c, and f. The upper right plot shows
+DYNAMITE
+analysis without planet candidates g and c. The lower left plot shows
+DYNAMITE
+analysis without planet candidate c while the lower right plot shows the
+DYNAMITE
+analysis with all the planets and planet candidates.
+Figure 10:
+The upper left plot shows the
+DYNAMITE
+analysis without planet candidates g, c, and f. The upper right plot shows
+DYNAMITE
+analysis without planet candidates c and f. The lower left plot shows
+DYNAMITE
+analysis without planet candidate f while the lower right plot shows the
+DYNAMITE
+analysis with all the planets and planet candidates.
+Figure 11:
+The upper left plot shows the
+DYNAMITE
+analysis without planet candidates g, c, and f. The upper right plot shows
+DYNAMITE
+analysis without planet candidates c and f. The lower left plot shows
+DYNAMITE
+analysis without planet candidate c while the lower right plot shows the
+DYNAMITE
+analysis with all the planets and planet candidates.
+Appendix C
+DYNAMITE
+analysis on Inner Solar System and Temperature Estimation for Mars
+In addition to analysing the
+e Eridani (catalog )
+planetary system, we also ran
+DYNAMITE
+on the Inner Solar System while deliberately excluding Mars from the system. We found three peaks in the orbital period space distribution plot out of which the inner two peaks are significantly smaller than the outer peak. The first peak (at 43.5 days) lies interior to Mercury, the second peak (at 141 days) lies between Mercury and Earth, while the last peak (at 673 days) lies exterior to Earth. The outermost peak is less constrained as
+DYNAMITE
+tries to match the Kepler period ratios by adding planets exterior to Earth. The outermost peak is the only significant peak and its location matches to that of Mars’ orbital period (
+∼
+687
+similar-to
+absent
+687
+\sim 687
+days – an excellent 2% match). This gives another line of evidence that the model accurately retrieves the intentionally removed planet.
+Using the methods explained earlier in §
+3.3
+, we calculated the likelihood surface temperature of Mars to be
+202
+±
+18
+plus-or-minus
+202
+18
+202\pm 18
+K (
+±
+plus-or-minus
+\pm
+2
+σ
+𝜎
+\sigma
+range approx. 166 K – 238 K). Keeping in mind that Mars has a fairly complex climate and shows weak Greenhouse effect, our calculated surface temperature for Mars is an excellent match with the measured temperature range of the Martian surface
+165
+−
+235
+165
+235
+165-235
+K
+(Martínez et al.,
+2017
+)
+. Therefore, the predicted surface temperature is in excellent agreement with the actual surface temperature range. Given the typical limitations on the atmospheric characterization of exoplanets, our model can provide useful initial exploratory estimates of the surface temperature ranges that may be typical to them.
+Figure 12:
+The upper plot shows
+DYNAMITE
+analysis on Inner Solar system when Mars was excluded from the system. The lower plot shows surface temperature distribution for Inner Solar System based on
+DYNAMITE
+analysis.
+Appendix D
+Dynamical Stability analysis of the e Eridani System
+Here we present the results of our dynamical stability analysis of
+e Eridani (catalog )
+planetary system as a function planetary eccentricities. We analyzed the three-planet and six-planet system with: (1) Normal eccentricity distribution following the RV solutions from
+Feng et al. (
+2017a
+)
+and (2) Lognormal eccentricity distributions from
+He et al. (
+2020
+)
+(see Section
+3.4
+for more details). We calculated the combined average eccentricity for each of the four cases. The results for each run are shown in Figure
+13
+.
+Figure 13:
+The number of stable vs unstable iterations in the four dynamic stability simulations - for the three- and six-planet systems assuming Normal and Lognormal eccentricity distributions.

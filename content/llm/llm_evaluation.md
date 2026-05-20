@@ -2,7 +2,7 @@
 domain: llm
 topic_id: llm_evaluation
 topic_name: LLM评测
-page_icon: "\U0001F4CA"
+page_icon: 📊
 page_title: LLM评测 算法总结
 page_subtitle: '{build_date} 版'
 page_desc: 从基础基准到自动化评测，系统梳理LLM评测技术从通用能力、专业能力到对齐安全的完整演进脉络，涵盖2026年Agent评测、长上下文评测等前沿动态。
@@ -27,8 +27,13 @@ image_base: ../../content/llm/llm_evaluation/assets/
 
 ## 领域综述
 
-### 待定
-待定。
+### 待补充：阶段性领域总结
+请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+
+## 最新进展综述
+
+### 待补充：最近一个月最新动向
+请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
 
 ## 算法演化关系
 

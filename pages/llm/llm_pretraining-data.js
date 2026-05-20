@@ -1,5 +1,5 @@
 /**
- * llm_pretraining-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:05 自动生成。
+ * llm_pretraining-data.js — 由 pipeline/build.py 于 2026-05-20 16:45:41 自动生成。
  * 源文件：content/llm/llm_pretraining.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,25 +9,27 @@ window.PAGE_CONFIG = {
     "topic_id": "llm_pretraining",
     "topic_name": "LLM预训练",
     "page_title": "LLM预训练算法总结",
-    "page_subtitle": "2026-05-18 版",
+    "page_subtitle": "2026-05-20 版",
     "page_desc": "系统梳理从Scaling Laws理论奠基、数据工程精炼到分布式训练优化的大语言模型预训练技术演进脉络",
     "page_icon": "⚡",
     "hero_pills": [
       "Scaling Laws · 数据工程 · 训练稳定性 · 分布式训练"
     ],
     "count_pill": "{count} 个算法",
-    "image_base": ""
+    "image_base": "",
+    "overview_from_doc": true,
+    "latest_overview_from_doc": true
   },
   "overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：阶段性领域总结",
+      "body_html": "<p>请补充一篇纵观一段时间以来的总结性文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "latest_overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：最近一个月最新动向",
+      "body_html": "<p>请补充最近一个月该领域最新动向的综述文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "graph": {

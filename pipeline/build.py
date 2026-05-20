@@ -6,11 +6,12 @@
 ========
 
 1. 全量构建（默认模式）
-   扫描 pipeline/examples/ 与 content/ 下所有带合法 front-matter
-   的 markdown 源文档，逐一编译为二级页，然后刷新一级领域目录页和首页：
+   扫描 content/ 下所有带合法 front-matter 的 markdown 源文档，
+   逐一编译为二级页，然后刷新一级领域目录页和首页：
 
        python3 pipeline/build.py
        python3 pipeline/build.py --copy-images
+       python3 pipeline/build.py --include-examples
 
 2. 增量更新（指定单篇文档）
    编译给定源文档，再同步刷新一级目录页和首页：
@@ -38,6 +39,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -46,6 +48,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from pipeline.builders.common import (
     CONTENT_DIRS,
+    EXAMPLE_CONTENT_DIRS,
     DOMAIN_MAP,
     ROOT,
     err,
@@ -60,11 +63,17 @@ from pipeline.builders.topic_builder import compile_doc, peek_front_matter
 
 # ============ 源文档发现 ============
 
-def discover_sources() -> list[Path]:
-    """扫描 CONTENT_DIRS 下所有含合法 front-matter(domain+topic_id) 的 .md 文件。"""
+DATA_JS_SOURCE_RE = re.compile(r"源文件：([^\n]+)")
+
+def discover_sources(include_examples: bool = False) -> list[Path]:
+    """扫描源文档目录下所有含合法 front-matter(domain+topic_id) 的 .md 文件。"""
     found: list[Path] = []
     seen: set[Path] = set()
-    for base in CONTENT_DIRS:
+    scan_dirs = list(CONTENT_DIRS)
+    if include_examples:
+        scan_dirs.extend(EXAMPLE_CONTENT_DIRS)
+
+    for base in scan_dirs:
         if not base.is_dir():
             continue
         for md in base.rglob("*.md"):
@@ -88,13 +97,38 @@ def discover_sources() -> list[Path]:
     return found
 
 
+def prune_example_outputs():
+    """删除由 pipeline/examples/ 生成、但不应进入正式站点的历史产物。"""
+    removed = 0
+    for data_js in (ROOT / "pages").glob("*/*-data.js"):
+        try:
+            text = data_js.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        m = DATA_JS_SOURCE_RE.search(text)
+        if not m or not m.group(1).strip().startswith("pipeline/examples/"):
+            continue
+
+        topic_id = data_js.name[: -len("-data.js")]
+        html_file = data_js.with_name(f"{topic_id}.html")
+        logic_file = data_js.with_name(f"{topic_id}-logic.js")
+        for target in (html_file, data_js, logic_file):
+            if target.exists():
+                target.unlink()
+                removed += 1
+
+    if removed:
+        info(f"已清理 {removed} 个示例产物文件")
+
+
 # ============ 编译模式 ============
 
-def build_all(copy_images: bool, dry_run: bool):
+def build_all(copy_images: bool, dry_run: bool, include_examples: bool):
     """模式 A：扫描并编译所有可用源文档。"""
-    sources = discover_sources()
+    sources = discover_sources(include_examples=include_examples)
     if not sources:
-        warn("未在 pipeline/examples/ 与 content/ 下发现任何带 front-matter 的源文档")
+        scan_scope = "content/ 与 pipeline/examples/" if include_examples else "content/"
+        warn(f"未在 {scan_scope} 下发现任何带 front-matter 的源文档")
     else:
         info(f"发现 {len(sources)} 篇可编译源文档")
         for src in sources:
@@ -107,6 +141,9 @@ def build_all(copy_images: bool, dry_run: bool):
 
     if dry_run:
         return
+
+    if not include_examples:
+        prune_example_outputs()
 
     render_index()
     render_domain_indexes()
@@ -142,7 +179,8 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "示例：\n"
-            "  python3 pipeline/build.py                     # 全量编译所有文档 + 刷新聚合页\n"
+            "  python3 pipeline/build.py                     # 全量编译 content/ 下所有文档 + 刷新聚合页\n"
+            "  python3 pipeline/build.py --include-examples  # 全量编译 content/ + pipeline/examples/\n"
             "  python3 pipeline/build.py path/to/doc.md      # 只更新该文档 + 刷新聚合页\n"
             "  python3 pipeline/build.py --only-index        # 只刷新聚合页（首页+一级目录页）\n"
         ),
@@ -155,6 +193,8 @@ def main():
                    help="只做解析与校验，不落盘")
     p.add_argument("--only-index", action="store_true",
                    help="只刷新聚合页（首页 + 一级目录页）")
+    p.add_argument("--include-examples", action="store_true",
+                   help="全量编译时额外包含 pipeline/examples/ 下的示例文档")
     args = p.parse_args()
 
     if args.only_index:
@@ -164,7 +204,11 @@ def main():
     if args.source:
         build_one(args.source, copy_images=args.copy_images, dry_run=args.dry_run)
     else:
-        build_all(copy_images=args.copy_images, dry_run=args.dry_run)
+        build_all(
+            copy_images=args.copy_images,
+            dry_run=args.dry_run,
+            include_examples=args.include_examples,
+        )
 
 
 if __name__ == "__main__":

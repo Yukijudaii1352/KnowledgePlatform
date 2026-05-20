@@ -7,7 +7,7 @@ page_title: 机器学习平台技术演进
 page_subtitle: '{build_date} 版'
 page_desc: 回顾从Parameter Server到万卡训练、从TFX到智能MLOps的技术演进，系统梳理机器学习平台从分布式训练到全生命周期治理的发展历程。
 hero_pills:
-- "\U0001F3F7️ 训练平台 · 实验管理 · MLOps · 推理优化"
+- 🏷️ 训练平台 · 实验管理 · MLOps · 推理优化
 count_pill: '{count} 个系统'
 categories:
   training_platform:
@@ -26,8 +26,13 @@ categories:
 
 ## 领域综述
 
-### 待定
-待定。
+### 待补充：阶段性领域总结
+请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+
+## 最新进展综述
+
+### 待补充：最近一个月最新动向
+请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
 
 ## 算法演化关系
 

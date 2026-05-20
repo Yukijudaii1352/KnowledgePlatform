@@ -2,7 +2,7 @@
 domain: multimodal
 topic_id: mm_sound
 topic_name: 音频理解
-page_icon: "\U0001F3A7"
+page_icon: 🎧
 page_title: 音频理解 算法总结
 page_subtitle: '{build_date} 版'
 page_desc: 从传统语音识别到端到端架构，再到多模态音频大模型的演进历程
@@ -33,8 +33,13 @@ image_base: ../../content/mm/mm_sound/assets/
 
 ## 领域综述
 
-### 待定
-待定。
+### 待补充：阶段性领域总结
+请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+
+## 最新进展综述
+
+### 待补充：最近一个月最新动向
+请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
 
 ## 算法演化关系
 

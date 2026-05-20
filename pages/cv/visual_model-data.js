@@ -1,5 +1,5 @@
 /**
- * visual_model-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:03 自动生成。
+ * visual_model-data.js — 由 pipeline/build.py 于 2026-05-20 16:45:38 自动生成。
  * 源文件：content/cv/visual_model.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,25 +9,27 @@ window.PAGE_CONFIG = {
     "topic_id": "visual_model",
     "topic_name": "visual_model",
     "page_title": "视觉基础模型技术演进",
-    "page_subtitle": "2026-05-18 版",
+    "page_subtitle": "2026-05-20 版",
     "page_desc": "梳理从ViT到SAM的视觉表征学习演进历程，涵盖架构创新、自监督学习与通用视觉分割三大技术脉络",
     "page_icon": "👁️",
     "hero_pills": [
       "🏷️ CV · Foundation Models · Visual Representation"
     ],
     "count_pill": "{count} 个算法",
-    "image_base": ""
+    "image_base": "",
+    "overview_from_doc": true,
+    "latest_overview_from_doc": true
   },
   "overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：阶段性领域总结",
+      "body_html": "<p>请补充一篇纵观一段时间以来的总结性文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "latest_overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：最近一个月最新动向",
+      "body_html": "<p>请补充最近一个月该领域最新动向的综述文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "graph": {
@@ -306,13 +308,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "foundation",
       "motivation": "知识蒸馏解决数据依赖",
-      "summary": "DeiT 的核心目标是：知识蒸馏解决数据依赖。",
+      "summary": "DeiT 提出了一套面向 Vision Transformer 的数据高效训练策略，并引入基于 distillation token 的知识蒸馏方法，仅使用 ImageNet-1K 数据即可训练出性能媲美甚至超越在 JFT-300M 上预训练的 ViT 的图像分类模型。",
       "keyPoints": [
-        "核心动机：知识蒸馏解决数据依赖",
-        "演化来源：继承或改进自 vit",
-        "代表机构：Meta AI"
+        "<strong>无需大规模外部数据</strong>：仅用 ImageNet-1K（120万张图）训练，DeiT-B 达到 81.8% top-1，蒸馏后达 83.4%，384分辨率微调后达 85.2%，超越 ViT-B/JFT-300M 的 84.15%",
+        "<strong>Distillation Token 机制</strong>：在 ViT 的 class token 之外新增一个可学习的 distillation token，专门用于从教师网络学习，与 class token 通过 self-attention 交互但学到互补表征",
+        "<strong>Hard Distillation 优于 Soft Distillation</strong>：将教师的 hard decision（argmax）作为真实标签，结合 label smoothing 的交叉熵损失，效果优于传统 KL 散度的 soft distillation",
+        "<strong>ConvNet 教师优于 Transformer 教师</strong>：使用 RegNetY-16GF（82.9%）作为教师效果最佳，蒸馏后的学生模型继承了 CNN 的归纳偏置",
+        "<strong>三个模型变体</strong>：DeiT-Ti（5M参数）、DeiT-S（22M）、DeiT-B（86M），覆盖不同计算预算",
+        "<strong>完整训练策略</strong>：AdamW 优化器、Rand-Augment、Mixup、CutMix、Random Erasing、Stochastic Depth、Repeated Augmentation、Label Smoothing、Cosine LR Decay"
       ],
-      "detail": "<p>知识蒸馏解决数据依赖</p>"
+      "detail": "<p><img alt=\"DeiT 蒸馏框架示意图\" src=\"https://ar5iv.labs.arxiv.org/html/2012.12877/assets/x3.png\" />\n<em>图：DeiT 知识蒸馏框架。左侧为标准 ViT 的 class token 分类流程；右侧为 DeiT 新增的 distillation token，通过 Transformer 编码器与 class token 和 patch token 共同参与 self-attention，最终由教师网络（CNN）监督。</em></p>\n<h5>动机与背景</h5>\n<p>Vision Transformer（ViT）在 JFT-300M 等超大规模数据集上预训练后展现了强大的图像分类能力，但在仅使用 ImageNet-1K 训练时性能显著低于同等规模的卷积网络（ViT-B/16 仅 77.9% vs ResNet-152 的 78.3%）。核心原因在于 Transformer 缺乏卷积网络的归纳偏置（如局部性、平移等变性），需要更多数据来学习这些视觉先验。</p>\n<p>DeiT 的目标是：<strong>不改变 ViT 架构本身</strong>，仅通过改进训练策略和引入知识蒸馏，使 Transformer 在 ImageNet-1K 上即可达到有竞争力的性能。</p>\n<h5>核心机制一：数据高效训练策略</h5>\n<p>DeiT 系统性地整合了多种数据增强和正则化技术，构建了一套适合 Transformer 的训练配方：</p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>组件</th>\n<th>配置</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>优化器</td>\n<td>AdamW（lr = 0.0005 × batchsize/512）</td>\n</tr>\n<tr>\n<td>学习率调度</td>\n<td>Cosine Decay + 5 epoch Warmup</td>\n</tr>\n<tr>\n<td>权重衰减</td>\n<td>0.05</td>\n</tr>\n<tr>\n<td>数据增强</td>\n<td>Rand-Augment (9/0.5)、Mixup (0.8)、CutMix (1.0)、Random Erasing (0.25)</td>\n</tr>\n<tr>\n<td>正则化</td>\n<td>Stochastic Depth (0.1)、Label Smoothing (0.1)</td>\n</tr>\n<tr>\n<td>训练技巧</td>\n<td>Repeated Augmentation（3次重复）</td>\n</tr>\n<tr>\n<td>训练轮次</td>\n<td>300 epochs（1000 epochs 可进一步提升）</td>\n</tr>\n</tbody>\n</table></div>\n<div class=\"key-point\">💡 <strong>关键发现</strong>：消融实验表明，去除 Mixup 或 CutMix 中的任一项都会导致性能大幅下降（81.8% → 78.7%/80.0%），而 Repeated Augmentation 贡献了约 5.3% 的提升（76.5% → 81.8%）。Dropout 反而有害，被排除在训练流程之外。</div>\n<p>权重初始化采用截断正态分布（truncated normal distribution），这对 Transformer 的收敛至关重要。使用 SGD 替代 AdamW 会导致性能从 81.8% 骤降至 74.5%。</p>\n<h5>核心机制二：Distillation Token 蒸馏</h5>\n<p>DeiT 的核心创新是引入了一个专用的 <strong>distillation token</strong>，其工作原理如下：</p>\n<p><strong>输入构造</strong>：给定输入图像，将其分割为 \\(N\\) 个 patch 并线性映射为 patch embedding，然后在序列前端拼接两个特殊 token：</p>\n<p>$$\\mathbf{z}_0 = [\\mathbf{x}_{\\text{class}};\\; \\mathbf{x}_{\\text{distill}};\\; \\mathbf{x}_1^p;\\; \\mathbf{x}_2^p;\\; \\cdots;\\; \\mathbf{x}_N^p] + \\mathbf{E}_{\\text{pos}}$$</p>\n<p>其中 \\(\\mathbf{x}_{\\text{class}}\\) 是标准的 class token，\\(\\mathbf{x}_{\\text{distill}}\\) 是新增的 distillation token，二者均为可学习参数。</p>\n<p><strong>编码过程</strong>：两个 token 与所有 patch token 一起通过 Transformer 编码器的 self-attention 层进行交互。在最后一层，class token 的输出 \\(\\mathbf{z}_L^{\\text{class}}\\) 用于与真实标签计算损失，distillation token 的输出 \\(\\mathbf{z}_L^{\\text{distill}}\\) 用于与教师网络的预测计算蒸馏损失。</p>\n<p><strong>Soft Distillation</strong> 使用 KL 散度对齐学生与教师的软概率分布：</p>\n<p>$$\\mathcal{L}_{\\text{soft}} = (1-\\lambda)\\, \\mathcal{L}_{\\text{CE}}(\\psi(Z_s),\\, y) \\;+\\; \\lambda\\, \\tau^2 \\cdot \\text{KL}\\!\\left(\\psi(Z_s/\\tau),\\; \\psi(Z_t/\\tau)\\right)$$</p>\n<p>其中 \\(\\psi\\) 为 softmax，\\(Z_s, Z_t\\) 分别为学生和教师的 logits，\\(\\tau=3.0\\) 为温度参数，\\(\\lambda=0.1\\) 为平衡系数。</p>\n<p><strong>Hard Distillation</strong>（DeiT 推荐方案）将教师的 argmax 预测视为伪标签：</p>\n<p>$$\\mathcal{L}_{\\text{hard}} = \\frac{1}{2}\\, \\mathcal{L}_{\\text{CE}}(\\psi(Z_s),\\, y) \\;+\\; \\frac{1}{2}\\, \\mathcal{L}_{\\text{CE}}(\\psi(Z_s),\\, y_t)$$</p>\n<p>其中 \\(y_t = \\arg\\max_c Z_t(c)\\) 为教师的硬标签。Hard distillation 将真实标签和教师标签等权混合，并对教师标签也施加 label smoothing（将 \\(y_t\\) 的概率设为 \\(1-\\varepsilon\\)，其余类均分 \\(\\varepsilon\\)）。</p>\n<div class=\"warn-box\">⚠️ <strong>注意</strong>：Hard distillation 之所以优于 soft distillation，一个重要原因是它与 label smoothing 和数据增强（如 CutMix、Mixup）的兼容性更好。Soft distillation 中教师的软标签与这些增强产生的混合标签可能存在冲突。</div>\n<p><strong>推理阶段</strong>：class token 和 distillation token 的输出通过各自的线性分类头得到两个预测，最终取二者 softmax 概率的平均值作为最终预测。</p>\n<h5>核心机制三：教师选择与表征互补性</h5>\n<p>实验发现了一个反直觉的结论：<strong>ConvNet 教师优于 Transformer 教师</strong>。</p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>教师网络</th>\n<th>教师 Top-1</th>\n<th>学生 Top-1</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>DeiT-B (Transformer)</td>\n<td>81.8%</td>\n<td>82.7%</td>\n</tr>\n<tr>\n<td>RegNetY-16GF (CNN)</td>\n<td>82.9%</td>\n<td>83.4%</td>\n</tr>\n</tbody>\n</table></div>\n<p>这一现象的解释是：CNN 教师向 Transformer 学生传递了卷积网络特有的归纳偏置（局部性、平移等变性），弥补了 Transformer 的先天不足。</p>\n<p>更有趣的是 <strong>class token 与 distillation token 的表征分析</strong>：\n- 在初始层，两个 token 的余弦相似度仅为 0.06，说明它们学到了截然不同的表征\n- 随着层数加深，相似度逐渐增加，在最后一层达到 0.93，但始终不完全相同\n- Distillation token 的输出更接近 CNN 教师的预测（disagreement rate 10.0%），而 class token 更接近原始 DeiT（disagreement rate 10.9%）\n- 融合两个 token 的预测（class + distill）比单独使用任一 token 都更好，验证了二者的互补性</p>\n<pre><code class=\"language-python\"># DeiT 蒸馏训练伪代码\nclass DeiT(nn.Module):\n    def __init__(self, ...):\n        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))      # class token\n        self.dist_token = nn.Parameter(torch.zeros(1, 1, embed_dim))     # distillation token\n        self.patch_embed = PatchEmbed(img_size, patch_size, embed_dim)\n        self.pos_embed = nn.Parameter(torch.zeros(1, num_patches+2, embed_dim))\n        self.transformer = TransformerEncoder(depth, heads, embed_dim)\n        self.head = nn.Linear(embed_dim, num_classes)       # 分类头\n        self.head_dist = nn.Linear(embed_dim, num_classes)  # 蒸馏头\n\n    def forward(self, x):\n        patches = self.patch_embed(x)                       # [B, N, D]\n        # 拼接 class token 和 distillation token\n        tokens = torch.cat([self.cls_token, self.dist_token, patches], dim=1)\n        tokens = tokens + self.pos_embed\n        tokens = self.transformer(tokens)                   # [B, N+2, D]\n        cls_out = self.head(tokens[:, 0])                   # class token 输出\n        dist_out = self.head_dist(tokens[:, 1])             # distillation token 输出\n        return cls_out, dist_out\n\n# 训练循环（Hard Distillation）\nfor images, labels in dataloader:\n    cls_logits, dist_logits = student(images)\n    with torch.no_grad():\n        teacher_labels = teacher(images).argmax(dim=-1)     # 教师硬标签\n    loss = 0.5 * CrossEntropy(cls_logits, labels) \\\n         + 0.5 * CrossEntropy(dist_logits, teacher_labels)  # 等权混合\n    loss.backward()\n    optimizer.step()\n\n# 推理：融合两个 token 的预测\ncls_logits, dist_logits = model(image)\nprediction = (cls_logits.softmax(-1) + dist_logits.softmax(-1)) / 2\n</code></pre>\n<h5>与 ViT 及传统方法的对比</h5>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>方法</th>\n<th>预训练数据</th>\n<th>ImageNet Top-1</th>\n<th>参数量</th>\n<th>吞吐量 (img/s)</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>ViT-B/16</td>\n<td>JFT-300M</td>\n<td>84.15%</td>\n<td>86M</td>\n<td>85.9</td>\n</tr>\n<tr>\n<td>ViT-B/16</td>\n<td>ImageNet-1K</td>\n<td>77.9%</td>\n<td>86M</td>\n<td>85.9</td>\n</tr>\n<tr>\n<td>DeiT-B</td>\n<td>ImageNet-1K</td>\n<td>81.8%</td>\n<td>86M</td>\n<td>292.3</td>\n</tr>\n<tr>\n<td>DeiT-B⚗</td>\n<td>ImageNet-1K</td>\n<td>83.4%</td>\n<td>87M</td>\n<td>290.9</td>\n</tr>\n<tr>\n<td>DeiT-B⚗↑384</td>\n<td>ImageNet-1K</td>\n<td>85.2%</td>\n<td>87M</td>\n<td>85.8</td>\n</tr>\n<tr>\n<td>EfficientNet-B7</td>\n<td>ImageNet-1K</td>\n<td>84.3%</td>\n<td>66M</td>\n<td>55.1</td>\n</tr>\n<tr>\n<td>RegNetY-16GF</td>\n<td>ImageNet-1K</td>\n<td>82.9%</td>\n<td>84M</td>\n<td>334.7</td>\n</tr>\n</tbody>\n</table></div>\n<div class=\"key-point\">💡 <strong>关键</strong>：DeiT-B⚗↑384 以 85.2% 的 top-1 准确率超越了在 3 亿张图上预训练的 ViT-B（84.15%），同时仅需 ImageNet-1K 的 120 万张图训练。在迁移学习（CIFAR-10/100、Flowers、Cars、iNaturalist）上，DeiT 也与 EfficientNet 等 SOTA 卷积网络持平。</div>",
+      "quiz": {
+        "q": "DeiT 中 distillation token 的作用是什么？",
+        "options": [
+          "替代 class token 进行最终分类",
+          "作为额外的可学习 token，专门从教师网络学习蒸馏知识，与 class token 互补",
+          "用于生成数据增强的掩码",
+          "作为位置编码的一部分，增强空间信息"
+        ],
+        "answer": 1,
+        "explain": "Distillation token 是 DeiT 新增的可学习 token，通过 self-attention 与其他 token 交互，其输出由教师网络监督。它与 class token 学到互补表征（初始层余弦相似度仅 0.06），融合后分类性能优于单独使用任一 token。"
+      }
     },
     {
       "id": "swin",

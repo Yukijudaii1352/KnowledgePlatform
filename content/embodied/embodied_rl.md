@@ -2,12 +2,12 @@
 domain: embodied
 topic_id: embodied_rl
 topic_name: 具身强化学习
-page_icon: "\U0001F916"
+page_icon: 🤖
 page_title: 具身强化学习算法总结
 page_subtitle: '{build_date} 版'
 page_desc: 系统梳理具身智能中强化学习的发展历程，涵盖从基础控制策略到Sim2Real迁移、离线RL预训练及复杂技能层次化学习的技术演进。
 hero_pills:
-- "\U0001F3F7️ Sim2Real · 离线RL · 技能学习 · 奖励设计"
+- 🏷️ Sim2Real · 离线RL · 技能学习 · 奖励设计
 count_pill: '{count} 个算法'
 categories:
   foundation:
@@ -33,8 +33,13 @@ image_base: ../../content/embodied/embodied_rl/assets/
 
 ## 领域综述
 
-### 待定
-待定。
+### 待补充：阶段性领域总结
+请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+
+## 最新进展综述
+
+### 待补充：最近一个月最新动向
+请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
 
 ## 算法演化关系
 

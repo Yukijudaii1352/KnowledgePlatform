@@ -1,5 +1,5 @@
 /**
- * semantic_segmentation-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:03 自动生成。
+ * semantic_segmentation-data.js — 由 pipeline/build.py 于 2026-05-20 16:45:38 自动生成。
  * 源文件：content/cv/semantic_segmentation.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,25 +9,27 @@ window.PAGE_CONFIG = {
     "topic_id": "semantic_segmentation",
     "topic_name": "语义分割",
     "page_title": "语义分割技术演进图谱",
-    "page_subtitle": "2026-05-18 版",
+    "page_subtitle": "2026-05-20 版",
     "page_desc": "从 FCN 开启深度学习分割时代，历经 U-Net 医疗影像突破与 Mask2Former 统一架构，迈向 2026 年 Mamba 架构与开放词汇分割的前沿历程。",
     "page_icon": "🎨",
     "hero_pills": [
       "🏷️ Semantic Segmentation · Panoptic Segmentation · Foundation Models"
     ],
     "count_pill": "{count} 个算法",
-    "image_base": ""
+    "image_base": "",
+    "overview_from_doc": true,
+    "latest_overview_from_doc": true
   },
   "overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：阶段性领域总结",
+      "body_html": "<p>请补充一篇纵观一段时间以来的总结性文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "latest_overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：最近一个月最新动向",
+      "body_html": "<p>请补充最近一个月该领域最新动向的综述文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "graph": {
@@ -540,13 +542,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "core",
       "motivation": "金字塔池化聚合全局上下文",
-      "summary": "PSPNet 的核心目标是：金字塔池化聚合全局上下文。",
+      "summary": "PSPNet 提出金字塔池化模块（Pyramid Pooling Module），通过多尺度全局先验信息聚合解决了场景解析中因缺乏全局上下文而导致的类别误分类问题，在 ADE20K、PASCAL VOC 2012 和 Cityscapes 三大基准上取得当时最优性能。",
       "keyPoints": [
-        "核心动机：金字塔池化聚合全局上下文",
-        "演化来源：继承或改进自 fcn",
-        "代表机构：商汤/港中文"
+        "金字塔池化模块（PPM）：4 级自适应池化（1×1, 2×2, 3×3, 6×6）捕获多尺度全局上下文",
+        "骨干网络：采用 dilated ResNet（output stride=8），在不损失分辨率的前提下扩大感受野",
+        "深度监督（Auxiliary Loss）：在 ResNet 第 4 阶段（res4b22）添加辅助分类头，权重 0.4，加速收敛",
+        "多尺度测试 + 水平翻转数据增强用于推理阶段",
+        "ADE20K 2016 场景解析挑战赛冠军（mIoU 57.21%）",
+        "PASCAL VOC 2012 测试集 mIoU 85.4%，Cityscapes 测试集 mIoU 80.2%"
       ],
-      "detail": "<p>金字塔池化聚合全局上下文</p>"
+      "detail": "<p><img alt=\"PSPNet 架构总览\" src=\"https://ar5iv.labs.arxiv.org/html/1612.01105/assets/x3.png\" />\n<em>图：PSPNet 整体架构。输入图像经 CNN 提取特征图后，通过金字塔池化模块聚合多尺度上下文，最终拼接生成像素级预测。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># PSPNet 前向传播伪代码\ndef forward(image):\n    # Step 1: 骨干网络提取特征 (dilated ResNet, output_stride=8)\n    feature_map = dilated_resnet(image)  # H/8 × W/8 × 2048\n\n    # Step 2: 金字塔池化模块 (PPM)\n    pool_1x1 = AdaptiveAvgPool2d(1)(feature_map)   # 1×1×2048 → Conv1x1 → 1×1×512\n    pool_2x2 = AdaptiveAvgPool2d(2)(feature_map)   # 2×2×2048 → Conv1x1 → 2×2×512\n    pool_3x3 = AdaptiveAvgPool2d(3)(feature_map)   # 3×3×2048 → Conv1x1 → 3×3×512\n    pool_6x6 = AdaptiveAvgPool2d(6)(feature_map)   # 6×6×2048 → Conv1x1 → 6×6×512\n\n    # 上采样回原特征图尺寸并拼接\n    context = Concat([\n        feature_map,                          # 2048-d\n        Upsample(Conv1x1(pool_1x1)),         # 512-d\n        Upsample(Conv1x1(pool_2x2)),         # 512-d\n        Upsample(Conv1x1(pool_3x3)),         # 512-d\n        Upsample(Conv1x1(pool_6x6))          # 512-d\n    ])  # 总计 4096-d\n\n    # Step 3: 最终分类\n    output = Conv3x3_BN_ReLU(context)  # 降维到 512\n    prediction = Conv1x1(output)        # 输出 num_classes 通道\n    return Upsample_8x(prediction)      # 上采样到原图尺寸\n</code></pre>\n<h5>动机与背景</h5>\n<p>场景解析（Scene Parsing）要求对图像中每个像素进行语义标注，是自动驾驶、机器人导航等应用的基础。基于 FCN 的方法虽然实现了端到端像素预测，但存在三个关键问题：</p>\n<ol>\n<li><strong>关系不匹配（Mismatched Relationship）</strong>：局部特征无法利用物体间的共现关系。例如，\"船\"常出现在\"水\"上方，但缺乏全局上下文时，网络可能将水面上的物体误判为\"车\"。</li>\n<li><strong>类别混淆（Confusion Categories）</strong>：外观相似的类别（如\"田野\"和\"土地\"）在局部区域难以区分，需要全局语义信息辅助判断。</li>\n<li><strong>不显眼类别（Inconspicuous Classes）</strong>：小尺寸物体（如路灯、标志牌）容易被周围大面积区域的特征淹没。</li>\n</ol>\n<div class=\"key-point\">💡 关键：这三个问题的共同根源是<strong>感受野不足</strong>——即使 dilated convolution 扩大了理论感受野，网络仍然难以有效利用图像级别的全局信息。</div>\n<h5>核心机制：金字塔池化模块（PPM）</h5>\n<p>PPM 的设计灵感来自空间金字塔池化（SPP），但目标不同：SPP 用于生成固定长度的特征向量，而 PPM 用于为每个像素注入多尺度全局上下文。</p>\n<p><strong>四级池化的设计逻辑：</strong></p>\n<p>$$\\text{PPM}(F) = \\text{Cat}\\left[F,\\; \\text{Up}(f_1(P_1(F))),\\; \\text{Up}(f_2(P_2(F))),\\; \\text{Up}(f_3(P_3(F))),\\; \\text{Up}(f_4(P_4(F)))\\right]$$</p>\n<p>其中 \\(P_n\\) 为自适应平均池化（输出尺寸分别为 1×1, 2×2, 3×3, 6×6），\\(f_n\\) 为 1×1 卷积（降维至原通道数的 \\(1/N\\)，N=4 即 512 维），Up 为双线性上采样。</p>\n<ul>\n<li><strong>1×1 级别</strong>：捕获全局平均信息（相当于全图统计先验）</li>\n<li><strong>2×2 级别</strong>：粗粒度空间分区上下文</li>\n<li><strong>3×3 级别</strong>：中等粒度区域上下文</li>\n<li><strong>6×6 级别</strong>：细粒度局部区域上下文</li>\n</ul>\n<div class=\"warn-box\">⚠️ 注意：1×1 卷积的降维操作至关重要——它将每级池化的通道数从 2048 降至 512，确保拼接后的特征维度可控（4096 = 2048 + 512×4），避免全局上下文淹没原始局部特征。</div>\n<h5>骨干网络：Dilated ResNet</h5>\n<p>PSPNet 使用预训练的 ResNet（101 或更深）作为骨干，并对最后两个 stage 进行 dilated（空洞）卷积改造：</p>\n<ul>\n<li><strong>原始 ResNet</strong>：经过 5 次下采样，输出为 1/32 分辨率</li>\n<li><strong>Dilated 改造</strong>：移除最后两个 stage 的下采样（stride=2→1），用 dilation rate=2 和 4 的空洞卷积补偿感受野损失</li>\n<li><strong>最终输出</strong>：1/8 分辨率的特征图（60×60 for 473×473 输入）</li>\n</ul>\n<p>这样既保持了较高的空间分辨率（有利于精细分割），又维持了足够大的感受野。</p>\n<h5>深度监督训练策略</h5>\n<p><img alt=\"辅助损失示意\" src=\"https://ar5iv.labs.arxiv.org/html/1612.01105/assets/x4.png\" />\n<em>图：深度监督策略。在 ResNet 第 4 阶段末尾（res4b22）添加辅助分类头。</em></p>\n<p>总损失函数为：</p>\n<p>$$L = L_{\\text{main}} + \\alpha \\cdot L_{\\text{aux}}$$</p>\n<p>其中 \\(\\alpha = 0.4\\)。辅助损失作用于 res4b22 层的输出，通过额外的分类头（BN + ReLU + Conv1×1 + 交叉熵）产生梯度。这一设计：\n- 缓解深层网络的梯度消失问题\n- 为中间层提供直接的语义监督信号\n- 推理时辅助分支被丢弃，不增加计算开销</p>\n<h5>训练细节</h5>\n<ul>\n<li><strong>学习率策略</strong>：Poly 衰减，\\(\\text{lr} = \\text{base\\_lr} \\times (1 - \\frac{\\text{iter}}{\\text{max\\_iter}})^{0.9}\\)，初始学习率 0.01</li>\n<li><strong>优化器</strong>：SGD，momentum=0.9，weight decay=0.0001</li>\n<li><strong>Batch Size</strong>：16（多 GPU 同步 BN）</li>\n<li><strong>数据增强</strong>：随机缩放（0.5~2.0）、随机裁剪（473×473）、随机水平翻转</li>\n<li><strong>推理增强</strong>：多尺度测试 + 水平翻转，取平均</li>\n</ul>\n<h5>与传统方法的区别</h5>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>方法</th>\n<th>上下文建模方式</th>\n<th>局限性</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>FCN</td>\n<td>仅依赖卷积感受野</td>\n<td>理论感受野远大于有效感受野</td>\n</tr>\n<tr>\n<td>DeepLab (ASPP)</td>\n<td>多个 dilation rate 的并行空洞卷积</td>\n<td>仍是局部操作，无法获取全局信息</td>\n</tr>\n<tr>\n<td>ParseNet</td>\n<td>全局平均池化</td>\n<td>仅单一尺度全局特征，缺乏层次性</td>\n</tr>\n<tr>\n<td><strong>PSPNet (PPM)</strong></td>\n<td><strong>多尺度全局池化 + 拼接</strong></td>\n<td><strong>兼顾全局统计与多粒度空间布局</strong></td>\n</tr>\n</tbody>\n</table></div>\n<div class=\"key-point\">💡 关键：PSPNet 的核心优势在于 PPM 以极低的计算代价（几个池化 + 1×1 卷积）实现了从全局到局部的多尺度上下文聚合，且通过拼接（而非相加）保留了原始特征的完整性。</div>",
+      "quiz": {
+        "q": "PSPNet 金字塔池化模块中，1×1 卷积的主要作用是什么？",
+        "options": [
+          "增加非线性表达能力",
+          "将池化后的特征通道数降维，防止全局上下文淹没局部特征",
+          "替代 3×3 卷积以减少计算量",
+          "实现跨通道的特征融合以提升分类精度"
+        ],
+        "answer": 1,
+        "explain": "PPM 中每级池化后接 1×1 卷积将 2048 维降至 512 维（原通道数的 1/N），确保拼接后全局上下文与原始局部特征的权重平衡。"
+      }
     },
     {
       "id": "deeplabv3",

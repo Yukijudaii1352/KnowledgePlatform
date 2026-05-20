@@ -1,5 +1,5 @@
 /**
- * motion_control-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:03 自动生成。
+ * motion_control-data.js — 由 pipeline/build.py 于 2026-05-20 16:45:39 自动生成。
  * 源文件：content/embodied/motion_control.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,25 +9,27 @@ window.PAGE_CONFIG = {
     "topic_id": "motion_control",
     "topic_name": "运动控制",
     "page_title": "具身智能运动控制算法总结",
-    "page_subtitle": "2026-05-18 版",
+    "page_subtitle": "2026-05-20 版",
     "page_desc": "系统梳理四足/人形机器人运动控制技术演进，从经典ZMP/MPC到Teacher-Student RL再到VLA基础模型的发展历程",
     "page_icon": "🦿",
     "hero_pills": [
       "🏷️ Locomotion · WBC · Sim-to-Real · VLA"
     ],
     "count_pill": "{count} 个算法",
-    "image_base": "../../content/embodied/motion_control/assets/"
+    "image_base": "../../content/embodied/motion_control/assets/",
+    "overview_from_doc": true,
+    "latest_overview_from_doc": true
   },
   "overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：阶段性领域总结",
+      "body_html": "<p>请补充一篇纵观一段时间以来的总结性文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "latest_overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：最近一个月最新动向",
+      "body_html": "<p>请补充最近一个月该领域最新动向的综述文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "graph": {
@@ -984,13 +986,29 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "foundation_model",
       "motivation": "端到端Loco-manipulation控制",
-      "summary": "Helix-02 的核心目标是：端到端Loco-manipulation控制。",
+      "summary": "Helix 02 提出了一种三层级（S0/S1/S2）统一全身控制架构，通过单一神经网络将视觉、触觉、本体感知等全部传感器直接映射到人形机器人全部关节执行器，实现了首个长时域（4 分钟、61 步）端到端自主 loco-manipulation 任务。",
       "keyPoints": [
-        "核心动机：端到端Loco-manipulation控制",
-        "演化来源：继承或改进自 pi0",
-        "代表机构：Figure AI"
+        "三层级架构：System 0（1 kHz 全身运动控制）、System 1（200 Hz 视觉运动策略）、System 2（语义推理与任务规划）",
+        "System 0：10M 参数神经网络，基于 1,000+ 小时人体运动数据 + sim-to-real 强化学习训练，替代 109,504 行手工 C++ 代码",
+        "System 1：统一视觉运动策略（VLA），输入头部相机、手掌相机、指尖触觉传感器和全身本体感知，输出全身关节目标",
+        "System 2：语义推理层，处理场景理解和语言指令，生成 S1 的潜在目标向量",
+        "\"All sensors in, all actuators out\"：单一网络连接所有传感器到所有执行器",
+        "首次在人形机器人上实现长时域端到端 pixels-to-whole-body 自主控制（4 分钟连续任务，61 个 loco-manipulation 动作）",
+        "新型灵巧操作能力：利用 Figure 03 嵌入式触觉传感（3 克力灵敏度）和手掌相机实现精细操作",
+        "全身协调：机器人可用臀部关抽屉、用脚抬洗碗机门，跨越四个数量级的运动尺度（毫米级手指动作到房间级移动）"
       ],
-      "detail": "<p>端到端Loco-manipulation控制</p>"
+      "detail": "<p><strong>Helix 02 系统架构示意（交互式动画）：</strong></p>\n<blockquote>\n<p>📎 架构动画链接：<a href=\"https://cdn.lottielab.com/l/5M9waMD6J2Xe7S.html\">S0/S1/S2 层级架构</a></p>\n<p><em>图：Helix 02 的三层级架构。System 2 在最高层进行语义推理，System 1 在中间层将感知转化为全身关节目标，System 0 在底层以 1 kHz 执行平衡与协调控制。</em></p>\n</blockquote>\n<p><strong>核心演示视频：</strong></p>\n<blockquote>\n<p>📎 <a href=\"https://videos.ctfassets.net/qx5k8y1u9drj/1cKhxhvotDvkyJx2rfq2IN/94f100629ab7a0bdb37d5b248f8f5760/Kitchen_Tidy_MP4_Compressed.mp4\">厨房自主整理任务（4 分钟连续自主操作）</a></p>\n</blockquote>\n<pre><code>┌─────────────────────────────────────────────────────┐\n│                  System 2 (S2)                      │\n│         语义推理层 · 场景理解 · 语言指令              │\n│    输入: 场景图像 + 自然语言                         │\n│    输出: 语义潜在目标向量 → S1                       │\n│    频率: 低频（任务级别）                            │\n├─────────────────────────────────────────────────────┤\n│                  System 1 (S1)                      │\n│         视觉运动策略 · Transformer · 200 Hz          │\n│    输入: 头部相机 + 手掌相机 + 触觉传感器            │\n│          + 全身本体感知 + S2 潜在目标                 │\n│    输出: 全身关节目标 → S0                           │\n│    架构: Transformer, conditioned on S2 latents      │\n├─────────────────────────────────────────────────────┤\n│                  System 0 (S0)                      │\n│         全身运动控制 · 10M 参数 · 1 kHz              │\n│    输入: 全身关节状态 + 基座运动                     │\n│    输出: 关节级执行器指令                            │\n│    训练: 1000h 人体运动数据 + sim-to-real RL         │\n│    仿真: 200,000+ 并行环境 + 域随机化                │\n└─────────────────────────────────────────────────────┘\n         ↓ 最终输出: 全身关节力矩 → 物理执行\n</code></pre>\n<h5>动机与背景</h5>\n<p>Loco-manipulation（移动操作）是机器人领域长期未解决的核心难题。其困难不在于单独的行走或操作，而在于两者的<strong>耦合性</strong>：抬起物体会改变平衡状态，迈步会改变可达范围，手臂和腿部持续相互约束。</p>\n<p>传统方法将运动控制和操作分离为独立控制器，通过状态机拼接：行走→停下→稳定→伸手→抓取→再行走。这种方式切换缓慢、脆弱且不自然。Helix 02 的核心目标是构建一个<strong>统一的学习系统</strong>，同时推理全身状态，实现连续感知、决策和执行。</p>\n<h5>System 0：基于人体数据的全身运动先验</h5>\n<p>System 0 是 Helix 02 的物理执行基础层，其核心创新在于<strong>用学习的运动先验替代手工工程控制器</strong>。</p>\n<p><strong>训练数据与方法：</strong>\n- 使用超过 <strong>1,000 小时</strong>的关节级重定向人体运动数据作为训练语料\n- 网络规模：<strong>10M 参数</strong>的神经网络\n- 训练方式：完全在仿真中进行，使用 <strong>200,000+ 并行环境</strong>和广泛的<strong>域随机化（domain randomization）</strong>\n- 不为行走、转弯、蹲下、伸手等行为分别设计奖励函数，而是直接学习<strong>跟踪人体运动</strong></p>\n<div class=\"key-point\">💡 关键：S0 不是一个简单的 PD 控制器，而是一个学习了人类运动模式的<strong>运动基础模型</strong>。它在学习复现人体运动的过程中，自然习得了力的协调、姿态调整和平衡维持能力。</div>\n<p><strong>设计优势：</strong>\n- 替代了 <strong>109,504 行手工编写的 C++ 代码</strong>\n- 以 <strong>1 kHz</strong> 的频率输出关节级执行器指令，确保实时响应\n- 通过 sim-to-real 迁移直接部署到真实机器人，并在机器人车队间泛化</p>\n<h5>System 1：全传感器-全执行器视觉运动策略</h5>\n<p>System 1 是感知到动作的核心桥梁，其架构为 <strong>Transformer</strong>，以 S2 的潜在向量为条件。</p>\n<p><strong>输入模态（All sensors in）：</strong>\n- <strong>头部相机</strong>：提供全局场景视觉\n- <strong>手掌相机</strong>：提供手内视觉反馈（当物体被头部相机遮挡时尤为关键）\n- <strong>指尖触觉传感器</strong>：检测低至 <strong>3 克</strong>的力（足以感知一枚回形针），实现接触感知和力调节抓取\n- <strong>全身本体感知</strong>：关节角度、速度等状态信息</p>\n<p><strong>输出（All actuators out）：</strong>\n- 完整的全身关节级控制——腿部、躯干、头部、手臂、手腕和<strong>单个手指</strong>\n- 以 <strong>200 Hz</strong> 频率产生全身关节目标，由 S0 在 1 kHz 下跟踪执行</p>\n<div class=\"warn-box\">⚠️ 注意：这是首次在人形机器人上展示依赖手掌相机和触觉传感模态的神经网络策略。这种 pixels-to-whole-body 架构使 S1 能够将机器人和环境作为一个<strong>单一耦合系统</strong>进行推理。</div>\n<h5>System 2：语义推理与任务编排</h5>\n<p>System 2 是最高层的语义推理模块，负责：\n- <strong>场景理解</strong>：处理视觉输入，理解环境状态\n- <strong>语言理解</strong>：解析自然语言指令\n- <strong>行为序列生成</strong>：产生语义级潜在目标供 S1 执行</p>\n<p>与传统方法不同，S2 <strong>不需要规划底层步态或指定手臂与腿部的协调方式</strong>。它只需产生语义级指令（如\"走到洗碗机并打开它\"、\"把碗端到台面上\"），由 S1 和 S0 自动处理运动细节。</p>\n<h5>关键实验结果</h5>\n<p><strong>1. 长时域自主 Loco-Manipulation（厨房整理任务）：</strong></p>\n<p>机器人在全尺寸厨房中执行连续 4 分钟的自主任务，包括：\n- 走到洗碗机 → 打开洗碗机 → 卸载餐具 → 穿越房间 → 在橱柜中堆叠物品 → 装载并启动洗碗机\n- 共 <strong>61 个 loco-manipulation 动作</strong>，顺序正确，具有隐式错误恢复\n- 全程无人干预、无重置</p>\n<div class=\"key-point\">💡 关键：同一个神经网络产生毫米级手指动作和房间级移动——动态范围跨越<strong>四个数量级</strong>。</div>\n<p><strong>2. 灵巧操作任务（触觉 + 手掌视觉）：</strong></p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>任务</th>\n<th>核心挑战</th>\n<th>关键能力</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>拧开瓶盖</td>\n<td>双手协调 + 力矩控制</td>\n<td>触觉调节握力 + 连续旋转</td>\n</tr>\n<tr>\n<td>从药盒取出药片</td>\n<td>小物体 + 头部相机遮挡</td>\n<td>手掌相机视觉反馈 + 触觉精确抓取</td>\n</tr>\n<tr>\n<td>注射器精确推注 5ml</td>\n<td>可变阻力 + 严格公差</td>\n<td>力控制执行 + 触觉反馈 + 多指协调</td>\n</tr>\n<tr>\n<td>从杂乱箱中取金属件</td>\n<td>物体重叠遮挡 + 交互中移动</td>\n<td>视觉抓取选择 + 触觉确认安全接触</td>\n</tr>\n</tbody>\n</table></div>\n<h5>与传统方法的对比</h5>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>维度</th>\n<th>传统方法</th>\n<th>Helix 02</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>控制架构</td>\n<td>分离的运动/操作控制器 + 状态机</td>\n<td>统一的三层级神经网络（S0/S1/S2）</td>\n</tr>\n<tr>\n<td>运动控制</td>\n<td>手工 C++ 代码（10 万+行）</td>\n<td>10M 参数学习的运动先验</td>\n</tr>\n<tr>\n<td>感知-执行</td>\n<td>模块化管道，各模态独立处理</td>\n<td>All sensors in, all actuators out</td>\n</tr>\n<tr>\n<td>任务复杂度</td>\n<td>短时域、单一行为</td>\n<td>长时域（4 分钟、61 步）连续自主</td>\n</tr>\n<tr>\n<td>全身协调</td>\n<td>仅用手操作</td>\n<td>手、臂、臀、脚全身作为工具</td>\n</tr>\n<tr>\n<td>灵巧操作</td>\n<td>纯视觉策略</td>\n<td>视觉 + 触觉 + 手掌相机多模态融合</td>\n</tr>\n</tbody>\n</table></div>",
+      "quiz": {
+        "q": "Helix 02 中 System 0 的主要作用是什么？",
+        "options": [
+          "处理自然语言指令并进行场景理解",
+          "以 200 Hz 将视觉感知转化为全身关节目标",
+          "以 1 kHz 执行全身平衡、接触和协调控制",
+          "规划底层步态和手臂腿部协调方式"
+        ],
+        "answer": 2,
+        "explain": "System 0 是物理执行基础层，以 1 kHz 频率输出关节级执行器指令，负责平衡、接触和全身协调。S2 负责语义推理（选项 A），S1 负责 200 Hz 视觉运动策略（选项 B），而底层步态规划由 S0 隐式学习而非显式规划（选项 D）。"
+      }
     },
     {
       "id": "groot_n1",

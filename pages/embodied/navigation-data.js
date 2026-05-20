@@ -1,5 +1,5 @@
 /**
- * navigation-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:03 自动生成。
+ * navigation-data.js — 由 pipeline/build.py 于 2026-05-20 16:45:39 自动生成。
  * 源文件：content/embodied/navigation.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "navigation",
     "topic_name": "navigation",
     "page_title": "导航与移动智能",
-    "page_subtitle": "2026-05-18 版",
+    "page_subtitle": "2026-05-20 版",
     "page_desc": "涵盖视觉导航、SLAM、目标导向导航与长程任务规划的具身智能核心技术，从经典几何方法到2026年VLA基础模型的完整演进",
     "page_icon": "🧭",
     "hero_pills": [
@@ -19,18 +19,20 @@ window.PAGE_CONFIG = {
       "LLM任务规划"
     ],
     "count_pill": "{count} 个算法",
-    "image_base": "../../content/embodied/navigation/assets/"
+    "image_base": "../../content/embodied/navigation/assets/",
+    "overview_from_doc": true,
+    "latest_overview_from_doc": true
   },
   "overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：阶段性领域总结",
+      "body_html": "<p>请补充一篇纵观一段时间以来的总结性文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "latest_overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：最近一个月最新动向",
+      "body_html": "<p>请补充最近一个月该领域最新动向的综述文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "graph": {
@@ -1295,13 +1297,29 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "vla_model",
       "motivation": "双系统规划+扩散动作架构",
-      "summary": "GR00T N1.6 的核心目标是：双系统规划+扩散动作架构。",
+      "summary": "GR00T N1 提出了一种受 Kahneman 双系统理论启发的 Vision-Language-Action（VLA）架构：以 Eagle-2 VLM 作为\"慢思考\"系统理解场景与语言指令，以 DiT + Flow-Matching 作为\"快思考\"系统生成连续动作；同时构建了\"数据金字塔\"训练范式，将人类视频、合成/神经轨迹与真实机器人数据分层融合，在仿真和 GR-1 人形机器人真机实验中均大幅超越 Diffusion Policy 基线。",
       "keyPoints": [
-        "核心动机：双系统规划+扩散动作架构",
-        "演化来源：继承或改进自 pi0",
-        "代表机构：NVIDIA"
+        "<strong>双系统 VLA 架构</strong>：System 2（Eagle-2 VLM，SigLIP-2 视觉编码器 + SmolLM2 语言模型）负责场景理解与语言推理；System 1（DiT + Flow-Matching）负责高频动作生成，通过 cross-attention 桥接两个系统",
+        "<strong>模型规模</strong>：GR00T-N1-2B 共 2.2B 参数（VLM 1.34B + DiT ~0.86B），单次推理 63.9ms/action chunk（L40 GPU），支持 15Hz 控制频率",
+        "<strong>Flow-Matching 动作生成</strong>：使用条件流匹配（Conditional Flow Matching）替代传统扩散模型，仅需 K=4 步去噪即可生成 H=16 步动作块（action chunk）",
+        "<strong>数据金字塔</strong>：底层为大规模人类视频（通过 VQ-VAE 潜在动作 LAPA 或 IDM 伪标签提取动作），中层为合成/神经轨迹（DexMimicGen + 视频生成模型增强），顶层为少量真实机器人遥操作数据",
+        "<strong>神经轨迹增强</strong>：微调视频生成模型（Cosmos）生成语义一致的新轨迹，配合 IDM 标注动作，实现 10× 数据增强（88h → 827h）",
+        "<strong>DexMimicGen</strong>：自动化仿真数据生成管线，11 小时内生成 780K 条灵巧手操作轨迹（等效 6500 小时）",
+        "<strong>多具身支持</strong>：通过具身特定的 state/action projector 模块，支持不同机器人形态（GR-1 人形、Franka 机械臂等）及潜在动作空间",
+        "<strong>真机实验</strong>：在 GR-1 人形机器人 24 个任务上，GR00T-N1-2B 以 76.8% 平均成功率大幅超越 Diffusion Policy（46.4%）；仅用 10% 数据即达 42.6%，接近 DP 全量数据水平"
       ],
-      "detail": "<p>双系统规划+扩散动作架构</p>"
+      "detail": "<h5>整体架构</h5>\n<p><img alt=\"GR00T N1 架构总览\" src=\"https://ar5iv.labs.arxiv.org/html/2503.14734v1/assets/x2.png\" />\n<em>图：GR00T N1 双系统架构。左侧 System 2（VLM）处理多视角图像和语言指令，输出语义嵌入；右侧 System 1（DiT）通过 cross-attention 接收 VLM 嵌入，结合机器人本体状态，经 flow-matching 去噪生成动作序列。</em></p>\n<p>GR00T N1 的设计灵感来自 Daniel Kahneman 的双系统理论：</p>\n<ul>\n<li><strong>System 2（慢思考）</strong>：基于 Eagle-2 VLM，由 SigLIP-2 视觉编码器和 SmolLM2-360M 语言模型组成。每帧 224×224 图像经 SigLIP-2 编码后通过 pixel-shuffle 压缩为 64 个视觉 token，支持多视角输入。VLM 不直接输出动作，而是提供丰富的语义表征。</li>\n<li><strong>System 1（快思考）</strong>：一个 Diffusion Transformer（DiT），以 flow-matching 为生成范式。它通过 cross-attention 层从 VLM 的第 12 层隐藏状态中提取语义信息，结合机器人本体感知状态（关节角度等），在 K=4 步去噪中生成 H=16 步的连续动作块。</li>\n</ul>\n<div class=\"key-point\">💡 <strong>关键设计</strong>：使用 cross-attention（而非 MoE）桥接 VLM 与 DiT，使两个子系统的架构选择完全解耦，便于独立升级。同时提取 VLM 中间层（第 12 层）而非最终层的嵌入，因为中间层保留了更丰富的空间信息。</div>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># GR00T N1 推理流程伪代码\ndef groot_n1_inference(images, language_instruction, proprioception, model):\n    &quot;&quot;&quot;\n    images: list of multi-view camera images, each 224x224\n    language_instruction: str, e.g. &quot;Pick up the red apple&quot;\n    proprioception: robot joint states [q1, ..., qN]\n    &quot;&quot;&quot;\n    # === System 2: VLM 场景理解 ===\n    # 视觉编码: SigLIP-2 + pixel-shuffle → 64 tokens/frame\n    vis_tokens = model.siglip2_encode(images)          # [N_views, 64, D]\n    lang_tokens = model.tokenize(language_instruction)  # [L, D]\n\n    # VLM 前向: 获取第 12 层隐藏状态作为语义嵌入\n    vlm_embeddings = model.eagle2_vlm(\n        vis_tokens, lang_tokens, return_layer=12\n    )  # [S, D_vlm]\n\n    # === System 1: DiT 动作生成 (Flow-Matching) ===\n    # 本体感知编码 (embodiment-specific projector)\n    state_embed = model.state_projector(proprioception)  # [D_dit]\n\n    # 初始化噪声动作\n    a_0 = torch.randn(H, action_dim)  # H=16 步动作块\n\n    # K=4 步去噪 (Euler 积分)\n    a_t = a_0\n    for k in range(K):  # K=4\n        t = k / K  # 时间步 t ∈ [0, 1]\n        # DiT 预测速度场, 通过 cross-attention 融合 VLM 嵌入\n        v_t = model.dit(\n            a_t, t, state_embed,\n            cross_attn_context=vlm_embeddings\n        )\n        a_t = a_t + (1/K) * v_t  # Euler step\n\n    # 动作解码 (embodiment-specific projector)\n    actions = model.action_projector(a_t)  # [H, action_dim]\n    return actions  # 执行前 H 步, 然后重新规划\n</code></pre>\n<h5>核心方法详解</h5>\n<p><strong>1. Flow-Matching 动作生成</strong></p>\n<p>传统扩散模型（DDPM）需要数百步去噪，而 GR00T N1 采用条件流匹配（Conditional Flow Matching, CFM），将动作生成建模为从噪声分布到目标动作分布的概率流 ODE：</p>\n<p>$$\\frac{d\\mathbf{a}_t}{dt} = v_\\theta(\\mathbf{a}_t, t, \\mathbf{c})$$</p>\n<p>其中 \\(\\mathbf{a}_t\\) 是时间 \\(t\\) 处的动作状态，\\(v_\\theta\\) 是 DiT 参数化的速度场，\\(\\mathbf{c}\\) 是条件信息（VLM 嵌入 + 本体状态）。训练目标为：</p>\n<p>$$\\mathcal{L}_{\\text{FM}} = \\mathbb{E}_{t \\sim \\mathcal{U}[0,1],\\, \\mathbf{a}_1 \\sim p_{\\text{data}}} \\left\\| v_\\theta(\\mathbf{a}_t, t, \\mathbf{c}) - (\\mathbf{a}_1 - \\mathbf{a}_0) \\right\\|^2$$</p>\n<p>其中 \\(\\mathbf{a}_0 \\sim \\mathcal{N}(0, I)\\) 为初始噪声，\\(\\mathbf{a}_1\\) 为真实动作，\\(\\mathbf{a}_t = (1-t)\\mathbf{a}_0 + t\\mathbf{a}_1\\) 是线性插值路径。推理时仅需 K=4 步 Euler 积分即可生成高质量动作。</p>\n<div class=\"key-point\">💡 <strong>直觉</strong>：Flow-Matching 学习的是从噪声到动作的\"最短直线路径\"上的速度场，相比 DDPM 的弯曲去噪路径，收敛更快、步数更少。</div>\n<p><strong>2. 数据金字塔与预训练策略</strong></p>\n<p><img alt=\"数据金字塔\" src=\"https://ar5iv.labs.arxiv.org/html/2503.14734v1/assets/x3.png\" />\n<em>图：GR00T N1 数据金字塔。底层为海量人类视频（通过 LAPA/IDM 提取潜在动作），中层为合成与神经轨迹，顶层为少量高质量真实机器人数据。</em></p>\n<p>GR00T N1 的数据策略分为三层：</p>\n<ul>\n<li><strong>底层 — 人类视频数据</strong>：利用 Ego4D、Epic-Kitchens 等大规模人类操作视频。由于这些视频没有机器人动作标签，论文提出两种方案：</li>\n<li><strong>LAPA（Latent Action Pre-training for general Action models）</strong>：训练一个 VQ-VAE 将连续帧间的运动编码为离散潜在动作 token，VLA 在预训练时预测这些潜在动作</li>\n<li>\n<p><strong>IDM（Inverse Dynamics Model）</strong>：训练逆动力学模型，根据前后帧预测伪动作标签</p>\n</li>\n<li>\n<p><strong>中层 — 合成与神经轨迹</strong>：</p>\n</li>\n<li><strong>DexMimicGen</strong>：在 Isaac Lab 仿真环境中，从少量人类演示自动生成大规模灵巧手操作轨迹。通过物体姿态变换和子任务分解，11 小时内从 100 条种子演示扩展到 780K 条轨迹</li>\n<li>\n<p><strong>神经轨迹（Neural Trajectories）</strong>：微调 Cosmos 视频生成模型，以任务指令和初始帧为条件生成新的操作视频，再用 IDM 标注动作。实现 88 小时 → 827 小时的 10× 数据增强</p>\n</li>\n<li>\n<p><strong>顶层 — 真实机器人数据</strong>：通过 VR 遥操作在 GR-1 人形机器人上收集的高质量演示数据</p>\n</li>\n</ul>\n<p>预训练使用约 50K H100 GPU 小时，最多 1024 GPU 并行训练。</p>\n<p><strong>3. 多具身支持与动作空间设计</strong></p>\n<p>GR00T N1 通过具身特定的 projector 模块支持不同机器人：</p>\n<p>$$\\mathbf{s}_{\\text{embed}} = \\text{StateProjector}_e(\\mathbf{s}_{\\text{raw}}), \\quad \\mathbf{a}_{\\text{out}} = \\text{ActionProjector}_e(\\mathbf{a}_{\\text{dit}})$$</p>\n<p>其中下标 \\(e\\) 表示具身类型。不同机器人的关节数、动作维度各异，projector 负责将异构的状态/动作空间映射到统一的 DiT 隐空间。对于无动作标签的视频数据，使用 LAPA 的潜在动作空间作为统一的\"虚拟具身\"。</p>\n<p><strong>4. 后训练与神经轨迹协同训练</strong></p>\n<p>后训练（Post-training）阶段，将真实机器人数据与神经轨迹按 1:1 比例混合协同训练。实验表明：</p>\n<ul>\n<li>在 RoboCasa 仿真中，神经轨迹协同训练在 30/100/300 条数据量级分别带来 +4.2%/+8.8%/+6.8% 的提升</li>\n<li>在 GR-1 真机上，平均提升 +5.8%</li>\n<li>随着真实数据量增加，IDM 标注的动作质量提升，正迁移效果更显著</li>\n</ul>\n<p><strong>5. 与传统方法的对比</strong></p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>特性</th>\n<th>Diffusion Policy</th>\n<th>RT-2 / Octo</th>\n<th>π₀</th>\n<th><strong>GR00T N1</strong></th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>语言理解</td>\n<td>✗</td>\n<td>VLM 直接输出动作</td>\n<td>VLM + Flow</td>\n<td>VLM + DiT (解耦)</td>\n</tr>\n<tr>\n<td>动作生成</td>\n<td>DDPM ~100步</td>\n<td>自回归 token</td>\n<td>Flow-Matching</td>\n<td>Flow-Matching 4步</td>\n</tr>\n<tr>\n<td>多具身</td>\n<td>单一</td>\n<td>有限</td>\n<td>有限</td>\n<td>Projector 模块</td>\n</tr>\n<tr>\n<td>无动作视频利用</td>\n<td>✗</td>\n<td>✗</td>\n<td>部分</td>\n<td>LAPA + IDM</td>\n</tr>\n<tr>\n<td>预训练数据</td>\n<td>无</td>\n<td>网络数据</td>\n<td>机器人数据</td>\n<td>数据金字塔</td>\n</tr>\n</tbody>\n</table></div>\n<div class=\"warn-box\">⚠️ <strong>注意</strong>：GR00T N1 的核心创新不仅在架构上（双系统解耦），更在数据工程上（数据金字塔使得模型能从海量非机器人数据中学习操作先验）。</div>\n<h5>实验结果</h5>\n<p><strong>仿真评估</strong>（100 条演示/任务）：</p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>方法</th>\n<th>RoboCasa (24任务)</th>\n<th>DexMimicGen (9任务)</th>\n<th>GR-1 Sim (24任务)</th>\n<th>平均</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>BC-Transformer</td>\n<td>16.5%</td>\n<td>41.2%</td>\n<td>33.3%</td>\n<td>26.4%</td>\n</tr>\n<tr>\n<td>Diffusion Policy</td>\n<td>23.2%</td>\n<td>52.3%</td>\n<td>36.7%</td>\n<td>33.4%</td>\n</tr>\n<tr>\n<td><strong>GR00T-N1-2B</strong></td>\n<td><strong>32.1%</strong></td>\n<td><strong>66.5%</strong></td>\n<td><strong>50.0%</strong></td>\n<td><strong>45.0%</strong></td>\n</tr>\n</tbody>\n</table></div>\n<p><strong>真机评估</strong>（GR-1 人形机器人，24 个任务）：</p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>方法</th>\n<th>Pick-and-Place</th>\n<th>Articulated</th>\n<th>Industrial</th>\n<th>Coordination</th>\n<th>平均</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>DP (10% Data)</td>\n<td>3.0%</td>\n<td>14.3%</td>\n<td>6.7%</td>\n<td>27.5%</td>\n<td>10.2%</td>\n</tr>\n<tr>\n<td>DP (Full Data)</td>\n<td>36.0%</td>\n<td>38.6%</td>\n<td>61.0%</td>\n<td>62.5%</td>\n<td>46.4%</td>\n</tr>\n<tr>\n<td>GR00T-N1 (10% Data)</td>\n<td>35.0%</td>\n<td>62.0%</td>\n<td>31.0%</td>\n<td>50.0%</td>\n<td>42.6%</td>\n</tr>\n<tr>\n<td><strong>GR00T-N1 (Full)</strong></td>\n<td><strong>82.0%</strong></td>\n<td><strong>70.9%</strong></td>\n<td><strong>70.0%</strong></td>\n<td><strong>82.5%</strong></td>\n<td><strong>76.8%</strong></td>\n</tr>\n</tbody>\n</table></div>\n<div class=\"key-point\">💡 <strong>数据效率亮点</strong>：GR00T-N1 仅用 10% 数据（42.6%）即接近 Diffusion Policy 全量数据的表现（46.4%），体现了预训练带来的强大迁移能力。</div>",
+      "quiz": {
+        "q": "GR00T N1 中 System 1（DiT）与 System 2（VLM）之间的信息传递机制是什么？",
+        "options": [
+          "VLM 直接输出离散动作 token，DiT 将其解码为连续动作",
+          "通过 Mixture-of-Experts (MoE) 层融合 VLM 和 DiT 的特征",
+          "DiT 通过 cross-attention 从 VLM 中间层隐藏状态中提取语义信息",
+          "VLM 和 DiT 共享同一组 Transformer 层，交替处理视觉和动作 token"
+        ],
+        "answer": 2,
+        "explain": "GR00T N1 使用 cross-attention 机制让 DiT 从 VLM 第 12 层的隐藏状态中提取语义嵌入，而非使用 MoE（如 π₀）或共享层。这种设计使两个子系统架构完全解耦，便于独立升级。"
+      }
     }
   ],
   "categories": {

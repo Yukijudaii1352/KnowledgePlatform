@@ -2,6 +2,13 @@
 
 一个把 **一篇结构化 Markdown 知识文档** 稳定编译为 **一个完整的二级标签前端页面** 的流水线。
 
+另外，仓库现在也包含一条更完整的**内容生产链路**：
+
+1. 人工筛选综述文章并下载为 markdown
+2. `deep_research.py` 生成专题级中间 YAML（算法列表 / 类别 / 图谱 / 页面元信息）
+3. `content/run.sh` 批量驱动论文精读 agent，产出 `*_detail.md`
+4. `assemble.py` 把综述 + 中间 YAML + detail markdown 装配成最终知识文档
+
 ## 设计哲学
 
 > **Agent 只生产"数据"，不生产"代码"。**
@@ -101,6 +108,98 @@ python3 pipeline/build.py path/to/doc.md --dry-run
 
 # 同时拷贝本地图片到 assets/
 python3 pipeline/build.py path/to/doc.md --copy-images
+
+# 全量编译时额外带上 pipeline/examples/ 下的示例文档
+python3 pipeline/build.py --include-examples
+```
+
+## 内容生产链路
+
+### 1. 手工下载综述文章
+
+```bash
+pip install -e pipeline/researcher/zhihu-cli
+zhihu login --qrcode
+zhihu status
+python3 pipeline/researcher/sync_zhihu_cookies.py
+
+python3 pipeline/researcher/download_tmp.py "https://zhuanlan.zhihu.com/p/xxxxxxxx" \
+  --output-dir pipeline/researcher/output/manual_downloads
+```
+
+下载结果中会包含 `article.md / raw.html / metadata.json`。
+
+说明：
+
+- `zhihu login --qrcode` 会将二维码保存到 `~/.zhihu-cli/login_qrcode.png`
+- 登录成功后，`zhihu-cli` 会将 Cookie 保存到 `~/.zhihu-cli/cookies.json`
+- `sync_zhihu_cookies.py` 会把 Cookie 同步到 `pipeline/researcher/cookies.json`
+- 如果不想扫码，也可以用 `zhihu login --cookie "z_c0=...; _xsrf=...; d_c0=..."` 手动导入
+
+### 2. 生成专题中间 YAML
+
+```bash
+cd pipeline/researcher
+python3 deep_research.py \
+  --domain llm \
+  --topic-id llm_rl \
+  --topic-name "LLM强化学习" \
+  --page-title "LLM强化学习算法演进" \
+  --output ../../content/llm/llm_rl.yaml \
+  --dry-run
+```
+
+去掉 `--dry-run` 后会调用外部研究模型 API，输出兼容现有 `content/<domain>/<topic>.yaml` 的中间文件。
+
+### 3. 批量生成算法精读 markdown
+
+```bash
+# 默认把外部 GenericAgent 接到项目内 tools/GenericAgent
+bash scripts/setup_generic_agent.sh
+
+# 如需指定其他位置：
+# bash scripts/setup_generic_agent.sh --source /abs/path/to/GenericAgent
+
+bash content/run.sh /abs/path/to/content/llm/llm_rl.yaml
+```
+
+它会读取 YAML 中的 `algorithms` 列表，并在 `content/llm/llm_rl/` 下生成或更新每个算法对应的 `*_detail.md`。
+
+`content/run.sh` 会按以下顺序查找 GenericAgent：
+
+1. `GENERIC_AGENT_ROOT`
+2. `tools/GenericAgent`
+3. `/mnt/petrelfs/wanghaoyu2/GenericAgent`
+
+### 4. 装配最终知识文档
+
+```bash
+# 单专题装配
+python3 pipeline/assemble.py content/llm/llm_rl.yaml
+
+# 全量装配
+python3 pipeline/assemble.py
+
+# 只检查，不落盘
+python3 pipeline/assemble.py content/llm/llm_rl.yaml --dry-run --report-json temp/report.json
+```
+
+装配器会：
+
+- 读取 `topic.yaml`
+- 读取同名目录下的 `*_detail.md`
+- 优先复用现有 `topic.md` 中的 `## 领域综述` 和 `## 最新进展综述`
+- 若存在 `topic.sources.yaml` / `topic.survey.yaml`，则优先按该配置注入人工综述
+- 若缺少综述或 detail，则保留占位模板并在报告里标出缺口
+
+综述 sidecar 配置示例：
+
+```yaml
+overview:
+  include_raw: pipeline/researcher/output/RL_survey_old/xxx/article.md
+
+latest_overview:
+  include_raw: pipeline/researcher/output/RL_survey_new/yyy/article.md
 ```
 
 ## 常见错误

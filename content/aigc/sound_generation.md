@@ -2,7 +2,7 @@
 domain: aigc
 topic_id: sound_generation
 topic_name: sound_generation
-page_icon: "\U0001F50A"
+page_icon: 🔊
 page_title: AI音频生成技术演化图谱
 page_subtitle: 2026-05-12 版
 page_desc: 从WaveNet自回归波形生成到Diffusion Transformer统一框架，AI音频生成经历了自回归时代、GAN时代、扩散模型时代和统一大模型时代四个阶段，涵盖TTS、语音克隆、音效生成、神经编解码器与音乐生成五大技术方向。
@@ -40,8 +40,13 @@ image_base: ../../content/aigc/sound_generation/assets/
 
 ## 领域综述
 
-### 待定
-待定。
+### 待补充：阶段性领域总结
+请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+
+## 最新进展综述
+
+### 待补充：最近一个月最新动向
+请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
 
 ## 算法演化关系
 
@@ -473,8 +478,7 @@ explain: "每步预测 r 帧将解码步数减少为 1/r，更重要的是允许
 id: tacotron2
 num: 3
 name: Tacotron 2
-full_name: 'Tacotron 2: 自然TTS合成 (Natural TTS Synthesis by Conditioning WaveNet on
-  Mel Spectrogram)'
+full_name: 'Tacotron 2: 自然TTS合成 (Natural TTS Synthesis by Conditioning WaveNet on Mel Spectrogram)'
 year: '2018'
 org: Google
 parent: tacotron
@@ -502,8 +506,7 @@ Mel谱预测+WaveNet声码器
 id: fastspeech
 num: 4
 name: FastSpeech
-full_name: 'FastSpeech: 快速鲁棒的TTS (FastSpeech: Fast, Robust and Controllable Text to
-  Speech)'
+full_name: 'FastSpeech: 快速鲁棒的TTS (FastSpeech: Fast, Robust and Controllable Text to Speech)'
 year: '2019'
 org: Microsoft
 parent: tacotron2
@@ -531,8 +534,7 @@ FastSpeech 的核心目标是：非自回归并行合成+长度预测器。
 id: fastspeech2
 num: 5
 name: FastSpeech 2
-full_name: 'FastSpeech 2: 快速高质量TTS (FastSpeech 2: Fast and High-Quality End-to-End
-  Text to Speech)'
+full_name: 'FastSpeech 2: 快速高质量TTS (FastSpeech 2: Fast and High-Quality End-to-End Text to Speech)'
 year: '2020'
 org: Microsoft
 parent: fastspeech
@@ -757,8 +759,7 @@ explain: "CWT 将 F0 序列分解为不同尺度的小波系数，分离了局�
 id: hifigan
 num: 6
 name: HiFi-GAN
-full_name: 'HiFi-GAN: 高保真语音合成GAN (HiFi-GAN: Generative Adversarial Networks for Efficient
-  and High Fidelity Speech Synthesis)'
+full_name: 'HiFi-GAN: 高保真语音合成GAN (HiFi-GAN: Generative Adversarial Networks for Efficient and High Fidelity Speech Synthesis)'
 year: '2020'
 org: Kakao
 parent: —
@@ -954,8 +955,7 @@ explain: "选择素数作为周期是为了最大程度减少不同子判别器�
 id: vits
 num: 7
 name: VITS
-full_name: 'VITS: 条件变分自编码器端到端TTS (Conditional Variational Autoencoder with Adversarial
-  Learning for End-to-End TTS)'
+full_name: 'VITS: 条件变分自编码器端到端TTS (Conditional Variational Autoencoder with Adversarial Learning for End-to-End TTS)'
 year: '2021'
 org: Kakao
 parent: fastspeech2
@@ -1010,8 +1010,7 @@ RVQ神经音频编码框架
 id: bigvgan
 num: 9
 name: BigVGAN
-full_name: 'BigVGAN: 通用神经声码器 (BigVGAN: A Universal Neural Vocoder with Large-Scale
-  Training)'
+full_name: 'BigVGAN: 通用神经声码器 (BigVGAN: A Universal Neural Vocoder with Large-Scale Training)'
 year: '2022'
 org: NVIDIA
 parent: hifigan
@@ -1265,8 +1264,7 @@ YourTTS 的核心目标是：多语言零样本VITS克隆。
 id: audioldm
 num: 12
 name: AudioLDM
-full_name: 'AudioLDM: 文本到音频生成 (AudioLDM: Text-to-Audio Generation with Latent Diffusion
-  Models)'
+full_name: 'AudioLDM: 文本到音频生成 (AudioLDM: Text-to-Audio Generation with Latent Diffusion Models)'
 year: '2023'
 org: Surrey
 parent: —
@@ -1293,8 +1291,7 @@ AudioLDM 的核心目标是：潜在扩散+CLAP对齐音效生成。
 id: valle
 num: 13
 name: VALL-E
-full_name: 'VALL-E: 神经编解码语言模型 (Neural Codec Language Models are Zero-Shot Text to
-  Speech Synthesizers)'
+full_name: 'VALL-E: 神经编解码语言模型 (Neural Codec Language Models are Zero-Shot Text to Speech Synthesizers)'
 year: '2023'
 org: Microsoft
 parent: encodec
@@ -1538,8 +1535,7 @@ MusicGen 的核心目标是：单Transformer可控音乐生成。
 id: tango
 num: 15
 name: TANGO
-full_name: 'TANGO: 文本到音频生成 (Text-to-Audio Generation using Instruction Guided Latent
-  Diffusion Model)'
+full_name: 'TANGO: 文本到音频生成 (Text-to-Audio Generation using Instruction Guided Latent Diffusion Model)'
 year: '2023'
 org: 多机构
 parent: audioldm
@@ -1595,8 +1591,7 @@ Mega-TTS 的核心目标是：扩散韵律建模长文本合成。
 id: audioldm2
 num: 17
 name: AudioLDM 2
-full_name: 'AudioLDM 2: 通用音频生成 (AudioLDM 2: Learning Holistic Audio Generation with
-  Self-supervised Pretraining)'
+full_name: 'AudioLDM 2: 通用音频生成 (AudioLDM 2: Learning Holistic Audio Generation with Self-supervised Pretraining)'
 year: '2024'
 org: Surrey
 parent: audioldm
@@ -1624,8 +1619,7 @@ AudioLDM 2 的核心目标是：自监督音频语言表示学习。
 id: valle2
 num: 18
 name: VALL-E 2
-full_name: 'VALL-E 2: 人类水平零样本TTS (VALL-E 2: Neural Codec Language Models are Human
-  Parity Zero-Shot Text to Speech Synthesizers)'
+full_name: 'VALL-E 2: 人类水平零样本TTS (VALL-E 2: Neural Codec Language Models are Human Parity Zero-Shot Text to Speech Synthesizers)'
 year: '2024'
 org: Microsoft
 parent: valle
@@ -1653,8 +1647,7 @@ VALL-E 2 的核心目标是：重复感知采样达人类水平TTS。
 id: tfoley
 num: 19
 name: T-Foley
-full_name: 'T-Foley: 可控波形域扩散Foley (T-Foley: A Controllable Waveform-Domain Diffusion
-  Model)'
+full_name: 'T-Foley: 可控波形域扩散Foley (T-Foley: A Controllable Waveform-Domain Diffusion Model)'
 year: '2024'
 org: 多机构
 parent: tango
@@ -1841,8 +1834,7 @@ explain: "Block-FiLM 的核心简化是将 TFiLM 中用于块间序列建模的 
 id: wavtokenizer
 num: 20
 name: WavTokenizer
-full_name: 'WavTokenizer: 高效声学离散编解码器 (WavTokenizer: An Efficient Acoustic Discrete
-  Codec Tokenizer)'
+full_name: 'WavTokenizer: 高效声学离散编解码器 (WavTokenizer: An Efficient Acoustic Discrete Codec Tokenizer)'
 year: '2025'
 org: 多机构
 parent: encodec
@@ -1870,8 +1862,7 @@ WavTokenizer 的核心目标是：单层Codebook高效Token化。
 id: f5tts
 num: 21
 name: F5-TTS
-full_name: 'F5-TTS: Flow Matching扩散TTS (F5-TTS: A Fairytaler that Fakes Fluent and
-  Faithful Speech with Flow Matching)'
+full_name: 'F5-TTS: Flow Matching扩散TTS (F5-TTS: A Fairytaler that Fakes Fluent and Faithful Speech with Flow Matching)'
 year: '2025'
 org: 多机构
 parent: vits
@@ -1899,8 +1890,7 @@ Flow Matching+DiT非自回归
 id: dittotts
 num: 22
 name: DiTTo-TTS
-full_name: 'DiTTo-TTS: 扩散Transformer TTS (DiTTo-TTS: Efficient and Scalable Zero-Shot
-  Text-to-Speech with Diffusion Transformer)'
+full_name: 'DiTTo-TTS: 扩散Transformer TTS (DiTTo-TTS: Efficient and Scalable Zero-Shot Text-to-Speech with Diffusion Transformer)'
 year: '2025'
 org: KRAFTON/NVIDIA
 parent: f5tts
@@ -1928,8 +1918,7 @@ DiTTo-TTS 的核心目标是：无音素扩散Transformer零样本。
 id: cosyvoice3
 num: 23
 name: CosyVoice 3
-full_name: 'CosyVoice 3: 可扩展多语言多任务语音生成 (CosyVoice 3: Scalable Multilingual and Multitask
-  Speech Generation)'
+full_name: 'CosyVoice 3: 可扩展多语言多任务语音生成 (CosyVoice 3: Scalable Multilingual and Multitask Speech Generation)'
 year: '2026.01'
 org: 阿里巴巴
 parent: f5tts
@@ -1957,8 +1946,7 @@ RL优化双向流式多语言TTS
 id: xvoice
 num: 24
 name: X-Voice
-full_name: 'X-Voice: 30语言零样本克隆 (X-Voice: Enabling Everyone to Speak 30 Languages via
-  Zero-Shot Cross-Lingual Voice Cloning)'
+full_name: 'X-Voice: 30语言零样本克隆 (X-Voice: Enabling Everyone to Speak 30 Languages via Zero-Shot Cross-Lingual Voice Cloning)'
 year: '2026.05'
 org: 多机构
 parent: valle2
@@ -1986,8 +1974,7 @@ X-Voice 的核心目标是：30语言零样本跨语言克隆。
 id: marcovoice
 num: 25
 name: Marco-Voice
-full_name: 'Marco-Voice: 统一表达性语音合成 (Marco-Voice: A Unified Framework for Expressive
-  Speech Synthesis)'
+full_name: 'Marco-Voice: 统一表达性语音合成 (Marco-Voice: A Unified Framework for Expressive Speech Synthesis)'
 year: '2026'
 org: 多机构
 parent: valle2
@@ -2043,8 +2030,7 @@ DiT万物转音频多模态生成
 id: audiogenomni
 num: 27
 name: AudioGen-Omni
-full_name: 'AudioGen-Omni: 统一多模态音频生成 (AudioGen-Omni: A Unified Multimodal Diffusion
-  Transformer)'
+full_name: 'AudioGen-Omni: 统一多模态音频生成 (AudioGen-Omni: A Unified Multimodal Diffusion Transformer)'
 year: '2026'
 org: 多机构
 parent: audiox
@@ -2072,8 +2058,7 @@ MM-DiT统一多模态音频生成
 id: omnicodec
 num: 28
 name: OmniCodec
-full_name: 'OmniCodec: 低帧率通用编解码器 (OmniCodec: Low Frame Rate Universal Audio Codec
-  with Semantic-Acoustic Disentanglement)'
+full_name: 'OmniCodec: 低帧率通用编解码器 (OmniCodec: Low Frame Rate Universal Audio Codec with Semantic-Acoustic Disentanglement)'
 year: '2026.03'
 org: 多机构
 parent: wavtokenizer

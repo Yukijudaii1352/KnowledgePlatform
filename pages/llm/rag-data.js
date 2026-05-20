@@ -1,5 +1,5 @@
 /**
- * rag-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:06 自动生成。
+ * rag-data.js — 由 pipeline/build.py 于 2026-05-20 16:45:42 自动生成。
  * 源文件：content/llm/rag.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,25 +9,27 @@ window.PAGE_CONFIG = {
     "topic_id": "rag",
     "topic_name": "检索增强生成",
     "page_title": "检索增强生成 (RAG) 技术演进图谱",
-    "page_subtitle": "2026-05-18 版",
+    "page_subtitle": "2026-05-20 版",
     "page_desc": "系统梳理RAG技术从2020年DPR/REALM奠基到2026年Agentic RAG、多模态RAG的演进历程，涵盖架构设计、检索策略与评测方法的完整演化路径",
     "page_icon": "🔍",
     "hero_pills": [
       "🏷️ RAG · Dense Retrieval · Knowledge Augmentation · Agentic AI"
     ],
     "count_pill": "{count} 个算法",
-    "image_base": ""
+    "image_base": "",
+    "overview_from_doc": true,
+    "latest_overview_from_doc": true
   },
   "overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：阶段性领域总结",
+      "body_html": "<p>请补充一篇纵观一段时间以来的总结性文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "latest_overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：最近一个月最新动向",
+      "body_html": "<p>请补充最近一个月该领域最新动向的综述文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "graph": {
@@ -723,13 +725,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "architecture",
       "motivation": "反射Token自主决策检索时机并批判结果事实性",
-      "summary": "Self-RAG 的核心目标是：反射Token自主决策检索时机并批判结果事实性。",
+      "summary": "Self-RAG 训练单一语言模型在生成过程中按需检索外部文档，并通过特殊的反射 token（Retrieve / IsRel / IsSup / IsUse）对检索内容和自身输出进行细粒度自我批判，在不依赖额外 Reward Model 或 RL 的前提下显著提升了事实性和引用准确性。",
       "keyPoints": [
-        "核心动机：反射Token自主决策检索时机并批判结果事实性",
-        "演化来源：继承或改进自 rag",
-        "代表机构：University of Washington"
+        "<strong>4 类反射 token</strong>：Retrieve（是否需要检索）、IsRel（段落是否相关）、IsSup（输出是否被证据支持）、IsUse（整体效用 1-5 分）",
+        "<strong>Critic 模型蒸馏</strong>：使用 GPT-4 标注 4k–20k 样本训练 Llama2-7B Critic，与 GPT-4 一致性 &gt; 90%",
+        "<strong>离线标注 + 标准 LM 训练</strong>：Critic 离线为训练语料插入反射 token，Generator 以标准 next-token prediction 在扩展词表上训练，无需 RL",
+        "<strong>推理时自适应检索</strong>：通过 Retrieve token 概率阈值 \\(\\delta\\) 控制检索频率，支持按需检索而非每步检索",
+        "<strong>段级 Beam Search 排序</strong>：对多条检索段落并行生成，用 IsRel / IsSup / IsUse 加权评分选取最优片段",
+        "<strong>推理时可定制行为</strong>：调整各 critique 权重即可在引用精度与流畅度之间灵活权衡，无需重新训练",
+        "<strong>6 项任务全面评估</strong>：涵盖事实验证（PubHealth）、推理（ARC-C）、开放域 QA（PopQA / TriviaQA）、传记生成（Bio）、长文 QA（ASQA），Self-RAG 7B/13B 全面超越 ChatGPT 及同规模 RAG 基线"
       ],
-      "detail": "<p>反射Token自主决策检索时机并批判结果事实性</p>"
+      "detail": "<h5>框架总览</h5>\n<p><img alt=\"Self-RAG 框架示意图\" src=\"https://arxiv.org/html/2310.11511v4/x1.png\" />\n<em>图：Self-RAG 推理流程。模型先判断是否需要检索（Retrieve token），若需要则检索多条段落并并行生成，随后通过 IsRel / IsSup / IsUse 反射 token 对每条候选输出进行细粒度评估，最终选取最优片段拼接为完整回答。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># Self-RAG 推理流程 (Algorithm 1 简化)\ndef self_rag_inference(x, M, R, threshold=0.2, K=5, weights=(1.0, 1.0, 0.5)):\n    &quot;&quot;&quot;\n    x: 输入 query\n    M: Self-RAG Generator\n    R: Retriever (Contriever-MSMARCO)\n    &quot;&quot;&quot;\n    output = []\n    while not finished:\n        # Step 1: 预测 Retrieve token\n        p_retrieve = M.predict_token_prob(&quot;[Retrieve]&quot;, context=(x, output))\n\n        if p_retrieve(&quot;Yes&quot;) &gt; threshold:\n            # Step 2: 检索 top-K 段落\n            passages = R.retrieve(x, K=K)\n            candidates = []\n\n            for d in passages:\n                # Step 3: 条件生成 + 反射 token\n                y_t, is_rel, is_sup, is_use = M.generate_with_critique(x, output, d)\n\n                # Step 4: 加权评分 (Eq. 3)\n                score = (M.generation_prob(y_t) \n                         + weights[0] * score(is_rel)    # IsRel\n                         + weights[1] * score(is_sup)    # IsSup  \n                         + weights[2] * score(is_use))   # IsUse\n                candidates.append((y_t, score))\n\n            # Step 5: 选取最优片段\n            best = max(candidates, key=lambda c: c[1])\n            output.append(best[0])\n        else:\n            # 无需检索，直接生成\n            y_t = M.generate(x, output)\n            output.append(y_t)\n\n    return &quot;&quot;.join(output)\n</code></pre>\n<h5>动机与背景</h5>\n<p>传统 RAG 方法存在两个核心缺陷：</p>\n<ol>\n<li>\n<p><strong>无差别检索</strong>：无论问题是否需要外部知识，都固定在每一步检索，既浪费计算资源，又可能因引入不相关信息而降低生成质量。例如，\"太阳从哪个方向升起？\"这类常识问题完全不需要检索。</p>\n</li>\n<li>\n<p><strong>缺乏自我评估</strong>：模型无法判断检索到的文档是否与问题相关，也无法评估自身输出是否被证据充分支持。即使检索到了高质量文档，模型也可能忽略证据或产生幻觉。</p>\n</li>\n</ol>\n<div class=\"key-point\">💡 关键：Self-RAG 的核心洞察是——将\"何时检索\"和\"如何评估\"这两个决策内化为模型自身的生成能力，而非依赖外部模块或启发式规则。</div>\n<h5>核心机制：反射 token 体系</h5>\n<p>Self-RAG 设计了 4 类反射 token，覆盖检索-生成-评估的完整链路：</p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th style=\"text-align: center;\">Token 类型</th>\n<th style=\"text-align: center;\">输出值</th>\n<th style=\"text-align: center;\">作用时机</th>\n<th style=\"text-align: left;\">功能</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td style=\"text-align: center;\"><strong>Retrieve</strong></td>\n<td style=\"text-align: center;\"><code>yes</code> / <code>no</code> / <code>continue</code></td>\n<td style=\"text-align: center;\">每个片段生成前</td>\n<td style=\"text-align: left;\">决定是否需要检索</td>\n</tr>\n<tr>\n<td style=\"text-align: center;\"><strong>IsRel</strong></td>\n<td style=\"text-align: center;\"><code>relevant</code> / <code>irrelevant</code></td>\n<td style=\"text-align: center;\">检索后、生成前</td>\n<td style=\"text-align: left;\">判断检索段落与查询的相关性</td>\n</tr>\n<tr>\n<td style=\"text-align: center;\"><strong>IsSup</strong></td>\n<td style=\"text-align: center;\"><code>fully supported</code> / <code>partially supported</code> / <code>no support</code></td>\n<td style=\"text-align: center;\">生成后</td>\n<td style=\"text-align: left;\">评估输出是否被检索证据支持</td>\n</tr>\n<tr>\n<td style=\"text-align: center;\"><strong>IsUse</strong></td>\n<td style=\"text-align: center;\"><code>1</code> – <code>5</code></td>\n<td style=\"text-align: center;\">生成后</td>\n<td style=\"text-align: left;\">评估输出对回答问题的整体效用</td>\n</tr>\n</tbody>\n</table></div>\n<p>这些 token 被加入模型词表，在训练和推理时与普通文本 token 一样通过 next-token prediction 生成，无需额外的分类头或奖励模型。</p>\n<h5>训练流程：三阶段蒸馏</h5>\n<p><strong>阶段一：Critic 模型训练</strong></p>\n<p>使用 GPT-4 为少量样本（每类 token 4k–20k 条）生成反射 token 标注，然后蒸馏到 Llama2-7B 作为 Critic 模型 \\(\\mathcal{C}\\)。具体地，对于每类反射 token，设计特定 prompt 让 GPT-4 判断（如\"该段落是否与问题相关？\"），收集其输出作为训练标签。训练后的 Critic 与 GPT-4 的一致性超过 90%。</p>\n<p><strong>阶段二：离线语料标注</strong></p>\n<p>使用训练好的 Critic \\(\\mathcal{C}\\) 对整个训练语料进行离线标注：\n- 对每个训练样本，先用 \\(\\mathcal{C}\\) 判断是否需要检索（Retrieve token）\n- 若需要，用检索器获取段落，再用 \\(\\mathcal{C}\\) 标注 IsRel / IsSup / IsUse\n- 将这些反射 token 插入原始文本的对应位置</p>\n<p><strong>阶段三：Generator 训练</strong></p>\n<p>在标注后的增强语料上，以标准 next-token prediction 目标训练 Generator \\(\\mathcal{M}\\)（Llama2-7B 或 13B）。模型的词表扩展以包含反射 token。训练目标为：</p>\n<p>$$\\max_{\\theta} \\sum_{t} \\log p_{\\theta}(y_t \\mid y_{<t}, x)$$</p>\n<p>其中 \\(y_t\\) 可以是普通文本 token 或反射 token。</p>\n<div class=\"warn-box\">⚠️ 注意：整个训练过程不使用强化学习，仅依赖标准的监督学习（next-token prediction），这使得训练过程稳定且高效。</div>\n<h5>推理流程：自适应检索 + 段级排序</h5>\n<p>推理时，模型逐片段（segment-by-segment）生成输出：</p>\n<ol>\n<li>\n<p><strong>检索决策</strong>：在每个片段开始时，模型预测 Retrieve token 的概率。若 \\(p(\\text{Yes}) > \\delta\\)（默认 \\(\\delta = 0.2\\)），则触发检索。</p>\n</li>\n<li>\n<p><strong>并行生成与评估</strong>：检索 top-K 段落（默认 K=5），对每条段落并行生成候选片段，同时生成 IsRel / IsSup / IsUse 反射 token。</p>\n</li>\n<li>\n<p><strong>加权排序</strong>：对每个候选片段计算综合得分：</p>\n</li>\n</ol>\n<p>$$\\text{score}(y_t, d) = p_{\\theta}(y_t) + \\sum_{G \\in \\{\\text{IsRel}, \\text{IsSup}, \\text{IsUse}\\}} w_G \\cdot s(r_G)$$</p>\n<p>其中 \\(w_G\\) 为各 critique 类型的权重（默认 IsRel=1.0, IsSup=1.0, IsUse=0.5），\\(s(r_G)\\) 为对应反射 token 的归一化得分。</p>\n<ol>\n<li><strong>推理时定制</strong>：通过调整权重 \\(w_G\\)，可在不重新训练的情况下控制模型行为。例如，增大 IsSup 权重可提升引用精度但可能降低流畅度（MAUVE 分数）。</li>\n</ol>\n<h5>与传统方法的关键区别</h5>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th style=\"text-align: left;\">维度</th>\n<th style=\"text-align: left;\">传统 RAG</th>\n<th style=\"text-align: left;\">Self-RAG</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td style=\"text-align: left;\">检索策略</td>\n<td style=\"text-align: left;\">每步固定检索</td>\n<td style=\"text-align: left;\">按需自适应检索</td>\n</tr>\n<tr>\n<td style=\"text-align: left;\">评估机制</td>\n<td style=\"text-align: left;\">无 / 仅依赖检索器相关性分数</td>\n<td style=\"text-align: left;\">4 类反射 token 细粒度评估</td>\n</tr>\n<tr>\n<td style=\"text-align: left;\">训练方式</td>\n<td style=\"text-align: left;\">检索器与生成器独立训练</td>\n<td style=\"text-align: left;\">端到端训练统一模型</td>\n</tr>\n<tr>\n<td style=\"text-align: left;\">推理灵活性</td>\n<td style=\"text-align: left;\">固定行为</td>\n<td style=\"text-align: left;\">权重可调，支持运行时定制</td>\n</tr>\n<tr>\n<td style=\"text-align: left;\">额外模块</td>\n<td style=\"text-align: left;\">需要 NLI 模型做事实验证</td>\n<td style=\"text-align: left;\">自包含，无需外部验证器</td>\n</tr>\n</tbody>\n</table></div>\n<h5>实验结果</h5>\n<p>Self-RAG 在 6 项任务上的主要结果（Accuracy / FactScore / Citation Precision）：</p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th style=\"text-align: left;\">模型</th>\n<th style=\"text-align: center;\">PopQA</th>\n<th style=\"text-align: center;\">TriviaQA</th>\n<th style=\"text-align: center;\">PubHealth</th>\n<th style=\"text-align: center;\">ARC-C</th>\n<th style=\"text-align: center;\">Bio (FactScore)</th>\n<th style=\"text-align: center;\">ASQA (Citation Prec)</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td style=\"text-align: left;\">Llama2-7B</td>\n<td style=\"text-align: center;\">14.7</td>\n<td style=\"text-align: center;\">55.6</td>\n<td style=\"text-align: center;\">49.1</td>\n<td style=\"text-align: center;\">45.0</td>\n<td style=\"text-align: center;\">—</td>\n<td style=\"text-align: center;\">—</td>\n</tr>\n<tr>\n<td style=\"text-align: left;\">Llama2-13B-chat</td>\n<td style=\"text-align: center;\">20.0</td>\n<td style=\"text-align: center;\">63.3</td>\n<td style=\"text-align: center;\">70.0</td>\n<td style=\"text-align: center;\">67.3</td>\n<td style=\"text-align: center;\">55.9</td>\n<td style=\"text-align: center;\">37.1</td>\n</tr>\n<tr>\n<td style=\"text-align: left;\">Alpaca-13B + RAG</td>\n<td style=\"text-align: center;\">46.7</td>\n<td style=\"text-align: center;\">57.4</td>\n<td style=\"text-align: center;\">49.8</td>\n<td style=\"text-align: center;\">45.7</td>\n<td style=\"text-align: center;\">—</td>\n<td style=\"text-align: center;\">—</td>\n</tr>\n<tr>\n<td style=\"text-align: left;\">ChatGPT</td>\n<td style=\"text-align: center;\">29.3</td>\n<td style=\"text-align: center;\">64.8</td>\n<td style=\"text-align: center;\">70.0</td>\n<td style=\"text-align: center;\">75.3</td>\n<td style=\"text-align: center;\">71.3</td>\n<td style=\"text-align: center;\">65.1</td>\n</tr>\n<tr>\n<td style=\"text-align: left;\"><strong>Self-RAG 7B</strong></td>\n<td style=\"text-align: center;\"><strong>54.9</strong></td>\n<td style=\"text-align: center;\"><strong>66.4</strong></td>\n<td style=\"text-align: center;\"><strong>72.4</strong></td>\n<td style=\"text-align: center;\">67.3</td>\n<td style=\"text-align: center;\"><strong>81.2</strong></td>\n<td style=\"text-align: center;\"><strong>66.9</strong></td>\n</tr>\n<tr>\n<td style=\"text-align: left;\"><strong>Self-RAG 13B</strong></td>\n<td style=\"text-align: center;\"><strong>55.8</strong></td>\n<td style=\"text-align: center;\"><strong>69.3</strong></td>\n<td style=\"text-align: center;\"><strong>74.5</strong></td>\n<td style=\"text-align: center;\"><strong>73.1</strong></td>\n<td style=\"text-align: center;\">80.2</td>\n<td style=\"text-align: center;\"><strong>70.3</strong></td>\n</tr>\n</tbody>\n</table></div>\n<div class=\"key-point\">💡 关键发现：Self-RAG 7B 即可在 PopQA、PubHealth、Bio、ASQA 上超越 ChatGPT，Self-RAG 13B 在所有任务上均为非专有模型中的最佳。</div>\n<p><strong>消融实验</strong>验证了各组件的必要性：\n- <strong>去除检索器</strong>：所有任务性能显著下降\n- <strong>去除 Critic（反射 token）</strong>：ASQA citation precision 从 32.1 降至 18.1\n- <strong>固定使用 top-1 段落</strong>（传统 RAG 方式）：PopQA 和 ASQA 大幅下降\n- <strong>去除 IsSup</strong>：ASQA 性能明显受损</p>\n<p><strong>人工评估</strong>（50 样本）：PopQA 上 S&amp;P（合理且有支持）得分 92.5%，IsRel 预测与人工一致性 95%，IsSup 一致性 90%。</p>",
+      "quiz": {
+        "q": "Self-RAG 在训练阶段使用了什么优化方法来学习反射 token？",
+        "options": [
+          "基于 PPO 的强化学习，以反射 token 准确率为奖励",
+          "标准 next-token prediction，将反射 token 作为扩展词表的一部分",
+          "对比学习，拉近正确反射 token 与上下文的表示距离",
+          "RLHF，使用人类偏好数据微调反射 token 的生成概率"
+        ],
+        "answer": 1,
+        "explain": "Self-RAG 将反射 token 加入词表，与普通文本 token 一起通过标准的 next-token prediction 目标训练，不使用任何强化学习，这是其训练简洁高效的关键设计。"
+      }
     },
     {
       "id": "crag",
@@ -777,13 +794,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "architecture",
       "motivation": "知识图谱全局关系推理，解决跨文档总结难题",
-      "summary": "GraphRAG 的核心目标是：知识图谱全局关系推理，解决跨文档总结难题。",
+      "summary": "Graph RAG 通过 LLM 从源文档中自动构建实体知识图谱，利用图社区检测生成层级化社区摘要，并在查询时采用 map-reduce 机制对社区摘要进行查询聚焦总结，从而解决了传统 RAG 无法回答需要全语料库推理的全局性问题（如\"数据集的主要主题是什么？\"）的根本缺陷。",
       "keyPoints": [
-        "核心动机：知识图谱全局关系推理，解决跨文档总结难题",
-        "演化来源：继承或改进自 rag",
-        "代表机构：Microsoft Research"
+        "<strong>问题定义</strong>：针对\"全局性 sensemaking 问题\"——需要跨越整个文档集合进行推理的查询，传统向量相似度 RAG 无法胜任",
+        "<strong>图索引构建</strong>：使用 LLM 从源文本块中提取实体（节点）和关系（边），构建实体知识图谱；支持多轮 gleanings 提升抽取召回率",
+        "<strong>层级社区检测</strong>：对知识图谱应用 Leiden 算法进行社区检测，生成多层级的社区划分（从根级 C0 到叶级 C3）",
+        "<strong>社区摘要生成</strong>：对每个社区使用 LLM 生成涵盖其内部实体、关系和关键声明的描述性摘要",
+        "<strong>Map-Reduce 查询机制</strong>：查询时将用户问题并行发送到所有社区摘要（map），再将中间答案聚合为最终全局回答（reduce）",
+        "<strong>评估指标</strong>：采用 LLM-as-a-judge 的 head-to-head 比较，衡量 Comprehensiveness、Diversity、Empowerment、Directness 四个维度",
+        "<strong>核心结论</strong>：Graph RAG 在 comprehensiveness（72-83% 胜率）和 diversity（62-82% 胜率）上显著优于 naïve RAG；根级社区摘要（C0）仅需不到 3% 的 token 即可获得竞争力强的全局回答"
       ],
-      "detail": "<p>知识图谱全局关系推理，解决跨文档总结难题</p>"
+      "detail": "<p><img alt=\"Graph RAG 整体流程图\" src=\"https://arxiv.org/html/2404.16130v2/x1.png\" />\n<em>图：Graph RAG 流程概览——从源文档到文本块、到实体图、到社区层级、到社区摘要，最终通过 map-reduce 生成全局答案</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># Graph RAG 索引构建与查询流程\n\n# ===== Phase 1: 索引构建 (Indexing) =====\ndef build_graph_index(documents):\n    # Step 1: 文本分块\n    chunks = split_into_chunks(documents, chunk_size=600, overlap=100)\n\n    # Step 2: LLM 实体与关系抽取 (含多轮 gleanings)\n    entities, relations = [], []\n    for chunk in chunks:\n        e, r = llm_extract_entities_relations(chunk)  # 首轮抽取\n        for _ in range(num_gleanings):  # 多轮追加抽取遗漏实体\n            missed = llm_gleaning(chunk, already_found=e)\n            e.extend(missed)\n        entities.extend(e); relations.extend(r)\n\n    # Step 3: 构建知识图谱并做社区检测\n    graph = build_graph(entities, relations)  # 实体=节点, 关系=边\n    communities = leiden_algorithm(graph)      # 多层级社区划分\n\n    # Step 4: 为每个社区生成摘要\n    for level in communities.levels():         # C0(根) → C3(叶)\n        for community in communities.at(level):\n            summary = llm_summarize(community.entities, \n                                     community.relations,\n                                     community.claims)\n            community.summary = summary\n    return graph, communities\n\n# ===== Phase 2: 查询 (Query) =====\ndef query_graph_rag(question, communities, level):\n    # Map: 对选定层级的每个社区摘要生成中间回答\n    intermediate_answers = []\n    for community in communities.at(level):\n        answer = llm_answer(question, context=community.summary)\n        score = llm_rate_helpfulness(answer)  # 0-100 评分\n        if score &gt; 0:\n            intermediate_answers.append((answer, score))\n\n    # Reduce: 按评分排序，贪心填充 context window，生成最终回答\n    intermediate_answers.sort(key=lambda x: x[1], reverse=True)\n    context = greedy_fill(intermediate_answers, max_tokens=8000)\n    final_answer = llm_synthesize(question, context)\n    return final_answer\n</code></pre>\n<h5>动机与背景</h5>\n<p>传统 RAG（Retrieval-Augmented Generation）的核心思路是将用户查询嵌入向量空间，检索语义最相似的文本块作为 LLM 的上下文。这种方法对<strong>局部性问题</strong>（如\"X 是谁？\"\"Y 发生在哪里？\"）效果良好，但面对<strong>全局性问题</strong>（如\"这个数据集的主要主题有哪些？\"\"不同社区之间有什么共同特征？\"）时存在根本性缺陷：</p>\n<ol>\n<li><strong>检索盲区</strong>：向量相似度检索倾向于返回与查询表面相似的片段，无法覆盖分散在整个语料库中的相关信息</li>\n<li><strong>上下文窗口限制</strong>：即使模型支持 128k token 的上下文窗口，直接塞入全部源文本也存在\"lost in the middle\"问题——中间位置的信息容易被忽略</li>\n<li><strong>缺乏全局视角</strong>：没有机制将分散的局部信息聚合为全局性的结构化理解</li>\n</ol>\n<p>Graph RAG 的核心洞察是：<strong>利用知识图谱的天然模块性（modularity）来组织和压缩信息</strong>，通过社区检测将图划分为语义连贯的子结构，再对每个子结构生成摘要，从而实现对全语料库的层级化理解。</p>\n<h5>核心机制详解</h5>\n<p><strong>1. 实体与关系抽取</strong></p>\n<p>Graph RAG 使用 LLM（论文中为 GPT-4 Turbo）从每个文本块中抽取实体和关系。与传统 NER 不同，这里的实体类型由领域需求灵活定义（如人物、组织、事件、地点等），关系同样以自然语言描述形式保留。</p>\n<p>关键创新是 <strong>多轮 gleanings 机制</strong>：首轮抽取后，LLM 被反复提示\"是否还有遗漏的实体？\"，每轮追加新发现的实体。论文发现这显著提升了抽取的召回率，尤其对于信息密度高的长文本块。</p>\n<p><strong>2. 图构建与社区检测</strong></p>\n<p>所有抽取的实体作为节点、关系作为边构建加权无向图。同一实体在不同文本块中的多次出现会被合并，边权重反映关系被提及的频次。</p>\n<p>社区检测采用 <strong>Leiden 算法</strong>（Traag et al., 2019），这是 Louvain 算法的改进版本，能保证社区的连通性。Leiden 算法递归地将图划分为层级化的社区结构：</p>\n<p>$$Q = \\frac{1}{2m} \\sum_{ij} \\left[ A_{ij} - \\frac{k_i k_j}{2m} \\right] \\delta(c_i, c_j)$$</p>\n<p>其中 \\(Q\\) 是模块度，\\(A_{ij}\\) 是邻接矩阵，\\(k_i\\) 是节点度数，\\(m\\) 是总边数，\\(\\delta(c_i, c_j)\\) 在节点 \\(i\\) 和 \\(j\\) 属于同一社区时为 1。Leiden 算法通过最大化模块度来发现紧密连接的社区。</p>\n<p>这产生了从粗粒度（根级 C0，少量大社区）到细粒度（叶级 C3，大量小社区）的层级结构。例如，Podcast 数据集产生了 8564 个节点、20691 条边的图，其中 C0 仅有 34 个社区摘要，而 C3 有 1310 个。</p>\n<p><strong>3. 社区摘要生成</strong></p>\n<p>对每个社区，将其包含的实体描述、关系描述和声明（claims）按重要性排序后输入 LLM，生成一段综合性摘要。叶级社区直接从元素描述生成摘要；上层社区则从其子社区的摘要递归生成。</p>\n<div class=\"key-point\">💡 关键：社区摘要是一种<strong>预计算的全局索引</strong>——它在索引阶段一次性生成，查询时可直接复用，避免了每次查询都遍历原始文本的高昂成本。</div>\n<p><strong>4. Map-Reduce 查询聚焦总结</strong></p>\n<p>查询时，Graph RAG 采用经典的 map-reduce 模式：</p>\n<ul>\n<li><strong>Map 阶段</strong>：将用户问题与每个社区摘要配对，LLM 为每对生成一个中间回答，并自评 0-100 的有用性评分。评分为 0 的回答被过滤。</li>\n<li><strong>Reduce 阶段</strong>：将中间回答按评分降序排列，贪心地填充到上下文窗口（8k tokens），最后由 LLM 综合所有中间回答生成最终答案。</li>\n</ul>\n<p>$$\\text{FinalAnswer} = \\text{LLM}_{\\text{reduce}}\\left(q, \\text{TopK}\\left(\\{(a_i, s_i)\\}_{i=1}^{N}\\right)\\right)$$</p>\n<p>其中 \\(q\\) 是用户查询，\\(a_i\\) 是第 \\(i\\) 个社区的中间回答，\\(s_i\\) 是其有用性评分，TopK 按评分选取能填满上下文窗口的回答子集。</p>\n<h5>与传统方法的关键区别</h5>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>维度</th>\n<th>Naïve RAG (SS)</th>\n<th>全局文本总结 (TS)</th>\n<th>Graph RAG</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>检索方式</td>\n<td>向量相似度 top-k</td>\n<td>全文 map-reduce</td>\n<td>社区摘要 map-reduce</td>\n</tr>\n<tr>\n<td>全局覆盖</td>\n<td>❌ 仅局部片段</td>\n<td>✅ 遍历全文</td>\n<td>✅ 遍历所有社区</td>\n</tr>\n<tr>\n<td>Token 效率</td>\n<td>低（固定 k 块）</td>\n<td>最低（全文）</td>\n<td>高（C0 仅需 ~3% token）</td>\n</tr>\n<tr>\n<td>信息组织</td>\n<td>无结构</td>\n<td>无结构</td>\n<td>图+层级社区结构</td>\n</tr>\n<tr>\n<td>预计算</td>\n<td>仅嵌入</td>\n<td>无</td>\n<td>图索引+社区摘要</td>\n</tr>\n</tbody>\n</table></div>\n<h5>实验结果</h5>\n<p>论文在两个约 100 万 token 的数据集上评估：Podcast 转录文本（1669 条 600-token 块）和新闻文章（3197 条块）。使用 GPT-4 Turbo 作为 LLM evaluator 进行 head-to-head 比较，每组 125 个问题，每个比较重复 5 次取均值。</p>\n<p><strong>核心发现</strong>：\n- <strong>Graph RAG vs. Naïve RAG</strong>：所有 Graph RAG 层级（C0-C3）在 comprehensiveness 上获得 72-83% 胜率，diversity 上获得 62-82% 胜率\n- <strong>Graph RAG vs. 全局文本总结（TS）</strong>：中间层级社区摘要（C1-C2）在 comprehensiveness 和 diversity 上略优于 TS，同时节省 26-33% 的 token\n- <strong>根级摘要（C0）的效率优势</strong>：C0 仅需全文 2.3-2.6% 的 token，却仍保持 72% 的 comprehensiveness 胜率和 62% 的 diversity 胜率（vs. Naïve RAG）\n- <strong>Directness（控制指标）</strong>：Naïve RAG 在 directness 上表现最佳，符合预期——直接检索的片段更具针对性，但缺乏全局视角\n- <strong>上下文窗口</strong>：8k token 的上下文窗口在 comprehensiveness 上优于 16k/32k/64k（平均 58.1% 胜率），验证了\"lost in the middle\"效应</p>\n<div class=\"warn-box\">⚠️ 注意：Empowerment 指标上各方法差异不大，分析表明这与具体引用和示例的保留程度有关——Graph RAG 的摘要过程可能丢失了部分原始细节。</div>",
+      "quiz": {
+        "q": "Graph RAG 在查询阶段使用什么机制来综合多个社区摘要的信息？",
+        "options": [
+          "向量相似度检索最相关的社区摘要",
+          "将所有社区摘要拼接后直接输入 LLM",
+          "Map-Reduce：先对每个社区摘要生成中间回答，再聚合为最终答案",
+          "使用图遍历算法沿关系路径逐步推理"
+        ],
+        "answer": 2,
+        "explain": "Graph RAG 在查询时采用 map-reduce 模式：map 阶段对每个社区摘要独立生成中间回答并评分，reduce 阶段将高分中间回答聚合生成最终全局答案。这避免了上下文窗口限制，同时保证了全局覆盖。"
+      }
     },
     {
       "id": "llmlingua",

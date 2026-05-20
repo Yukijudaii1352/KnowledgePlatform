@@ -96,9 +96,21 @@ def split_sections(body: str):
 
 # ============ 领域综述 ============
 
-def parse_overview(md_body: str, section_name: str = "领域综述"):
+INCLUDE_RAW_RE = re.compile(r"^\s*!INCLUDE_RAW\s+(.+?)\s*$")
+
+
+def parse_overview(md_body: str, section_name: str = "领域综述", src: Path | None = None):
     if not md_body.strip():
         err(f"`## {section_name}` 板块为空")
+    include_match = INCLUDE_RAW_RE.match(md_body.strip())
+    if include_match:
+        include_path = Path(include_match.group(1).strip())
+        if not include_path.is_absolute():
+            base = src.parent if src else ROOT
+            include_path = (base / include_path).resolve()
+        if not include_path.is_file():
+            err(f"`## {section_name}` 引用的原文文件不存在：{include_path}")
+        return [{"title": "", "body_html": md_to_html(include_path.read_text(encoding="utf-8"))}]
     out = []
     current_title, current_buf = None, []
     in_fence = False
@@ -119,12 +131,22 @@ def parse_overview(md_body: str, section_name: str = "领域综述"):
         out.append({"title": current_title,
                     "body_html": md_to_html("\n".join(current_buf))})
     if not out:
-        err(f"`## {section_name}` 下必须至少包含一个 `###` 小节")
+        # 允许直接粘贴整篇原文 markdown，而不强制拆成 `###` 小节。
+        return [{"title": "", "body_html": md_to_html(md_body)}]
     return out
 
 
 def default_overview_section(title: str = "待定", body: str = "待定。"):
     return [{"title": title, "body_html": md_to_html(body)}]
+
+
+def default_latest_overview_section():
+    return [{
+        "title": "待补充：最近一个月最新动向",
+        "body_html": md_to_html(
+            "请在源知识文档的 `## 最新进展综述` 板块中补充最近一个月内该领域的最新动向、代表性工作与趋势判断。"
+        ),
+    }]
 
 
 # ============ 演化关系 ============
@@ -450,12 +472,13 @@ def compile_doc(src: Path, copy_images: bool = False, dry_run: bool = False):
     for must in ("领域综述", "算法演化关系", "核心算法"):
         if must not in secs:
             err(f"[{src}] 缺少 `## {must}` 板块")
-    overview = parse_overview(secs["领域综述"], "领域综述")
-    latest_overview = (
-        parse_overview(secs["最新进展综述"], "最新进展综述")
-        if "最新进展综述" in secs
-        else default_overview_section()
-    )
+    overview = parse_overview(secs["领域综述"], "领域综述", src)
+    has_latest_overview_doc = "最新进展综述" in secs
+    if has_latest_overview_doc:
+        latest_overview = parse_overview(secs["最新进展综述"], "最新进展综述", src)
+    else:
+        warn(f"[{src}] 缺少 `## 最新进展综述`，将注入占位模板")
+        latest_overview = default_latest_overview_section()
     graph = parse_graph(secs["算法演化关系"])
 
     image_base = fm.get("image_base", "")
@@ -486,6 +509,8 @@ def compile_doc(src: Path, copy_images: bool = False, dry_run: bool = False):
             "hero_pills": fm.get("hero_pills", []),
             "count_pill": fm.get("count_pill", "{count} 个算法"),
             "image_base": image_base,
+            "overview_from_doc": True,
+            "latest_overview_from_doc": has_latest_overview_doc,
         },
         "overview": overview,
         "latest_overview": latest_overview,

@@ -1,5 +1,5 @@
 /**
- * 3d_vision-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:01 自动生成。
+ * 3d_vision-data.js — 由 pipeline/build.py 于 2026-05-20 16:45:36 自动生成。
  * 源文件：content/cv/3d_vision.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "3d_vision",
     "topic_name": "3D视觉",
     "page_title": "3D视觉技术演进图谱",
-    "page_subtitle": "2026-05-18 版",
+    "page_subtitle": "2026-05-20 版",
     "page_desc": "系统梳理从点云处理、NeRF神经辐射场到3D Gaussian Splatting的技术变革与2026最新前沿，涵盖神经渲染、三维重建的完整演化路径。",
     "page_icon": "🧊",
     "hero_pills": [
@@ -17,18 +17,20 @@ window.PAGE_CONFIG = {
       "🏷️ Point Cloud · Neural Rendering"
     ],
     "count_pill": "{count} 个算法",
-    "image_base": ""
+    "image_base": "",
+    "overview_from_doc": true,
+    "latest_overview_from_doc": true
   },
   "overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：阶段性领域总结",
+      "body_html": "<p>请补充一篇纵观一段时间以来的总结性文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "latest_overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：最近一个月最新动向",
+      "body_html": "<p>请补充最近一个月该领域最新动向的综述文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "graph": {
@@ -899,13 +901,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "gaussian_splatting",
       "motivation": "3D平滑滤波器解决缩放时的走样问题",
-      "summary": "Mip-Splatting 的核心目标是：3D平滑滤波器解决缩放时的走样问题。",
+      "summary": "Mip-Splatting 从信号处理的采样定理出发，提出 **3D 平滑滤波器**（约束高斯基元的最大频率以消除放大时的高频伪影）和 **2D Mip 滤波器**（用物理意义明确的盒式滤波近似替代 dilation 以消除缩小时的走样），系统性地解决了 3D Gaussian Splatting 在不同采样率下的走样问题。",
       "keyPoints": [
-        "核心动机：3D平滑滤波器解决缩放时的走样问题",
-        "演化来源：继承或改进自 3dgs",
-        "代表机构：Tsinghua"
+        "<strong>问题诊断</strong>：3DGS 的 dilation 机制引入尺度模糊性（scale ambiguity），导致放大时出现高频伪影（erosion），缩小时出现亮度异常",
+        "<strong>3D 平滑滤波器</strong>：基于训练视图的 Nyquist 频率上限，对每个 3D 高斯基元施加低通约束 \\(\\Sigma_k + \\frac{s}{\\hat{\\nu}_k} \\mathbf{I}\\)，防止学习到超出训练分辨率可表达范围的高频信号",
+        "<strong>2D Mip 滤波器</strong>：用高斯近似像素级盒式滤波器，将 2D 协方差替换为 \\(\\Sigma^{2D}_k + s\\mathbf{I}\\)，并引入归一化因子 \\(\\sqrt{|\\Sigma^{2D}_k| / |\\Sigma^{2D}_k + s\\mathbf{I}|}\\) 正确衰减小高斯的贡献",
+        "<strong>与 EWA 滤波器的区别</strong>：Mip 滤波器目标是精确近似单像素的盒式滤波，而 EWA 滤波器是经验性带宽限制（覆盖 3×3 像素区域），导致过度模糊",
+        "<strong>即插即用</strong>：基于 3DGS 开源代码，使用相同的损失函数、密度控制策略和超参数，仅增加两个滤波模块",
+        "<strong>多尺度基准</strong>：在 Blender 多尺度训练/测试中 PSNR 达 34.56（3DGS 仅 29.77）；单尺度训练多尺度测试中平均 PSNR 31.97（3DGS 仅 24.84）"
       ],
-      "detail": "<p>3D平滑滤波器解决缩放时的走样问题</p>"
+      "detail": "<p><img alt=\"Mip-Splatting 框架概览\" src=\"https://arxiv.org/html/2311.16493v2/x1.png\" />\n<em>图：Mip-Splatting 方法概览。左：3D 平滑滤波器基于训练视图的最大采样率约束高斯基元频率；右：2D Mip 滤波器在渲染时对投影后的 2D 高斯施加像素级低通滤波。</em></p>\n<h5>问题分析：3DGS 的 Dilation 与尺度模糊性</h5>\n<p>3D Gaussian Splatting 使用 3D 高斯基元表示场景，通过 Splatting 将其投影到 2D 图像平面进行可微渲染。原始 3DGS 在投影后的 2D 协方差矩阵上添加一个固定的 dilation 项（0.3 像素），以确保每个高斯至少覆盖一个像素，避免数值不稳定。</p>\n<p>然而，论文指出 dilation 引入了<strong>尺度模糊性</strong>（scale ambiguity）：</p>\n<p>$$\n\\mathcal{G}^{2D}_{k}(\\mathbf{x})_{\\text{dilation}} = e^{-\\frac{1}{2}(\\mathbf{x}-\\mathbf{p}_k)^T (\\boldsymbol{\\Sigma}^{2D}_k + \\epsilon \\mathbf{I})^{-1} (\\mathbf{x}-\\mathbf{p}_k)}\n$$</p>\n<p>这个 dilation 项使得优化器无法区分一个\"本身很小但被 dilation 放大\"的高斯和一个\"本身就是该大小\"的高斯。具体而言：</p>\n<ul>\n<li><strong>放大（zoom-in）时</strong>：小高斯在低分辨率训练时被 dilation 掩盖，放大后暴露出高频伪影（erosion effect）</li>\n<li><strong>缩小（zoom-out）时</strong>：dilation 不随分辨率变化而缩放，导致小高斯在低分辨率下贡献过多能量，产生亮度异常</li>\n</ul>\n<div class=\"key-point\">💡 关键：dilation 的根本问题在于它是一个<strong>与采样率无关的固定偏移</strong>，破坏了高斯基元的物理尺度信息。</div>\n<h5>3D 平滑滤波器：约束最大可表达频率</h5>\n<p>论文从采样定理出发：对于一个 3D 高斯基元 \\(k\\)，其在训练集中被观测到的最大采样率决定了它能可靠表达的最高频率。</p>\n<p><strong>采样间隔计算</strong>：对于第 \\(n\\) 个训练视图，像素间隔映射到 3D 空间的采样间隔为：</p>\n<p>$$\n\\hat{T}_n = \\frac{d_n}{f_n}\n$$</p>\n<p>其中 \\(d_n\\) 是相机到高斯中心的距离，\\(f_n\\) 是焦距。</p>\n<p><strong>最大采样率</strong>：取所有训练视图中的最大值：</p>\n<p>$$\n\\hat{\\nu}_k = \\max_n \\frac{f_n}{d_n}\n$$</p>\n<p><strong>3D 低通滤波</strong>：将高斯与一个方差为 \\(\\frac{1}{2\\hat{\\nu}_k}\\) 的低通滤波器卷积，等价于增大协方差：</p>\n<p>$$\n\\boldsymbol{\\Sigma}_k^{\\text{smooth}} = \\boldsymbol{\\Sigma}_k + \\frac{s}{\\hat{\\nu}_k} \\mathbf{I}\n$$</p>\n<p>其中 \\(s\\) 是一个超参数（论文中取 0.2）。这确保了当渲染分辨率高于训练分辨率时，高斯基元不会产生超出其可表达范围的高频细节。</p>\n<div class=\"warn-box\">⚠️ 注意：最大采样率 \\(\\hat{\\nu}_k\\) 每 100 次迭代重新计算一次以提高效率，而非每次迭代都计算。</div>\n<h5>2D Mip 滤波器：物理意义明确的抗锯齿</h5>\n<p>在成像过程中，理想的像素值应是该像素区域内连续信号的积分，即与一个盒式滤波器（box filter）卷积。论文用高斯函数近似这个盒式滤波器：</p>\n<p>$$\n\\mathcal{G}^{2D}_{k}(\\mathbf{x})_{\\text{mip}} = \\sqrt{\\frac{|\\boldsymbol{\\Sigma}^{2D}_k|}{|\\boldsymbol{\\Sigma}^{2D}_k + s\\mathbf{I}|}} \\cdot e^{-\\frac{1}{2}(\\mathbf{x}-\\mathbf{p}_k)^T (\\boldsymbol{\\Sigma}^{2D}_k + s\\mathbf{I})^{-1} (\\mathbf{x}-\\mathbf{p}_k)}\n$$</p>\n<p>其中 \\(s\\) 取 0.1（近似覆盖单个像素）。</p>\n<p><strong>关键设计——归一化因子</strong>：</p>\n<p>$$\n\\sqrt{\\frac{|\\boldsymbol{\\Sigma}^{2D}_k|}{|\\boldsymbol{\\Sigma}^{2D}_k + s\\mathbf{I}|}}\n$$</p>\n<p>这个因子确保当高斯远小于一个像素时（即 \\(\\boldsymbol{\\Sigma}^{2D}_k \\to 0\\)），其贡献被正确衰减至零。这与 dilation 的行为形成鲜明对比——dilation 会让极小的高斯仍然贡献完整的不透明度。</p>\n<pre><code class=\"language-python\"># Mip-Splatting 核心伪代码\n# 训练阶段\nfor iteration in range(30000):\n    # 每 100 次迭代更新 3D 采样率\n    if iteration % 100 == 0:\n        for k in gaussians:\n            nu_k = max(f_n / d_n(k) for n in training_views)\n\n    # 3D 平滑滤波：约束高频\n    for k in gaussians:\n        Sigma_3d_smooth = Sigma_3d[k] + (s_3d / nu_k) * I_3x3  # s_3d = 0.2\n\n    # Splatting 投影到 2D\n    Sigma_2d = project(Sigma_3d_smooth)  # JW Sigma W^T J^T\n\n    # 2D Mip 滤波：替代 dilation\n    for k in gaussians:\n        norm_factor = sqrt(det(Sigma_2d[k]) / det(Sigma_2d[k] + s_2d * I_2x2))  # s_2d = 0.1\n        Sigma_2d_mip = Sigma_2d[k] + s_2d * I_2x2\n        G_mip = norm_factor * gaussian(x, p_k, Sigma_2d_mip)\n\n    # Alpha compositing 渲染\n    C = sum(c_k * alpha_k * G_mip_k * prod(1 - alpha_j * G_mip_j) for j &lt; k)\n\n    # 标准 3DGS 损失\n    loss = (1 - lambda) * L1(C, C_gt) + lambda * SSIM(C, C_gt)\n    loss.backward()\n</code></pre>\n<h5>与 EWA Splatting 的对比</h5>\n<p>EWA（Elliptical Weighted Average）Splatting 同样在 2D 协方差上添加滤波器，但其设计目标和效果不同：</p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>特性</th>\n<th>Mip-Splatting (2D Mip Filter)</th>\n<th>EWA Splatting</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>设计目标</td>\n<td>近似单像素盒式滤波</td>\n<td>限制频率信号带宽</td>\n</tr>\n<tr>\n<td>滤波器大小</td>\n<td>覆盖 ~1 像素 (\\(s=0.1\\))</td>\n<td>覆盖 ~3×3 像素（单位协方差）</td>\n</tr>\n<tr>\n<td>归一化</td>\n<td>有（正确衰减小高斯）</td>\n<td>无</td>\n</tr>\n<tr>\n<td>缩小效果</td>\n<td>清晰且无走样</td>\n<td>过度模糊</td>\n</tr>\n</tbody>\n</table></div>\n<h5>实验结果</h5>\n<p><strong>Blender 多尺度训练/测试</strong>（Table 1）：</p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>方法</th>\n<th>Full</th>\n<th>1/2</th>\n<th>1/4</th>\n<th>1/8</th>\n<th>Avg PSNR</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>3DGS</td>\n<td>33.65</td>\n<td>28.24</td>\n<td>24.78</td>\n<td>22.40</td>\n<td>29.77</td>\n</tr>\n<tr>\n<td>3DGS + EWA</td>\n<td>33.62</td>\n<td>32.11</td>\n<td>30.38</td>\n<td>27.93</td>\n<td>33.01</td>\n</tr>\n<tr>\n<td>Mip-NeRF</td>\n<td>35.74</td>\n<td>35.38</td>\n<td>33.90</td>\n<td>33.01</td>\n<td>34.51</td>\n</tr>\n<tr>\n<td><strong>Mip-Splatting</strong></td>\n<td><strong>35.50</strong></td>\n<td><strong>35.37</strong></td>\n<td><strong>34.21</strong></td>\n<td><strong>33.14</strong></td>\n<td><strong>34.56</strong></td>\n</tr>\n</tbody>\n</table></div>\n<p><strong>Blender 单尺度训练→多尺度测试</strong>（Table 2）：</p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>方法</th>\n<th>Full</th>\n<th>1/2</th>\n<th>1/4</th>\n<th>1/8</th>\n<th>Avg PSNR</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>3DGS</td>\n<td>33.33</td>\n<td>26.95</td>\n<td>21.38</td>\n<td>17.69</td>\n<td>24.84</td>\n</tr>\n<tr>\n<td>3DGS + EWA</td>\n<td>33.51</td>\n<td>31.66</td>\n<td>27.82</td>\n<td>24.63</td>\n<td>29.40</td>\n</tr>\n<tr>\n<td><strong>Mip-Splatting</strong></td>\n<td><strong>33.36</strong></td>\n<td><strong>34.00</strong></td>\n<td><strong>31.85</strong></td>\n<td><strong>28.67</strong></td>\n<td><strong>31.97</strong></td>\n</tr>\n</tbody>\n</table></div>\n<p><strong>MipNeRF 360 放大测试</strong>（Table 5，训练 1× 测试至 8×）：</p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>方法</th>\n<th>1×</th>\n<th>2×</th>\n<th>4×</th>\n<th>8×</th>\n<th>Avg PSNR</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>3DGS</td>\n<td>29.19</td>\n<td>23.50</td>\n<td>20.71</td>\n<td>19.59</td>\n<td>23.25</td>\n</tr>\n<tr>\n<td>3DGS + EWA</td>\n<td>29.30</td>\n<td>25.90</td>\n<td>23.70</td>\n<td>22.81</td>\n<td>25.43</td>\n</tr>\n<tr>\n<td><strong>Mip-Splatting</strong></td>\n<td><strong>29.39</strong></td>\n<td><strong>27.39</strong></td>\n<td><strong>26.47</strong></td>\n<td><strong>26.22</strong></td>\n<td><strong>27.37</strong></td>\n</tr>\n</tbody>\n</table></div>\n<p><strong>消融实验</strong>表明：去除 3D 平滑滤波器导致放大时高频伪影（PSNR 从 27.37 降至 26.93）；去除 2D Mip 滤波器主要影响缩小质量（PSNR 降至 27.23）；同时去除两者会因密度控制机制产生过多小高斯导致 OOM。</p>",
+      "quiz": {
+        "q": "Mip-Splatting 中 2D Mip 滤波器的归一化因子 √(|Σ²ᴰ| / |Σ²ᴰ + sI|) 的主要作用是什么？",
+        "options": [
+          "加速渲染过程中的矩阵求逆运算",
+          "确保滤波后高斯的总能量守恒",
+          "当高斯投影远小于一个像素时正确衰减其贡献",
+          "将不同尺度的高斯归一化到相同的协方差范围"
+        ],
+        "answer": 2,
+        "explain": "当 Σ²ᴰ → 0（高斯远小于像素）时，归一化因子趋近于 0，正确地衰减了该高斯的贡献，避免了 dilation 中小高斯仍贡献完整不透明度的问题。"
+      }
     },
     {
       "id": "gaussianpro",

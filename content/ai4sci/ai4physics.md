@@ -7,8 +7,8 @@ page_title: 物理学AI 算法总结
 page_subtitle: '{build_date} 版'
 page_desc: 从PINN到神经算子，从流体仿真到物理定律发现，涵盖2016-2026年物理学AI核心算法演化
 hero_pills:
-- "\U0001F3F7️ PINN · Neural Operators · AI4Sci"
-- "\U0001F52C PDE求解 · 流体仿真 · 物理发现"
+- 🏷️ PINN · Neural Operators · AI4Sci
+- 🔬 PDE求解 · 流体仿真 · 物理发现
 count_pill: '{count} 个算法'
 categories:
   pde_solving:
@@ -34,8 +34,13 @@ image_base: ../../content/ai4sci/ai4physics/assets/
 
 ## 领域综述
 
-### 待定
-待定。
+### 待补充：阶段性领域总结
+请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+
+## 最新进展综述
+
+### 待补充：最近一个月最新动向
+请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
 
 ## 算法演化关系
 

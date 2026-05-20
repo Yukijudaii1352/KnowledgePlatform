@@ -2,12 +2,12 @@
 domain: multimodal
 topic_id: mm_video
 topic_name: 视觉理解
-page_icon: "\U0001F3AC"
+page_icon: 🎬
 page_title: 视觉理解技术演进总结
 page_subtitle: 2026-05-12 版
 page_desc: 概述视频理解从传统时序建模、语义定位到Video-LLM的发展脉络
 hero_pills:
-- "\U0001F3F7️ Video-LLM · Temporal Grounding · Summarization · Long Video QA"
+- 🏷️ Video-LLM · Temporal Grounding · Summarization · Long Video QA
 count_pill: 32 个算法
 categories:
   classic:
@@ -30,8 +30,13 @@ image_base: ../../content/mm/mm_video/assets/
 
 ## 领域综述
 
-### 待定
-待定。
+### 待补充：阶段性领域总结
+请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+
+## 最新进展综述
+
+### 待补充：最近一个月最新动向
+请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
 
 ## 算法演化关系
 

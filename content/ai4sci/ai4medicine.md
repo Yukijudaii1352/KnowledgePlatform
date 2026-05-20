@@ -2,7 +2,7 @@
 domain: ai4sci
 topic_id: ai4medicine
 topic_name: 药学AI
-page_icon: "\U0001F48A"
+page_icon: 💊
 page_title: 药学AI 算法总结
 page_subtitle: '{build_date} 版'
 page_desc: 药学AI是人工智能在生命科学领域最具变革潜力的应用方向，涵盖从分子生成、虚拟筛选到ADMET预测的全流程药物研发。该领域经历了从传统QSAR到深度学习，再到生成式AI与基础模型的技术演进，2026年已有173个AI原创药物进入临床阶段。
@@ -30,8 +30,13 @@ image_base: ../../content/ai4sci/ai4medicine/assets/
 
 ## 领域综述
 
-### 待定
-待定。
+### 待补充：阶段性领域总结
+请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+
+## 最新进展综述
+
+### 待补充：最近一个月最新动向
+请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
 
 ## 算法演化关系
 

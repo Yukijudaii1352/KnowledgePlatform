@@ -1,5 +1,5 @@
 /**
- * ai4biology-data.js — 由 pipeline/build.py 于 2026-05-18 18:50:59 自动生成。
+ * ai4biology-data.js — 由 pipeline/build.py 于 2026-05-20 16:45:33 自动生成。
  * 源文件：content/ai4sci/ai4biology.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,23 +9,25 @@ window.PAGE_CONFIG = {
     "topic_id": "ai4biology",
     "topic_name": "生命科学AI",
     "page_title": "生命科学AI技术图谱",
-    "page_subtitle": "2026-05-18 版",
+    "page_subtitle": "2026-05-20 版",
     "page_desc": "AlphaFold、蛋白质设计、基因组学与单细胞分析等用于生命科学的AI技术",
     "page_icon": "🧬",
     "hero_pills": [],
     "count_pill": "{count} 个算法",
-    "image_base": "../../content/ai4sci/ai4biology/assets/"
+    "image_base": "../../content/ai4sci/ai4biology/assets/",
+    "overview_from_doc": true,
+    "latest_overview_from_doc": true
   },
   "overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：阶段性领域总结",
+      "body_html": "<p>请补充一篇纵观一段时间以来的总结性文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "latest_overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：最近一个月最新动向",
+      "body_html": "<p>请补充最近一个月该领域最新动向的综述文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "graph": {

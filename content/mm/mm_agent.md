@@ -2,12 +2,12 @@
 domain: multimodal
 topic_id: mm_agent
 topic_name: 多模态Agent
-page_icon: "\U0001F916"
+page_icon: 🤖
 page_title: 多模态Agent 技术演进图谱
 page_subtitle: '{build_date} 版'
 page_desc: 涵盖视觉-语言导航、GUI自动化、网页交互、具身智能和通用框架五大方向，从感知到决策、从单体到协作的完整技术演进脉络。
 hero_pills:
-- "\U0001F3F7️ Multimodal · Embodied AI · GUI Automation · VLN"
+- 🏷️ Multimodal · Embodied AI · GUI Automation · VLN
 count_pill: '{count} 个算法'
 categories:
   vln:
@@ -32,8 +32,13 @@ categories:
 
 ## 领域综述
 
-### 待定
-待定。
+### 待补充：阶段性领域总结
+请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+
+## 最新进展综述
+
+### 待补充：最近一个月最新动向
+请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
 
 ## 算法演化关系
 

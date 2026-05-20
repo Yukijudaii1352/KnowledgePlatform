@@ -87,13 +87,55 @@ def _zhihu_api_headers() -> dict:
     }
 
 
+def _zhihu_api_get(
+    api_url: str,
+    headers: Dict[str, str],
+    cookies: Dict[str, str],
+    params: Optional[Dict[str, Any]] = None,
+    retries: int = 3,
+    timeout: Tuple[int, int] = (10, 30),
+):
+    """对知乎 API 做有限重试，降低偶发读超时导致的整篇下载失败。"""
+    import requests as _requests
+
+    last_error = None
+    for attempt in range(1, retries + 1):
+        try:
+            resp = _requests.get(
+                api_url,
+                headers=headers,
+                cookies=cookies,
+                params=params,
+                timeout=timeout,
+            )
+            if resp.status_code in (429, 500, 502, 503, 504) and attempt < retries:
+                time.sleep(min(1.5 * attempt, 4.0))
+                continue
+            return resp
+        except _requests.exceptions.Timeout as e:
+            last_error = e
+            if attempt < retries:
+                print(f"   [zhihu-api-download] timeout，第 {attempt}/{retries} 次重试...")
+                time.sleep(min(1.5 * attempt, 4.0))
+                continue
+            raise
+        except _requests.exceptions.RequestException as e:
+            last_error = e
+            if attempt < retries:
+                print(f"   [zhihu-api-download] request error，第 {attempt}/{retries} 次重试: {e}")
+                time.sleep(min(1.5 * attempt, 4.0))
+                continue
+            raise
+    if last_error:
+        raise last_error
+    return None
+
+
 def _fetch_zhihu_via_api(url: str) -> Optional[Dict[str, Any]]:
     """
     通过知乎 V4 API 获取知乎回答/文章的正文内容。
     返回 {"title": str, "content_html": str, "author": str, "voteup": int, "created": str} 或 None。
     """
-    import requests as _requests
-
     cookies = _load_zhihu_cookies()
     if not cookies or "z_c0" not in cookies:
         return None
@@ -113,7 +155,7 @@ def _fetch_zhihu_via_api(url: str) -> Optional[Dict[str, Any]]:
             answer_id = m.group(2)
             api_url = f"https://www.zhihu.com/api/v4/answers/{answer_id}"
             params = {"include": "content,voteup_count,comment_count,created_time,updated_time,author,question"}
-            resp = _requests.get(api_url, headers=headers, cookies=cookies, params=params, timeout=15)
+            resp = _zhihu_api_get(api_url, headers=headers, cookies=cookies, params=params)
             if resp.status_code == 200:
                 data = resp.json()
                 question = data.get("question", {})
@@ -133,7 +175,7 @@ def _fetch_zhihu_via_api(url: str) -> Optional[Dict[str, Any]]:
             article_id = m.group(1)
             # 知乎专栏文章的正确 API: zhuanlan.zhihu.com/api/articles/{id}
             api_url = f"https://zhuanlan.zhihu.com/api/articles/{article_id}"
-            resp = _requests.get(api_url, headers=headers, cookies=cookies, timeout=15)
+            resp = _zhihu_api_get(api_url, headers=headers, cookies=cookies)
             if resp.status_code == 200:
                 data = resp.json()
                 return {
@@ -151,7 +193,7 @@ def _fetch_zhihu_via_api(url: str) -> Optional[Dict[str, Any]]:
             question_id = m.group(1)
             # 先获取问题详情
             api_url = f"https://www.zhihu.com/api/v4/questions/{question_id}"
-            resp = _requests.get(api_url, headers=headers, cookies=cookies, timeout=15)
+            resp = _zhihu_api_get(api_url, headers=headers, cookies=cookies)
             q_title = ""
             if resp.status_code == 200:
                 q_title = resp.json().get("title", "")
@@ -164,7 +206,7 @@ def _fetch_zhihu_via_api(url: str) -> Optional[Dict[str, Any]]:
                 "limit": 3,
                 "sort_by": "default",
             }
-            resp = _requests.get(api_url, headers=headers, cookies=cookies, params=params, timeout=15)
+            resp = _zhihu_api_get(api_url, headers=headers, cookies=cookies, params=params)
             if resp.status_code == 200:
                 answers = resp.json().get("data", [])
                 if answers:
@@ -400,7 +442,11 @@ def download_one(
     }
 
     try:
-        fetched = cli.fetch_text(url)
+        # 知乎直连常被 403，r.jina.ai 又容易慢失败；优先尽快切到 API 降级。
+        if platform == "zhihu":
+            fetched = cli.fetch_text(url, allow_jina_fallback=False)
+        else:
+            fetched = cli.fetch_text(url)
         source = fetched["source"]
         html = fetched["html"]
 

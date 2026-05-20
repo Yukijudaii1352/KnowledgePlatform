@@ -1,5 +1,5 @@
 /**
- * body_vision-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:01 自动生成。
+ * body_vision-data.js — 由 pipeline/build.py 于 2026-05-20 16:45:36 自动生成。
  * 源文件：content/cv/body_vision.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,25 +9,27 @@ window.PAGE_CONFIG = {
     "topic_id": "body_vision",
     "topic_name": "人体视觉",
     "page_title": "人体视觉技术演进图谱",
-    "page_subtitle": "2026-05-18 版",
+    "page_subtitle": "2026-05-20 版",
     "page_desc": "人体视觉技术从2D姿态感知到3D网格重建，从静态分析到动态生成，从单一身体到全身精细化建模的演进历程。涵盖姿态估计、人体Mesh重建、动作生成与人脸分析四大核心方向，展现从经典算法到2026年前沿进展的完整技术脉络。",
     "page_icon": "🧍",
     "hero_pills": [
       "姿态估计 · Mesh重建 · 动作生成 · 人脸分析"
     ],
     "count_pill": "{count} 个算法",
-    "image_base": ""
+    "image_base": "",
+    "overview_from_doc": true,
+    "latest_overview_from_doc": true
   },
   "overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：阶段性领域总结",
+      "body_html": "<p>请补充一篇纵观一段时间以来的总结性文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "latest_overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：最近一个月最新动向",
+      "body_html": "<p>请补充最近一个月该领域最新动向的综述文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "graph": {
@@ -982,13 +984,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "mesh",
       "motivation": "利用图卷积直接在网格顶点上回归",
-      "summary": "GraphCMR 的核心目标是：利用图卷积直接在网格顶点上回归。",
+      "summary": "GraphCMR 提出使用图卷积网络（Graph-CNN）在 SMPL 人体模板网格拓扑上直接回归 3D 网格顶点坐标，避免了传统方法中回归 SMPL 参数的非线性映射难题，在 Human3.6M 数据集上以 50.1mm 重建误差超越了 HMR 等先前方法。",
       "keyPoints": [
-        "核心动机：利用图卷积直接在网格顶点上回归",
-        "演化来源：继承或改进自 hmr",
-        "代表机构：宾夕法尼亚大学"
+        "<strong>非参数化网格回归</strong>：直接预测 SMPL 6890 个顶点的 3D 坐标，而非回归 SMPL 模型的 85 维参数（72 维姿态 + 10 维形状 + 3 维平移）",
+        "<strong>图卷积架构</strong>：利用 SMPL 网格拓扑构建邻接矩阵，通过 Kipf 图卷积公式在网格上传播特征，保持顶点间的空间关系",
+        "<strong>三种输出表示对比</strong>：系统比较了 SMPL 参数回归、全连接网格回归、图卷积网格回归三种方案，证明图卷积方案显著优于其他两种",
+        "<strong>三种输入表示</strong>：支持 RGB 图像、人体部位分割图、DensePose 特征作为输入",
+        "<strong>可选参数化恢复</strong>：通过简单 MLP 从预测的非参数化网格恢复 SMPL 参数，证明非参数化表示包含完整的形状信息",
+        "<strong>多损失联合训练</strong>：3D 顶点损失 + 3D 关节损失 + 2D 重投影损失的组合监督"
       ],
-      "detail": "<p>利用图卷积直接在网格顶点上回归</p>"
+      "detail": "<p><img alt=\"GraphCMR 方法总览\" src=\"https://ar5iv.labs.arxiv.org/html/1905.03244v2/assets/x1.png\" />\n<em>图：GraphCMR 方法概览。CNN 编码器提取图像特征，附加到模板网格每个顶点上，通过图卷积层回归 3D 网格顶点坐标。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># GraphCMR 前向推理流程\ndef forward(image, template_mesh):\n    # Step 1: CNN 特征提取\n    feat = ResNet50(image)  # shape: [2048]\n\n    # Step 2: 特征附加到模板网格每个顶点\n    # template_mesh: [N, 3], N=6890 SMPL vertices\n    feat_per_vertex = feat.unsqueeze(0).repeat(N, 1)  # [N, 2048]\n    x = concat(template_mesh, feat_per_vertex)  # [N, 2051]\n\n    # Step 3: 图卷积层 (使用 SMPL 邻接矩阵)\n    A_hat = D^(-1/2) * (A + I) * D^(-1/2)  # 归一化邻接矩阵\n    for graph_res_block in graph_blocks:\n        x = graph_res_block(x, A_hat)  # Y = A_hat @ X @ W\n\n    # Step 4: 输出 3D 坐标 + 相机参数\n    vertices_3d = x[:, :3]  # [N, 3]\n    camera = MLP(x.mean(0))  # [s, tx, ty] 弱透视相机\n\n    # Step 5 (可选): 从网格恢复 SMPL 参数\n    smpl_params = MLP(vertices_3d.flatten())  # [85]\n\n    return vertices_3d, camera\n</code></pre>\n<h5>动机与背景</h5>\n<p>单图 3D 人体姿态与形状估计是计算机视觉的核心问题。先前的代表性工作 HMR（Kanazawa et al., 2018）采用端到端回归 SMPL 模型参数的方式，但存在以下关键缺陷：</p>\n<ol>\n<li><strong>非线性映射困难</strong>：从图像特征到 SMPL 参数空间（特别是轴角表示的 72 维姿态参数）的映射高度非线性，网络难以学习</li>\n<li><strong>参数耦合</strong>：SMPL 参数之间存在复杂耦合关系，微小的参数变化可能导致网格形状的剧烈变化</li>\n<li><strong>缺乏空间结构利用</strong>：全连接层将所有顶点坐标展平为向量，丢失了网格的拓扑信息</li>\n</ol>\n<p>GraphCMR 的核心洞察是：<strong>直接在网格顶点空间中回归 3D 坐标</strong>，并利用图卷积网络保持网格的空间结构，使得相邻顶点之间可以共享信息。</p>\n<h5>核心机制：图卷积网格回归</h5>\n<p><strong>1. 图卷积公式</strong></p>\n<p>GraphCMR 采用 Kipf &amp; Welling (2017) 的图卷积公式。给定输入特征矩阵 \\(X \\in \\mathbb{R}^{N \\times F_{in}}\\) 和归一化邻接矩阵 \\(\\tilde{A}\\)，图卷积操作定义为：</p>\n<p>$$Y = \\tilde{A} X W$$</p>\n<p>其中 \\(\\tilde{A} = \\hat{D}^{-1/2}(A + I_N)\\hat{D}^{-1/2}\\)，\\(A\\) 是 SMPL 网格的邻接矩阵，\\(I_N\\) 是单位矩阵（自连接），\\(\\hat{D}\\) 是度矩阵，\\(W \\in \\mathbb{R}^{F_{in} \\times F_{out}}\\) 是可学习权重。</p>\n<div class=\"key-point\">💡 关键：这个公式的直觉是——每个顶点的新特征是其自身和所有邻居特征的加权平均后经过线性变换。SMPL 网格的固定拓扑结构天然定义了哪些顶点是\"邻居\"。</div>\n<p><strong>2. 图残差网络架构</strong></p>\n<p>网络由多个图残差块（Graph Residual Block）堆叠而成，每个块包含：</p>\n<p>$$x_{out} = x_{in} + \\text{GraphConv}(\\text{GroupNorm}(\\text{ReLU}(\\text{GraphConv}(\\text{GroupNorm}(\\text{ReLU}(x_{in}))))))$$</p>\n<p>关键设计选择：\n- 使用 <strong>Group Normalization</strong> 而非 Batch Normalization，因为图卷积中每个顶点的特征统计量不同，GN 在通道维度分组归一化更适合\n- 残差连接确保梯度流通，防止深层网络退化</p>\n<p><strong>3. 特征附加策略</strong></p>\n<p>将 CNN 提取的全局图像特征（2048维）复制并附加到模板网格的每个顶点上，与顶点的 3D 坐标拼接：</p>\n<p>$$x_i^{(0)} = [v_i^{template}; f_{image}] \\in \\mathbb{R}^{2051}$$</p>\n<p>这样每个顶点既知道自己在模板网格中的位置，又能获取全局图像信息。通过图卷积的信息传播，不同顶点逐渐学会关注图像特征的不同方面。</p>\n<h5>损失函数设计</h5>\n<p>训练采用三个损失的加权组合：</p>\n<p>$$\\mathcal{L} = \\lambda_1 \\mathcal{L}_{3D} + \\lambda_2 \\mathcal{L}_{joint} + \\lambda_3 \\mathcal{L}_{2D}$$</p>\n<p><strong>3D 顶点损失</strong>（仅在有 ground truth 网格时使用）：</p>\n<p>$$\\mathcal{L}_{3D} = \\|X - \\hat{X}\\|_1$$</p>\n<p><strong>3D 关节损失</strong>（通过 SMPL 预定义的线性回归矩阵从顶点提取关节位置）：</p>\n<p>$$\\mathcal{L}_{joint} = \\|WX - W\\hat{X}\\|_1$$</p>\n<p>其中 \\(W\\) 是 SMPL 的关节回归矩阵，将 6890 个顶点映射到 14 个关节。</p>\n<p><strong>2D 重投影损失</strong>（利用弱透视相机模型）：</p>\n<p>$$\\mathcal{L}_{2D} = \\|\\Pi(WX) - \\Pi(W\\hat{X})\\|_1$$</p>\n<p>其中 \\(\\Pi\\) 是弱透视投影：\\(\\Pi(X) = sRX + t\\)，\\(s\\) 为缩放因子，\\(t\\) 为平移。</p>\n<div class=\"warn-box\">⚠️ 注意：2D 重投影损失使得模型可以利用仅有 2D 标注的 in-the-wild 数据进行训练，这对泛化能力至关重要。</div>\n<h5>与传统方法的关键对比</h5>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>方法</th>\n<th>输出空间</th>\n<th>网络结构</th>\n<th>H3.6M Recon. Error</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>HMR (参数回归)</td>\n<td>SMPL 85维参数</td>\n<td>FC layers</td>\n<td>56.8 mm</td>\n</tr>\n<tr>\n<td>FC 网格回归</td>\n<td>6890×3 顶点坐标</td>\n<td>FC layers</td>\n<td>105.8 mm</td>\n</tr>\n<tr>\n<td><strong>GraphCMR (本文)</strong></td>\n<td>6890×3 顶点坐标</td>\n<td>Graph-CNN</td>\n<td><strong>50.1 mm</strong></td>\n</tr>\n</tbody>\n</table></div>\n<p>关键发现：\n1. <strong>图卷积 vs 全连接</strong>：在相同的非参数化输出空间下，图卷积（69.0mm）远优于全连接（105.8mm），证明利用网格拓扑结构的重要性\n2. <strong>非参数化 vs 参数化</strong>：图卷积网格回归（69.0mm）优于 SMPL 参数回归（77.6mm），说明避开非线性参数空间的优势\n3. <strong>SMPL 拟合后处理</strong>：对预测网格进行 SMPL 模型拟合可进一步提升性能（69.0→61.3mm），因为 SMPL 模型空间提供了正则化</p>\n<h5>训练细节</h5>\n<ul>\n<li><strong>编码器</strong>：ResNet-50，ImageNet 预训练</li>\n<li><strong>训练数据</strong>：Human3.6M（3D标注）+ LSP/COCO/MPII（2D标注）</li>\n<li><strong>优化器</strong>：Adam，学习率 3×10⁻⁴</li>\n<li><strong>批大小</strong>：16</li>\n<li><strong>推理速度</strong>：约 50ms/帧（~20 FPS）</li>\n</ul>",
+      "quiz": {
+        "q": "GraphCMR 相比全连接网格回归的核心优势是什么？",
+        "options": [
+          "使用了更深的 CNN 编码器提取更好的图像特征",
+          "利用 SMPL 网格拓扑结构通过图卷积传播顶点间信息",
+          "采用了更复杂的损失函数进行训练",
+          "使用了更多的训练数据和数据增强策略"
+        ],
+        "answer": 1,
+        "explain": "GraphCMR 的核心创新在于利用 SMPL 网格的邻接关系构建图卷积网络，使相邻顶点可以共享特征信息，这比全连接层将所有顶点独立处理要有效得多（重建误差从 105.8mm 降至 69.0mm）。"
+      }
     },
     {
       "id": "spin",

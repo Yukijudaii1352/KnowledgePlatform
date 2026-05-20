@@ -2,7 +2,7 @@
 domain: cv
 topic_id: image_classification
 topic_name: 图像分类
-page_icon: "\U0001F5BC️"
+page_icon: 🖼️
 page_title: 图像分类算法演进
 page_subtitle: '{build_date} 版'
 page_desc: 从AlexNet开启的深度学习时代，经历ResNet残差革命、ViT注意力范式，到ConvNeXt现代CNN复兴与2026年高效状态空间模型的融合探索
@@ -27,8 +27,13 @@ categories:
 
 ## 领域综述
 
-### 待定
-待定。
+### 待补充：阶段性领域总结
+请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+
+## 最新进展综述
+
+### 待补充：最近一个月最新动向
+请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
 
 ## 算法演化关系
 

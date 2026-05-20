@@ -2,7 +2,7 @@
 domain: multimodal
 topic_id: visual_language_model
 topic_name: 视觉-语言基础模型
-page_icon: "\U0001F517"
+page_icon: 🔗
 page_title: 视觉-语言基础模型
 page_subtitle: '{build_date} 版'
 page_desc: 视觉-语言基础模型（VLM）通过跨模态对齐、指令微调和原生多模态训练，实现图像与文本的深度理解与生成，是多模态AI的核心基础设施。
@@ -28,8 +28,13 @@ categories:
 
 ## 领域综述
 
-### 待定
-待定。
+### 待补充：阶段性领域总结
+请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+
+## 最新进展综述
+
+### 待补充：最近一个月最新动向
+请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
 
 ## 算法演化关系
 

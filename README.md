@@ -179,11 +179,113 @@ pages/llm/my_topic-logic.js
 
 **第 4 步**：本地预览 → 提交 PR。
 
+### 2.5️⃣ 我想走“内容生产 pipeline”
+
+当前仓库的内容生成已经拆成 4 段，中间产物都落在仓库里：
+
+1. 人工挑选综述文章，并用 `pipeline/researcher/download_tmp.py` 下载为 `article.md`
+2. 用 `pipeline/researcher/deep_research.py` 生成专题级中间 YAML：
+   包含页面元信息、分类体系、算法列表、时间线/图谱元数据
+3. 用 `content/run.sh <topic.yaml>` 批量驱动论文精读 agent，生成每个算法的 `*_detail.md`
+4. 用 `pipeline/assemble.py` 把综述 + topic YAML + detail markdown 装配成最终知识文档，再交给 `pipeline/build.py` 编译成网页
+
+#### 2.5.1 获取知乎 Cookie
+
+`download_tmp.py` 下载知乎文章时需要登录 Cookie。当前项目推荐直接复用仓库内置的 [`pipeline/researcher/zhihu-cli`](pipeline/researcher/zhihu-cli) 登录态，而不是手工从浏览器里抄整段 Cookie。
+
+步骤如下：
+
+```bash
+# 1) 安装 zhihu-cli
+pip install -e pipeline/researcher/zhihu-cli
+
+# 2) 登录知乎（推荐二维码）
+zhihu login --qrcode
+
+# 3) 确认登录状态
+zhihu status
+
+# 4) 把 ~/.zhihu-cli/cookies.json 同步到本项目
+python3 pipeline/researcher/sync_zhihu_cookies.py
+```
+
+说明：
+
+- `zhihu login --qrcode` 会把二维码图片保存到 `~/.zhihu-cli/login_qrcode.png`
+- 登录成功后，Cookie 会保存在 `~/.zhihu-cli/cookies.json`
+- `sync_zhihu_cookies.py` 会把它转换到项目使用的 `pipeline/researcher/cookies.json`
+- 如果不方便扫码，也可以执行 `zhihu login --cookie "z_c0=...; _xsrf=...; d_c0=..."` 手动导入
+
+完成后即可正常执行：
+
+```bash
+python3 pipeline/researcher/download_tmp.py "https://zhuanlan.zhihu.com/p/xxxxxxxx" \
+  --output-dir pipeline/researcher/output/manual_downloads
+```
+
+#### 2.5.2 接入论文精读 Agent
+
+论文精读阶段默认调用 `GenericAgent/chat_single_round.py`。为了避免每个用户都去改绝对路径，仓库现在提供了一个项目内安装脚本：
+
+```bash
+# 默认把 /mnt/petrelfs/wanghaoyu2/GenericAgent 挂到 tools/GenericAgent
+bash scripts/setup_generic_agent.sh
+
+# 如果你的 GenericAgent 在别的地方
+bash scripts/setup_generic_agent.sh --source /abs/path/to/GenericAgent
+```
+
+安装完成后，`content/run.sh` 会按下面顺序自动查找 agent：
+
+1. 环境变量 `GENERIC_AGENT_ROOT`
+2. 项目内 `tools/GenericAgent`
+3. 兼容旧路径 `/mnt/petrelfs/wanghaoyu2/GenericAgent`
+
+因此新用户通常不需要再改脚本路径，直接运行：
+
+```bash
+bash content/run.sh content/llm/llm_rl.yaml
+```
+
+常用命令：
+
+```bash
+# 手工下载一篇综述
+python3 pipeline/researcher/download_tmp.py "https://zhuanlan.zhihu.com/p/xxxxxxxx" \
+  --output-dir pipeline/researcher/output/manual_downloads
+
+# 生成 topic YAML（先 dry-run 看 prompt）
+python3 pipeline/researcher/deep_research.py \
+  --domain llm \
+  --topic-id llm_rl \
+  --topic-name "LLM强化学习" \
+  --output content/llm/llm_rl.yaml \
+  --dry-run
+
+# 装配最终知识文档
+python3 pipeline/assemble.py content/llm/llm_rl.yaml
+```
+
+如果希望把两篇人工综述稳定绑定到某个专题，建议在 `content/<domain>/<topic>.sources.yaml` 中写：
+
+```yaml
+overview:
+  include_raw: pipeline/researcher/output/RL_survey_old/xxx/article.md
+
+latest_overview:
+  include_raw: pipeline/researcher/output/RL_survey_new/yyy/article.md
+```
+
+这样重新装配时，不会把人工挑选的综述冲掉。
+
 ### 3️⃣ 我是平台维护者（编译器开发）
 
 ```bash
-# 全量编译：扫描 content/ 与 pipeline/examples/ 下所有合规 .md
+# 全量编译：默认扫描 content/ 下所有合规 .md
 python3 pipeline/build.py
+
+# 若希望把 pipeline/examples/ 下的示例文档也一并编译
+python3 pipeline/build.py --include-examples
 
 # 只刷新聚合页（首页 + 所有 pages/<domain>/index.html）
 # 适用场景：只改了 DOMAIN_CATALOG 或首页静态 HTML
@@ -201,7 +303,7 @@ python3 pipeline/build.py pipeline/examples/rl_demo.md --dry-run
 
 | 模式 | 命令 | 做了什么 |
 |---|---|---|
-| **全量编译** | `python3 pipeline/build.py` | 扫描所有带 front-matter 的 .md → 逐一编译 → 刷新聚合页 |
+| **全量编译** | `python3 pipeline/build.py` | 扫描 `content/` 下所有带 front-matter 的 .md → 逐一编译 → 刷新聚合页 |
 | **增量编译** | `python3 pipeline/build.py path/to.md` | 只编译指定文档 → 刷新聚合页 |
 | **仅刷新聚合页** | `python3 pipeline/build.py --only-index` | 不编译任何 md，只重新生成首页 + 领域目录页 |
 
@@ -211,6 +313,7 @@ python3 pipeline/build.py pipeline/examples/rl_demo.md --dry-run
 |---|---|
 | `--copy-images` | 把源文档同级 `images/` 目录拷到 `assets/images/<topic_id>/` |
 | `--dry-run` | 只解析校验，不写入任何文件（适合 CI） |
+| `--include-examples` | 全量编译时额外包含 `pipeline/examples/` 下的示例文档 |
 
 更多细节详见 [`pipeline/README.md`](pipeline/README.md) 和 [`pipeline/DOCUMENT_SPEC.md`](pipeline/DOCUMENT_SPEC.md)。
 

@@ -1,5 +1,5 @@
 /**
- * remote_sensing-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:02 自动生成。
+ * remote_sensing-data.js — 由 pipeline/build.py 于 2026-05-20 16:45:37 自动生成。
  * 源文件：content/cv/remote_sensing.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,25 +9,27 @@ window.PAGE_CONFIG = {
     "topic_id": "remote_sensing",
     "topic_name": "遥感与卫星视觉",
     "page_title": "遥感与卫星视觉技术演进",
-    "page_subtitle": "2026-05-18 版",
+    "page_subtitle": "2026-05-20 版",
     "page_desc": "系统梳理遥感图像理解、地物分类、变化检测与旋转目标检测等核心算法的发展历程",
     "page_icon": "🛰️",
     "hero_pills": [
       "🏷️ Remote Sensing · Change Detection · Oriented Detection"
     ],
     "count_pill": "{count} 个算法",
-    "image_base": ""
+    "image_base": "",
+    "overview_from_doc": true,
+    "latest_overview_from_doc": true
   },
   "overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：阶段性领域总结",
+      "body_html": "<p>请补充一篇纵观一段时间以来的总结性文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "latest_overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：最近一个月最新动向",
+      "body_html": "<p>请补充最近一个月该领域最新动向的综述文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "graph": {
@@ -709,13 +711,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "semantic_segmentation",
       "motivation": "AAAI2026指代性遥感分割框架",
-      "summary": "RS2-SAM2 的核心目标是：AAAI2026指代性遥感分割框架。",
+      "summary": "RS2-SAM 2 提出了一个端到端框架，通过联合编码器实现视觉-文本语义对齐、双向层级融合模块实现多尺度跨模态交互、掩码提示生成器提供密集像素级引导、以及文本引导边界损失强化边界精度，全面增强 SAM 2 在遥感指代图像分割（RRSIS）任务上的表现，在 RefSegRS 和 RRSIS-D 两个基准上取得 SOTA。",
       "keyPoints": [
-        "核心动机：AAAI2026指代性遥感分割框架",
-        "演化来源：继承或改进自 sam2_cd",
-        "代表机构：Various Institutions"
+        "<strong>Union Encoder（BEiT-3）</strong>：联合编码图像-文本对，产出语义对齐的视觉特征 \\(F_v\\)、文本特征 \\(F_t\\) 和多模态 [CLS] token \\(V_{cls}\\)",
+        "<strong>Bidirectional Hierarchical Fusion Module (BHFM)</strong>：在 SAM2-Hiera 编码器每一层嵌入双向交叉注意力，实现文本→视觉和视觉→文本的逐层增强；编码后通过 MHCA + 逐元素乘法进一步融合高层语义",
+        "<strong>Mask Prompt Generator (MPG)</strong>：利用多模态 [CLS] token 与视觉嵌入的交叉注意力生成伪掩码，作为 SAM 2 解码器的密集提示",
+        "<strong>Text-guided Boundary Loss (TBL)</strong>：基于梯度的边界检测 + 文本权重加权 MSE 损失，专门优化目标边界精度",
+        "<strong>总损失函数</strong>：\\(\\mathcal{L} = \\lambda_{ce}\\mathcal{L}_{ce} + \\lambda_{dice}\\mathcal{L}_{dice} + \\lambda_{tbl}\\mathcal{L}_{tbl}\\)，权重分别为 1、0.1、0.2",
+        "<strong>SOTA 性能</strong>：RefSegRS 测试集 oIoU 80.87% / mIoU 73.90%；RRSIS-D 测试集 oIoU 78.99% / mIoU 66.72%",
+        "<strong>训练配置</strong>：SAM2-Hiera-Large + BEiT-3-Large，8×RTX4090，输入分辨率 1024²（SAM2）+ 224²（BEiT-3），AdamW 优化器"
       ],
-      "detail": "<p>AAAI2026指代性遥感分割框架</p>"
+      "detail": "<h5>架构总览</h5>\n<p><img alt=\"RS2-SAM 2 整体架构图\" src=\"https://arxiv.org/html/2503.07266v1/x2.png\" />\n<em>图：RS2-SAM 2 整体框架。左侧为 Union Encoder（BEiT-3）联合编码图像-文本对；中间为 SAM2-Hiera 图像编码器，每层嵌入 BHFM Layer 进行双向融合；右侧为 Mask Prompt Generator 生成密集掩码提示送入 SAM 2 Mask Decoder。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># RS2-SAM 2 前向推理流程\ndef forward(image, text):\n    # 1. Union Encoder: BEiT-3 联合编码\n    F_v, F_t, V_cls = BEiT3_encode(image_224, text)  # 语义对齐特征\n\n    # 2. SAM2-Hiera 编码 + BHFM Layer（逐层双向融合）\n    F_hiera = image_1024  # SAM2 输入\n    for layer_i in SAM2_Hiera_Layers:\n        F_hiera = layer_i(F_hiera)\n        # 双向交叉注意力\n        F_hiera = α_i * MHCA(Q=F_hiera, KV=F_t) + F_hiera  # α_i=0.5\n        F_t = α_t * MHCA(Q=F_t, KV=F_hiera) + F_t          # α_t=0.2\n\n    # 3. 编码后融合（BHFM Post-encoding）\n    F_vt = MHCA(Q=F_hiera, KV=F_t) * F_hiera  # element-wise multiply\n\n    # 4. Mask Prompt Generator\n    V_cls_enhanced = MHCA(Q=V_cls, KV=F_vt)  # 增强多模态token\n    mask_prompt = MLP(V_cls_enhanced)          # 生成伪掩码 H/4 × W/4\n\n    # 5. SAM 2 Mask Decoder\n    pred_mask = SAM2_Decoder(F_vt, mask_prompt)\n    return pred_mask\n\n# 损失计算\nL = L_ce + 0.1 * L_dice + 0.2 * L_tbl\n</code></pre>\n<h5>动机与背景</h5>\n<p>遥感指代图像分割（RRSIS）要求根据自然语言描述从遥感图像中分割出特定目标。与自然场景不同，遥感场景面临三大挑战：</p>\n<ol>\n<li><strong>低视觉区分度</strong>：同类目标外观高度相似（如密集排列的建筑），需要强语言引导才能定位</li>\n<li><strong>小目标与密集排列</strong>：遥感图像中目标往往很小且密集，边界模糊</li>\n<li><strong>复杂背景</strong>：鸟瞰视角下背景杂乱，干扰严重</li>\n</ol>\n<p>SAM 2 虽然具有强大的分割能力，但其设计面向通用场景的点/框/掩码提示，缺乏文本理解能力，无法直接用于 RRSIS。现有方法（如 RMSIN、FIANet）虽引入了跨模态融合，但融合层次单一、缺乏对 SAM 系列模型的有效适配。</p>\n<h5>核心机制详解</h5>\n<p><strong>1. Union Encoder（联合编码器）</strong></p>\n<p>采用预训练的 BEiT-3（Large）作为联合编码器，将图像 patch 和文本 token 视为统一的\"外语\"进行联合编码。输入图像缩放至 224×224 后分割为 16×16 patch，与文本 token 拼接后送入 BEiT-3：</p>\n<p>$$\n[V_{cls}, F_v, F_t] = \\text{BEiT-3}([I_{patch}, T_{token}])\n$$</p>\n<p>其中 \\(V_{cls} \\in \\mathbb{R}^{1 \\times C}\\) 是多模态 [CLS] token，\\(F_v \\in \\mathbb{R}^{N_v \\times C}\\) 是视觉特征，\\(F_t \\in \\mathbb{R}^{N_t \\times C}\\) 是文本特征。联合编码确保了视觉和文本特征在同一语义空间中对齐。</p>\n<p><strong>2. Bidirectional Hierarchical Fusion Module (BHFM)</strong></p>\n<p>BHFM 分为两个阶段：</p>\n<p><em>编码中融合（BHFM Layer）</em>：在 SAM2-Hiera 编码器的每一层嵌入轻量级双向交叉注意力：</p>\n<p>$$\nF_v^{(l)'} = \\alpha_i \\cdot \\text{MHCA}(Q{=}F_v^{(l)}, KV{=}F_t) + F_v^{(l)}, \\quad \\alpha_i = 0.5\n$$</p>\n<p>$$\nF_t^{(l)'} = \\alpha_t \\cdot \\text{MHCA}(Q{=}F_t, KV{=}F_v^{(l)}) + F_t, \\quad \\alpha_t = 0.2\n$$</p>\n<p>这种设计使得文本语义从低层到高层逐步注入视觉特征，同时视觉信息也反向增强文本表征的空间感知能力。加权残差（\\(\\alpha_i > \\alpha_t\\)）确保视觉特征获得更多语言增强，而文本特征保持稳定。</p>\n<p><em>编码后融合（BHFM Cross-attention）</em>：编码完成后，对高层视觉特征进行文本引导的精炼：</p>\n<p>$$\nF_{vt} = \\text{MHCA}(Q{=}F_v, KV{=}F_t) \\odot F_v\n$$</p>\n<p>逐元素乘法起到门控作用，让文本相关区域的视觉特征被增强，无关区域被抑制。</p>\n<div class=\"key-point\">💡 <strong>关键设计思想</strong>：消融实验表明，双向融合（Bi）比单向融合（Uni）提升 3.8% mIoU，比线性适配器（Linear）提升 5.7% mIoU。编码中（BL）和编码后（BC）的融合缺一不可，两者结合实现了从全局到局部的层级文本理解。</div>\n<p><strong>3. Mask Prompt Generator (MPG)</strong></p>\n<p>SAM 2 的解码器需要提示来指导分割。MPG 利用多模态 [CLS] token 生成密集掩码提示：</p>\n<p>$$\nV_{cls}' = \\text{MHCA}(Q{=}V_{cls}, KV{=}F_{vt})\n$$</p>\n<p>$$\nM_{prompt} = \\text{MLP}(V_{cls}') \\in \\mathbb{R}^{H/4 \\times W/4}\n$$</p>\n<p>\\(V_{cls}\\) 聚合了全局多模态语义，通过与融合后的视觉特征交互，生成的伪掩码能精确指示目标位置。消融实验显示，加入 MHCA 交互比直接使用 \\(V_{cls}\\) 提升 2.31% mIoU。</p>\n<p><strong>4. Text-guided Boundary Loss (TBL)</strong></p>\n<p>遥感目标边界模糊是核心难点。TBL 通过梯度算子检测预测掩码和真值掩码的边界，并用文本相关性加权：</p>\n<p>$$\n\\nabla M = \\sqrt{\\left(\\frac{\\partial M}{\\partial x}\\right)^2 + \\left(\\frac{\\partial M}{\\partial y}\\right)^2}\n$$</p>\n<p>文本权重 \\(w_t\\) 通过文本特征与视觉特征的余弦相似度计算，使得文本描述相关区域的边界获得更高的优化权重：</p>\n<p>$$\n\\mathcal{L}_{tbl} = \\frac{1}{N} \\sum_{i=1}^{N} w_t^{(i)} \\cdot (\\nabla M_{pred}^{(i)} - \\nabla M_{gt}^{(i)})^2\n$$</p>\n<div class=\"warn-box\">⚠️ <strong>注意</strong>：TBL 单独使用仅带来 ~2% 提升，但与 BHFM 和 MPG 配合时效果显著，说明边界损失需要在良好的特征融合基础上才能发挥作用。</div>\n<h5>实验结果</h5>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>数据集</th>\n<th>划分</th>\n<th>oIoU</th>\n<th>mIoU</th>\n<th>Pr@0.5</th>\n<th>Pr@0.7</th>\n<th>Pr@0.9</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>RefSegRS</td>\n<td>Val</td>\n<td>88.03</td>\n<td>85.21</td>\n<td>93.63</td>\n<td>88.24</td>\n<td>52.94</td>\n</tr>\n<tr>\n<td>RefSegRS</td>\n<td>Test</td>\n<td>80.87</td>\n<td>73.90</td>\n<td>84.31</td>\n<td>70.89</td>\n<td>21.19</td>\n</tr>\n<tr>\n<td>RRSIS-D</td>\n<td>Val</td>\n<td>80.16</td>\n<td>68.81</td>\n<td>79.09</td>\n<td>60.18</td>\n<td>13.45</td>\n</tr>\n<tr>\n<td>RRSIS-D</td>\n<td>Test</td>\n<td>78.99</td>\n<td>66.72</td>\n<td>77.27</td>\n<td>57.27</td>\n<td>11.82</td>\n</tr>\n</tbody>\n</table></div>\n<p>与 SOTA 方法对比（RefSegRS Test）：</p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>方法</th>\n<th>Backbone</th>\n<th>oIoU</th>\n<th>mIoU</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>RMSIN (TGRS'24)</td>\n<td>Swin-B</td>\n<td>72.65</td>\n<td>63.67</td>\n</tr>\n<tr>\n<td>FIANet (CVPR'24)</td>\n<td>Swin-B</td>\n<td>73.41</td>\n<td>65.53</td>\n</tr>\n<tr>\n<td><strong>RS2-SAM 2</strong></td>\n<td>SAM2-Hiera-L + BEiT-3-L</td>\n<td><strong>80.87</strong></td>\n<td><strong>73.90</strong></td>\n</tr>\n</tbody>\n</table></div>\n<h5>消融实验</h5>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>配置</th>\n<th>mIoU</th>\n<th>oIoU</th>\n<th>Δ mIoU</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>Baseline (SAM2 + Union Encoder)</td>\n<td>36.64</td>\n<td>55.51</td>\n<td>—</td>\n</tr>\n<tr>\n<td>+ TBL</td>\n<td>38.63</td>\n<td>57.36</td>\n<td>+1.99</td>\n</tr>\n<tr>\n<td>+ TBL + MPG</td>\n<td>60.20</td>\n<td>70.89</td>\n<td>+23.56</td>\n</tr>\n<tr>\n<td>+ TBL + BHFM</td>\n<td>68.71</td>\n<td>78.36</td>\n<td>+32.07</td>\n</tr>\n<tr>\n<td>+ TBL + MPG + BHFM (Full)</td>\n<td><strong>73.90</strong></td>\n<td><strong>80.87</strong></td>\n<td><strong>+37.26</strong></td>\n</tr>\n</tbody>\n</table></div>\n<p>BHFM 结构对比：</p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>结构</th>\n<th>mIoU</th>\n<th>oIoU</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>Linear (无文本交互)</td>\n<td>68.19</td>\n<td>77.39</td>\n</tr>\n<tr>\n<td>Uni (单向：文本→视觉)</td>\n<td>70.10</td>\n<td>78.93</td>\n</tr>\n<tr>\n<td><strong>Bi (双向)</strong></td>\n<td><strong>73.90</strong></td>\n<td><strong>80.87</strong></td>\n</tr>\n</tbody>\n</table></div>",
+      "quiz": {
+        "q": "RS2-SAM 2 中 Bidirectional Hierarchical Fusion Module 的双向交叉注意力权重设置为 α_i=0.5, α_t=0.2，这种不对称设计的主要原因是什么？",
+        "options": [
+          "文本特征维度更低，需要较小的学习率",
+          "视觉特征需要更多语言增强来定位目标，而文本特征应保持语义稳定性",
+          "为了减少计算量，文本分支使用更小的权重",
+          "SAM 2 的 Hiera 编码器对大权重更新不稳定"
+        ],
+        "answer": 1,
+        "explain": "在 RRSIS 任务中，视觉特征需要大量语言信息来区分外观相似的目标（α_i=0.5），而文本特征本身语义明确，过多视觉信息注入可能破坏其语义表征，因此使用较小权重（α_t=0.2）保持稳定。"
+      }
     },
     {
       "id": "terramind",

@@ -1,5 +1,5 @@
 /**
- * distributed_training-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:04 自动生成。
+ * distributed_training-data.js — 由 pipeline/build.py 于 2026-05-20 16:45:40 自动生成。
  * 源文件：content/infra/distributed_training.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,23 +9,25 @@ window.PAGE_CONFIG = {
     "topic_id": "distributed_training",
     "topic_name": "distributed_training",
     "page_title": "distributed_training",
-    "page_subtitle": "2026-05-18 版",
+    "page_subtitle": "2026-05-20 版",
     "page_desc": "",
     "page_icon": "📘",
     "hero_pills": [],
     "count_pill": "{count} 个算法",
-    "image_base": ""
+    "image_base": "",
+    "overview_from_doc": true,
+    "latest_overview_from_doc": true
   },
   "overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：阶段性领域总结",
+      "body_html": "<p>请补充一篇纵观一段时间以来的总结性文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "latest_overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：最近一个月最新动向",
+      "body_html": "<p>请补充最近一个月该领域最新动向的综述文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "graph": {
@@ -1082,13 +1084,19 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "comm",
       "motivation": "可扩展稀疏梯度压缩框架",
-      "summary": "ScaleCom 的核心目标是：可扩展稀疏梯度压缩框架。",
+      "summary": "ScaleCom提出CLT-k压缩器（循环本地Top-k）和低通滤波器，解决了梯度稀疏压缩在大规模分布式训练中的两大瓶颈——通信量随worker数线性增长（O(n)→O(1)）和大batch下精度退化——实现65-400倍压缩且兼容all-reduce。",
       "keyPoints": [
         "核心动机：可扩展稀疏梯度压缩框架",
         "演化来源：继承或改进自 gradient_sparsification",
         "代表机构：IBM"
       ],
-      "detail": "<p>可扩展稀疏梯度压缩框架</p>"
+      "detail": "<h5>问题背景：梯度压缩的可扩展性困境</h5>\n<p><img alt=\"ScaleCom Overview\" src=\"https://ar5iv.labs.arxiv.org/html/2104.11125/assets/intro.png\" /></p>\n<p><strong>现有方法的两大问题：</strong></p>\n<ol>\n<li>\n<p><strong>Gradient Build-up（梯度堆积）</strong>：Top-k压缩后每个worker发送k个非零梯度，但索引不同。在gather操作中，合并后的梯度向量非零元素数为O(nk)而非k，导致通信量随worker数n线性增长，无法使用高效的all-reduce。</p>\n</li>\n<li>\n<p><strong>大Batch精度退化</strong>：分布式训练扩大batch size时需线性缩放学习率（linear scaling rule）。大学习率放大了梯度噪声，而error-feedback机制中的本地memory累积了这些噪声，导致worker间memory发散，压缩质量下降。</p>\n</li>\n</ol>\n<h5>核心方法：CLT-k + 低通滤波器</h5>\n<p><strong>算法伪代码（Algorithm 1 - ScaleCom）：</strong></p>\n<pre><code>Input: 学习率η, 压缩率k/d, 低通滤波系数β, worker数n\nInitialize: x⁰ (模型参数), m⁰ᵢ=0 (本地memory)\n\nFor t = 0, 1, 2, ..., T-1:\n  For each worker i in parallel:\n    1. 计算梯度: ∇fᵢ(xᵗ; ξᵗᵢ)\n    2. 累积到memory: pᵗᵢ = mᵗᵢ + ∇fᵢ(xᵗ; ξᵗᵢ)\n\n    3. [CLT-k] 确定leader: leader = t mod n\n       If i == leader:\n         对pᵗᵢ排序，选top-k索引集Iᵗ\n         广播Iᵗ给所有worker\n\n    4. 压缩: gᵗᵢ = Compress(pᵗᵢ, Iᵗ)  // 只保留Iᵗ位置的值\n\n    5. [低通滤波] 更新memory:\n       mᵗ⁺¹ᵢ = (1-β)·mᵗᵢ + β·(pᵗᵢ - gᵗᵢ)\n       // β=1时退化为标准error-feedback\n       // β∈(0.1, 0.3)时有效抑制噪声\n\n    6. All-Reduce: gᵗ = (1/n)·Σᵢ gᵗᵢ  // 索引相同，可直接all-reduce!\n\n    7. 更新参数: xᵗ⁺¹ = xᵗ - η·gᵗ\n</code></pre>\n<p><strong>CLT-k的关键性质——交换律（Commutativity）：</strong></p>\n<p>$$\\text{Compress}\\left(\\frac{1}{n}\\sum_i p_i\\right) = \\frac{1}{n}\\sum_i \\text{Compress}(p_i)$$</p>\n<p>因为所有worker使用相同索引集Iᵗ，压缩操作等价于对固定位置的mask，与求和顺序无关。这使得：\n- 可以先各自压缩再all-reduce（而非先gather再压缩）\n- 通信量恒为k个浮点数，与worker数n无关 → <strong>O(1)复杂度</strong></p>\n<p><strong>低通滤波器的直觉：</strong></p>\n<p>标准error-feedback: <code>m^{t+1} = p^t - g^t</code>（残差全部保留）</p>\n<p>ScaleCom: <code>m^{t+1} = (1-β)·m^t + β·(p^t - g^t)</code>（残差指数衰减）</p>\n<p>当学习率大时，梯度噪声大 → 残差中噪声累积 → worker间memory发散 → CLT-k选出的索引对非leader worker不再最优。低通滤波器通过衰减历史残差，保持worker间memory的相似性。</p>\n<h5>理论保证</h5>\n<p><strong>定理1（收敛率）：</strong> 在标准假设下（L-smooth, σ-bounded variance, ρ-contraction），ScaleCom以O(1/√(nT))速率收敛，与SGD相同，且保持n个worker的线性加速比。</p>\n<p><strong>Hamming距离分析：</strong> 论文证明CLT-k的contraction property——leader的top-k索引与全局最优top-k索引的Hamming距离有界，保证压缩质量。</p>\n<h5>实验结果</h5>\n<p><strong>标准Batch Size（Table 2）：</strong></p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>模型 (数据集)</th>\n<th>#GPU</th>\n<th>Batch</th>\n<th>压缩率</th>\n<th>Baseline</th>\n<th>ScaleCom</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>ResNet34 (CIFAR10)</td>\n<td>4</td>\n<td>128</td>\n<td>92X</td>\n<td>93.78</td>\n<td>93.98</td>\n</tr>\n<tr>\n<td>ResNet18 (ImageNet)</td>\n<td>8</td>\n<td>256</td>\n<td>112X</td>\n<td>70.48</td>\n<td>70.17</td>\n</tr>\n<tr>\n<td>ResNet50 (ImageNet)</td>\n<td>8</td>\n<td>256</td>\n<td>96X</td>\n<td>76.44</td>\n<td>75.99</td>\n</tr>\n<tr>\n<td>MobileNetV2 (ImageNet)</td>\n<td>8</td>\n<td>256</td>\n<td>155X</td>\n<td>71.64</td>\n<td>71.52</td>\n</tr>\n<tr>\n<td>Transformer (WMT14) [BLEU]</td>\n<td>8</td>\n<td>36K</td>\n<td>47-65X</td>\n<td>27.64</td>\n<td>27.27</td>\n</tr>\n<tr>\n<td>LSTM (SWB300) [WER↓]</td>\n<td>4</td>\n<td>128</td>\n<td>400X</td>\n<td>10.4</td>\n<td>10.1</td>\n</tr>\n</tbody>\n</table></div>\n<p><strong>大Batch Size（Table 3，验证可扩展性）：</strong></p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>模型 (数据集)</th>\n<th>#GPU</th>\n<th>Batch</th>\n<th>压缩率</th>\n<th>Baseline</th>\n<th>ScaleCom</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>ResNet18 (ImageNet)</td>\n<td>64</td>\n<td>2048</td>\n<td>112X</td>\n<td>70.29</td>\n<td>69.88</td>\n</tr>\n<tr>\n<td>ResNet50 (ImageNet)</td>\n<td>64</td>\n<td>2048</td>\n<td>96X</td>\n<td>76.47</td>\n<td>75.90</td>\n</tr>\n<tr>\n<td>MobileNetV2 (ImageNet)</td>\n<td>64</td>\n<td>2048</td>\n<td>155X</td>\n<td>71.49</td>\n<td>71.01</td>\n</tr>\n<tr>\n<td>Transformer (WMT14) [BLEU]</td>\n<td>64</td>\n<td>288K</td>\n<td>47-115X</td>\n<td>27.79</td>\n<td>28.03</td>\n</tr>\n<tr>\n<td>LSTM (SWB300) [WER↓]</td>\n<td>12</td>\n<td>1536</td>\n<td>100X</td>\n<td>9.9</td>\n<td>10.0</td>\n</tr>\n</tbody>\n</table></div>\n<p><strong>系统性能（Figure 6）：</strong>\n- 100 TFLOPs/worker: 2X-1.23X端到端加速\n- 300 TFLOPs/worker: 4.1X-1.75X端到端加速\n- 128 workers时通信占比&lt;3%（baseline为56%）\n- 关键特性：性能增益随worker数增加保持恒定（vs. prior top-k线性退化）</p>\n<p><strong>与现有方法对比：</strong></p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>方法</th>\n<th>All-Reduce兼容</th>\n<th>O(1)通信</th>\n<th>大Batch支持</th>\n<th>收敛保证</th>\n<th>广泛验证</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>TopK/Random-k</td>\n<td>✗</td>\n<td>✗</td>\n<td>✗</td>\n<td>✓</td>\n<td>✗</td>\n</tr>\n<tr>\n<td>DGC</td>\n<td>✗</td>\n<td>✗</td>\n<td>部分</td>\n<td>✗</td>\n<td>部分</td>\n</tr>\n<tr>\n<td>gTop-k</td>\n<td>✓</td>\n<td>✗(需额外all-reduce)</td>\n<td>✗</td>\n<td>✗</td>\n<td>✗</td>\n</tr>\n<tr>\n<td>PowerSGD</td>\n<td>✓</td>\n<td>✓</td>\n<td>✗</td>\n<td>✓</td>\n<td>✗</td>\n</tr>\n<tr>\n<td><strong>ScaleCom</strong></td>\n<td><strong>✓</strong></td>\n<td><strong>✓</strong></td>\n<td><strong>✓</strong></td>\n<td><strong>✓</strong></td>\n<td><strong>✓</strong></td>\n</tr>\n</tbody>\n</table></div>",
+      "quiz": {
+        "q": "",
+        "options": [],
+        "answer": 0,
+        "explain": ""
+      }
     },
     {
       "id": "8bit_optimizer",
@@ -1140,13 +1148,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "comm",
       "motivation": "量化权重通信+层次化分区4x通信效率",
-      "summary": "ZeRO++ 的核心目标是：量化权重通信+层次化分区4x通信效率。",
+      "summary": "ZeRO 通过将优化器状态、梯度和参数在数据并行进程间进行分区（而非复制），分三阶段逐步消除内存冗余，在保持数据并行通信效率的同时实现了模型并行级别的内存效率，使得仅用数据并行即可训练万亿参数模型。",
       "keyPoints": [
-        "核心动机：量化权重通信+层次化分区4x通信效率",
-        "演化来源：继承或改进自 zero",
-        "代表机构：Microsoft"
+        "<strong>内存分析</strong>：混合精度 Adam 训练中每参数占用 \\(16\\Psi\\) 字节（2Ψ fp16 参数 + 2Ψ fp16 梯度 + 12Ψ 优化器状态含 fp32 参数/动量/方差副本）",
+        "<strong>ZeRO-DP 三阶段</strong>：Stage 1 切分优化器状态（\\(P_{os}\\)）→ 4x 省存；Stage 2 加切分梯度（\\(P_{os+g}\\)）→ 8x 省存；Stage 3 加切分参数（\\(P_{os+g+p}\\)）→ \\(N_d\\)x 省存",
+        "<strong>通信量不变/极低开销</strong>：Stage 1+2 通信量与标准 DP 相同（\\(2\\Psi\\)）；Stage 3 仅增加 50%（\\(3\\Psi\\)）",
+        "<strong>ZeRO-R 残余内存优化</strong>：激活分区（\\(P_a\\)）按 MP 度切分激活检查点；常量大小临时缓冲区；内存碎片整理",
+        "<strong>ZeRO-100B 实现</strong>：Stage 1+2 + ZeRO-R，400 GPU 上高效训练 100B 参数模型，达 15 PFlops（38 TFlops/GPU）",
+        "<strong>线性扩展</strong>：模型状态内存随 DP 度线性下降，理论上 1024 GPU 可支持万亿参数"
       ],
-      "detail": "<p>量化权重通信+层次化分区4x通信效率</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"ZeRO-DP 内存节省示意\" src=\"https://ar5iv.labs.arxiv.org/html/1910.02054/assets/x1.png\" />\n<em>图：ZeRO-DP 三阶段优化对 7.5B 参数模型内存占用的影响。基线 DP 需要 120GB，Stage 1 降至 31.4GB，Stage 1+2 降至 16.6GB，Stage 1+2+3 降至 1.9GB（Nd=64）。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># ZeRO-DP Stage 1+2 训练流程伪代码\n# 假设 Nd 个数据并行进程，每个进程负责 1/Nd 的参数分区\n\ndef zero_dp_train_step(model, data, rank, world_size):\n    # 每个进程持有完整 fp16 参数（Stage 1+2）\n    # 但只持有 1/Nd 的优化器状态和梯度\n\n    # Forward pass（所有进程用完整参数）\n    loss = model.forward(data)\n\n    # Backward pass\n    loss.backward()  # 计算本地梯度\n\n    # Stage 2: Reduce-Scatter 梯度\n    # 每个进程只保留自己负责分区的归约梯度\n    for partition_id in range(world_size):\n        if partition_id == rank:\n            # 归约收集本分区梯度（reduce 到本进程）\n            reduce(gradients[partition_id], dst=rank)\n        else:\n            # 发送梯度给负责的进程后释放内存\n            reduce(gradients[partition_id], dst=partition_id)\n            free(gradients[partition_id])\n\n    # 只更新本进程负责的 1/Nd 参数分区\n    optimizer.step(params[rank], grads[rank])  # 用本地优化器状态\n\n    # All-Gather 更新后的参数\n    all_gather(params)  # 收集所有分区的更新参数\n</code></pre>\n<pre><code class=\"language-python\"># ZeRO-DP Stage 3 训练流程伪代码（额外切分参数）\ndef zero_dp_stage3_train_step(model, data, rank, world_size):\n    # 每个进程只持有 1/Nd 的参数、梯度和优化器状态\n\n    # Forward pass: 流水线式 All-Gather 参数\n    for layer in model.layers:\n        # 收集该层完整参数（从负责的进程广播）\n        full_params = all_gather(layer.params)\n        output = layer.forward(input, full_params)\n        del full_params  # 用完即弃，不保留\n        input = output\n\n    # Backward pass: 反向再次 All-Gather\n    for layer in reversed(model.layers):\n        full_params = all_gather(layer.params)\n        grad = layer.backward(full_params)\n        del full_params\n        # Reduce-Scatter 梯度到负责进程\n        reduce_scatter(grad)\n\n    # 更新本地 1/Nd 分区\n    optimizer.step(local_params, local_grads)\n</code></pre>\n<h5>深入解释</h5>\n<p><strong>动机与背景</strong></p>\n<p>大模型训练面临严峻的内存墙问题。以混合精度 Adam 训练为例，一个 \\(\\Psi\\) 参数的模型需要：</p>\n<p>$$\\text{总内存} = \\underbrace{2\\Psi}_{\\text{fp16 参数}} + \\underbrace{2\\Psi}_{\\text{fp16 梯度}} + \\underbrace{4\\Psi + 4\\Psi + 4\\Psi}_{\\text{fp32 参数副本 + 动量 + 方差}} = 16\\Psi \\text{ bytes}$$</p>\n<p>对于 GPT-2（1.5B 参数），这意味着至少 24GB 内存仅用于模型状态。传统数据并行（DP）在每个 GPU 上完整复制所有 \\(16\\Psi\\) 字节，造成巨大冗余。而模型并行（MP）虽然切分了模型状态，但通信开销大、计算粒度低、扩展性差。</p>\n<div class=\"key-point\">💡 关键洞察：DP 的内存冗余来自于每个进程都存储完整的模型状态，但实际上每个进程在每一步只需要更新 \\(1/N_d\\) 的参数。</div>\n<p><strong>ZeRO-DP 核心机制</strong></p>\n<p>ZeRO-DP 的核心思想是：<strong>保留 DP 的高计算效率和低通信量，同时通过分区（partition）而非复制（replicate）来消除内存冗余。</strong></p>\n<p><strong>Stage 1（\\(P_{os}\\)）— 优化器状态分区：</strong></p>\n<p>将优化器状态（fp32 参数副本 + 动量 + 方差，共 \\(12\\Psi\\) 字节）均分到 \\(N_d\\) 个进程。每个进程只维护 \\(1/N_d\\) 的优化器状态，只更新对应的参数分区。更新后通过 All-Gather 同步完整参数。</p>\n<p>$$\\text{Stage 1 内存} = 4\\Psi + \\frac{12\\Psi}{N_d} \\xrightarrow{N_d \\to \\infty} 4\\Psi \\quad (\\text{4x 节省})$$</p>\n<p><strong>Stage 2（\\(P_{os+g}\\)）— 梯度分区：</strong></p>\n<p>既然每个进程只更新 \\(1/N_d\\) 的参数，那它也只需要对应分区的归约梯度。因此将标准 All-Reduce 替换为 Reduce-Scatter：每个梯度只归约到负责该分区的进程，归约后立即释放其余梯度内存。</p>\n<p>$$\\text{Stage 2 内存} = 2\\Psi + \\frac{14\\Psi}{N_d} \\xrightarrow{N_d \\to \\infty} 2\\Psi \\quad (\\text{8x 节省})$$</p>\n<p><strong>Stage 3（\\(P_{os+g+p}\\)）— 参数分区：</strong></p>\n<p>进一步地，每个进程只存储 \\(1/N_d\\) 的模型参数。前向/反向传播时，通过流水线式 All-Gather 按需获取完整层参数，用完即弃。</p>\n<p>$$\\text{Stage 3 内存} = \\frac{16\\Psi}{N_d} \\quad (N_d\\text{x 线性节省})$$</p>\n<div class=\"warn-box\">⚠️ 注意：Stage 3 的通信量从 \\(2\\Psi\\) 增加到 \\(3\\Psi\\)（前向 All-Gather \\(\\Psi\\) + 反向 All-Gather \\(\\Psi\\) + 梯度 Reduce-Scatter \\(\\Psi\\)），即 1.5 倍开销，但换来了线性内存缩减。</div>\n<p><strong>通信量分析</strong></p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>方案</th>\n<th>通信量</th>\n<th>内存节省</th>\n<th>通信原语</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>标准 DP (All-Reduce)</td>\n<td>\\(2\\Psi\\)</td>\n<td>1x</td>\n<td>Reduce-Scatter + All-Gather</td>\n</tr>\n<tr>\n<td>ZeRO Stage 1+2</td>\n<td>\\(2\\Psi\\)</td>\n<td>8x</td>\n<td>Reduce-Scatter + All-Gather</td>\n</tr>\n<tr>\n<td>ZeRO Stage 3</td>\n<td>\\(3\\Psi\\)</td>\n<td>\\(N_d\\)x</td>\n<td>2×All-Gather + Reduce-Scatter</td>\n</tr>\n</tbody>\n</table></div>\n<p>标准 All-Reduce 本质上就是 Reduce-Scatter + All-Gather，通信量为 \\(2\\Psi\\)。ZeRO Stage 1+2 将 All-Reduce 拆解为：先 Reduce-Scatter 梯度（\\(\\Psi\\)），再 All-Gather 更新后的参数（\\(\\Psi\\)），总量完全相同。</p>\n<p><strong>ZeRO-R 残余内存优化</strong></p>\n<p>除模型状态外，训练还消耗大量内存用于：</p>\n<ol>\n<li><strong>激活内存</strong>（\\(P_a\\)）：MP 中激活被复制到所有 MP 进程。ZeRO 将激活检查点按 MP 度分区，需要时通过 All-Gather 重建。对于 100B 模型（MP=16），激活从 33GB 降至约 2GB。</li>\n<li><strong>临时缓冲区</strong>（\\(C_B\\)）：All-Reduce 等操作的临时缓冲区随模型增大而膨胀。ZeRO 使用固定大小缓冲区。</li>\n<li><strong>内存碎片</strong>（\\(M_D\\)）：短生命周期（激活）和长生命周期（梯度）对象交错分配导致碎片。ZeRO 将长生命周期对象预分配到连续内存块。</li>\n</ol>\n<p><strong>与传统方法的对比</strong></p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>维度</th>\n<th>标准 DP</th>\n<th>模型并行 (MP)</th>\n<th>ZeRO-DP</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>内存效率</td>\n<td>差（全复制）</td>\n<td>好（切分）</td>\n<td>好（切分）</td>\n</tr>\n<tr>\n<td>计算粒度</td>\n<td>高</td>\n<td>低（切分计算）</td>\n<td>高</td>\n</tr>\n<tr>\n<td>通信量</td>\n<td>\\(2\\Psi\\)</td>\n<td>随模型/硬件变化</td>\n<td>\\(2\\Psi\\) ~ \\(3\\Psi\\)</td>\n</tr>\n<tr>\n<td>扩展性</td>\n<td>好</td>\n<td>差（跨节点）</td>\n<td>好</td>\n</tr>\n<tr>\n<td>易用性</td>\n<td>高（无需改模型）</td>\n<td>低（需重构）</td>\n<td>高（无需改模型）</td>\n</tr>\n</tbody>\n</table></div>\n<div class=\"key-point\">💡 关键：ZeRO 证明了\"内存效率\"和\"通信效率\"并非不可兼得——通过巧妙利用模型状态的时序特性（不是所有状态在所有时刻都需要），可以在几乎不增加通信的前提下大幅降低内存。</div>",
+      "quiz": {
+        "q": "ZeRO-DP Stage 2 (Pos+g) 相比标准数据并行，通信量变化如何？",
+        "options": [
+          "通信量减少为原来的 1/Nd",
+          "通信量保持不变，仍为 2Ψ",
+          "通信量增加 50%，变为 3Ψ",
+          "通信量翻倍，变为 4Ψ"
+        ],
+        "answer": 1,
+        "explain": "Stage 1+2 将 All-Reduce 拆解为 Reduce-Scatter（Ψ）+ All-Gather（Ψ）= 2Ψ，与标准 DP 的 All-Reduce 通信量完全相同，但内存节省 8 倍。"
+      }
     },
     {
       "id": "centauri",

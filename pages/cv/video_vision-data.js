@@ -1,5 +1,5 @@
 /**
- * video_vision-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:03 自动生成。
+ * video_vision-data.js — 由 pipeline/build.py 于 2026-05-20 16:45:38 自动生成。
  * 源文件：content/cv/video_vision.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,25 +9,27 @@ window.PAGE_CONFIG = {
     "topic_id": "video_vision",
     "topic_name": "视频视觉",
     "page_title": "视频视觉技术演进",
-    "page_subtitle": "2026-05-18 版",
+    "page_subtitle": "2026-05-20 版",
     "page_desc": "从手工特征到深度学习，再到视频基础模型与世界模型的技术演进",
     "page_icon": "🎬",
     "hero_pills": [
       "视频理解 · 动作识别 · 时序建模 · 视频大模型"
     ],
     "count_pill": "{count} 个算法",
-    "image_base": ""
+    "image_base": "",
+    "overview_from_doc": true,
+    "latest_overview_from_doc": true
   },
   "overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：阶段性领域总结",
+      "body_html": "<p>请补充一篇纵观一段时间以来的总结性文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "latest_overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：最近一个月最新动向",
+      "body_html": "<p>请补充最近一个月该领域最新动向的综述文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "graph": {
@@ -623,13 +625,29 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "transformer",
       "motivation": "分层时空自注意力机制",
-      "summary": "TimeSformer 的核心目标是：分层时空自注意力机制。",
+      "summary": "TimeSformer 提出了首个纯 Transformer 视频理解架构，通过将自注意力分解为**时间注意力**和**空间注意力**两个独立步骤（Divided Space-Time Attention），在保持高效计算的同时实现了对视频时空特征的有效建模，取代了传统 3D 卷积方法。",
       "keyPoints": [
-        "核心动机：分层时空自注意力机制",
-        "演化来源：继承或改进自 non_local",
-        "代表机构：Facebook"
+        "<strong>纯 Transformer 架构</strong>：完全基于自注意力机制进行视频理解，不使用任何卷积操作，将 ViT 从图像扩展到视频领域",
+        "<strong>5 种时空注意力方案系统对比</strong>：Space-only (S)、Joint Space-Time (ST)、Divided Space-Time (T+S)、Sparse Local-Global (L+G)、Axial (T+W+H)",
+        "<strong>Divided Space-Time Attention 最优</strong>：先在时间维度（同一空间位置跨帧）做注意力，再在空间维度（同一帧内跨位置）做注意力，使用独立的 Q/K/V 参数",
+        "<strong>计算复杂度优势</strong>：Divided 方案每个 patch 仅需 \\(N + F + 2\\) 次比较（\\(N\\) 为每帧 patch 数，\\(F\\) 为帧数），远低于 Joint 方案的 \\(NF + 1\\)",
+        "<strong>高效训练</strong>：仅需 416 V100 GPU 小时即可在 K400 上达到 75.8% 准确率，而 SlowFast 需要 3840 GPU 小时才达到 75.6%",
+        "<strong>三种模型变体</strong>：TimeSformer (8×224×224)、TimeSformer-HR (16×448×448 高分辨率)、TimeSformer-L (96×224×224 长视频)",
+        "<strong>ImageNet 预训练至关重要</strong>：从头训练仅达 64.8%，ImageNet-21K 预训练可达 80.7% (K400)",
+        "<strong>基准结果</strong>：K400 Top-1 80.7%（TimeSformer-L）、K600 82.2%、SSv2 62.4%、Diving-48 81.0%"
       ],
-      "detail": "<p>分层时空自注意力机制</p>"
+      "detail": "<p><img alt=\"TimeSformer 五种时空注意力方案对比\" src=\"https://ar5iv.labs.arxiv.org/html/2102.05095/assets/x1.png\" />\n<em>图：TimeSformer 提出的五种时空自注意力方案。蓝色 patch 为查询位置，非蓝色彩色 patch 为该查询对应的注意力计算范围。(a) Space-only；(b) Joint Space-Time；(c) Divided Space-Time（最优方案）；(d) Sparse Local-Global；(e) Axial</em></p>\n<h5>动机与背景</h5>\n<p>3D 卷积网络（如 I3D、SlowFast）是视频理解的主流方法，但存在以下问题：\n- <strong>训练成本极高</strong>：SlowFast 需要 3840 V100 GPU 小时，对计算资源要求苛刻\n- <strong>感受野有限</strong>：3D 卷积核通常为 3×3×3，需要堆叠多层才能捕获长程依赖\n- <strong>难以处理长视频</strong>：通常限制在 8-32 帧输入</p>\n<p>Transformer 的自注意力机制天然具有全局感受野，且 ViT 已在图像分类上证明了纯 Transformer 的可行性。TimeSformer 的核心问题是：<strong>如何将 ViT 的自注意力从 2D 图像高效扩展到 3D 视频？</strong></p>\n<h5>输入表示与 Patch Embedding</h5>\n<p>给定视频片段 \\(X \\in \\mathbb{R}^{H \\times W \\times 3 \\times F}\\)（\\(F\\) 帧，每帧 \\(H \\times W \\times 3\\)），TimeSformer 将每帧分割为 \\(N = HW/P^2\\) 个不重叠的 patch（\\(P = 16\\)）。每个 patch 通过线性嵌入映射到 \\(D\\) 维向量：</p>\n<p>$$\\mathbf{z}^{(0)}_{(p,t)} = E \\cdot \\mathbf{x}_{(p,t)} + \\mathbf{e}^{pos}_{(p,t)}$$</p>\n<p>其中 \\(E \\in \\mathbb{R}^{D \\times 3P^2}\\) 为线性嵌入矩阵，\\(\\mathbf{e}^{pos}_{(p,t)}\\) 为可学习的时空位置编码。额外添加一个分类 token \\(\\mathbf{z}^{(0)}_{(0,0)}\\)，最终输入序列长度为 \\(NF + 1\\)。</p>\n<div class=\"key-point\">💡 <strong>关键</strong>：位置编码同时编码空间位置和时间位置，实验表明时空位置编码比纯空间编码在 SSv2 上高出 7%（59.5% vs 52.5%），因为 SSv2 需要复杂的时序推理。</div>\n<h5>自注意力计算</h5>\n<p>每个编码块中，对查询 patch \\(\\mathbf{z}^{(\\ell)}_{(p,t)}\\) 计算 Query、Key、Value：</p>\n<p>$$\\mathbf{q}^{(\\ell, a)}_{(p,t)} = W_Q^{(\\ell, a)} \\text{LN}(\\mathbf{z}^{(\\ell-1)}_{(p,t)}) \\quad \\in \\mathbb{R}^{D_h}$$\n$$\\mathbf{k}^{(\\ell, a)}_{(p,t)} = W_K^{(\\ell, a)} \\text{LN}(\\mathbf{z}^{(\\ell-1)}_{(p,t)}) \\quad \\in \\mathbb{R}^{D_h}$$\n$$\\mathbf{v}^{(\\ell, a)}_{(p,t)} = W_V^{(\\ell, a)} \\text{LN}(\\mathbf{z}^{(\\ell-1)}_{(p,t)}) \\quad \\in \\mathbb{R}^{D_h}$$</p>\n<p>其中 \\(a \\in \\{1, \\dots, A\\}\\) 为注意力头索引，\\(D_h = D/A\\)，LN 为 LayerNorm。注意力权重通过缩放点积计算：</p>\n<p>$$\\alpha^{(\\ell, a)}_{(p,t)} = \\text{SM}\\left(\\frac{\\mathbf{q}^{(\\ell, a)}_{(p,t)} \\cdot [\\mathbf{k}^{(\\ell, a)}_{(p',t')}]_{(p',t') \\in \\Omega}}{\\sqrt{D_h}}\\right)$$</p>\n<h5>五种时空注意力方案</h5>\n<p><strong>核心区别在于注意力集合 \\(\\Omega\\) 的定义</strong>，即每个查询 patch 关注哪些其他 patch：</p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>方案</th>\n<th>注意力范围 \\(\\Omega\\)</th>\n<th>每 patch 比较数</th>\n<th>参数量</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>Space-only (S)</td>\n<td>同帧所有 patch + CLS</td>\n<td>\\(N + 1\\)</td>\n<td>85.9M</td>\n</tr>\n<tr>\n<td>Joint Space-Time (ST)</td>\n<td>所有帧所有 patch + CLS</td>\n<td>\\(NF + 1\\)</td>\n<td>85.9M</td>\n</tr>\n<tr>\n<td><strong>Divided Space-Time (T+S)</strong></td>\n<td><strong>先：同位置跨帧 + CLS；后：同帧跨位置 + CLS</strong></td>\n<td><strong>\\(N + F + 2\\)</strong></td>\n<td><strong>121.4M</strong></td>\n</tr>\n<tr>\n<td>Sparse Local-Global (L+G)</td>\n<td>相邻帧局部 + 全局稀疏</td>\n<td>\\(\\sim H/2 \\cdot F + N + 2\\)</td>\n<td>121.4M</td>\n</tr>\n<tr>\n<td>Axial (T+W+H)</td>\n<td>分别沿时间/宽度/高度轴</td>\n<td>\\(F + H/P + W/P + 3\\)</td>\n<td>156.8M</td>\n</tr>\n</tbody>\n</table></div>\n<h5>Divided Space-Time Attention（核心创新）</h5>\n<p>这是 TimeSformer 的核心设计，每个编码块包含<strong>两步注意力</strong>：</p>\n<p><strong>第一步——时间注意力</strong>：对位置 \\((p, t)\\) 的 patch，关注<strong>所有帧中相同空间位置</strong>的 patch：</p>\n<p>$$\\mathbf{a}^{(\\ell, a)time}_{(p,t)} = \\sum_{t'=1}^{F} \\alpha^{(\\ell, a)}_{(p,t)(p,t')} \\cdot \\mathbf{v}^{(\\ell, a)}_{(p,t')}$$</p>\n<p><strong>第二步——空间注意力</strong>：对时间注意力的输出，关注<strong>同一帧中所有空间位置</strong>的 patch：</p>\n<p>$$\\mathbf{a}^{(\\ell, a)space}_{(p,t)} = \\sum_{p'=1}^{N} \\alpha^{(\\ell, a)}_{(p,t)(p',t)} \\cdot \\mathbf{v}^{(\\ell, a)}_{(p',t)}$$</p>\n<div class=\"key-point\">💡 <strong>关键设计选择</strong>：时间注意力和空间注意力使用<strong>独立的 Q/K/V 权重矩阵</strong>，这赋予了模型更大的学习容量。虽然参数量从 85.9M 增加到 121.4M，但计算复杂度从 \\(O(NF)\\) 降低到 \\(O(N + F)\\)，在高分辨率或长视频场景下优势显著。</div>\n<pre><code class=\"language-python\"># Divided Space-Time Attention 伪代码\ndef divided_spacetime_attention(x, temporal_qkv, spatial_qkv):\n    &quot;&quot;&quot;\n    x: (B, F, N, D) — B:batch, F:frames, N:patches/frame, D:dim\n    &quot;&quot;&quot;\n    # Step 1: Temporal Attention — 同一空间位置，跨帧交互\n    for p in range(N):\n        x_temporal = x[:, :, p, :]          # (B, F, D) — 所有帧的第p个patch\n        q, k, v = temporal_qkv(LN(x_temporal))\n        attn = softmax(q @ k.T / sqrt(D_h))\n        x[:, :, p, :] += attn @ v           # 残差连接\n\n    # Step 2: Spatial Attention — 同一帧内，跨空间位置交互\n    for t in range(F):\n        x_spatial = x[:, t, :, :]            # (B, N, D) — 第t帧所有patch\n        q, k, v = spatial_qkv(LN(x_spatial))\n        attn = softmax(q @ k.T / sqrt(D_h))\n        x[:, t, :, :] += attn @ v           # 残差连接\n\n    # MLP\n    x = x + MLP(LN(x))\n    return x\n</code></pre>\n<h5>计算效率分析</h5>\n<p>Divided 方案的核心优势在于<strong>将二次复杂度分解为两个较小的二次项</strong>：</p>\n<ul>\n<li><strong>Joint</strong>: 注意力矩阵大小 \\((NF+1) \\times (NF+1)\\)，计算量 \\(O(N^2F^2)\\)</li>\n<li><strong>Divided</strong>: 时间注意力 \\(O(NF^2)\\) + 空间注意力 \\(O(FN^2)\\)，总计 \\(O(NF(N+F))\\)</li>\n</ul>\n<p>当 \\(N = 196\\)（224×224/16²）、\\(F = 8\\) 时：\n- Joint: \\(196 \\times 8 + 1 = 1569\\) 个 token 的全注意力\n- Divided: 时间 \\(8+1=9\\) + 空间 \\(196+1=197\\) = 每 patch 仅 206 次比较</p>\n<div class=\"warn-box\">⚠️ <strong>注意</strong>：Joint 方案在分辨率达到 448 像素或帧数增至 32 时会导致 GPU 内存溢出，而 Divided 方案可以处理 96 帧 224×224 或 16 帧 448×448 的输入。</div>\n<h5>训练细节与预训练策略</h5>\n<ul>\n<li><strong>骨干网络</strong>：ViT-Base（12 层，768 维，12 头）</li>\n<li><strong>预训练</strong>：ImageNet-1K 或 ImageNet-21K 上的 ViT 权重初始化</li>\n<li><strong>时间注意力权重初始化</strong>：从预训练的空间注意力权重复制，确保训练初期模型行为与 ViT 一致</li>\n<li><strong>推理</strong>：1 个时间 clip × 3 个空间 crop（左上、中心、右下），取平均分数</li>\n<li><strong>帧采样</strong>：默认 1/32 采样率（即每 32 帧取 1 帧）</li>\n</ul>\n<h5>与传统方法的对比</h5>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>维度</th>\n<th>3D CNN (SlowFast/I3D)</th>\n<th>TimeSformer</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>基本操作</td>\n<td>3D 卷积</td>\n<td>自注意力</td>\n</tr>\n<tr>\n<td>感受野</td>\n<td>局部（需堆叠扩大）</td>\n<td>全局（每层即全局）</td>\n</tr>\n<tr>\n<td>时空建模</td>\n<td>隐式耦合</td>\n<td>显式分解（T+S）</td>\n</tr>\n<tr>\n<td>训练成本</td>\n<td>3840 GPU·h (SlowFast)</td>\n<td>416 GPU·h</td>\n</tr>\n<tr>\n<td>长视频能力</td>\n<td>8-32 帧</td>\n<td>最多 96 帧</td>\n</tr>\n<tr>\n<td>预训练依赖</td>\n<td>可从头训练</td>\n<td>强依赖 ImageNet 预训练</td>\n</tr>\n<tr>\n<td>K400 准确率</td>\n<td>79.8% (SlowFast 16×8 R101)</td>\n<td>80.7% (TimeSformer-L)</td>\n</tr>\n</tbody>\n</table></div>\n<div class=\"key-point\">💡 <strong>关键洞察</strong>：在 K400 上，Space-only 注意力（无时间建模）即可达到 76.9%，说明该数据集偏重空间场景信息。而在 SSv2 上，Space-only 仅 36.6%，Divided 达 59.5%，凸显了时间建模对时序推理任务的必要性。</div>",
+      "quiz": {
+        "q": "TimeSformer 中 Divided Space-Time Attention 相比 Joint Space-Time Attention 的主要优势是什么？",
+        "options": [
+          "参数量更少，模型更轻量",
+          "通过分解时空注意力降低计算复杂度，同时使用独立参数提升学习容量",
+          "不需要位置编码，简化了模型设计",
+          "仅在空间维度计算注意力，忽略时间信息以提高效率"
+        ],
+        "answer": 1,
+        "explain": "Divided 方案将注意力分解为时间和空间两步，复杂度从 O(N²F²) 降至 O(NF(N+F))，且使用独立的 Q/K/V 参数增加学习容量。虽然参数量从 85.9M 增至 121.4M，但计算量大幅降低，尤其在高分辨率和长视频场景下优势显著。"
+      }
     },
     {
       "id": "vivit",
@@ -862,13 +880,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "foundation_model",
       "motivation": "超长上下文视频语言对齐",
-      "summary": "Kangaroo 的核心目标是：超长上下文视频语言对齐。",
+      "summary": "Kangaroo 提出了一套系统化的数据策划流程与渐进式课程训练策略，构建了支持超长视频输入（160帧/22K tokens）的 8B 参数视频语言大模型，在多个视频理解基准上超越同等规模开源模型并在长视频任务上媲美商用模型。",
       "keyPoints": [
-        "核心动机：超长上下文视频语言对齐",
-        "演化来源：继承或改进自 internvideo",
-        "代表机构：IJCV"
+        "<strong>模型架构</strong>：EVA-CLIP-L 视觉编码器 + 轻量线性投影器 + 时空 Patchify 模块 + Llama-3-8B-Instruct LLM",
+        "<strong>时序位置编码（TPE）</strong>：使用正弦编码注入帧的实际浮点时间戳（而非帧索引），保留视频元信息",
+        "<strong>数据策划系统</strong>：构建 300M 图像 + 60M 视频的大规模预训练数据集，并精炼出 15M 高质量子集用于预训练精炼阶段",
+        "<strong>五阶段课程训练</strong>：图像预训练 → 视频预训练 → 预训练精炼 → 指令微调 → 长视频微调，逐步解锁组件",
+        "<strong>长视频支持</strong>：高分辨率输入（448×448）+ 最多 160 帧 + 22K 上下文长度 + 动态帧采样 + 序列打包策略",
+        "<strong>SOTA 性能</strong>：在 MVBench、MLVU、MMBench-Video、VideoMME、EgoSchema 等基准上达到 8B 级开源模型最优，部分指标超越 GPT-4V"
       ],
-      "detail": "<p>超长上下文视频语言对齐</p>"
+      "detail": "<p><img alt=\"Kangaroo 模型架构图\" src=\"https://arxiv.org/html/2408.15542v1/x2.png\" />\n<em>图：Kangaroo 整体架构。视频帧经视觉编码器提取特征后注入时序位置编码，通过 Patchify 模块压缩并经投影器映射到 LLM 嵌入空间。</em></p>\n<h5>算法伪代码：课程训练流程</h5>\n<pre><code class=\"language-python\"># Kangaroo 五阶段课程训练\n# Stage I: 图像预训练 - 对齐视觉与语言特征空间\ntrain(data=300M_images, resolution=224, trainable=[projector], frozen=[ViT, LLM])\n\n# Stage II: 视频预训练 - 引入时序建模能力  \ntrain(data=60M_videos, frames=8, resolution=224, trainable=[projector, ViT], frozen=[LLM])\n\n# Stage III: 预训练精炼 - 高分辨率 + Patchify 压缩\ntrain(data=15M_refined, frames=16, resolution=448, trainable=[all], frozen=[])\n\n# Stage IV: 指令微调 - 多任务对话能力\ntrain(data=instruction_data, frames=64_max, resolution=448, context=10K,\n      trainable=[projector, patchify, LLM], frozen=[ViT])\n\n# Stage V: 长视频微调 - 扩展上下文处理能力\ntrain(data=long_videos_subset, frames=160_max, resolution=448, context=22K,\n      trainable=[projector, patchify, LLM], frozen=[ViT])\n</code></pre>\n<h5>动机与背景</h5>\n<p>现有视频语言大模型面临两大核心挑战：（1）<strong>高质量视频-文本数据稀缺</strong>——网络视频字幕噪声大、描述粗糙，难以支撑精细的视频语言对齐学习；（2）<strong>长视频处理能力受限</strong>——受限于 LLM 上下文窗口和视觉 token 数量爆炸，多数模型仅能处理 8-16 帧的短片段，无法捕获长视频的全局语义。</p>\n<p>Kangaroo 针对这两个问题分别提出了数据策划系统和课程训练策略。</p>\n<h5>核心机制一：时序位置编码（TPE）</h5>\n<p>传统视频模型使用帧索引作为位置信息，丢失了帧间的实际时间间隔。Kangaroo 设计了基于正弦函数的时序位置编码：</p>\n<p>$$TPE(t) = \\begin{pmatrix} \\sin(t/\\theta^{0/d}) \\\\ \\cos(t/\\theta^{1/d}) \\\\ \\vdots \\\\ \\sin(t/\\theta^{(d-2)/d}) \\\\ \\cos(t/\\theta^{(d-1)/d}) \\end{pmatrix}$$</p>\n<p>$$\\hat{Z_f^t} = Z_f^t + TPE(t)$$</p>\n<p>其中 \\(t\\) 是帧的<strong>实际浮点时间戳</strong>（秒），而非帧序号。这使得模型能感知视频的真实时间结构——例如区分匀速采样和变速采样的帧序列。增强后的视觉特征沿时间维度拼接并经投影器映射：</p>\n<p>$$Z_V = \\text{Projector}(\\hat{Z_f^0} \\oplus \\hat{Z_f^1} \\oplus \\ldots \\oplus \\hat{Z_f^n})$$</p>\n<div class=\"key-point\">💡 <strong>关键</strong>：使用实际时间戳而非帧索引，使模型能够编码视频的时间元信息（如总时长、采样密度），这对长视频理解尤为重要。</div>\n<h5>核心机制二：数据策划系统</h5>\n<p>Kangaroo 构建了一套多阶段数据处理流水线：</p>\n<ol>\n<li><strong>预训练数据</strong>：收集 300M 图像-文本对（含 LLaVA-558K、ALLaVA 等）和 60M 视频-文本对（Panda-70M、InternVid 等），用于初始的视觉-语言对齐</li>\n<li><strong>预训练精炼数据</strong>（15M）：从预训练数据中精选高质量子集，采用多维度过滤：</li>\n<li>视频质量过滤：分辨率 &gt; 224、时长 &gt; 5s、美学评分筛选</li>\n<li>文本质量过滤：CLIP 相似度阈值、文本长度和信息密度</li>\n<li>去重：基于 CLIP 特征的语义去重</li>\n<li><strong>指令微调数据</strong>：整合多任务数据集覆盖 caption、QA、对话、推理等任务，并使用 GPT-4 对低质量标注进行重写增强</li>\n</ol>\n<h5>核心机制三：课程训练策略</h5>\n<p>五阶段渐进式训练的设计逻辑：</p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>阶段</th>\n<th>目标</th>\n<th>分辨率</th>\n<th>帧数</th>\n<th>上下文</th>\n<th>可训练组件</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>I. 图像预训练</td>\n<td>视觉-语言对齐</td>\n<td>224</td>\n<td>1</td>\n<td>512</td>\n<td>Projector</td>\n</tr>\n<tr>\n<td>II. 视频预训练</td>\n<td>时序建模</td>\n<td>224</td>\n<td>8</td>\n<td>2560</td>\n<td>ViT + Projector</td>\n</tr>\n<tr>\n<td>III. 预训练精炼</td>\n<td>高分辨率适应</td>\n<td>448</td>\n<td>16</td>\n<td>2560</td>\n<td>All</td>\n</tr>\n<tr>\n<td>IV. 指令微调</td>\n<td>多任务能力</td>\n<td>448</td>\n<td>≤64</td>\n<td>10K</td>\n<td>Proj + Patchify + LLM</td>\n</tr>\n<tr>\n<td>V. 长视频微调</td>\n<td>长上下文泛化</td>\n<td>448</td>\n<td>≤160</td>\n<td>22K</td>\n<td>Proj + Patchify + LLM</td>\n</tr>\n</tbody>\n</table></div>\n<div class=\"warn-box\">⚠️ <strong>注意</strong>：分辨率从 224 提升到 448 时，ViT 序列长度从 256 增至 1024（4倍），因此引入 Spatial-Temporal Patchify 模块进行 token 压缩，避免 LLM 输入过长。</div>\n<h5>核心机制四：长视频处理技术</h5>\n<p>为支持长视频输入，Kangaroo 采用三项关键技术：</p>\n<ol>\n<li><strong>动态帧采样</strong>：根据视频时长自适应调整采样帧数（16~160），长视频多采样以覆盖全局内容，短视频少采样避免冗余</li>\n<li><strong>序列打包（Sequence Packing）</strong>：将不同长度的多模态序列聚合为一个复合实例（配合注意力掩码），消除 padding 带来的无效计算</li>\n<li><strong>渐进式上下文扩展</strong>：从 512 → 2560 → 10K → 22K 逐步扩展 LLM 上下文窗口，避免一步到位导致的训练不稳定</li>\n</ol>\n<h5>与传统方法的区别</h5>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>对比维度</th>\n<th>传统视频 LMM</th>\n<th>Kangaroo</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>输入帧数</td>\n<td>8-16 帧固定</td>\n<td>16-160 帧动态</td>\n</tr>\n<tr>\n<td>位置编码</td>\n<td>帧索引</td>\n<td>实际时间戳</td>\n</tr>\n<tr>\n<td>训练策略</td>\n<td>1-2 阶段</td>\n<td>5 阶段课程学习</td>\n</tr>\n<tr>\n<td>数据处理</td>\n<td>直接使用公开数据</td>\n<td>系统化策划+质量精炼</td>\n</tr>\n<tr>\n<td>上下文长度</td>\n<td>2-4K</td>\n<td>22K</td>\n</tr>\n</tbody>\n</table></div>\n<p>Kangaroo 在 8B 参数规模下，于 MLVU（61.0）、LVBench（39.4）等长视频基准上超越 20B+ 参数模型和 GPT-4V，验证了数据质量与训练策略的重要性。</p>",
+      "quiz": {
+        "q": "Kangaroo 的时序位置编码（TPE）使用什么作为输入，而非传统的帧索引？",
+        "options": [
+          "帧的像素均值",
+          "帧的实际浮点时间戳（秒）",
+          "帧在视频中的相对位置百分比",
+          "帧的 CLIP 特征向量"
+        ],
+        "answer": 1,
+        "explain": "Kangaroo 使用帧的实际浮点时间戳（float-type timestamp）作为 TPE 输入，而非帧索引，从而将视频的时间元信息（如总时长、采样间隔）编码到视觉特征中。"
+      }
     },
     {
       "id": "trajtok",

@@ -2,12 +2,12 @@
 domain: multimodal
 topic_id: omni
 topic_name: omni
-page_icon: "\U0001F310"
+page_icon: 🌐
 page_title: Omni模型技术演进总结
 page_subtitle: '{build_date} 版'
 page_desc: 全模态统一处理技术的发展脉络，涵盖文本/图像/视频/音频的Any-to-Any交互
 hero_pills:
-- "\U0001F3F7️ Omni-Modal · Any-to-Any · Foundation Models"
+- 🏷️ Omni-Modal · Any-to-Any · Foundation Models
 count_pill: '{count} 个算法'
 categories:
   unified_seq2seq:
@@ -33,8 +33,13 @@ image_base: ../../content/mm/omni/assets/
 
 ## 领域综述
 
-### 待定
-待定。
+### 待补充：阶段性领域总结
+请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+
+## 最新进展综述
+
+### 待补充：最近一个月最新动向
+请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
 
 ## 算法演化关系
 

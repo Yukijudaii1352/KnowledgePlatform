@@ -1,5 +1,5 @@
 /**
- * meta_learning-data.js — 由 pipeline/build.py 于 2026-05-18 18:51:07 自动生成。
+ * meta_learning-data.js — 由 pipeline/build.py 于 2026-05-20 16:45:43 自动生成。
  * 源文件：content/ml/meta_learning.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,25 +9,27 @@ window.PAGE_CONFIG = {
     "topic_id": "meta_learning",
     "topic_name": "元学习",
     "page_title": "元学习算法总结",
-    "page_subtitle": "2026-05-18 版",
+    "page_subtitle": "2026-05-20 版",
     "page_desc": "回顾从 Siamese Networks、MAML、ProtoNet 到 TTT-Discover、FSPO 的元学习发展脉络，涵盖度量学习、优化初始化与快速适应三大范式及 2026 年前沿突破",
     "page_icon": "🧠",
     "hero_pills": [
       "🏷️ Few-shot Learning · Optimization-based · Metric-based · Fast Adaptation"
     ],
     "count_pill": "{count} 个算法",
-    "image_base": ""
+    "image_base": "",
+    "overview_from_doc": true,
+    "latest_overview_from_doc": true
   },
   "overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：阶段性领域总结",
+      "body_html": "<p>请补充一篇纵观一段时间以来的总结性文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "latest_overview": [
     {
-      "title": "待定",
-      "body_html": "<p>待定。</p>"
+      "title": "待补充：最近一个月最新动向",
+      "body_html": "<p>请补充最近一个月该领域最新动向的综述文档，建议使用 <code>!INCLUDE_RAW path/to/article.md</code> 引入人工筛选后的 Markdown。</p>"
     }
   ],
   "graph": {
@@ -272,13 +274,26 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "metric",
       "motivation": "首创情节训练范式与全上下文嵌入",
-      "summary": "MatchingNet 的核心目标是：首创情节训练范式与全上下文嵌入。",
+      "summary": "Matching Networks 提出了一种基于注意力机制的端到端可微最近邻分类框架，通过 episodic 训练策略使训练过程与测试条件一致，在 one-shot 学习任务上取得了突破性表现。",
       "keyPoints": [
-        "核心动机：首创情节训练范式与全上下文嵌入",
-        "演化来源：继承或改进自 siamese",
-        "代表机构：DeepMind"
+        "提出端到端可微的最近邻分类器：\\(\\hat{y} = \\sum_{i=1}^{k} a(\\hat{x}, x_i) y_i\\)，基于注意力核的加权求和",
+        "注意力核使用 cosine 相似度 + softmax：\\(a(\\hat{x}, x_i) = \\text{softmax}(c(f(\\hat{x}), g(x_i)))\\)",
+        "Full Context Embeddings (FCE)：用 bidirectional LSTM 编码支持集，用 attention LSTM 编码查询样本，使嵌入依赖于整个支持集上下文",
+        "Episodic 训练策略：训练时模拟测试场景，每个 episode 随机采样少量类别和样本构成支持集与查询集",
+        "在 Omniglot（98.1% 5-way 1-shot）和 miniImageNet（46.6% 5-way 1-shot）上验证了有效性"
       ],
-      "detail": "<p>首创情节训练范式与全上下文嵌入</p>"
+      "detail": "<p><img alt=\"Matching Networks 架构图\" src=\"https://ar5iv.labs.arxiv.org/html/1606.04080/assets/x1.png\" />\n<em>图：Matching Networks 模型架构。左侧为支持集样本通过嵌入函数 g 编码，右侧为查询样本通过嵌入函数 f 编码，通过注意力机制计算相似度并输出预测。</em></p>\n<pre><code class=\"language-python\"># Matching Networks 核心推理伪代码\ndef matching_network_predict(support_set, query, f_embed, g_embed):\n    &quot;&quot;&quot;\n    support_set: [(x_1, y_1), ..., (x_k, y_k)]  支持集\n    query: x_hat  查询样本\n    &quot;&quot;&quot;\n    # 编码支持集样本（可选 FCE: 使用 biLSTM）\n    support_embeddings = [g_embed(x_i) for x_i, y_i in support_set]\n\n    # 编码查询样本（可选 FCE: 使用 attention LSTM）\n    query_embedding = f_embed(query)\n\n    # 计算注意力权重（cosine similarity + softmax）\n    similarities = [cosine(query_embedding, s_i) for s_i in support_embeddings]\n    attention_weights = softmax(similarities)\n\n    # 加权求和得到预测\n    y_hat = sum(a_i * y_i for a_i, (_, y_i) in zip(attention_weights, support_set))\n    return y_hat  # 输出为类别概率分布\n</code></pre>\n<p><strong>动机与背景</strong></p>\n<p>传统深度学习方法需要大量标注数据才能训练有效的分类器，而人类可以仅凭一个示例就学会识别新类别。One-shot learning 旨在解决这一问题：给定每个类别仅一个（或极少数）标注样本，如何对新样本进行准确分类？</p>\n<p>此前的方法（如 Siamese Networks）虽然利用了度量学习的思想，但训练目标与测试场景存在不一致——训练时在大量类别上做标准分类，测试时却要在全新类别上做 few-shot 分类。Matching Networks 同时解决了两个问题：(1) 设计了一个端到端可微的非参数化分类器；(2) 提出了使训练与测试条件一致的 episodic 训练策略。</p>\n<p><strong>核心机制：注意力分类器</strong></p>\n<p>Matching Networks 的核心思想是将分类问题建模为一个条件概率：</p>\n<p>$$P(\\hat{y} | \\hat{x}, S) = \\sum_{i=1}^{k} a(\\hat{x}, x_i) y_i$$</p>\n<p>其中 \\(S = \\{(x_i, y_i)\\}_{i=1}^k\\) 是支持集，\\(\\hat{x}\\) 是查询样本。注意力核 \\(a\\) 定义为：</p>\n<p>$$a(\\hat{x}, x_i) = \\frac{e^{c(f(\\hat{x}), g(x_i))}}{\\sum_{j=1}^{k} e^{c(f(\\hat{x}), g(x_j))}}$$</p>\n<p>其中 \\(c\\) 为 cosine 距离，\\(f\\) 和 \\(g\\) 分别是查询样本和支持集样本的嵌入函数。</p>\n<div class=\"key-point\">💡 关键：这本质上是一个\"软\"最近邻分类器——如果注意力集中在单个样本上，就退化为标准 kNN；如果注意力分散，则相当于加权投票。整个过程完全可微，可以端到端训练。</div>\n<p><strong>Full Context Embeddings (FCE)</strong></p>\n<p>简单版本中 \\(f\\) 和 \\(g\\) 是独立的 CNN/VGG 编码器。但作者指出，好的嵌入应该依赖于整个支持集的上下文——例如，如果支持集中两个类别非常相似，嵌入应该更关注区分性特征。</p>\n<p>FCE 通过两个机制实现上下文感知：</p>\n<ol>\n<li><strong>支持集编码</strong> \\(g(x_i, S)\\)：先用 CNN 提取特征 \\(g'(x_i)\\)，再通过 bidirectional LSTM 处理整个支持集，使每个样本的嵌入融合其他样本的信息：</li>\n</ol>\n<p>$$g(x_i, S) = \\overrightarrow{h_i} + \\overleftarrow{h_i} + g'(x_i)$$</p>\n<ol>\n<li><strong>查询编码</strong> \\(f(\\hat{x}, S)\\)：使用带注意力的 LSTM，在 K 步中不断\"读取\"支持集来精炼查询嵌入：</li>\n</ol>\n<p>$$\\hat{h}_k, c_k = \\text{LSTM}(f'(\\hat{x}), [h_{k-1}, r_{k-1}], c_{k-1})$$</p>\n<p>$$h_k = \\hat{h}_k + f'(\\hat{x})$$</p>\n<p>$$r_{k-1} = \\sum_{i=1}^{|S|} a(h_{k-1}, g(x_i)) \\cdot g(x_i)$$</p>\n<p>其中 \\(a\\) 是对支持集嵌入的 softmax 注意力。经过 K 步后，最终的查询嵌入 \\(f(\\hat{x}, S) = h_K\\) 融合了支持集的全局信息。</p>\n<div class=\"warn-box\">⚠️ 注意：FCE 的引入使得嵌入不再是固定的，而是随支持集动态变化。这是 Matching Networks 区别于简单 Siamese Networks 的关键创新。</div>\n<p><strong>Episodic 训练策略</strong></p>\n<p>训练目标为最大化：</p>\n<p>$$\\theta = \\arg\\max_\\theta E_{L \\sim T} \\left[ E_{S \\sim L, B \\sim L} \\left[ \\sum_{(x,y) \\in B} \\log P_\\theta(y | x, S) \\right] \\right]$$</p>\n<p>具体做法：每个训练 episode 从训练集标签集合 \\(T\\) 中随机采样一个子集 \\(L\\)（如 5 个类），再从 \\(L\\) 中采样支持集 \\(S\\)（每类 1 或 5 个样本）和查询集 \\(B\\)，然后在这个 mini-task 上计算损失并更新参数。</p>\n<div class=\"key-point\">💡 关键：这种\"学会学习\"的训练方式确保了模型在训练时就习惯了 few-shot 场景，避免了训练-测试不一致的问题。这一策略后来成为 meta-learning 领域的标准范式。</div>\n<p><strong>与传统方法的区别</strong></p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>方面</th>\n<th>传统分类器</th>\n<th>Siamese Networks</th>\n<th>Matching Networks</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>分类方式</td>\n<td>参数化 softmax</td>\n<td>成对相似度判断</td>\n<td>非参数化注意力分类</td>\n</tr>\n<tr>\n<td>新类别适应</td>\n<td>需要重新训练</td>\n<td>可泛化但无上下文</td>\n<td>支持集条件化，即时适应</td>\n</tr>\n<tr>\n<td>训练策略</td>\n<td>标准分类损失</td>\n<td>对比/三元组损失</td>\n<td>Episodic 训练</td>\n</tr>\n<tr>\n<td>嵌入特性</td>\n<td>固定嵌入</td>\n<td>固定嵌入</td>\n<td>FCE 动态嵌入</td>\n</tr>\n</tbody>\n</table></div>\n<p><strong>实验结果</strong></p>\n<ul>\n<li>Omniglot 5-way 1-shot: <strong>98.1%</strong>（FCE），20-way 1-shot: <strong>93.8%</strong>（FCE）</li>\n<li>miniImageNet 5-way 1-shot: <strong>46.6%</strong>（FCE），5-way 5-shot: <strong>60.0%</strong>（FCE）</li>\n<li>在 full ImageNet 上也展示了从 rand → lstm → FCE 的持续提升</li>\n</ul>",
+      "quiz": {
+        "q": "Matching Networks 中 Full Context Embeddings (FCE) 的核心作用是什么？",
+        "options": [
+          "增加模型参数量以提升拟合能力",
+          "使样本嵌入依赖于整个支持集上下文，实现动态表征",
+          "替代 CNN 特征提取器以减少计算量",
+          "在训练时引入数据增强以防止过拟合"
+        ],
+        "answer": 1,
+        "explain": "FCE 通过 biLSTM 编码支持集、attention LSTM 编码查询，使嵌入不再固定而是随支持集动态调整，从而更好地捕捉类间区分性信息。"
+      }
     },
     {
       "id": "l2l",

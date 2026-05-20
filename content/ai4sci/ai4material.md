@@ -2,7 +2,7 @@
 domain: ai4sci
 topic_id: ai4material
 topic_name: 材料学AI
-page_icon: "\U0001F9EA"
+page_icon: 🧪
 page_title: 材料学AI 算法总结
 page_subtitle: '{build_date} 版'
 page_desc: AI在晶体结构预测、性质预测及新材料发现领域的演进脉络
@@ -29,8 +29,13 @@ categories:
 
 ## 领域综述
 
-### 待定
-待定。
+### 待补充：阶段性领域总结
+请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+
+## 最新进展综述
+
+### 待补充：最近一个月最新动向
+请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
 
 ## 算法演化关系
 
