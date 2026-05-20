@@ -115,6 +115,25 @@ img { max-width: 100%; display: block; border-radius: var(--radius-sm); }
   transition: color 0.2s;
 }
 .nav-links a:hover { color: var(--accent); }
+.nav-github {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+}
+.nav-github:hover {
+  background: var(--bg-surface);
+  color: var(--text);
+}
+.nav-github svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
 
 /* ---- Breadcrumb ---- */
 .breadcrumb {
