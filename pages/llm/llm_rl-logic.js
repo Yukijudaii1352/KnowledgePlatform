@@ -1237,7 +1237,57 @@ function renderStoredMath(root = document.body) {
   });
 }
 
+function decodeZhihuEquationTex(img) {
+  const src = img?.getAttribute('src') || '';
+  if (!src.includes('zhihu.com/equation?tex=')) return '';
+  try {
+    const url = new URL(src, window.location.href);
+    const tex = url.searchParams.get('tex');
+    if (tex) return tex.trim();
+  } catch (_) {}
+  const alt = img.getAttribute('alt') || '';
+  return alt.trim();
+}
+
+function isStandaloneEquationImage(img) {
+  const parent = img?.parentElement;
+  if (!parent) return false;
+  if (parent.tagName !== 'P') return false;
+  const meaningfulNodes = Array.from(parent.childNodes).filter(node => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return Boolean(node.textContent && node.textContent.trim());
+    }
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      return node.tagName !== 'BR';
+    }
+    return false;
+  });
+  return meaningfulNodes.length === 1 && meaningfulNodes[0] === img;
+}
+
+function normalizeZhihuEquationImages(root = document.body) {
+  if (!root || !root.querySelectorAll) return;
+  root.querySelectorAll('img[src*="zhihu.com/equation?tex="]:not([data-zhihu-equation-ready])').forEach(img => {
+    const tex = decodeZhihuEquationTex(img);
+    img.setAttribute('data-zhihu-equation-ready', '1');
+    if (!tex) return;
+
+    const holder = document.createElement(isStandaloneEquationImage(img) ? 'div' : 'span');
+    holder.className = isStandaloneEquationImage(img)
+      ? 'kb-math kb-math-display'
+      : 'kb-math kb-math-inline';
+    holder.textContent = tex;
+
+    if (holder.classList.contains('kb-math-display') && img.parentElement?.tagName === 'P') {
+      img.parentElement.replaceWith(holder);
+      return;
+    }
+    img.replaceWith(holder);
+  });
+}
+
 function reRenderMath() {
+  normalizeZhihuEquationImages(document.body);
   renderStoredMath(document.body);
   if (typeof renderMathInElement !== 'undefined') {
     renderMathInElement(document.body, {
