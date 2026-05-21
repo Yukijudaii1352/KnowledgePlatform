@@ -1,5 +1,5 @@
 /**
- * semantic_segmentation-data.js — 由 pipeline/build.py 于 2026-05-20 17:59:38 自动生成。
+ * semantic_segmentation-data.js — 由 pipeline/build.py 于 2026-05-21 11:23:23 自动生成。
  * 源文件：content/cv/semantic_segmentation.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "semantic_segmentation",
     "topic_name": "语义分割",
     "page_title": "语义分割技术演进图谱",
-    "page_subtitle": "2026-05-20 版",
+    "page_subtitle": "2026-05-21 版",
     "page_desc": "从 FCN 开启深度学习分割时代，历经 U-Net 医疗影像突破与 Mask2Former 统一架构，迈向 2026 年 Mamba 架构与开放词汇分割的前沿历程。",
     "page_icon": "🎨",
     "hero_pills": [

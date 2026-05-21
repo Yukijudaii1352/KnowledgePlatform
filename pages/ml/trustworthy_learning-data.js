@@ -1,5 +1,5 @@
 /**
- * trustworthy_learning-data.js — 由 pipeline/build.py 于 2026-05-20 17:59:45 自动生成。
+ * trustworthy_learning-data.js — 由 pipeline/build.py 于 2026-05-21 11:23:28 自动生成。
  * 源文件：content/ml/trustworthy_learning.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "trustworthy_learning",
     "topic_name": "可信机器学习技术演进图谱",
     "page_title": "可信机器学习技术演进图谱",
-    "page_subtitle": "2026-05-20 版",
+    "page_subtitle": "2026-05-21 版",
     "page_desc": "涵盖鲁棒性、公平性、可解释性与隐私保护四大维度的经典算法与2026年最新进展",
     "page_icon": "🛡️",
     "hero_pills": [

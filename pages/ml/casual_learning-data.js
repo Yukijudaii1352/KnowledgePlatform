@@ -1,5 +1,5 @@
 /**
- * casual_learning-data.js — 由 pipeline/build.py 于 2026-05-20 17:59:43 自动生成。
+ * casual_learning-data.js — 由 pipeline/build.py 于 2026-05-21 11:23:27 自动生成。
  * 源文件：content/ml/casual_learning.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "casual_learning",
     "topic_name": "因果学习与不确定性建模",
     "page_title": "因果学习与不确定性建模",
-    "page_subtitle": "2026-05-20 版",
+    "page_subtitle": "2026-05-21 版",
     "page_desc": "涵盖因果推断、反事实学习、不确定性量化与可靠预测的核心算法与前沿进展",
     "page_icon": "🔗",
     "hero_pills": [

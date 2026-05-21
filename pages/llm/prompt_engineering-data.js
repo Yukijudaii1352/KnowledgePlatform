@@ -1,5 +1,5 @@
 /**
- * prompt_engineering-data.js — 由 pipeline/build.py 于 2026-05-20 17:59:42 自动生成。
+ * prompt_engineering-data.js — 由 pipeline/build.py 于 2026-05-21 11:23:26 自动生成。
  * 源文件：content/llm/prompt_engineering.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "prompt_engineering",
     "topic_name": "提示词工程",
     "page_title": "提示词工程 算法总结",
-    "page_subtitle": "2026-05-20 版",
+    "page_subtitle": "2026-05-21 版",
     "page_desc": "系统性梳理从基础Prompt设计到思维链(CoT)、自动化提示优化及2026年最新前沿技术的演进脉络。",
     "page_icon": "✍️",
     "hero_pills": [

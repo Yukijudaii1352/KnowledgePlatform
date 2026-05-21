@@ -35,19 +35,19 @@ GRPO 通过同一问题采样一组（G条）输出，用组内标准化分数�
 
 **PPO 的目标函数**（带 Value Model）：
 
-$$\mathcal{J}_{\text{PPO}}(\theta) = \mathbb{E}_{q\sim P(Q), o\sim\pi_{\theta_{\text{old}}}(O|q)} \frac{1}{|o|}\sum_{t=1}^{|o|} \min\left[\frac{\pi_\theta(o_t|q,o_{<t})}{\pi_{\theta_{\text{old}}}(o_t|q,o_{<t})}A_t, \text{clip}\left(\frac{\pi_\theta(o_t|q,o_{<t})}{\pi_{\theta_{\text{old}}}(o_t|q,o_{<t})}, 1-\varepsilon, 1+\varepsilon\right)A_t\right]$$
+$$\mathcal{J}_{\text{PPO}}(\theta) = \mathbb{E}_{q\sim P(Q), o\sim\pi_{\theta_{\text{old}}}(O|q)} \frac{1}{|o|}\sum_{t=1}^{|o|} \min\left[\frac{\pi_\theta(o_t|q,o_{1:t-1})}{\pi_{\theta_{\text{old}}}(o_t|q,o_{1:t-1})}A_t, \text{clip}\left(\frac{\pi_\theta(o_t|q,o_{1:t-1})}{\pi_{\theta_{\text{old}}}(o_t|q,o_{1:t-1})}, 1-\varepsilon, 1+\varepsilon\right)A_t\right]$$
 
 其中优势函数 \(A_t\) 由 GAE 算法基于 Value Network \(V_\psi\) 计算得到。
 
 **Token 级奖励定义**（PPO 和 GRPO 通用）：
 
-$$r_t = r_\varphi(q, o_{\leq t}) - \beta\log\frac{\pi_\theta(o_t|q, o_{<t})}{\pi_{\text{ref}}(o_t|q, o_{<t})}$$
+$$r_t = r_\varphi(q, o_{1:t}) - \beta\log\frac{\pi_\theta(o_t|q, o_{1:t-1})}{\pi_{\text{ref}}(o_t|q, o_{1:t-1})}$$
 
 其中 \(r_\varphi\) 是 reward model（仅在序列结束时给信号或每一步给信号），\(\pi_{\text{ref}}\) 是 reference model（初始 SFT 模型）。
 
 **GRPO 的目标函数**（核心变化）：
 
-$$\mathcal{J}_{\text{GRPO}}(\theta) = \mathbb{E}_{q\sim P(Q), \{o_i\}_{i=1}^G\sim\pi_{\theta_{\text{old}}}(O|q)} \frac{1}{G}\sum_{i=1}^{G} \frac{1}{|o_i|}\sum_{t=1}^{|o_i|} \left\{ \min\left[\frac{\pi_\theta(o_{i,t}|q,o_{i,<t})}{\pi_{\theta_{\text{old}}}(o_{i,t}|q,o_{i,<t})}\hat{A}_{i,t}, \text{clip}\left(\frac{\pi_\theta(o_{i,t}|q,o_{i,<t})}{\pi_{\theta_{\text{old}}}(o_{i,t}|q,o_{i,<t})}, 1-\varepsilon, 1+\varepsilon\right)\hat{A}_{i,t}\right] - \beta\mathbb{D}_{\text{KL}}\left[\pi_\theta||\pi_{\text{ref}}\right] \right\}$$
+$$\mathcal{J}_{\text{GRPO}}(\theta) = \mathbb{E}_{q\sim P(Q), \{o_i\}_{i=1}^G\sim\pi_{\theta_{\text{old}}}(O|q)} \frac{1}{G}\sum_{i=1}^{G} \frac{1}{|o_i|}\sum_{t=1}^{|o_i|} \left\{ \min\left[\frac{\pi_\theta(o_{i,t}|q,o_{i,1:t-1})}{\pi_{\theta_{\text{old}}}(o_{i,t}|q,o_{i,1:t-1})}\hat{A}_{i,t}, \text{clip}\left(\frac{\pi_\theta(o_{i,t}|q,o_{i,1:t-1})}{\pi_{\theta_{\text{old}}}(o_{i,t}|q,o_{i,1:t-1})}, 1-\varepsilon, 1+\varepsilon\right)\hat{A}_{i,t}\right] - \beta\mathbb{D}_{\text{KL}}\left[\pi_\theta||\pi_{\text{ref}}\right] \right\}$$
 
 关键变化：
 1. **组采样**：对每个问题 \(q\) 采样 \(G\) 条输出 \(\{o_1, o_2, \cdots, o_G\}\)，外层期望从单条输出变为一组输出
@@ -82,7 +82,7 @@ $$\tilde{r}_i^{\text{index}(j)} = \frac{r_i^{\text{index}(j)} - \text{mean}(\mat
 
 GRPO 使用 Schulman 提出的 KL 散度无偏估计器，直接逐 token 计算并加入 loss：
 
-$$\mathbb{D}_{\text{KL}}\left[\pi_\theta||\pi_{\text{ref}}\right] = \frac{\pi_{\text{ref}}(o_{i,t}|q, o_{i,<t})}{\pi_\theta(o_{i,t}|q, o_{i,<t})} - \log\frac{\pi_{\text{ref}}(o_{i,t}|q, o_{i,<t})}{\pi_\theta(o_{i,t}|q, o_{i,<t})} - 1$$
+$$\mathbb{D}_{\text{KL}}\left[\pi_\theta||\pi_{\text{ref}}\right] = \frac{\pi_{\text{ref}}(o_{i,t}|q, o_{i,1:t-1})}{\pi_\theta(o_{i,t}|q, o_{i,1:t-1})} - \log\frac{\pi_{\text{ref}}(o_{i,t}|q, o_{i,1:t-1})}{\pi_\theta(o_{i,t}|q, o_{i,1:t-1})} - 1$$
 
 - 该估计器保证期望上无偏
 - 优势：只需 forward pass 计算概率比，无需额外网络

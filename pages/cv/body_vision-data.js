@@ -1,5 +1,5 @@
 /**
- * body_vision-data.js — 由 pipeline/build.py 于 2026-05-20 17:59:37 自动生成。
+ * body_vision-data.js — 由 pipeline/build.py 于 2026-05-21 11:23:22 自动生成。
  * 源文件：content/cv/body_vision.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "body_vision",
     "topic_name": "人体视觉",
     "page_title": "人体视觉技术演进图谱",
-    "page_subtitle": "2026-05-20 版",
+    "page_subtitle": "2026-05-21 版",
     "page_desc": "人体视觉技术从2D姿态感知到3D网格重建，从静态分析到动态生成，从单一身体到全身精细化建模的演进历程。涵盖姿态估计、人体Mesh重建、动作生成与人脸分析四大核心方向，展现从经典算法到2026年前沿进展的完整技术脉络。",
     "page_icon": "🧍",
     "hero_pills": [

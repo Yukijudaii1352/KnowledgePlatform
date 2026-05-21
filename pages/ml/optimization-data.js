@@ -1,5 +1,5 @@
 /**
- * optimization-data.js — 由 pipeline/build.py 于 2026-05-20 17:59:44 自动生成。
+ * optimization-data.js — 由 pipeline/build.py 于 2026-05-21 11:23:28 自动生成。
  * 源文件：content/ml/optimization.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "optimization",
     "topic_name": "优化理论",
     "page_title": "优化理论 算法总结",
-    "page_subtitle": "2026-05-20 版",
+    "page_subtitle": "2026-05-21 版",
     "page_desc": "从1847年梯度下降法到2026年Muon矩阵优化器，系统梳理凸优化、非凸优化、随机梯度方法与收敛性分析的技术演化。",
     "page_icon": "📐",
     "hero_pills": [

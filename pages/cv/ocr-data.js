@@ -1,5 +1,5 @@
 /**
- * ocr-data.js — 由 pipeline/build.py 于 2026-05-20 17:59:38 自动生成。
+ * ocr-data.js — 由 pipeline/build.py 于 2026-05-21 11:23:22 自动生成。
  * 源文件：content/cv/ocr.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "ocr",
     "topic_name": "OCR 技术演进图谱",
     "page_title": "OCR 技术演进图谱",
-    "page_subtitle": "2026-05-20 版",
+    "page_subtitle": "2026-05-21 版",
     "page_desc": "梳理从传统检测识别到端到端文档理解的技术演进，涵盖文本检测、识别、版面分析与视觉文档理解四大方向。",
     "page_icon": "📜",
     "hero_pills": [

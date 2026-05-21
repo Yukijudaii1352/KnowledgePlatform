@@ -1,5 +1,5 @@
 /**
- * distributed_training-data.js — 由 pipeline/build.py 于 2026-05-20 17:59:40 自动生成。
+ * distributed_training-data.js — 由 pipeline/build.py 于 2026-05-21 11:23:25 自动生成。
  * 源文件：content/infra/distributed_training.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "distributed_training",
     "topic_name": "distributed_training",
     "page_title": "distributed_training",
-    "page_subtitle": "2026-05-20 版",
+    "page_subtitle": "2026-05-21 版",
     "page_desc": "",
     "page_icon": "📘",
     "hero_pills": [],

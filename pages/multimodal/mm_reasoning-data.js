@@ -1,5 +1,5 @@
 /**
- * mm_reasoning-data.js — 由 pipeline/build.py 于 2026-05-20 17:59:45 自动生成。
+ * mm_reasoning-data.js — 由 pipeline/build.py 于 2026-05-21 11:23:29 自动生成。
  * 源文件：content/mm/mm_reasoning.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "mm_reasoning",
     "topic_name": "多模态推理",
     "page_title": "多模态推理技术演进图谱",
-    "page_subtitle": "2026-05-20 版",
+    "page_subtitle": "2026-05-21 版",
     "page_desc": "涵盖从视觉问答、多模态CoT到2026年原生多模态长链推理（Think with Images）的技术发展历程",
     "page_icon": "🧠",
     "hero_pills": [

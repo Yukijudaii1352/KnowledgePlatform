@@ -167,7 +167,7 @@ algorithms:
     name: "ReMax"
     full_name: "贪心基线强化学习 (REINFORCE with Max Baseline)"
     year: "2023.10"
-    org: "CUHK / ByteDance"
+    org: "CUHK-Shenzhen / Nanjing University / Polixir.ai"
     paper_url: "https://arxiv.org/abs/2310.10505"
     category: online_rl
     parent: ppo
@@ -219,8 +219,8 @@ algorithms:
   - id: dr_grpo
     name: "Dr.GRPO"
     full_name: "修正版GRPO (GRPO Done Right)"
-    year: "2026"
-    org: "DeepSeek"
+    year: "2025.03"
+    org: "Sea AI Lab / NUS / SMU"
     paper_url: "https://arxiv.org/abs/2503.20783"
     category: frontier_2026
     parent: grpo
@@ -249,22 +249,22 @@ algorithms:
   - id: wdpo
     name: "WDPO"
     full_name: "Wasserstein直接偏好优化 (Wasserstein DPO)"
-    year: "2026"
-    org: "Research"
-    paper_url: "https://arxiv.org/abs/2512.03320"
+    year: "2025.02"
+    org: "Texas A&M / Tencent AI Lab / Google DeepMind"
+    paper_url: "https://arxiv.org/abs/2502.01930"
     category: frontier_2026
     parent: dpo
-    motivation: "Wasserstein距离增强鲁棒性"
+    motivation: "Wasserstein鲁棒优化应对偏好分布漂移"
 
   - id: mod_dpo
     name: "MoD-DPO"
-    full_name: "模态解耦偏好优化 (Modality Decoupled DPO)"
-    year: "2026"
-    org: "Research"
-    paper_url: "https://arxiv.org/abs/2601.01234"
+    full_name: "模态解耦直接偏好优化 (Modality-Decoupled Direct Preference Optimization)"
+    year: "2026.03"
+    org: "University of Southern California"
+    paper_url: "https://arxiv.org/abs/2603.03192"
     category: frontier_2026
     parent: dpo
-    motivation: "跨模态解耦减少幻觉"
+    motivation: "模态解耦抑制跨模态幻觉"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 图谱定义 (Graph)

@@ -1,5 +1,5 @@
 /**
- * transfer_learning-data.js — 由 pipeline/build.py 于 2026-05-20 17:59:45 自动生成。
+ * transfer_learning-data.js — 由 pipeline/build.py 于 2026-05-21 11:23:28 自动生成。
  * 源文件：content/ml/transfer_learning.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "transfer_learning",
     "topic_name": "迁移学习 算法总结",
     "page_title": "迁移学习 算法总结",
-    "page_subtitle": "2026-05-20 版",
+    "page_subtitle": "2026-05-21 版",
     "page_desc": "从样本加权到特征对齐，从对抗博弈到预训练-微调，迁移学习打破了独立同分布假设，使知识在域、任务与模态间流动。本文梳理领域自适应、跨任务迁移与预训练范式三大技术脉络，涵盖 2006 年 KMM 至 2026 年扩散式域自适应与参数高效微调的完整演进。",
     "page_icon": "🔄",
     "hero_pills": [

@@ -213,10 +213,10 @@ REINFORCE 首次严格证明含随机单元的连接主义网络可通过沿期�
 
 #### 🎯 核心要点
 - 提出 REINFORCE 算法族：利用轨迹采样回报直接估计策略梯度，奠基蒙特卡洛策略梯度方法
-- 核心公式 \\(\Delta w_{ij} = \alpha_{ij} (r - b_{ij}) \\, \\frac{\\partial \\ln g_i}{\\partial w_{ij}}\\)，其中 \\(g_i\\) 为单元 i 输出该动作的概率密度，\\(\\frac{\\partial \\ln g_i}{\\partial w_{ij}}\\) 为资格迹（eligibility trace）
-- 创新引入 baseline \\(b_{ij}\\)：任意与动作无关的量均可作为基线，不引入偏差但能显著降低估计方差
+- 核心公式 \(\Delta w_{ij} = \alpha_{ij} (r - b_{ij}) \, \frac{\partial \ln g_i}{\partial w_{ij}}\)，其中 \(g_i\) 为单元 i 输出该动作的概率密度，\(\frac{\partial \ln g_i}{\partial w_{ij}}\) 为资格迹（eligibility trace）
+- 创新引入 baseline \(b_{ij}\)：任意与动作无关的量均可作为基线，不引入偏差但能显著降低估计方差
 - 适用于 immediate-reinforcement 任务和受限形式的 delayed-reinforcement（episodic）任务
-- 提出 episodic REINFORCE：每完整轨迹结束后根据累积回报 \\(G_t\\) 统一更新，等价于后来广泛使用的 vanilla policy gradient
+- 提出 episodic REINFORCE：每完整轨迹结束后根据累积回报 \(G_t\) 统一更新，等价于后来广泛使用的 vanilla policy gradient
 - 可与反向传播自然集成：输出端随机 REINFORCE 单元与隐藏层确定性单元联合训练
 - 分析了 Bernoulli-logistic、Gaussian 及带 softmax 的多项选择单元三类具体实例
 - 数学上严格证明权重增量的期望方向与期望强化信号的梯度一致
@@ -241,41 +241,41 @@ flowchart LR
 
 ##### 动机与背景
 
-在 1992 年，强化学习面临一个关键瓶颈：如何将标量奖励信号转化为含随机探索机制的网络的权重更新方向。监督学习中反向传播依赖「目标输出 − 实际输出」的逐节点误差信号，但强化学习中仅有单一标量奖励，缺乏逐动作的精确监督。传统做法试图用 TD 或 Q-Learning 逼近值函数再间接推导策略，但这些方法要么要求离散动作空间（需全局 argmax），要么对连续动作无优雅支持。Williams 将问题重新定义为：寻找权重更新 \\(\Delta w\\)，使得期望强化信号 \\(\mathbb{E}[r]\\) 最大化的方向上优化——即沿 \\(\\nabla_w \\mathbb{E}[r]\\) 走；但从不等同于试图显式计算该梯度，而是通过采样巧妙获得无偏估计。
+在 1992 年，强化学习面临一个关键瓶颈：如何将标量奖励信号转化为含随机探索机制的网络的权重更新方向。监督学习中反向传播依赖「目标输出 − 实际输出」的逐节点误差信号，但强化学习中仅有单一标量奖励，缺乏逐动作的精确监督。传统做法试图用 TD 或 Q-Learning 逼近值函数再间接推导策略，但这些方法要么要求离散动作空间（需全局 argmax），要么对连续动作无优雅支持。Williams 将问题重新定义为：寻找权重更新 \(\Delta w\)，使得期望强化信号 \(\mathbb{E}[r]\) 最大化的方向上优化——即沿 \(\nabla_w \mathbb{E}[r]\) 走；但从不等同于试图显式计算该梯度，而是通过采样巧妙获得无偏估计。
 
 ##### 核心机制：似然比梯度估计
 
-REINFORCE 的数学核心是基于似然比（likelihood ratio）恒等式，也称 log-derivative trick。设随机策略 \\(\pi_w(a|s)\\) 以参数 w 输出动作 a 的分布，r 为执行 a 后获得的强化信号，有：
+REINFORCE 的数学核心是基于似然比（likelihood ratio）恒等式，也称 log-derivative trick。设随机策略 \(\pi_w(a|s)\) 以参数 w 输出动作 a 的分布，r 为执行 a 后获得的强化信号，有：
 
-$$\nabla_w \mathbb{E}[r] = \nabla_w \int r \\; g_w(a) \\, da = \int r \\; \nabla_w g_w(a) \\, da = \int r \\; g_w(a) \\; \nabla_w \\ln g_w(a) \\, da = \mathbb{E}\left[r \\cdot \\nabla_w \\ln g_w(a)\right]$$
+$$\nabla_w \mathbb{E}[r] = \nabla_w \int r \; g_w(a) \, da = \int r \; \nabla_w g_w(a) \, da = \int r \; g_w(a) \; \nabla_w \ln g_w(a) \, da = \mathbb{E}\left[r \cdot \nabla_w \ln g_w(a)\right]$$
 
-推导关键：\\(\\nabla_w g_w = g_w \\cdot \\nabla_w \\ln g_w\\)，将对概率密度的梯度转化为可通过采样估计的期望形式。实际算法中，每步执行：
+推导关键：\(\nabla_w g_w = g_w \cdot \nabla_w \ln g_w\)，将对概率密度的梯度转化为可通过采样估计的期望形式。实际算法中，每步执行：
 
-$$\Delta w = \alpha \\cdot r \\cdot \\nabla_w \\ln g_w(a)$$
+$$\Delta w = \alpha \cdot r \cdot \nabla_w \ln g_w(a)$$
 
-其中 \\(\\alpha\\) 为学习率。这是一条极简洁的更新：采样一次动作，观测奖励，将奖励与 log-概率的梯度相乘作为权重增量。该估计是无偏的——多次更新的期望正是真正的策略梯度方向。
+其中 \(\alpha\) 为学习率。这是一条极简洁的更新：采样一次动作，观测奖励，将奖励与 log-概率的梯度相乘作为权重增量。该估计是无偏的——多次更新的期望正是真正的策略梯度方向。
 
 > 💡 关键：REINFORCE 将「强化学习」问题转化为「统计梯度估计」问题。每个随机单元仅需知道自身输出的概率密度梯度（资格迹），与网络其余部分解耦，天然支持模块化的网络架构。
 
 ##### Baseline 减方差
 
-最直接的 REINFORCE 形式存在高方差问题——奖励的绝对大小（可能从 -∞ 到 +∞）直接影响更新尺度，导致训练不稳定。Williams 提出引入 baseline \\(b\\)：
+最直接的 REINFORCE 形式存在高方差问题——奖励的绝对大小（可能从 -∞ 到 +∞）直接影响更新尺度，导致训练不稳定。Williams 提出引入 baseline \(b\)：
 
-$$\Delta w = \alpha \\cdot (r - b) \\cdot \\nabla_w \\ln g_w(a)$$
+$$\Delta w = \alpha \cdot (r - b) \cdot \nabla_w \ln g_w(a)$$
 
-> ⚠️ 注意：baseline b 必须与动作 a 无关（即不含动作信息），否则该减法项会在期望中引入偏差。由于 \\(\mathbb{E}[\\nabla_w \\ln g_w] = \int g_w \\cdot \\nabla_w \\ln g_w = \int \\nabla_w g_w = \\nabla_w \\int g_w = \\nabla_w 1 = 0\\)，故 \\(\mathbb{E}[b \\cdot \\nabla_w \\ln g_w] = 0\\)，因此引入 baseline 不改变梯度的期望值，但能从原始奖励中减去常数级偏移，显著平滑波动。实际中 b 可取奖励的指数移动平均、训练出的值函数估计，或同一批样本的均值。
+> ⚠️ 注意：baseline b 必须与动作 a 无关（即不含动作信息），否则该减法项会在期望中引入偏差。由于 \(\mathbb{E}[\nabla_w \ln g_w] = \int g_w \cdot \nabla_w \ln g_w = \int \nabla_w g_w = \nabla_w \int g_w = \nabla_w 1 = 0\)，故 \(\mathbb{E}[b \cdot \nabla_w \ln g_w] = 0\)，因此引入 baseline 不改变梯度的期望值，但能从原始奖励中减去常数级偏移，显著平滑波动。实际中 b 可取奖励的指数移动平均、训练出的值函数估计，或同一批样本的均值。
 
 ##### Episodic REINFORCE 与 Monte Carlo Policy Gradient
 
-对 episodic 任务（完整轨迹结束后才获得回报），Williams 提出 natural extension：每时间步的更新权重改为该步之后整个轨迹的累积折扣回报 \\(G_t = \sum_{k=t}^{T} \gamma^{k-t} r_k\\)。这就是后来广泛使用的 vanilla policy gradient / Monte Carlo policy gradient 的标准形式：
+对 episodic 任务（完整轨迹结束后才获得回报），Williams 提出 natural extension：每时间步的更新权重改为该步之后整个轨迹的累积折扣回报 \(G_t = \sum_{k=t}^{T} \gamma^{k-t} r_k\)。这就是后来广泛使用的 vanilla policy gradient / Monte Carlo policy gradient 的标准形式：
 
-$$\nabla_\theta J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) \\, G_t \right]$$
+$$\nabla_\theta J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) \, G_t \right]$$
 
-这一定义揭示了 REINFORCE 是后来所有梯度类策略搜索方法的共同祖先：Actor-Critic（用 \\(Q(s,a)\\) 替代 \\(G_t\\) 降方差）、PG with GAE（广义优势估计）、TRPO/PPO（约束更新幅度）均由此衍生。
+这一定义揭示了 REINFORCE 是后来所有梯度类策略搜索方法的共同祖先：Actor-Critic（用 \(Q(s,a)\) 替代 \(G_t\) 降方差）、PG with GAE（广义优势估计）、TRPO/PPO（约束更新幅度）均由此衍生。
 
 ##### 与反向传播的集成
 
-REINFORCE 的一个重要贡献是展示了随机输出单元与确定性隐藏层可联合训练。具体而言，输出端 REINFORCE 单元的误差信号 \\((r - b) \\cdot e\\)（其中 \\(e = \\nabla_w \\ln g\\)）通过标准反向传播通路传递至隐藏层的确定性单元，隐藏层按常规 SGD 更新权重。这一混合架构为 Actor-Critic 提供了概念原型：随机策略网络（Actor）输出动作分布，确定性特征提取网络提供状态表示，两者端到端联合优化。
+REINFORCE 的一个重要贡献是展示了随机输出单元与确定性隐藏层可联合训练。具体而言，输出端 REINFORCE 单元的误差信号 \((r - b) \cdot e\)（其中 \(e = \nabla_w \ln g\)）通过标准反向传播通路传递至隐藏层的确定性单元，隐藏层按常规 SGD 更新权重。这一混合架构为 Actor-Critic 提供了概念原型：随机策略网络（Actor）输出动作分布，确定性特征提取网络提供状态表示，两者端到端联合优化。
 
 ##### 算法伪代码
 
@@ -314,12 +314,12 @@ for episode in range(max_episodes):
 
 | 维度 | Q-Learning / SARSA (TD方法) | REINFORCE |
 |------|---------------------------|-----------|
-| 优化目标 | 值函数 \\(V(s)\\) 或 \\(Q(s,a)\\) | 策略分布 \\(\pi(a|s)\\) 直接优化 |
+| 优化目标 | 值函数 \(V(s)\) 或 \(Q(s,a)\) | 策略分布 \(\pi(a|s)\) 直接优化 |
 | 梯度来源 | 隐式（Bellman 方程误差驱动） | 显式（似然比梯度，严格无偏） |
 | 偏差-方差折衷 | 有偏但低方差（bootstrap） | 无偏但高方差（需完整轨迹） |
 | 动作空间 | 离散动作为主（需 argmax） | 天然支持连续/离散/混合动作 |
 | 样本效率 | 每步均可学习 | episodic 任务需完整轨迹 |
-| 探索机制 | \\(\epsilon\\)-greedy 等显式设计 | 策略分布本身提供随机探索 |
+| 探索机制 | \(\epsilon\)-greedy 等显式设计 | 策略分布本身提供随机探索 |
 
 #### 🧪 练习题
 ```yaml
@@ -476,16 +476,165 @@ motivation: 裁剪目标函数简化TRPO
 ```
 
 #### 📝 一句话总结
-PPO 的核心目标是：裁剪目标函数简化TRPO。
+PPO 用一个极其简单的裁剪替代目标函数近似实现了 TRPO 的 trust region 思想，在不依赖复杂二阶优化的前提下稳定约束策略更新幅度，最终成为深度强化学习和 RLHF 中最常用的策略优化算法。
 
 #### 🎯 核心要点
-- 核心动机：裁剪目标函数简化TRPO
-- 演化来源：继承或改进自 trpo
-- 代表机构：OpenAI
+- 核心创新是 clipped surrogate objective，用 `clip` 限制新旧策略概率比
+- 保留 on-policy policy gradient 框架，但允许同一批 rollout 数据做多轮 minibatch 更新
+- 提供两条近端化路线：clip 版本和自适应 KL penalty 版本，论文最终发现 clip 更稳更好
+- 实际训练通常采用 actor-critic 形式，同时优化策略损失、价值函数损失和熵奖励
+- 本质是在一阶 SGD/Adam 框架下近似 TRPO 的保守更新思想
+- 在 MuJoCo 连续控制上整体优于 TRPO、A2C 等基线，在 Atari 上也表现强劲
+- 后续成为 RLHF 标准优化器，InstructGPT、ChatGPT 早期 RL 流水线都沿用了 PPO 范式
 
 #### 🔬 深入细节
-裁剪目标函数简化TRPO
+##### 核心示意图
 
+![PPO 裁剪目标函数示意](https://ar5iv.labs.arxiv.org/html/1707.06347/assets/x1.png)
+*图：论文 Figure 1。横轴是新旧策略概率比 \(r_t(\theta)\)，纵轴是单步 surrogate term。可以直观看到，一旦概率比超出 \([1-\epsilon, 1+\epsilon]\)，目标函数就不再继续鼓励更激进的更新。*
+
+##### 算法伪代码
+
+```python
+# PPO, actor-critic style
+for iteration in range(num_iters):
+    trajectories = collect_rollouts(policy_old, env, T)
+    advantages = estimate_advantages(trajectories, value_fn)
+    returns = compute_returns(trajectories)
+
+    for epoch in range(K):
+        for batch in minibatches(trajectories, advantages, returns):
+            ratio = pi_theta(batch.a, batch.s) / pi_old(batch.a, batch.s)
+            unclipped = ratio * batch.adv
+            clipped = clip(ratio, 1 - eps, 1 + eps) * batch.adv
+            policy_loss = -mean(min(unclipped, clipped))
+            value_loss = mse(value_fn(batch.s), batch.ret)
+            entropy_bonus = entropy(pi_theta(batch.s))
+            loss = policy_loss + c1 * value_loss - c2 * entropy_bonus
+            update(theta, loss)
+
+    policy_old = policy.copy()
+```
+
+##### 1. PPO 想解决的其实是 TRPO 的工程问题
+
+PPO 不是凭空出现的。它面对的是策略梯度方法一个非常老但很难处理的问题：策略一旦更新太大，性能就可能瞬间崩掉。TRPO 用 trust region 解决了这个问题，做法是在每次更新时显式约束新旧策略的 KL 散度不能太大，因此理论上更稳。
+
+但 TRPO 的代价也很明显：需要二阶近似、Fisher 信息矩阵、共轭梯度等一整套复杂 machinery。对于研究原型还行，一旦想大规模训练或者做频繁实验，这套东西就显得笨重。PPO 的问题于是变成了：能不能保留“不要一步走太远”的思想，但把优化过程简化成普通 SGD/Adam 就能做的形式？
+
+##### 2. 核心对象：先看概率比，再看更新是否过头
+
+PPO 沿用了 TRPO / CPI 那条线里的 surrogate objective，先定义新旧策略在样本动作上的概率比：
+
+$$
+r_t(\theta)=\frac{\pi_\theta(a_t\mid s_t)}{\pi_{\theta_{\mathrm{old}}}(a_t\mid s_t)}.
+$$
+
+如果 \(r_t(\theta) > 1\)，说明新策略更偏好这个动作；如果小于 1，说明新策略在压低这个动作。再结合优势函数 \(\hat A_t\)，最朴素的目标就是：
+
+$$
+L^{\mathrm{CPI}}(\theta)=
+\mathbb{E}_t\left[r_t(\theta)\hat A_t\right].
+$$
+
+这个目标本身没错，但问题在于它会持续奖励“把好动作概率推得越来越大、把坏动作概率压得越来越小”。只要优化器还能继续走，它就没有天然刹车，于是容易出现单次更新过猛的问题。
+
+##### 3. PPO 的关键：不是限制梯度，而是限制“继续获益的区间”
+
+PPO 的 clip 目标写成：
+
+$$
+L^{\mathrm{CLIP}}(\theta)=
+\mathbb{E}_t\left[
+\min\left(
+r_t(\theta)\hat A_t,\;
+\operatorname{clip}(r_t(\theta),1-\epsilon,1+\epsilon)\hat A_t
+\right)
+\right].
+$$
+
+这个式子是 PPO 最重要的部分。它的直觉可以分两种情况看：
+
+- 如果 \(\hat A_t > 0\)，说明这个动作比基线好，优化器会倾向于增大它的概率。但一旦 \(r_t(\theta)\) 超过 \(1+\epsilon\)，clip 项就把额外收益截平，不再鼓励你继续往上推。
+- 如果 \(\hat A_t < 0\)，说明这个动作不好，优化器会倾向于减小它的概率。但一旦 \(r_t(\theta)\) 跌破 \(1-\epsilon\)，同样不再鼓励进一步激进地下压。
+
+> 💡 关键：PPO 不是硬性要求“参数不能走远”，而是更巧妙地让“走太远不再有优化收益”。这就是它为什么能在一阶优化框架里近似 trust region 效果。
+
+论文强调 `min` 的作用是构造一个 pessimistic bound。也就是说，当 unclipped objective 和 clipped objective 冲突时，PPO 选择更保守的那个。这让更新天然偏向“不犯大错”，而不是“尽可能贪心吃掉所有优势”。
+
+##### 4. 为什么它允许多轮复用同一批数据
+
+传统 vanilla policy gradient 往往一批数据只更新一次，因为一旦策略变化太快，旧样本就不再可信。PPO 的近端化设计缓解了这个问题：虽然它仍然是 on-policy，但由于每一步更新都被 clip 机制束缚在局部区域内，同一批 rollout 可以安全地做多个 epoch 的 minibatch SGD。
+
+这件事对样本效率很关键。论文里 Algorithm 1 的核心套路就是：
+
+1. 用旧策略收集 \(N\times T\) 个时间步数据；
+2. 估计优势函数；
+3. 对同一批数据做 \(K\) 轮小批量优化；
+4. 再同步 `policy_old <- policy`，进入下一轮。
+
+因此 PPO 的收益不只来自“更稳”，还来自“更能榨干同一批 on-policy 数据”。这也是它相对简单 policy gradient 方法明显更实用的地方。
+
+##### 5. KL penalty 版本为什么没成为主流
+
+论文其实还给了另一个版本，即在 surrogate objective 上直接加 KL 惩罚：
+
+$$
+L^{\mathrm{KLPEN}}(\theta)=
+\mathbb{E}_t\left[
+r_t(\theta)\hat A_t
+- \beta\,\mathrm{KL}\!\left(\pi_{\theta_{\mathrm{old}}}(\cdot\mid s_t),\pi_\theta(\cdot\mid s_t)\right)
+\right].
+$$
+
+同时根据当前 KL 大小自适应调节 \(\beta\)。这条路线在思想上更接近 TRPO，因为它直接监控策略偏移。但论文实验发现，这种方法整体不如 clip 版本稳定、也不如 clip 版本好调。因此后面社区说“PPO”时，通常默认就是 clipped PPO，而不是 KL-penalty PPO。
+
+这也是 PPO 设计里一个很漂亮的地方：它最终赢的不是更“理论优雅”的版本，而是更“训练实用”的版本。
+
+##### 6. 完整训练目标并不只有策略项
+
+真实训练里，PPO 往往配合 actor-critic 使用，所以总损失不只包含 clip 策略项，还会包含价值函数回归误差和熵奖励：
+
+$$
+L(\theta)=
+\mathbb{E}_t\left[
+L^{\mathrm{CLIP}}_t(\theta)
+- c_1 L^{\mathrm{VF}}_t(\theta)
++ c_2 S[\pi_\theta](s_t)
+\right].
+$$
+
+其中：
+
+- \(L^{\mathrm{VF}}\) 负责让 value function 学会估计回报，用于构造优势函数；
+- 熵项 \(S\) 鼓励策略保留一定探索性；
+- \(c_1,c_2\) 用来平衡策略优化、价值拟合和探索。
+
+这也是 PPO 在后续 RLHF 中看起来更“重”的原因：到了语言模型场景，除了 policy 之外，通常还会额外维护 value model、reward model 和 reference model，所以整个系统不只是一个 clip 公式，而是一个多模型训练流水线。
+
+##### 7. 论文结果说明了什么
+
+论文最核心的经验结论有两个。第一，在 MuJoCo 上，clip 版本整体优于“无 clipping”、固定 KL、以及自适应 KL 这些替代方案；其中 \(\epsilon=0.2\) 是表现最好的典型设置。第二，在连续控制和 Atari 上，PPO 与 TRPO、A2C 等强基线相比都非常有竞争力，而且训练过程相对稳定。
+
+这两点合起来说明了一件事：PPO 的成功并不是因为它给出了一个更强的理论保证，而是因为它找到了一种极简但够用的更新约束。它把“稳定策略优化”从少数复杂算法的专长，变成了一个几乎所有工程师都能直接上手的标准模板。
+
+##### 8. 为什么它后来统治了 RLHF
+
+当 PPO 被搬到语言模型对齐里时，它的优点变得更突出。RLHF 训练非常依赖稳定性，因为 reward model 本身就可能噪声很大，若策略更新再失控，很容易 reward hacking 或直接崩坏。PPO 恰好提供了一种足够稳、足够成熟、已有大量实现经验的默认选择。
+
+所以从 InstructGPT 到后来的很多 RLHF 系统，PPO 都成了事实标准。它当然不是最轻量的方法，这也是后来 DPO、IPO、KTO 等工作试图绕开在线 PPO 的原因；但如果你要理解“经典 RLHF 是怎么训起来的”，PPO 仍然是最关键的地基算法之一。
+
+#### 🧪 练习题
+```yaml
+question: "PPO 中 clipped surrogate objective 的主要作用是什么？"
+options:
+  - "让算法变成 off-policy，提高经验回放效率"
+  - "通过截断新旧策略概率比，抑制过大的单步策略更新"
+  - "去掉价值函数网络，只保留策略网络"
+  - "让 PPO 不再需要优势函数"
+answer: 1
+explain: "PPO 的核心就是用 clip 限制概率比超出 [1-eps, 1+eps] 后的继续获益，从而稳定策略更新。"
+```
 
 ### InstructGPT
 
@@ -504,140 +653,139 @@ motivation: 首次大规模验证RLHF对齐有效性
 ```
 
 #### 📝 一句话总结
-InstructGPT 提出 **RLHF（基于人类反馈的强化学习）三阶段训练范式**：先通过人工标注的 demonstrations 进行监督微调（SFT），再训练偏好排序的奖励模型（RM），最后用 PPO 算法最大化奖励信号（同时加 KL 惩罚和预训练梯度混合），使 GPT-3 的输出更好地对齐人类指令和偏好，显著优于纯 GPT-3 和 SFT 基线。
+InstructGPT 首次把“监督微调 + 奖励模型 + PPO”三阶段 RLHF 流水线在大规模语言模型上系统跑通，证明用人类偏好而不是纯 next-token 目标，可以显著提升指令遵循、真实性和安全性。
 
 #### 🎯 核心要点
-- **三阶段训练流程**：Supervised Fine-Tuning (SFT) → Reward Model (RM) → PPO RL（含 KL 散度约束和预训练梯度混合）
-- **数据集构建**：雇佣 40 位标注员，收集人工编写的高质量 demonstrations（约 13K prompts）和 comparison 排序数据（约 33K prompts）
-- **奖励模型**：基于 SFT 模型末尾移除 unembedding 层，输入 prompt + response 输出标量 reward，使用 K=4~9 个 response 的 pairwise 对比损失
-- **PPO-RL 优化**：在 bandit 环境中最大化 RM 奖励，同时加入 KL 散度惩罚项防止策略偏离 SFT 太远
-- **PPO-ptx 变体**：混合预训练梯度到 PPO 更新中，缓解在 NLP 标准基准上的性能退化（"alignment tax"）
-- **模型规模**：SFT 和 RM 使用 6B 参数（RM 的 175B 版本训练不稳定），PPO 策略使用 1.3B/6B/175B
-- **核心优势**：人工评估中 175B InstructGPT 输出被偏好率 85±3% vs GPT-3，且显著降低有害输出、幻觉和不真实性
+- 三阶段训练范式：SFT 监督微调、RM 奖励建模、PPO 强化学习
+- 数据来自两路：标注员编写 prompts 与真实 OpenAI API prompts
+- SFT 数据约 13k prompts，RM 数据约 33k prompts，PPO 阶段约 31k prompts
+- 奖励模型基于 pairwise preference 训练，单个标注任务让标注员对 \(K=4\sim 9\) 个回答排序
+- PPO 阶段使用每 token 的 KL 惩罚，约束策略不要偏离 SFT 初始化过远
+- 提出 PPO-ptx，把预训练分布上的语言建模梯度混入 RL 更新以缓解 alignment tax
+- 人工评测中，175B InstructGPT 相比 175B GPT-3 被偏好约 85% 的时间，且 1.3B InstructGPT 也可胜过 175B GPT-3
 
 #### 🔬 深入细节
-##### 示意图：三阶段训练框架
+##### 核心框架图
 
-论文 Figure 2 描述了三步训练流程图：
-
-> **Step 1 (SFT)**: 从 prompt 分布中采样，标注员编写高质量演示回答 → 监督微调 GPT-3  
-> **Step 2 (RM)**: 对同一 prompt 采样 K 个 response，标注员排序 → 训练奖励模型预测偏好  
-> **Step 3 (PPO)**: 对新 prompt 用 PPO 策略生成 response，RM 给出奖励 → 用 KL 散度约束更新策略
-
-```
-┌─────────────┐    ┌─────────────────┐    ┌───────────────────┐
-│  Step 1     │    │     Step 2      │    │      Step 3       │
-│  SFT        │───▶│  Reward Model   │───▶│   PPO RL          │
-├─────────────┤    ├─────────────────┤    ├───────────────────┤
-│ GPT-3 +     │    │ SFT 去头 +      │    │ pi_RL 生成 response │
-│ 标注 demo   │    │ pairwise 排序   │    │ RM 打分           │
-│ -> pi_SFT   │    │ -> r_theta(x,y) │    │ + KL(pi_RL||pi_SFT)│
-│             │    │                 │    │ -> 更新 pi_RL      │
-└─────────────┘    └─────────────────┘    └───────────────────┘
-```
+![InstructGPT 三阶段 RLHF 流程](https://ar5iv.labs.arxiv.org/html/2203.02155/assets/x2.png)
+*图：论文 Figure 2。流程被明确拆成 SFT、RM、PPO 三步，这基本奠定了后续 RLHF 系列工作的标准工业模板。*
 
 ##### 算法伪代码
 
 ```python
-# ========= InstructGPT 三阶段训练 =========
+# InstructGPT: SFT -> Reward Model -> PPO
 
-# Phase 1: Supervised Fine-Tuning (SFT)
-pi_sft = pretrained_GPT3.clone()
-for epoch in range(16):
-    for prompt, demo in human_demonstrations:  # ~13K samples
-        # 标准最大似然估计，在人工编写的回答上微调
-        loss = neg_log_prob(pi_sft, demo, prompt)
-        loss.backward()
-        optimizer.step()
+# 1. Supervised Fine-Tuning
+pi_sft = pretrained_gpt3.clone()
+for prompt, demo in sft_data:
+    loss = -log_prob(pi_sft, demo, prompt)
+    update(pi_sft, loss)
 
-# Phase 2: Reward Model Training
-r_theta = pi_sft.clone()
-r_theta.replace_head(scalar_output)  # 去掉 unembedding，换标量输出头
-for prompt, ranked_responses in comparison_data:  # ~33K prompts
-    # K=4~9 responses per prompt
-    for (y_win, y_lose) in all_pairs(ranked_responses):  # C(K,2) 对
-        # Bradley-Terry pairwise loss
-        loss = -log(sigmoid(r_theta(y_win) - r_theta(y_lose)))
-    loss.backward()
-# 后处理：归一化，让标注 demo 的平均 reward = 0
+# 2. Reward Model
+r_theta = init_from_sft_backbone()
+for prompt, ranked_responses in rm_data:
+    for y_win, y_lose in all_preference_pairs(ranked_responses):
+        loss = -log(sigmoid(r_theta(prompt, y_win) - r_theta(prompt, y_lose)))
+        update(r_theta, loss)
 
-# Phase 3: PPO Reinforcement Learning
+# 3. PPO RLHF
 pi_rl = pi_sft.clone()
-V = r_theta.clone()  # 价值函数从 RM 初始化
-for step in range(num_steps):  # ~2M episodes
-    prompt = sample(API_distribution)
-    response = pi_rl.sample(prompt)
-    # 奖励 = RM分数 - KL惩罚
+value_model = init_from_reward_model()
+for prompt in ppo_prompts:
+    response = sample(pi_rl, prompt)
     reward = r_theta(prompt, response)
-    reward -= beta * KL_divergence(pi_rl, pi_sft, prompt)
-    # PPO-ptx: 可选混合预训练损失
-    loss = -reward + gamma * pretrain_loss(pi_rl, x)
-    PPO_clip_update(pi_rl, V, loss)
+    reward -= beta * kl_to_sft(pi_rl, pi_sft, prompt, response)
+    loss = ppo_objective(pi_rl, value_model, prompt, response, reward)
+    loss += gamma * pretraining_loss(pi_rl)   # PPO-ptx 可选
+    update(pi_rl, loss)
 ```
 
-##### 深入解释
+##### 1. 为什么它是 RLHF 的真正起点
 
-**1. 动机与背景：GPT-3 的"对齐"困境**
+在 InstructGPT 之前，语言模型已经能通过 few-shot prompt 做很多任务，但“能做”不等于“按用户意图去做”。论文把问题说得很直接：模型越大，并不会自然变得更会听话，反而会继续放大预训练目标和用户目标之间的不一致。预训练优化的是网页分布上的下一个 token 预测，而用户真正想要的是有帮助、真实、无害且能遵循约束的回答。
 
-GPT-3 虽然在各类 NLP 任务上展现出强大的能力，但其行为存在严重的对齐问题：它常常产生不符合用户意图的输出——例如编造事实（幻觉）、生成有害内容、或不能正确遵循明确的指令约束。核心矛盾在于，标准语言模型的目标是预测下一个 token（最大化训练数据的似然），而用户的真实目标是获得有帮助的、真实的、无害的回答。这两者并不等价。"对齐税"（alignment tax）现象表明，简单地对模型进行指令微调虽然能提升在特定基准上的表现，但可能在其他能力维度上退化。
+InstructGPT 的贡献不是发明了“偏好”这个想法，而是第一次把它在 GPT-3 级别的模型上做成一条可复现、可扩展、可量化评估的对齐流水线。后面几乎所有 RLHF、RLAIF、偏好优化工作，都是在这个三阶段框架上做局部替换或简化。
 
-InstructGPT 的核心洞察是：**人类偏好可以提供比"下一个 token 预测"更精确的信号**。通过让标注员对模型生成的多个回答进行排序，可以训练一个"奖励模型"来模拟人类的偏好判断，然后用强化学习（PPO）来最大化这个奖励信号。
+##### 2. SFT：先把模型拉到“会听指令”的分布上
 
-**2. 奖励模型：从排序到标量奖励**
+论文先雇佣 40 位标注员，收集高质量 demonstrations。这里的作用不是直接把模型训到最终最优，而是给后续偏好学习一个稳定起点。论文报告 SFT 训练集大约有 13k prompts，来源同时包括标注员编写数据和 API 真实分布数据。
 
-RM 训练是连接人类偏好与策略优化的桥梁。具体做法是：对同一个输入 prompt \\(x\\)，让策略模型生成 \\(K = 4\\sim 9\\) 个不同的 response，然后让标注员按质量排序。这原本只产生一个全序关系，但论文将排序转化为 \\(C_K^2\\) 个 pairwise 比较——每对 \\((y_w, y_l)\\) 标注"哪个更好"。
+这一步非常关键，因为后续 RM 和 PPO 都默认模型已经大致会“回答任务本身”。如果跳过这一步，RL 阶段会浪费大量样本在探索最基本的指令遵循行为上。很多后续工作把 SFT 当作默认前置步骤，本质上就是承认 InstructGPT 这一步是必要的 distribution shaping。
 
-损失函数采用 Bradley-Terry 偏好模型的交叉熵形式：
+##### 3. Reward Model：把人类排序蒸馏成可优化标量
 
-$$\text{loss}(\theta) = -\frac{1}{\binom{K}{2}}\mathbb{E}_{(x, y_w, y_l)\sim D}\left[\log\left(\sigma\left(r_\theta(x, y_w) - r_\theta(x, y_l)\right)\right)\right]$$
+奖励模型训练对应论文的第二步。对同一个 prompt，系统会生成多条候选回答，让标注员对它们排序。论文里一个标注任务通常包含 \(K=4\sim 9\) 个回答，因此一个排序任务可以展开出 \(\binom{K}{2}\) 个两两偏好比较。
 
-> 💡 **关键设计**：将所有 \\(C_K^2\\) 个比较放在同一个 batch 中训练（而非独立打散），因为单个 prompt 内的多个比较高度相关。这一技巧不仅避免了过拟合（只扫一遍数据就过拟合），还计算效率更高——只需对 K 个 completion 各做一次前向传播，而非 \\(C_K^2\\) 次。
+RM 的核心目标可以写成：
 
-RM 只有 6B 参数（实验发现 175B RM 训练不稳定，不适合作为 RL 阶段的价值函数），且最终损失对奖励平移不变，因此在 RL 前将标注 demonstrations 的平均分数归零。
+$$
+\mathcal{L}_{\mathrm{RM}}(\theta)
+=
+- \mathbb{E}_{(x,y_w,y_l)}
+\log \sigma\!\left(r_\theta(x,y_w)-r_\theta(x,y_l)\right).
+$$
 
-**3. PPO 目标函数：三个力量的平衡**
+其中 \(y_w\) 是更受偏好的回答，\(y_l\) 是较差回答，\(r_\theta(x,y)\) 是奖励模型输出的标量分数。直觉上，这个目标要求“优回答分数高于劣回答分数”，并通过 sigmoid 把差值转成偏好概率。
 
-最终的 RL 目标函数需要同时优化三个目标，发表于论文公式(2)：
+论文还指出一个很工程但很重要的细节：不能把同一排序任务拆出来的所有 pair 完全打散独立训练，否则相关性过高，RM 很容易过拟合。于是他们把同一 prompt 下的比较当成一个 batch 元素处理，这个设计后来也被大量后续工作沿用。
 
-$$\begin{aligned}\text{objective}(\phi) = &\mathbb{E}_{(x,y)\sim D_{\pi_\phi^{RL}}}\left[r_\theta(x, y) - \beta \log\left(\frac{\pi_\phi^{RL}(y|x)}{\pi^{SFT}(y|x)}\right)\right] \\ &+ \gamma \mathbb{E}_{x\sim D_{\text{pretrain}}}\left[\log\left(\pi_\phi^{RL}(x)\right)\right]\end{aligned}$$
+##### 4. PPO：真正把“人类偏好”写进策略更新
 
-- **第一项 (RM reward)**：来自训练好的奖励模型 \\(r_\\theta\\)，鼓励策略生成人类偏好的回答
-- **第二项 (KL 散度惩罚)**：以系数 \\(\\beta\\) 控制新策略相对于 SFT 模型的偏离程度。这防止策略过度优化 RM（reward hacking），因为 RM 只在有限分布上训练，可能对 OOD 响应给出虚高奖励
-- **第三项 (预训练混合，PPO-ptx)**：以系数 \\(\\gamma\\) 加入原始预训练数据的语言建模损失。这在保持模型基本语言能力方面至关重要——纯 PPO 模型（\\(\\gamma = 0\\)）在 SQuAD、HellaSwag、翻译等公共 NLP 基准上出现显著退化，PPO-ptx 通过"不忘记预训练语料"来缓解这一对齐税
+有了 RM 后，第三步就是用 PPO 最大化奖励模型分数，同时防止策略过快偏离 SFT 模型。论文给出的 RL 目标本质上是：
 
-> ⚠️ **注意**：环境是**bandit 环境**——每次 interaction 是独立的 prompt-response 对，不存在时序状态转移。这简化了 RL 问题：策略只负责生成 response，没有后续状态。
+$$
+\mathcal{J}(\phi)
+=
+\mathbb{E}_{(x,y)\sim D_{\pi_\phi^{\mathrm{RL}}}}
+\left[
+r_\theta(x,y)
+- \beta \log \frac{\pi_\phi^{\mathrm{RL}}(y\mid x)}{\pi^{\mathrm{SFT}}(y\mid x)}
+\right]
++
+\gamma
+\mathbb{E}_{x\sim D_{\mathrm{pretrain}}}
+\left[\log \pi_\phi^{\mathrm{RL}}(x)\right].
+$$
 
-**4. 与以前 RLHF 工作的区别**
+这里有三个力量同时作用：
 
-InstructGPT 是首个将 RLHF 范式在大规模语言模型上系统性验证的工作（Stiennon et al., 2020 在摘要任务上使用类似方法，但只在 1.3B 模型上实验）。关键区别：
-- **规模**：扩展到 175B 参数模型和真实 API 用户分布
-- **数据质量闭环**：标注员反复与模型交互，数据质量随时间迭代提升
-- **PPO-ptx**：首次提出混合预训练梯度来缓解对齐税
-- **多维度评估**：不仅衡量标签偏好，还评估幻觉率、有害性、真实性等关键安全维度
+- \(r_\theta(x,y)\)：鼓励模型产出更符合标注员偏好的回答。
+- KL 项：限制策略不要偏离 SFT 太远，避免 reward hacking。
+- 预训练混合项：也就是 PPO-ptx，用来缓解 RL 后模型在通用 NLP 能力上的退化。
+
+> 💡 关键：InstructGPT 并不是“只用 PPO 提高奖励”。它真正重要的是把 PPO 放进一个被 SFT 和 RM 夹住的受控系统里。没有前面的分布初始化和后面的 KL 约束，PPO 很容易把模型推到奇怪区域。
+
+##### 5. PPO-ptx：为什么它后来那么重要
+
+论文很早就观察到 alignment tax。也就是说，模型在“更符合人类偏好”的同时，可能在 SQuAD、DROP、HellaSwag、翻译等公共基准上回退。这说明 RLHF 不是免费午餐，它会把参数容量从通用语言建模能力重新分配给偏好目标。
+
+PPO-ptx 的思路很直接：在 RL 更新时继续混入预训练分布上的语言建模梯度。这样做并不改变“偏好对齐是主目标”，但能减少模型对原始语言能力的遗忘。论文明确指出，单纯把 KL 系数调大，并不能像 pretraining mix 那样有效地修复这些回退。
+
+这件事影响很深，因为它定义了一个后续普遍接受的认知：RLHF 不只是优化 reward，还要处理“保持基座能力”这个正交约束。很多后来工作看似在改 RL，其实都在解决这个问题。
+
+##### 6. 结果为什么有说服力
+
+论文最有代表性的结果有两条。第一，175B InstructGPT 相比原始 175B GPT-3，被人类评测偏好的比例约为 85% 左右。第二，1.3B InstructGPT 甚至能在偏好评测里超过 175B GPT-3，这说明“对齐方式”有时比“参数规模”更重要。
+
+更重要的是，这个提升不只体现在“更像客服模板”，而是同时体现在真实性和毒性控制上。论文报告 InstructGPT 在 TruthfulQA 上更好，在封闭域任务上的幻觉更少，且 toxic output 有所下降。这也是后来大家把它视为现代对齐起点的原因：它第一次用相对完整的证据说明，RLHF 确实能让模型更像“用户想要的系统”，而不是更像“互联网上的平均文本生成器”。
+
+##### 7. 它和后续方法的边界
+
+InstructGPT 也有明显代价：需要高质量人工 demonstrations、需要大规模人工排序、还要在线 PPO 训练，整条链条又贵又慢。这正是后续 DPO、IPO、KTO、ORPO、SimPO 等方法不断尝试“去掉 RM”或“去掉在线 RL”的原因。
+
+但这些后续工作并没有推翻 InstructGPT，反而是在继承它定义的问题设置。它提出的核心问题一直没变：如何把“用户偏好”转成可优化目标，同时不把模型推坏。只是不同方法在答案上做了不同工程折中。
 
 #### 🧪 练习题
 ```yaml
-question: "InstructGPT 的奖励模型损失函数将 K 个 response 的排序转化为多少对 pairwise 比较？"
+question: "InstructGPT 中 PPO-ptx 相比纯 PPO 的主要作用是什么？"
 options:
-  - "K 对"
-  - "K(K-1) 对"
-  - "C(K,2) 对，即 K(K-1)/2"
-  - "K² 对"
-answer: 2
-explain: "K 个 response 的完全排序可产生所有两两组合，即组合数 C(K,2)=K(K-1)/2。例如 K=5 时产生 10 对比较，论文使用 K=4~9。"
+  - "把奖励模型替换成价值模型"
+  - "缓解 alignment tax，减少公共 NLP 基准上的能力退化"
+  - "避免收集人类偏好排序数据"
+  - "让 PPO 不再需要 KL 惩罚"
+answer: 1
+explain: "PPO-ptx 会把预训练分布上的语言建模梯度混入 RL 更新，用来减少模型在通用任务能力上的遗忘和退化。"
 ```
-
-```yaml
-question: "InstructGPT 中 PPO-ptx 变体的主要目的是什么？"
-options:
-  - "加快 PPO 训练收敛速度"
-  - "提高奖励模型的排序精度"
-  - "缓解对齐税，防止在公共 NLP 基准上的性能退化"
-  - "减少 KL 散度惩罚项的数值不稳定"
-answer: 2
-explain: "PPO-ptx 通过在 PPO 梯度中混合预训练损失，保留模型在原始语料上的通用语言能力，从而在提升对齐性的同时减少在 SQuAD、HellaSwag 等基准上的退化。"
-```
-</file_content>
 
 ### CAI
 
@@ -656,16 +804,124 @@ motivation: 基于原则的自我批判与修订
 ```
 
 #### 📝 一句话总结
-CAI 的核心目标是：基于原则的自我批判与修订。
+CAI 把“人类逐条标注什么有害”替换成“一小组自然语言原则”，先让模型按原则自我批判和修订，再用 AI 反馈替代人类 harmlessness 偏好标签做 RL，从而训练出更无害且不回避问题的助手。
 
 #### 🎯 核心要点
-- 核心动机：基于原则的自我批判与修订
-- 演化来源：继承或改进自 instructgpt
-- 代表机构：Anthropic
+- 两阶段训练：SL-CAI 的 critique-revision 监督阶段，加上 RL-CAI/RLAIF 的 AI 反馈强化学习阶段
+- 监督信号来自 constitution，而不是逐条 harmlessness 人工标签
+- 16 条自然语言原则随机采样，用于驱动批判、修订和偏好判断
+- SL 阶段把 helpful RLHF 模型的有害回答改写成无害且更透明的回答
+- RL 阶段使用 AI feedback 生成 harmlessness 比较标签，再与人类 helpfulness 标签混合训练 preference model
+- 支持 chain-of-thought 形式的 AI 评审，并发现 CoT 下需做概率 clamping 才更稳健
+- 核心目标不是单纯“更安全”，而是减少 evasiveness，让模型学会解释为何拒绝有害请求
 
 #### 🔬 深入细节
-基于原则的自我批判与修订
+##### 核心框架图
 
+![CAI 两阶段流程图](https://ar5iv.labs.arxiv.org/html/2212.08073/assets/x1.png)
+*图：论文 Figure 1。上半部分是自我批判与修订的监督阶段，下半部分是 AI 反馈驱动的偏好建模与 RL 阶段。*
+
+##### 算法伪代码
+
+```python
+# Constitutional AI: SL-CAI -> RL-CAI
+
+# 1. Supervised Constitutional AI
+for prompt in red_team_prompts:
+    response = helpful_rlhf.sample(prompt)
+    for _ in range(num_revisions):
+        principle = sample(constitution)
+        critique = model.critique(prompt, response, principle)
+        response = model.revise(prompt, response, critique, principle)
+    save_supervised_pair(prompt, response)
+
+sl_cai = finetune(pretrained_lm, supervised_pairs + helpfulness_pairs)
+
+# 2. RL from AI Feedback
+for prompt in prompts:
+    y_a, y_b = sample_two_responses(sl_cai, prompt)
+    principle = sample(constitution)
+    q = feedback_model.preference_prob(prompt, y_a, y_b, principle)
+    save_ai_preference(prompt, y_a, y_b, q)
+
+pm = train_preference_model(human_helpfulness_pairs + ai_harmlessness_pairs)
+policy = ppo_train(init=sl_cai, reward_model=pm)
+```
+
+##### 1. 它到底想修复 RLHF 的什么问题
+
+CAI 的直接出发点不是“让模型更安全”这么泛，而是针对早期 RLHF 的两个具体缺陷。第一，harmlessness 的人工偏好标注太贵，而且很难规模化。第二，传统 HH-RLHF 往往把“无害”学成“回避”，模型遇到敏感问题时会大量输出“我不能回答这个”，看起来安全，但其实既不透明，也不够有帮助。
+
+论文因此提出一个更激进的问题：能不能不用人类逐条告诉模型“哪个回答更无害”，而只给它一小组人类写下的原则，让模型自己按这些原则做批判、修订和评估？如果能做到，就相当于把监督从“海量隐式标签”压缩成“少量显式规则”。
+
+##### 2. SL-CAI：先让模型学会自我批判与修订
+
+第一阶段是监督学习，但不是普通的 instruction tuning。具体做法是：先让 helpful-only 的 RLHF 模型对红队 prompt 生成初始回答，这些回答往往很危险；然后随机抽一条 constitution principle，让模型先批判自己的回答，再根据批判重写出一个更合规的新回答。
+
+论文强调这个过程可以多轮迭代，而且每轮都可以随机切换原则。这样做的好处是，模型学到的不只是“拒绝某个具体 prompt”，而是把“按原则检查并修订回答”的行为模式内化进参数里。文中使用了 16 条原则，并指出它们是以研究为目的手工写出的自然语言规则。
+
+在数据规模上，SL-CAI 使用了 42,496 条人工 red-team prompts，加上 140,335 条模型生成 red-team prompts，总共 182,831 条；每条 red-team prompt 采样 4 个 critique-revision 对。与此同时，还混入 135,296 条 helpfulness prompts，避免模型只学会“安全”而遗忘“帮助用户”。
+
+##### 3. 为什么自我批判比直接改写更重要
+
+论文专门比较了两条路线：一条是先 critique 再 revision，另一条是直接 revision。结果是，小模型上 critique 明显更重要，大模型上差距缩小但仍略有优势。
+
+这背后的直觉很清楚：批判步骤强迫模型先显式说出“哪里错了、为什么违反原则”，等于先把隐含判断展开成自然语言中间变量，再据此改写回答。对能力没那么强的模型，这个中间推理支架尤其重要。后面很多 self-refine、self-critique 类工作，本质上都在重复这个发现。
+
+##### 4. RL-CAI：把 harmlessness 偏好标签从“人类给”改成“AI 给”
+
+第二阶段才是这篇论文真正与 InstructGPT 分叉的地方。它保留了 RLHF 的总体框架，但把 harmlessness 比较标签改成 AI feedback 生成。具体来说，对同一 prompt 采样两条回答 \(y_A\) 和 \(y_B\)，再给反馈模型一条 constitution principle，让它回答“哪条更符合原则”。
+
+偏好模型依旧学习一个标量奖励：
+
+$$
+p_\psi(A \succ B \mid x)
+=
+\sigma\!\left(r_\psi(x,y_A)-r_\psi(x,y_B)\right).
+$$
+
+不同之处在于监督目标不一定是硬标签 \(0/1\)，而可以是反馈模型给出的软概率 \(q\)。因此 preference model 的训练更像：
+
+$$
+\mathcal{L}_{\mathrm{PM}}(\psi)
+=
+- q \log p_\psi(A \succ B \mid x)
+- (1-q)\log\!\left(1-p_\psi(A \succ B \mid x)\right).
+$$
+
+这就是论文里“soft labels 比 hard labels 更好”的核心原因。模型不是只学“谁赢了”，而是连同“不确定程度”一起学进去。
+
+##### 5. CoT、soft labels 和 clamping 为什么关键
+
+论文一个非常有价值的发现是：如果反馈模型不用 CoT，那么 normalized log-probabilities 形成的 soft labels 往往校准得不错；但一旦用了 CoT，模型通常会在推理文本里过早承诺某一选项，导致概率接近 0 或 1，反而不稳定。
+
+因此 CAI 在 CoT 版本里没有直接使用原始 soft labels，而是把概率钳在更窄的区间里。论文报告 20-80 的 clamping 有提升，而 40-60 更稳，最终主结果采用了 40-60。这个结论很重要，因为它说明“更会推理”不自动等于“更适合作为教师信号”，中间还要做校准。
+
+> ⚠️ 注意：CAI 的关键并不是简单把“人类标签”换成“模型标签”，而是要把模型反馈重新设计成一个足够稳定、足够可蒸馏的监督分布，否则 RL 阶段会学到过度极端的偏好。
+
+##### 6. 为什么它比普通 HH-RLHF 更少回避
+
+CAI 的一个核心成果是 non-evasive。传统 HH-RLHF 在很多危险 prompt 上会学到模板化拒绝，因为历史人工标注经常把“最无害”近似成“最不回答”。CAI 则把原则写得更显式，并在评测时要求比较者更偏好“既无害又解释清楚为什么拒绝”的回答。
+
+这样一来，模型学到的不是“避开风险内容即可”，而是“用理由化、透明化的方式处理风险内容”。论文明确写到 RL-CAI 几乎不会像旧 HH-RLHF 那样持续输出 canned refusal，而更常给出有解释的拒绝或重定向回答。这也是它被称为“constitutional”而不是普通 harmlessness tuning 的原因之一。
+
+##### 7. 它和 InstructGPT 的关系
+
+如果说 InstructGPT 定义了“人类偏好 -> 奖励模型 -> PPO”这条主干，那么 CAI 做的就是把其中一大块昂贵的人类监督，替换成“原则 + AI 反馈”。所以它不是脱离 RLHF 的另一条路线，而是 RLHF 的一次监督源重写。
+
+从结构上看，CAI 没有推翻 InstructGPT，反而承认 InstructGPT 框架是对的：仍然需要 SFT、仍然需要 preference model、仍然需要 RL。它改变的是“偏好从哪里来”。这也解释了为什么后续 RLAIF、AI judge、self-rewarding 等工作都能自然接到 CAI 之后。
+
+#### 🧪 练习题
+```yaml
+question: "CAI 相比标准 RLHF 的最核心变化是什么？"
+options:
+  - "完全去掉了偏好模型，只保留监督微调"
+  - "把 harmlessness 的大量人工偏好标签替换为 constitution 驱动的 AI feedback"
+  - "不再使用强化学习，只做对比学习"
+  - "用更大的基础模型替换 PPO"
+answer: 1
+explain: "CAI 仍然保留 preference model 和 RL，但把 harmlessness 监督从大量人工比较标签改成了原则驱动的 AI 反馈。"
+```
 
 ### RLAIF
 
@@ -1480,7 +1736,7 @@ num: 12
 name: ReMax
 full_name: 贪心基线强化学习 (REINFORCE with Max Baseline)
 year: '2023.10'
-org: CUHK / ByteDance
+org: CUHK-Shenzhen / Nanjing University / Polixir.ai
 parent: ppo
 paper_url: https://arxiv.org/abs/2310.10505
 project_url: ''
@@ -1489,16 +1745,157 @@ motivation: 移除Critic节省50%显存
 ```
 
 #### 📝 一句话总结
-ReMax 的核心目标是：移除Critic节省50%显存。
+ReMax 观察到 RLHF 具有“快速仿真、确定性转移、轨迹级奖励”三项特殊结构，因此不再沿用通用 RL 的 PPO+value model 方案，而是回到 REINFORCE，并用同一 prompt 下的贪心响应作为 baseline 做方差约简，在大幅降低显存和训练时间的同时保持甚至超过 PPO 的对齐效果。
 
 #### 🎯 核心要点
-- 核心动机：移除Critic节省50%显存
-- 演化来源：继承或改进自 ppo
-- 代表机构：CUHK / ByteDance
+- 重新审视 RLHF 的任务结构，指出 PPO 对 LLM 对齐来说过于复杂，value model 带来大量显存和调参负担
+- 基于 REINFORCE 构造无偏策略梯度，不再训练额外 critic / value model
+- 关键方差约简技巧：对每个 prompt 额外生成一个 greedy baseline response，用 reward 差值替代原始 reward
+- 保留 reference model 用于 KL regularization，但移除所有与 value model 相关的模块
+- 相比 PPO 能少掉至少 4 个关键超参数，例如 clip ratio、GAE 系数、value lr、off-policy epoch 数
+- 在 7B 模型上约节省 46% GPU 显存，训练吞吐约为 PPO 的 1.6 倍
+- 在 Mistral-7B 上取得 94.78% AlpacaEval 胜率和 7.739 MT-Bench 分数，论文报告为当时开源 7B 模型新 SOTA
 
 #### 🔬 深入细节
-移除Critic节省50%显存
+##### 1. 核心框架图
 
+![PPO 与 ReMax 的模块对比](https://arxiv.org/html/2310.10505v4/x1.png)
+
+*图：论文 Figure 1。ReMax 保留 policy model、reward model 和 reference model，但去掉了 PPO 中占大头的 value model 及其训练链路。*
+
+##### 2. 核心算法伪代码
+
+```python
+# ReMax for RLHF
+for prompt in dataset:
+    # 1. 从当前策略采样一个随机响应
+    seq = lm.sample(prompt, greedy=False)
+
+    # 2. 对同一 prompt 再生成一个贪心响应，作为 baseline
+    seq_max = lm.sample(prompt, greedy=True)
+
+    # 3. 用 reward 差值做 advantage-like 标量
+    rew = rm(prompt, seq) - rm(prompt, seq_max)
+
+    # 4. 计算随机响应的 token log-prob
+    logp = lm.inference(prompt, seq)
+
+    # 5. REINFORCE 更新
+    loss = -(logp.sum(dim=-1) * rew).mean()
+    lm.minimize(loss)
+```
+
+##### 3. 为什么 PPO 在 RLHF 里“杀鸡用牛刀”
+
+ReMax 的出发点不是单纯想做一个更轻量的 PPO 变体，而是从任务结构上质疑 PPO 是否真的是 RLHF 的最佳选择。论文指出，RLHF for LLMs 与经典强化学习环境有三个本质区别：
+
+- **fast simulation**：生成一条完整 response 的代价相对低，不像机器人或游戏环境那样需要昂贵交互；
+- **deterministic transitions**：下一个状态就是“已有上下文 + 当前生成 token”，不存在环境随机动力学；
+- **trajectory-level rewards**：reward model 通常只在整条 response 结束后给一个整体分数，而不是每步 dense reward。
+
+这三点意味着，PPO 在通用 RL 中引入的许多复杂机制，在 RLHF 里并没有被充分利用。特别是 value model：在经典 RL 中，它承担长期回报估计、bootstrapping 和方差控制的重要作用；但在 RLHF 这种 deterministic、terminal-reward 的 setting 下，它的收益并没有大到足以覆盖额外代价。作者认为，PPO 更像是“能用”，而不是“最合适”。
+
+论文因此回到更朴素的策略梯度观点：既然环境转移不随机、奖励在轨迹末端一次性给出，那么用 trajectory-level REINFORCE 就已经能够构造无偏梯度，真正的问题只剩下 **如何把方差压下来**。
+
+##### 4. 从 REINFORCE 到 ReMax：用贪心响应做 baseline
+
+标准 REINFORCE 的形式是：
+
+$$
+\nabla_\theta J(\theta)
+=
+\mathbb{E}_{y\sim\pi_\theta(\cdot|x)}
+\left[
+r(x,y)\,\nabla_\theta \log \pi_\theta(y|x)
+\right].
+$$
+
+它是无偏的，但 notoriously 高方差。原因在于不同 prompt 上 reward scale 可能差异极大，而 open-ended generation 的随机性又会进一步放大梯度波动。ReMax 的关键观察是：在 RLHF 中，我们可以对同一个 prompt 很便宜地再生成一条 **greedy response**，把它当作 control variate / baseline。
+
+于是论文把更新量改成：
+
+$$
+\nabla_\theta J_{\mathrm{ReMax}}(\theta)
+=
+\mathbb{E}
+\left[
+\bigl(r(x,y)-r(x,y_{\max})\bigr)\,
+\nabla_\theta \log \pi_\theta(y|x)
+\right],
+$$
+
+其中 \(y\) 是随机采样响应，\(y_{\max}\) 是当前模型在同一 prompt 下的贪心输出。这个 baseline 有几个好处：
+
+- 它与当前 prompt 强相关，比全局平均 reward 更贴近局部参考；
+- 它不依赖额外学习出的 value model，因此不会引入 critic 训练误差；
+- 它仍然保持了 REINFORCE 的无偏结构，同时显著降低奖励尺度波动。
+
+直觉上可以这么理解：ReMax 不再问“这个随机响应本身值多少分”，而是问“它比当前模型最稳妥的贪心答案好还是差多少”。这样做以后，优化目标更像“超过自己当前最确定的策略”，而不是在不同 prompt 之间直接比较绝对 reward。
+
+> 💡 关键：ReMax 不是 best-of-n。它不会在推理时保留多个候选里最好的那个，而是在训练时用 greedy response 作为方差约简基线，真正更新的仍然是随机采样 response 的 log-prob。
+
+##### 5. 与 PPO、REINFORCE 和 DPO 的区别
+
+ReMax 可以看作位于 PPO 与纯 REINFORCE 之间的一条折中路线。
+
+和 **PPO** 相比：
+- 它保留在线采样和 reward model 更新信号，因此仍属于标准 RLHF 路线；
+- 但它完全移除了 value model，不再需要 GAE、clip ratio 调参和多轮 off-policy epoch；
+- 同时保留 reference model 的 KL penalty，以防策略偏离初始 SFT/reference 太远。
+
+和 **纯 REINFORCE** 相比：
+- 它的无偏性没有变；
+- 但通过 `reward(sample) - reward(greedy)` 的结构，把梯度方差压低了很多。
+
+论文 Figure 4 直接展示了这一点：纯 REINFORCE 在大模型上会出现非常不稳定的梯度范数和更差的 reward 演化，而 ReMax 则稳定得多。
+
+和 **DPO** 相比：
+- DPO 是离线偏好学习，不需要 reward model 在线打分；
+- ReMax 则继续保留在线 RLHF 的 adaptive reward across prompts 和 online update 能力；
+- 因此在作者的比较表里，ReMax 同时拥有“在线更新 + reward 自适应 + 高效率”，而 DPO 缺少在线适应能力。
+
+##### 6. 显存与效率：为什么它能省这么多
+
+论文给出的工程结果非常直接。对 7B 模型，reward model 只占很小一部分显存，而 value model 连同其优化状态、激活、梯度等，会吞掉约 46% 的 GPU 内存。因此只要把 value model 删除，ReMax 就能立即获得大幅度资源节省。
+
+![PPO 与 ReMax 的显存和时间开销对比](https://arxiv.org/html/2310.10505v4/x2.png)
+
+*图：论文 Figure 2。ReMax 在 Llama-2-7B 上显著降低显存使用，并缩短训练时间。*
+
+论文报告，在 Llama-2-7B + A800-80GB 的设定下：
+- PPO 如果不做 optimizer offload 会顶爆显存；
+- ReMax 可以在不依赖这些内存节省技巧的情况下直接训练；
+- wall-clock 训练速度大约是 PPO 的 \(1.6\times\)。
+
+这也是 ReMax 在工程上最有现实价值的地方：它不是只在 toy setup 上省一点，而是真的改变了“7B 级 RLHF 在普通算力下能不能跑起来”这个问题。
+
+##### 7. 论文实验结论
+
+论文做了两大类实验：
+
+- **效果实验**：在 full-hh-rlhf 上对比 PPO、DPO、REINFORCE、ReMax 的 reward 演化和 win-rate；
+- **效率实验**：测显存、每 iteration 时间、不同模型规模下的可训练性；
+- **Leaderboard 实验**：在 Mistral-7B 上做 RLHF，对 AlpacaEval 和 MT-Bench 打榜。
+
+其中最关键的结论有三条：
+
+- ReMax 的最终 reward 和 win-rate 至少能匹配 PPO，在不少设定下更稳定；
+- 它显著优于纯 REINFORCE，说明 greedy baseline 确实解决了方差过大问题；
+- 它的 compute efficiency 接近 reward-model-free 方法，但保留了在线 RLHF 的性能优势。
+
+作者最终给出的代表性成绩是：Mistral-7B ReMax 模型在 AlpacaEval 上达到 94.78% 胜率，在 MT-Bench 上达到 7.739，论文将其描述为当时开源 7B 模型的新 SOTA。
+
+#### 🧪 练习题
+```yaml
+question: "ReMax 相比标准 REINFORCE 的核心改进是什么？"
+options:
+  - "额外训练一个 value model 来估计每个 token 的优势函数"
+  - "把离线偏好对转换为 Bradley-Terry 分类损失"
+  - "对同一 prompt 生成一个 greedy baseline response，用 reward 差值降低策略梯度方差"
+  - "使用 PPO 的裁剪目标限制策略更新幅度"
+answer: 2
+explain: "ReMax 的关键不是引入 critic 或 PPO clipping，而是用同 prompt 下的贪心输出作为 baseline，使 REINFORCE 在 RLHF 中既无偏又更低方差。"
+```
 
 ### SPIN
 
@@ -1654,19 +2051,19 @@ GRPO 通过同一问题采样一组（G条）输出，用组内标准化分数�
 
 **PPO 的目标函数**（带 Value Model）：
 
-$$\mathcal{J}_{\text{PPO}}(\theta) = \mathbb{E}_{q\sim P(Q), o\sim\pi_{\theta_{\text{old}}}(O|q)} \frac{1}{|o|}\sum_{t=1}^{|o|} \min\left[\frac{\pi_\theta(o_t|q,o_{<t})}{\pi_{\theta_{\text{old}}}(o_t|q,o_{<t})}A_t, \text{clip}\left(\frac{\pi_\theta(o_t|q,o_{<t})}{\pi_{\theta_{\text{old}}}(o_t|q,o_{<t})}, 1-\varepsilon, 1+\varepsilon\right)A_t\right]$$
+$$\mathcal{J}_{\text{PPO}}(\theta) = \mathbb{E}_{q\sim P(Q), o\sim\pi_{\theta_{\text{old}}}(O|q)} \frac{1}{|o|}\sum_{t=1}^{|o|} \min\left[\frac{\pi_\theta(o_t|q,o_{1:t-1})}{\pi_{\theta_{\text{old}}}(o_t|q,o_{1:t-1})}A_t, \text{clip}\left(\frac{\pi_\theta(o_t|q,o_{1:t-1})}{\pi_{\theta_{\text{old}}}(o_t|q,o_{1:t-1})}, 1-\varepsilon, 1+\varepsilon\right)A_t\right]$$
 
 其中优势函数 \(A_t\) 由 GAE 算法基于 Value Network \(V_\psi\) 计算得到。
 
 **Token 级奖励定义**（PPO 和 GRPO 通用）：
 
-$$r_t = r_\varphi(q, o_{\leq t}) - \beta\log\frac{\pi_\theta(o_t|q, o_{<t})}{\pi_{\text{ref}}(o_t|q, o_{<t})}$$
+$$r_t = r_\varphi(q, o_{1:t}) - \beta\log\frac{\pi_\theta(o_t|q, o_{1:t-1})}{\pi_{\text{ref}}(o_t|q, o_{1:t-1})}$$
 
 其中 \(r_\varphi\) 是 reward model（仅在序列结束时给信号或每一步给信号），\(\pi_{\text{ref}}\) 是 reference model（初始 SFT 模型）。
 
 **GRPO 的目标函数**（核心变化）：
 
-$$\mathcal{J}_{\text{GRPO}}(\theta) = \mathbb{E}_{q\sim P(Q), \{o_i\}_{i=1}^G\sim\pi_{\theta_{\text{old}}}(O|q)} \frac{1}{G}\sum_{i=1}^{G} \frac{1}{|o_i|}\sum_{t=1}^{|o_i|} \left\{ \min\left[\frac{\pi_\theta(o_{i,t}|q,o_{i,<t})}{\pi_{\theta_{\text{old}}}(o_{i,t}|q,o_{i,<t})}\hat{A}_{i,t}, \text{clip}\left(\frac{\pi_\theta(o_{i,t}|q,o_{i,<t})}{\pi_{\theta_{\text{old}}}(o_{i,t}|q,o_{i,<t})}, 1-\varepsilon, 1+\varepsilon\right)\hat{A}_{i,t}\right] - \beta\mathbb{D}_{\text{KL}}\left[\pi_\theta||\pi_{\text{ref}}\right] \right\}$$
+$$\mathcal{J}_{\text{GRPO}}(\theta) = \mathbb{E}_{q\sim P(Q), \{o_i\}_{i=1}^G\sim\pi_{\theta_{\text{old}}}(O|q)} \frac{1}{G}\sum_{i=1}^{G} \frac{1}{|o_i|}\sum_{t=1}^{|o_i|} \left\{ \min\left[\frac{\pi_\theta(o_{i,t}|q,o_{i,1:t-1})}{\pi_{\theta_{\text{old}}}(o_{i,t}|q,o_{i,1:t-1})}\hat{A}_{i,t}, \text{clip}\left(\frac{\pi_\theta(o_{i,t}|q,o_{i,1:t-1})}{\pi_{\theta_{\text{old}}}(o_{i,t}|q,o_{i,1:t-1})}, 1-\varepsilon, 1+\varepsilon\right)\hat{A}_{i,t}\right] - \beta\mathbb{D}_{\text{KL}}\left[\pi_\theta||\pi_{\text{ref}}\right] \right\}$$
 
 关键变化：
 1. **组采样**：对每个问题 \(q\) 采样 \(G\) 条输出 \(\{o_1, o_2, \cdots, o_G\}\)，外层期望从单条输出变为一组输出
@@ -1701,7 +2098,7 @@ $$\tilde{r}_i^{\text{index}(j)} = \frac{r_i^{\text{index}(j)} - \text{mean}(\mat
 
 GRPO 使用 Schulman 提出的 KL 散度无偏估计器，直接逐 token 计算并加入 loss：
 
-$$\mathbb{D}_{\text{KL}}\left[\pi_\theta||\pi_{\text{ref}}\right] = \frac{\pi_{\text{ref}}(o_{i,t}|q, o_{i,<t})}{\pi_\theta(o_{i,t}|q, o_{i,<t})} - \log\frac{\pi_{\text{ref}}(o_{i,t}|q, o_{i,<t})}{\pi_\theta(o_{i,t}|q, o_{i,<t})} - 1$$
+$$\mathbb{D}_{\text{KL}}\left[\pi_\theta||\pi_{\text{ref}}\right] = \frac{\pi_{\text{ref}}(o_{i,t}|q, o_{i,1:t-1})}{\pi_\theta(o_{i,t}|q, o_{i,1:t-1})} - \log\frac{\pi_{\text{ref}}(o_{i,t}|q, o_{i,1:t-1})}{\pi_\theta(o_{i,t}|q, o_{i,1:t-1})} - 1$$
 
 - 该估计器保证期望上无偏
 - 优势：只需 forward pass 计算概率比，无需额外网络
@@ -1795,6 +2192,9 @@ DAPO（Decoupled Clip and Dynamic sAmpling Policy Optimization）是字节跳动
 #### 🔬 深入细节
 ##### 1. 算法框架：从GRPO到DAPO
 
+![DAPO 在 AIME 2024 上的主要结果](https://arxiv.org/html/2503.14476v1/x1.png)
+*图1: DAPO在Qwen2.5-32B基座模型上仅用约50%训练步数即超过DeepSeek-R1-Zero-Qwen-32B在AIME 2024上的表现。*
+
 DAPO建立在Group Relative Policy Optimization (GRPO) 的基础上。GRPO的目标函数为：
 
 $$\mathcal{J}_{\text{GRPO}}(\theta)=\mathbb{E}_{(q,a)\sim\mathcal{D},\{o_i\}_{i=1}^G\sim\pi_{\theta_{\text{old}}}(\cdot\mid q)}\left[\frac{1}{\sum_{i=1}^G|o_i|}\sum_{i=1}^G\sum_{t=1}^{|o_i|}\min\left(r_{i,t}(\theta)\hat{A}_{i,t},\ \text{clip}\left(r_{i,t}(\theta),1-\varepsilon,1+\varepsilon\right)\hat{A}_{i,t}\right)\right]$$
@@ -1811,8 +2211,8 @@ $$\mathcal{J}_{\text{GRPO}}(\theta)=\mathbb{E}_{(q,a)\sim\mathcal{D},\{o_i\}_{i=
 - 保持足够的探索空间
 - 稳定提升熵值，避免熵坍塌
 
-![[img_fig2.png]]
-![[img_fig3.png]]
+![Clip-Higher 对 AIME 准确率的影响](https://arxiv.org/html/2503.14476v1/x2.png)
+![Clip-Higher 对生成熵的影响](https://arxiv.org/html/2503.14476v1/x3.png)
 *图2&3: Clip-Higher策略对熵和概率的影响。注意模型概率提升的同时熵也保持了健康增长。*
 
 **深度解读**：解耦裁剪的思想与信任域优化中的不对称约束有相似之处。在long-CoT场景中，探索性Token的收益需要被更大胆地强化，而错误Token的惩戒则需要谨慎——因为过度的惩戒会迅速压缩探索空间。这一设计哲学可以类比为：**对成功慷慨奖励，对失败温和惩罚**。实验中观察到，若不使用Clip-Higher，熵会持续下降至接近0（熵坍塌），模型陷入几乎确定性生成，丧失探索能力；而加入Clip-Higher后熵维持缓慢上升的健康态势。
@@ -1825,7 +2225,7 @@ $$\text{约束条件: } 0 < |\{o_i \mid \text{is\_equivalent}(a, o_i)\}| < G$$
 
 即**排除组内全部正确或全部错误的样本组**——这些组产生零梯度（优势全为零），浪费计算资源。过滤后的有效样本进入动态缓冲区，当缓冲区大小达到N后执行一次训练步骤。
 
-![[img_fig6.png]]
+![Dynamic Sampling 对训练进度的影响](https://arxiv.org/html/2503.14476v1/x10.png)
 *图6: 动态采样对训练效率的影响——尽管采样实例增多，但收敛所需训练步数反而减少。*
 
 **深度解读**：动态采样本质上是一种**在线课程学习**策略。全正确组意味着模型已掌握该题（无需优化），全错误组意味着模型完全不会（无法区分信号）。通过过滤这两类组，训练数据中的每个batch都包含"有改善空间"的样本——既有正确参考又有错误对比，梯度信号最为丰富。值得注意的是，论文指出由于生成时间的瓶颈主要在于长尾样本（少数超长响应的生成），过滤掉零梯度组并不会显著增加总体训练时间，反而因减少无用训练步数而加速收敛。
@@ -1838,8 +2238,8 @@ $$\mathcal{J}_{\text{DAPO}}(\theta)=\mathbb{E}\left[\frac{1}{\sum_{i=1}^G|o_i|}\
 
 **关键差异**：归一化因子从隐式的样本数归一化变为显式全局Token归一化 $$\frac{1}{\sum|o_i|}$$。
 
-![[img_fig4a.png]]
-![[img_fig4b.png]]
+![Token级损失对生成熵的影响](https://arxiv.org/html/2503.14476v1/x6.png)
+![Token级损失对平均响应长度的影响](https://arxiv.org/html/2503.14476v1/x7.png)
 *图4: Token级损失前后的熵(a)和平均响应长度(b)对比。样本级平均导致熵和长度不健康增长。*
 
 **深度解读**：这一修改解决了两个问题。其一，**对高质量长样本**：Token级平均确保其中每个有效推理步骤都获得充分的学习信号，而不是被长度"稀释"；其二，**对低质量长样本**（包含gibberish、重复词等）：Token级平均能有效惩罚这些不良模式——在样本级平均下，即使某个长响应包含大段重复内容，只要结尾"碰巧"正确，其整体损失仍然较低，模型难以学到区分。这一简单的修改对训练稳定性和健康长度增长产生了深远影响。
@@ -1854,8 +2254,8 @@ $$R_{\text{length}}(y)=\begin{cases}0,&|y|\leq L_{\text{max}}-L_{\text{cache}}\\
 
 其中 $$L_{\text{max}}=16384$$ tokens，$$L_{\text{cache}}=4096$$ tokens。在软惩罚区间内，响应越长惩罚越重；超过 $$L_{\text{max}}$$ 后截断并赋-1。
 
-![[img_fig5a.png]]
-![[img_fig5b.png]]
+![Soft Overlong Punishment 对 AIME 表现的影响](https://arxiv.org/html/2503.14476v1/x8.png)
+![Soft Overlong Punishment 对生成熵的影响](https://arxiv.org/html/2503.14476v1/x9.png)
 *图5: 超长惩罚塑形前后的AIME精度(a)和熵(b)对比。*
 
 **深度解读**：硬截断+固定惩罚的问题在于**信号混淆**——一个推理过程正确但恰好较长的响应与一个充满gibberish的响应可能收到相同的惩罚。这使得模型无法区分"好但长"和"差且长"。软惩罚通过提供连续的长度信号，使模型能够学习到"稍长可以，过长不好"的偏好。此外，配合Overlong Filtering（直接mask截断样本的loss），避免截断处不完整的Token对梯度产生噪声干扰。两者结合大幅提升了训练稳定性。
@@ -1916,10 +2316,10 @@ Output: pi_theta
 
 ##### 7. RL训练中推理能力的自发涌现
 
-![[img_fig7a.png]]
-![[img_fig7b.png]]
-![[img_fig7c.png]]
-![[img_fig7d.png]]
+![训练动态：平均响应长度](https://arxiv.org/html/2503.14476v1/x11.png)
+![训练动态：奖励分数](https://arxiv.org/html/2503.14476v1/x12.png)
+![训练动态：生成熵](https://arxiv.org/html/2503.14476v1/x13.png)
+![训练动态：平均概率](https://arxiv.org/html/2503.14476v1/x14.png)
 *图7: 训练动态监控指标——响应长度(a)、奖励分数(b)、生成熵(c)、平均概率(d)*
 
 论文中最具启发性的观察是**反思与回溯行为的自发涌现**（Table 2）：
@@ -1992,8 +2392,8 @@ id: dr_grpo
 num: 17
 name: Dr.GRPO
 full_name: 修正版GRPO (GRPO Done Right)
-year: '2026'
-org: DeepSeek
+year: '2025.03'
+org: Sea AI Lab / NUS / SMU
 parent: grpo
 paper_url: https://arxiv.org/abs/2503.20783
 project_url: ''
@@ -2002,16 +2402,157 @@ motivation: 修正长度与难度偏差
 ```
 
 #### 📝 一句话总结
-Dr.GRPO 的核心目标是：修正长度与难度偏差。
+Dr.GRPO 指出标准 GRPO 的常见实现会因为“按回复长度归一化”和“按题内奖励标准差归一化”而产生系统性优化偏差，并通过去掉这两项归一化恢复无偏策略梯度，从而在保持推理性能的同时显著改善 token efficiency。
 
 #### 🎯 核心要点
-- 核心动机：修正长度与难度偏差
-- 演化来源：继承或改进自 grpo
-- 代表机构：DeepSeek
+- 出自论文《Understanding R1-Zero-Like Training: A Critical Perspective》中对 R1-Zero 式 RL 的批判性分析，而不是独立单篇算法论文
+- 识别出 GRPO 的两类关键偏差：response-level length bias 与 question-level difficulty bias
+- 指出长度归一化会让正确短答案获得更大正向更新，而错误长答案受到更小惩罚，导致模型偏向冗长错误推理
+- 指出题内标准差归一化会让“太简单/太困难”的问题因标准差更小而被赋予更大更新权重，造成 difficulty bias
+- Dr.GRPO 的修正很简单：去掉响应长度归一化和组内标准差归一化，仅保留 unbiased baseline-centered advantage
+- 在实现层面，用常数 generation budget 替代 `mask.sum(axis=dim)`，从而恢复 PPO 目标而不是按每个 response 长度缩放
+- 在 Qwen2.5-1.5B 的 MATH RL-tuning 中，相比 GRPO 能抑制错误回复长度持续膨胀，并减少 overthinking
 
 #### 🔬 深入细节
-修正长度与难度偏差
+##### 1. 核心示意图
 
+![Dr.GRPO 核心示意图](https://arxiv.org/html/2503.20783v2/x1.png)
+
+*图：论文 Figure 1。左图展示了 Dr.GRPO 相比 GRPO 的核心改动：移除 length normalization 和 std normalization；右图展示该无偏优化器能明显抑制错误回复不断变长的现象。*
+
+##### 2. 算法伪代码
+
+```python
+# GRPO vs Dr.GRPO 核心差异
+# 对同一道题采样 G 个回答，得到组内回报 R_i
+
+mean_R = mean(R)
+std_R = std(R)
+
+for response_i in group:
+    # 传统 GRPO：长度 + 题内标准差双重归一化
+    A_grpo = (R_i - mean_R) / std_R
+    loss_grpo += (1 / len(response_i)) * tokenwise_clipped_pg_loss(A_grpo)
+
+    # Dr.GRPO：只保留无偏 baseline，移除两种偏差源
+    A_dr = R_i - mean_R
+    loss_dr += (1 / MAX_TOKENS) * tokenwise_clipped_pg_loss(A_dr)
+
+update(loss_dr)
+```
+
+##### 3. 背景：GRPO 为什么会“越训越长”
+
+R1-Zero 一类工作中，一个最醒目的训练现象是：随着 RL 持续进行，模型回复会越来越长。很多工作把它直接解释成“长链推理和自我反思能力的涌现”。这篇论文对这种解释提出了质疑：长度增长不一定完全来自更强的 reasoning，也可能来自 **优化目标本身对长回答的偏置**。
+
+作者把语言模型生成形式化为 token-level MDP，并回到 PPO 的原始 surrogate objective。与标准 PPO 不同，GRPO 为了避免训练额外 value model，会对同一道题采样一组回答，利用组内回报构造优势函数。问题在于，很多实现不仅使用组内相对回报，还额外做了“按响应长度归一化”和“按题内标准差归一化”。作者指出，这两个看似自然的归一化会一起扭曲真实策略梯度。
+
+因此，Dr.GRPO 的出发点不是提出更复杂的奖励或更强的探索机制，而是回到一个更根本的问题：**我们现在跑的 GRPO，到底还是不是原本希望优化的 PPO/REINFORCE 目标？** 论文结论是否定的，而 Dr.GRPO 就是对这个实现偏差的纠偏。
+
+##### 4. 第一类偏差：response-level length bias
+
+标准 GRPO 在很多实现中会把每个 response 的 loss 再除以该 response 的 token 长度 \( |o_i| \)。这会带来非常隐蔽但系统性的偏差：
+
+- 当某个回答的优势 \(A_i > 0\) 时，也就是它是正确或更优的回答，较短答案会因为分母更小而获得更大的梯度更新；
+- 当某个回答的优势 \(A_i < 0\) 时，也就是它是错误或更差的回答，较长答案会因为分母更大而受到更弱惩罚。
+
+于是训练会逐渐形成一种奇怪偏好：**正确答案被鼓励简洁，错误答案却被容忍冗长。** 这正好解释了很多 R1-Zero 复现实验里“错误回答越来越长”的现象。
+
+论文把这一点总结为 response-level length bias。其关键不是模型“主动学会深思熟虑”，而是目标函数在数值上给长错误回答更宽松的梯度惩罚。也就是说，长度增长部分是 reasoning emergence，部分却是 optimizer artifact。
+
+> 💡 关键：Dr.GRPO 不是反对长链推理，而是反对“因为 loss 缩放方式错误，模型被优化器推向无意义变长”。
+
+##### 5. 第二类偏差：question-level difficulty bias
+
+GRPO 的另一处常见设计，是把组内相对回报再除以该题回答组的标准差：
+
+$$
+A_i^{\mathrm{GRPO}} \propto \frac{R_i - \mathrm{mean}(R)}{\mathrm{std}(R)}.
+$$
+
+这在直觉上像一种 advantage normalization，但论文指出，它和 RL 里常见的“全 batch 归一化”不同，因为这里的标准差是在 **单题内部** 计算的。结果是：
+
+- 如果某道题太简单，组内奖励几乎全是 1，标准差会很小；
+- 如果某道题太难，组内奖励几乎全是 0，标准差也会很小；
+- 只要标准差小，这道题的更新权重就会被放大。
+
+于是，训练并不是按真实学习价值来分配优化预算，而是在数值上偏向那些组内方差小的问题，形成所谓 question-level difficulty bias。简单说就是：有些问题只是因为奖励分布更集中，就莫名其妙在优化中“声音更大”。
+
+Dr.GRPO 的修正方式也很直接：去掉这项组内标准差归一化，仅保留 baseline-centered 的无偏优势估计
+
+$$
+\tilde{A}_i = R_i - \mathrm{mean}(R).
+$$
+
+这样保留了“组内相对比较”的思想，但不再让不同问题因为标准差差异而被不公平加权。
+
+##### 6. Dr.GRPO 到底改了什么
+
+论文 Figure 1 和 Section 3.2 给出的结论非常明确：Dr.GRPO 的核心不是换奖励模型，也不是换采样策略，而是 **删掉两项导致偏差的归一化项**，从而恢复原本的无偏策略优化目标。
+
+可以把它和常见 GRPO 目标对比理解：
+
+$$
+\text{GRPO:}\quad
+\frac{1}{|o_i|}
+\sum_t
+\min\!\left(
+r_{i,t} A_i,\;
+\mathrm{clip}(r_{i,t}, 1-\epsilon, 1+\epsilon) A_i
+\right),
+\quad
+A_i = \frac{R_i - \mathrm{mean}(R)}{\mathrm{std}(R)}
+$$
+
+而 Dr.GRPO 变成：
+
+$$
+\text{Dr.GRPO:}\quad
+\frac{1}{M}
+\sum_t
+\min\!\left(
+r_{i,t} \tilde{A}_i,\;
+\mathrm{clip}(r_{i,t}, 1-\epsilon, 1+\epsilon) \tilde{A}_i
+\right),
+\quad
+\tilde{A}_i = R_i - \mathrm{mean}(R),
+$$
+
+其中 \(M\) 是固定常数，例如 generation budget，而不是每个 response 自己的长度。这个改动看起来很小，但含义很深：它把“每个样本的缩放因子”从变量改成常量，消除了长度耦合；同时把优势从题内 z-score 改回 centered return，消除了 difficulty bias。
+
+作者还特别指出，实现里常见的
+
+```python
+(tensor * mask).sum(axis=dim) / mask.sum(axis=dim)
+```
+
+本质上就会引入长度偏差；他们建议改成用固定 `MAX_TOKENS` 归一化。也就是说，Dr.GRPO 很大程度上是在修复“公式-实现不一致”的问题。
+
+> ⚠️ 注意：论文甚至指出，不只是 GRPO，多个开源 PPO/LLM RL 实现也存在类似的长度偏差。这说明 Dr.GRPO 的意义并不局限于 DeepSeek-R1 复现，而是更一般的 LLM RL 训练实现修正。
+
+##### 7. 实验结果：更省 token，而不是更会“刷长度”
+
+论文在 Oat 框架上，用 Qwen2.5-1.5B base model + R1 template，在 MATH 训练集上做在线 RL-tuning，对比 vanilla GRPO 和 Dr.GRPO。作者关注的不只是 benchmark accuracy，还看训练动态和错误回复长度。
+
+结果非常有代表性：
+- 两者都能像 R1-Zero 一样带来 reward 和 response length 的上升；
+- 但 GRPO 即使在 reward 增长放缓后，错误回答长度仍持续膨胀；
+- Dr.GRPO 则能抑制这种“无意义变长”，使错误回复明显更短；
+- 在多个数学 benchmark 上，它能在维持 reasoning performance 的同时改善 token efficiency，并缓解 overthinking。
+
+这意味着 Dr.GRPO 的价值不是单纯追求更高 accuracy，而是让“推理长度增长”更接近真实 reasoning improvement，而不是被优化器偏置污染。放到 LLM RL 的演化链里，它代表了一类非常重要的工作：**开始从“发明新目标”转向“审视现有目标是否被正确实现”。**
+
+#### 🧪 练习题
+```yaml
+question: "Dr.GRPO 相比传统 GRPO 的最关键修正是什么？"
+options:
+  - "增加一个额外的 value model 来估计 GAE"
+  - "把组内相对回报改成 pairwise Bradley-Terry 损失"
+  - "移除回复长度归一化和组内标准差归一化，恢复无偏策略梯度"
+  - "对错误回答额外奖励更长的 Chain-of-Thought"
+answer: 2
+explain: "Dr.GRPO 的核心不是增加模型组件，而是删去 GRPO 中引入 response-level length bias 和 question-level difficulty bias 的两项归一化。"
+```
 
 ### REINFORCE++
 
@@ -2325,26 +2866,176 @@ id: wdpo
 num: 20
 name: WDPO
 full_name: Wasserstein直接偏好优化 (Wasserstein DPO)
-year: '2026'
-org: Research
+year: '2025.02'
+org: Texas A&M / Tencent AI Lab / Google DeepMind
 parent: dpo
-paper_url: https://arxiv.org/abs/2512.03320
+paper_url: https://arxiv.org/abs/2502.01930
 project_url: ''
 category: frontier_2026
-motivation: Wasserstein距离增强鲁棒性
+motivation: Wasserstein鲁棒优化应对偏好分布漂移
 ```
 
 #### 📝 一句话总结
-WDPO 的核心目标是：Wasserstein距离增强鲁棒性。
+WDPO 将标准 DPO 的经验风险最小化改写为 Wasserstein 不确定集上的最坏情况优化，使模型不再只对训练偏好分布拟合，而是在用户偏好发生分布漂移时仍保持较强的对齐鲁棒性。
 
 #### 🎯 核心要点
-- 核心动机：Wasserstein距离增强鲁棒性
-- 演化来源：继承或改进自 dpo
-- 代表机构：Research
+- 针对 DPO 在真实部署中容易遭遇的 preference distribution shift，显式建模训练分布附近的一整个偏好分布集合
+- 基于 distributionally robust optimization，把 DPO 目标从“最小化经验平均损失”改为“最小化 Wasserstein 球内的最坏情况损失”
+- 给出两类鲁棒偏好优化方法：WDPO 和 KLDPO，其中 WDPO 使用 Wasserstein 不确定集
+- 推导出 WDPO 的可训练近似：标准 DPO 损失加上一个输入梯度范数正则项，避免直接求解难优化的 min-max 问题
+- 给出理论分析，包括 WDPO / KLDPO 的有限样本学习保证和参数收敛性质
+- 在 Emotion Alignment、ArmoRM 多目标对齐和 OpenLLM Leaderboard 场景下，相比 vanilla DPO 在偏好漂移时更稳健
 
 #### 🔬 深入细节
-Wasserstein距离增强鲁棒性
+##### 1. 论文核心示意图
 
+![WDPO 偏好分布漂移示意图](https://arxiv.org/html/2502.01930v4/x1.png)
+
+*图：论文 Figure 1。训练阶段主要观察到偏好模型 P1，于是普通 DPO 会偏向 Completion 1；但测试用户偏好更接近 P2 时，Completion 2 才是更优答案。WDPO 的目标是在一整个不确定集上做最坏情况优化，而不是只拟合单一训练分布。*
+
+##### 2. 核心训练伪代码
+
+```python
+# WDPO 的可训练近似版本
+# z = (prompt, chosen, rejected)
+
+for batch in dataloader:
+    # 1. 计算标准 DPO 损失
+    loss_dpo = dpo_loss(pi_theta, pi_ref, batch)
+
+    # 2. 计算对样本扰动敏感度的梯度正则
+    grad_norm_sq = 0.0
+    for z in batch:
+        l_z = single_pair_dpo_loss(pi_theta, pi_ref, z)
+        grad_z = grad_wrt_sample_representation(l_z, z)
+        grad_norm_sq += norm(grad_z, 2) ** 2
+    reg = rho_o * sqrt(grad_norm_sq / len(batch))
+
+    # 3. 构造近似 WDPO 损失
+    loss_wdpo = loss_dpo + reg
+
+    optimizer.step(loss_wdpo)
+```
+
+##### 3. 动机：DPO 为什么会在真实用户上失效
+
+WDPO 解决的问题不是“偏好标签噪声”本身，而是更系统性的 **偏好分布漂移**。标准 DPO 假设训练集中 observed preference pairs 就能代表部署阶段的真实用户偏好，因此它最小化的是训练分布上的平均损失。但论文指出，这个假设在现实里通常不成立：不同地区、群体、文化背景、语言表达和时间阶段的用户，对“哪个回答更好”的判断本来就可能不同。
+
+这意味着，普通 DPO 其实在做一种脆弱的经验拟合。它会把训练数据里占多数的偏好模式学得很强，却未必能覆盖测试环境下出现的新偏好结构。论文 Figure 1 的例子非常直观：如果训练人群偏向偏好模型 P1，那么非鲁棒 DPO 会系统性偏向 Completion 1；一旦部署到更偏向 P2 的用户群体，模型就会显著失配。
+
+因此，WDPO 的核心思想不是继续问“训练数据上哪个回答更优”，而是问：**如果真实偏好分布在训练分布附近发生偏移，当前策略还能不能维持对齐？** 这就把问题从经验风险最小化，推进到了 distributionally robust optimization 的框架。
+
+##### 4. 核心机制：在 Wasserstein 不确定集上做最坏情况 DPO
+
+论文先定义一个围绕名义分布 \( \mathsf{P}^{o} \) 的不确定集：
+
+$$
+\mathcal{P}(\rho;\mathsf{P}^{o})
+\coloneqq
+\left\{
+\mathsf{P}\in\mathcal{P}(\mathcal{Z})
+\;:\;
+D(\mathsf{P},\mathsf{P}^{o}) \le \rho
+\right\},
+$$
+
+其中 \(D(\cdot,\cdot)\) 可以取 Wasserstein 距离或 KL 散度；对 WDPO 而言，这里使用的是 Wasserstein 球。与普通 DPO 直接优化训练分布上的期望损失不同，WDPO 优化的是：
+
+$$
+\mathcal{L}_{\mathrm{WDPO}}(\theta)
+
+=
+\sup_{\mathsf{P}\in \mathcal{P}(\rho;\mathsf{P}^{o})}
+\mathbb{E}_{z\sim\mathsf{P}}
+\bigl[l(z;\theta)\bigr].
+$$
+
+这相当于引入一个“对手分布”：它会在距离训练分布不太远的范围内，专门寻找那些最容易让当前策略出错的偏好重加权方式。模型训练的目标，则是把这些最坏情况也一起压下去。
+
+从直觉上看，普通 DPO 优化的是“平均正确”，而 WDPO 优化的是“即使用户偏好轻微换了分布，也不要立刻崩”。这使它天然更适合部署环境，因为它不再把训练分布当成唯一真相，而是把它视为一个中心点。
+
+> 💡 关键：WDPO 鲁棒的不是单个 chosen / rejected 样本，而是样本背后的“偏好分布本身”。这比做样本级加权更强，因为它直接针对 deployment-time preference shift。
+
+##### 5. 难点与近似：为什么最终会变成“DPO + 梯度正则”
+
+直接求解上述 Wasserstein min-max 目标在大模型训练中并不现实。原因很简单：最坏情况分布 \( \mathsf{P} \) 本身不是一个显式参数化对象，我们只拥有来自名义训练分布 \( \mathsf{P}^{o}_{n} \) 的数据，而没有从不确定集内部其他分布采样的能力。因此，不能像常见 GAN 或对抗训练那样直接对“分布参数”做交替梯度下降。
+
+论文给出的关键工程化结果，是把 WDPO 推成一个一阶可训练近似。最终的近似目标写成：
+
+$$
+\mathcal{L}^{\mathrm{W}}(\theta;\mathcal{D})
+\coloneqq
+\mathcal{L}^{\mathrm{DPO}}(\pi_\theta;\mathcal{D})
++
+\mathcal{R}(\pi_\theta;\mathcal{D}),
+$$
+
+其中附加正则项为：
+
+$$
+\mathcal{R}(\pi_\theta;\mathcal{D})
+=
+\rho_o
+\left(
+\mathbb{E}_{z\sim\mathcal{D}}
+\left\|
+\nabla_z l(z;\theta)
+\right\|_2^2
+\right)^{1/2}.
+$$
+
+这个式子意义很强：如果某个样本 \(z\) 发生轻微分布扰动，就会让损失 \(l(z;\theta)\) 大幅波动，那么对应的 \(\|\nabla_z l(z;\theta)\|_2\) 就会很大，模型会被额外惩罚。于是 WDPO 逼迫模型学习一种“对局部分布变化不那么敏感”的偏好判别边界。
+
+换句话说：
+- DPO 关心的是 chosen 和 rejected 的相对 log-prob margin；
+- WDPO 额外关心的是，这个 margin 对训练样本分布附近的小扰动是否过于脆弱。
+
+这让 WDPO 看起来像“在 DPO 上加平滑项”，但本质上它对应的是 Wasserstein 球上的分布鲁棒优化，不是简单的经验 trick。
+
+> ⚠️ 注意：这个正则不是对模型参数梯度做裁剪，而是对样本扰动敏感度做控制。它约束的是“偏好边界的局部稳定性”，不是常规意义的优化稳定技巧。
+
+##### 6. 与标准 DPO 的本质区别
+
+标准 DPO 仍然是一个经验风险最小化方法。它在给定的训练偏好对 \((x, y_w, y_l)\) 上优化：
+
+$$
+\mathcal{L}_{\mathrm{DPO}}
+=
+-\mathbb{E}
+\left[
+\log \sigma\left(
+\beta \log \frac{\pi_\theta(y_w|x)}{\pi_{\mathrm{ref}}(y_w|x)}
+-
+\beta \log \frac{\pi_\theta(y_l|x)}{\pi_{\mathrm{ref}}(y_l|x)}
+\right)
+\right].
+$$
+
+这个目标默认训练偏好分布就是最终分布，因此它对 OOD preference shift 极其敏感。WDPO 没有改掉 DPO 的配对偏好形式，而是在其外层再套一层“对分布扰动求最坏情况”的约束。这样保留了 DPO 的高效训练结构，同时把鲁棒性引入到了目标层。
+
+所以 WDPO 在演化脉络中的价值，不是提出了新的偏好标签形式，也不是改了 chosen/rejected 的比较方式，而是第一次比较系统地把 **distributional robustness** 接入 DPO 对齐。
+
+##### 7. 实验设定与论文结论
+
+论文做了三类实验，核心都围绕“训练时和测试时偏好目标不一致”：
+
+- **Emotion Alignment**：在 Emotion 数据集上把 anger / fear 等目标按不同混合系数组合，训练和测试使用不同混合系数，显式制造 preference shift；
+- **ArmoRM Multi-objective Alignment**：在 HelpSteer2 prompt 上用 ArmoRM 生成多目标偏好，再在未参与训练的 reward objective 上测试泛化；
+- **OpenLLM Leaderboard**：将鲁棒对齐后的模型放到更广泛能力基准上，观察对齐鲁棒性是否牺牲通用能力。
+
+论文报告表明，WDPO 和 KLDPO 在这些偏好漂移场景下都比 vanilla DPO 更稳，尤其是在训练偏好与评估偏好不一致时退化更慢。作者还给出理论结论：对于 log-linear policy，WDPO / KLDPO 的鲁棒参数学习具有有限样本保证，收敛速度达到 \(O(n^{-1/4})\) 量级。这一点让 WDPO 不只是经验上“看起来更稳”，而是有明确的统计学习支撑。
+
+#### 🧪 练习题
+```yaml
+question: "WDPO 相比标准 DPO 的最核心变化是什么？"
+options:
+  - "把 chosen / rejected 二元偏好改成了多分类标签"
+  - "完全移除了参考模型，只保留奖励回归"
+  - "把 DPO 的经验风险最小化改成了 Wasserstein 不确定集上的最坏情况优化"
+  - "仅通过增大学习率让模型更快适应分布变化"
+answer: 2
+explain: "WDPO 的核心不是改标签形式，而是在训练分布附近引入 Wasserstein 不确定集，对最坏情况偏好分布做鲁棒优化，从而缓解 preference shift。"
+```
 
 ### MoD-DPO
 
@@ -2352,23 +3043,142 @@ Wasserstein距离增强鲁棒性
 id: mod_dpo
 num: 21
 name: MoD-DPO
-full_name: 模态解耦偏好优化 (Modality Decoupled DPO)
-year: '2026'
-org: Research
+full_name: 模态解耦直接偏好优化 (Modality-Decoupled Direct Preference Optimization)
+year: '2026.03'
+org: University of Southern California
 parent: dpo
-paper_url: https://arxiv.org/abs/2601.01234
+paper_url: https://arxiv.org/abs/2603.03192
 project_url: ''
 category: frontier_2026
-motivation: 跨模态解耦减少幻觉
+motivation: 模态解耦抑制跨模态幻觉
 ```
 
 #### 📝 一句话总结
-MoD-DPO 的核心目标是：跨模态解耦减少幻觉。
+MoD-DPO 面向 omni LLM 的跨模态幻觉问题，在标准 DPO 上加入“无关模态保持不变、相关模态必须敏感、文本先验必须受罚”三类约束，使模型更依赖真正相关的音频和视觉证据而不是语言捷径。
 
 #### 🎯 核心要点
-- 核心动机：跨模态解耦减少幻觉
-- 演化来源：继承或改进自 dpo
-- 代表机构：Research
+- 面向音频-视频-文本统一模型的跨模态幻觉问题，重点缓解伪相关和语言先验主导带来的错误回答
+- 在 DPO 的偏好损失之外引入两类 KL 正则：无关模态扰动下的输出不变性，以及相关模态扰动下的输出敏感性
+- 新增 Language-Prior Debiasing (LPD) 惩罚，压低只看文本输入时容易产生幻觉的响应
+- 对 MoD-DPO 目标给出闭式最优策略推导，而不是仅靠经验式加权损失
+- 构造了自动化偏好数据生成流程，最终得到超过 18.1k 条偏好样本，覆盖约 10.8k 个视频
+- 主要在 Qwen2.5-Omni 和 MiniCPM-O 2.6 上验证，在 AVHBench、CMM 等跨模态幻觉基准上稳定优于 DPO 与 OmniDPO
 
 #### 🔬 深入细节
-跨模态解耦减少幻觉
+##### 1. 核心框架图
+
+![MoD-DPO 核心框架图](https://arxiv.org/html/2603.03192v2/x3.png)
+
+*图：论文 Figure 3。MoD-DPO 以 DPO 为底座，在偏好优化之外额外加入无关模态不变性、相关模态敏感性和语言先验去偏三类约束，直接改变 omni LLM 的模态依赖方式。*
+
+##### 2. 核心训练伪代码
+
+```python
+# x_v: 视觉相关问题文本
+# a, v: 原始音频/视频
+# a_corrupt, v_corrupt: 扰动后的音频/视频
+# y_w, y_l: chosen / rejected response
+
+for batch in dataloader:
+    logp_w = pi_theta.log_prob(y_w | a, v, x_v)
+    logp_l = pi_theta.log_prob(y_l | a, v, x_v)
+    logref_w = pi_ref.log_prob(y_w | a, v, x_v)
+    logref_l = pi_ref.log_prob(y_l | a, v, x_v)
+
+    # 标准 DPO 偏好项
+    dpo_margin = beta * ((logp_w - logref_w) - (logp_l - logref_l))
+    loss_dpo = -log_sigmoid(dpo_margin)
+
+    # 无关模态不变性：视觉问题下，扰动音频后输出应尽量不变
+    loss_inv = KL(pi_theta(. | a, v, x_v) || pi_theta(. | a_corrupt, v, x_v))
+
+    # 相关模态敏感性：视觉问题下，扰动视频后输出应明显变化
+    loss_sens = -KL(pi_theta(. | a, v, x_v) || pi_theta(. | a, v_corrupt, x_v))
+
+    # 语言先验去偏：只给文本时，不应维持同样高的偏好分数
+    loss_lpd = reward(pi_theta, text_only_input=x_v)
+
+    loss = loss_dpo + lambda_inv * loss_inv + lambda_sens * loss_sens + lambda_lpd * loss_lpd
+    optimizer.step(loss)
+```
+
+##### 3. 动机：为什么普通 DPO 不够
+
+MoD-DPO 处理的不是纯文本偏好对齐，而是 **omni LLM 在音频、视频和文本共同输入下的幻觉问题**。论文指出，现有模型即使经过多模态后训练，仍然容易在两类情况下出错：一类是把本来不相关的模态信号当成强证据，例如从视觉画面“脑补”出并不存在的声音；另一类是模型过度依赖语言模板和文本提示，在感知证据很弱时仍然给出看似合理但并不 grounded 的答案。单纯套用 DPO，只能学习“chosen 比 rejected 更好”，却不会显式告诉模型“到底该依赖哪一个模态”。
+
+论文的关键判断是：跨模态幻觉的根因不是简单的偏好建模不足，而是 **模态耦合方式错误**。因此，它把问题重新表述为两个约束目标：
+- 对当前问题无关的模态，即使被扰动，输出也应该基本不变；
+- 对当前问题真正相关的模态，只要被破坏，输出分布就应该明显变化。
+
+这比普通 DPO 更强，因为它不只要求“选对答案”，而是要求模型形成正确的 **因果依赖结构**。比如当问题问视频里发生了什么时，模型应当主要依赖视觉证据；当视觉被破坏后，输出就应该退化，而不是继续凭音频或语言先验自信作答。
+
+##### 4. 核心目标：在 DPO 上显式加入“模态解耦”
+
+论文从标准 DPO 的 KL 约束最优策略出发，构造了视觉相关 prompt 下的目标。设输入包含音频 \(a\)、视频 \(v\) 和视觉相关文本提示 \(x^v\)，则 MoD-DPO 在 DPO 主目标外新增两项 KL 正则：
+
+$$
+\max_{\pi_\theta}
+\mathbb{E}_{(a,v,x^v)\sim\mathcal{D},\, y\sim\pi_\theta(\cdot\mid a,v,x^v)}
+\left[r(a,v,x^v,y)\right]
+- \beta \, \mathbb{D}_{\mathrm{KL}}\!\left(\pi_\theta(\cdot\mid a,v,x^v)\,\|\,\pi_{\mathrm{ref}}(\cdot\mid a,v,x^v)\right)
+- \beta_{\mathrm{inv}} \, \mathbb{D}_{\mathrm{KL}}\!\left(\pi_\theta(\cdot\mid a,v,x^v)\,\|\,\pi_\theta(\cdot\mid a',v,x^v)\right)
++ \beta_{\mathrm{sens}} \, \mathbb{D}_{\mathrm{KL}}\!\left(\pi_\theta(\cdot\mid a,v,x^v)\,\|\,\pi_\theta(\cdot\mid a,v',x^v)\right)
+$$
+
+其中 \(a'\) 是被扰动的音频，\(v'\) 是被扰动的视频。这个式子非常直观：
+- 第二项仍是 DPO 的参考模型约束，防止策略漂移过大；
+- 第三项要求在 **无关模态被破坏时输出尽量稳定**，也就是不变性；
+- 第四项要求在 **相关模态被破坏时输出必须变化**，也就是敏感性。
+
+对视觉问题来说，音频是“无关模态”、视频是“相关模态”；对于音频问题，论文给出了完全对称的目标，只需要把音频和视频的位置互换即可。这样一来，MoD-DPO 不再只是偏好学习，而是在优化时直接塑造“哪条模态路径该被信任”。
+
+> 💡 关键：普通 DPO 只区分“答案 A 胜过答案 B”，MoD-DPO 进一步区分“这个胜负应当由哪一个模态决定”。这正是它能抑制跨模态幻觉的原因。
+
+##### 5. Language-Prior Debiasing：专门压制文本捷径
+
+论文还指出，多模态模型的语言骨干通常经过大规模文本预训练，因此即使感知输入不足，它也能仅凭语言模式生成“貌似合理”的回答。这会导致一种更隐蔽的失败：模型不是看错了图像或听错了音频，而是 **根本没认真看/听**，直接靠语言先验作答。
+
+为此，MoD-DPO 在偏好优化奖励里又加入了一个 text-only 惩罚项。直觉上，这个项会比较“完整模态输入下的策略”与“只保留文本输入时的策略”，如果模型在 text-only 条件下仍然给出同样高的偏好分数，就说明它过于依赖语言先验，应被惩罚。这个设计和不变性/敏感性正好互补：
+- 不变性约束负责“不要误用无关模态”；
+- 敏感性约束负责“必须使用相关模态”；
+- LPD 负责“不要绕开感知，直接走语言捷径”。
+
+从论文实验结果看，带 LPD 的更强变体在语言主导类任务上提升更明显，这说明跨模态幻觉不只是模态错配问题，也和语言模型本身的先验偏置有关。
+
+> ⚠️ 注意：这里的目标不是让模型“少用文本”，而是防止它在应该依赖感知证据时，仍然把文本模式匹配当作主要依据。
+
+##### 6. 偏好数据如何构造
+
+MoD-DPO 的另一项重要工作是自动生成训练偏好数据，而不是依赖昂贵的人类逐条标注。论文的 Figure 4 给出了一条三阶段流水线：
+
+![MoD-DPO 偏好数据生成流程](https://arxiv.org/html/2603.03192v2/x4.png)
+
+*图：论文 Figure 4。先把音频和视觉信息拆开做 caption/tag，再基于模态相关问题构造 QA，最后用“相关模态信息”生成 chosen，用“无关模态信息”生成 rejected。*
+
+具体来说：
+- Stage 1：先把视频拆解为视觉描述和音频描述，获得更干净的单模态语义；
+- Stage 2：根据这些模态描述自动生成与音频或视觉相关的问题；
+- Stage 3：对每个问题，使用相关模态构造 chosen response，使用无关模态或错误模态构造 rejected response。
+
+这样生成出来的偏好对天然带有“模态监督”属性。普通 DPO 数据只告诉模型哪个答案更好，MoD-DPO 数据则额外告诉模型“为什么这个答案更好，是因为它用了正确模态的信息”。论文最终构造了超过 18.1k 条偏好样本，覆盖约 10.8k 个唯一视频，为后续优化提供了足够多样的幻觉场景。
+
+##### 7. 方法效果与相对位置
+
+论文主要在 Qwen2.5-Omni 和 MiniCPM-O 2.6 两个 omni LLM 上做实验，并在 AVHBench 与 CMM 两类跨模态幻觉基准上与 DPO、OmniDPO 等方法比较。项目页给出的结果显示：
+- 在 Qwen2.5-Omni 上，AV Matching 准确率从基线的 54.69 提升到 69.07；
+- 在 MiniCPM-O 2.6 上，AV Matching 从 54.26 提升到 60.57；
+- 在 CMM 上，Qwen2.5-Omni 的 overall perception accuracy 从 86.4 提升到 88.8，hallucination resistance 从 84.6 提升到 86.2。
+
+这些结果说明，MoD-DPO 并不是简单地“让模型更保守”，而是让模型在真正需要依赖音频/视频证据时更 grounded，因此既减少幻觉，也能提升一般的音视频理解表现。它在 LLM RL 演化链上的意义，是把 DPO 从纯文本偏好优化推进到了 **显式模态归因约束** 的阶段。
+
+#### 🧪 练习题
+```yaml
+question: "对于视觉相关的问题，MoD-DPO 中“模态解耦”最核心的训练信号是什么？"
+options:
+  - "要求模型在视频被破坏后依然保持同样输出"
+  - "要求模型在音频被破坏后明显改变输出，而在视频被破坏后保持稳定"
+  - "要求模型在无关音频被破坏时保持稳定，在相关视频被破坏时显著改变输出"
+  - "完全去掉参考模型，只用 chosen / rejected 交叉熵训练"
+answer: 2
+explain: "视觉问题下，音频通常是无关模态、视频是相关模态；因此 MoD-DPO 同时要求对无关模态扰动保持不变，对相关模态扰动保持敏感。"
+```

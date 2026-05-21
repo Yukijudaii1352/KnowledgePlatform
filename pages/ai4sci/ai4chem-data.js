@@ -1,5 +1,5 @@
 /**
- * ai4chem-data.js — 由 pipeline/build.py 于 2026-05-20 17:59:34 自动生成。
+ * ai4chem-data.js — 由 pipeline/build.py 于 2026-05-21 11:23:19 自动生成。
  * 源文件：content/ai4sci/ai4chem.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "ai4chem",
     "topic_name": "化学AI 技术演进图谱",
     "page_title": "化学AI 技术演进图谱",
-    "page_subtitle": "2026-05-20 版",
+    "page_subtitle": "2026-05-21 版",
     "page_desc": "从分子表示学习到反应预测、逆合成分析、催化剂设计与分子生成，AI正在重塑化学研究范式。本图谱涵盖2017-2026年化学AI领域的经典算法与前沿突破，展现从数据驱动到物理感知、从辅助工具到AI科学家的演化历程。",
     "page_icon": "🧪",
     "hero_pills": [

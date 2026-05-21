@@ -1,5 +1,5 @@
 /**
- * mm_sound-data.js — 由 pipeline/build.py 于 2026-05-20 17:59:45 自动生成。
+ * mm_sound-data.js — 由 pipeline/build.py 于 2026-05-21 11:23:29 自动生成。
  * 源文件：content/mm/mm_sound.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "mm_sound",
     "topic_name": "音频理解",
     "page_title": "音频理解 算法总结",
-    "page_subtitle": "2026-05-20 版",
+    "page_subtitle": "2026-05-21 版",
     "page_desc": "从传统语音识别到端到端架构，再到多模态音频大模型的演进历程",
     "page_icon": "🎧",
     "hero_pills": [

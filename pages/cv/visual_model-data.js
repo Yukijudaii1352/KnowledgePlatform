@@ -1,5 +1,5 @@
 /**
- * visual_model-data.js — 由 pipeline/build.py 于 2026-05-20 17:59:39 自动生成。
+ * visual_model-data.js — 由 pipeline/build.py 于 2026-05-21 11:23:23 自动生成。
  * 源文件：content/cv/visual_model.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "visual_model",
     "topic_name": "视觉基础模型技术演进",
     "page_title": "视觉基础模型技术演进",
-    "page_subtitle": "2026-05-20 版",
+    "page_subtitle": "2026-05-21 版",
     "page_desc": "梳理从ViT到SAM的视觉表征学习演进历程，涵盖架构创新、自监督学习与通用视觉分割三大技术脉络",
     "page_icon": "👁️",
     "hero_pills": [
