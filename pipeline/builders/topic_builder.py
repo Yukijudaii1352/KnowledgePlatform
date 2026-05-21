@@ -98,6 +98,58 @@ def split_sections(body: str):
 
 INCLUDE_RAW_RE = re.compile(r"^\s*!INCLUDE_RAW\s+(.+?)\s*$")
 
+OVERVIEW_META_PREFIXES = (
+    "- 来源平台:",
+    "- 原文链接:",
+    "- 作者:",
+    "- 发表日期:",
+    "- 发布日期:",
+)
+
+
+def _sanitize_overview_metadata(md: str) -> str:
+    """清洗抓取综述开头的元信息，只保留平台、链接、作者和日期。"""
+    lines = md.splitlines()
+    if not lines:
+        return md
+
+    sep_idx = None
+    for idx, line in enumerate(lines[:40]):
+        if line.strip() == "---":
+            sep_idx = idx
+            break
+    if sep_idx is None:
+        return md
+
+    header_lines = lines[:sep_idx]
+    if not any(line.startswith("- 来源平台:") for line in header_lines):
+        return md
+
+    kept_meta = [line for line in header_lines if line.startswith(OVERVIEW_META_PREFIXES)]
+    if not kept_meta:
+        return md
+
+    title_block: list[str] = []
+    for line in header_lines:
+        if line.startswith("# "):
+            title_block = [line]
+            break
+
+    sanitized_lines: list[str] = []
+    if title_block:
+        sanitized_lines.extend(title_block)
+        sanitized_lines.append("")
+    sanitized_lines.extend(kept_meta)
+    sanitized_lines.extend(["", "---"])
+
+    body_lines = lines[sep_idx + 1:]
+    while body_lines and not body_lines[0].strip():
+        body_lines = body_lines[1:]
+    if body_lines:
+        sanitized_lines.extend([""] + body_lines)
+
+    return "\n".join(sanitized_lines)
+
 
 def parse_overview(md_body: str, section_name: str = "领域综述", src: Path | None = None):
     if not md_body.strip():
@@ -110,7 +162,9 @@ def parse_overview(md_body: str, section_name: str = "领域综述", src: Path |
             include_path = (base / include_path).resolve()
         if not include_path.is_file():
             err(f"`## {section_name}` 引用的原文文件不存在：{include_path}")
-        return [{"title": "", "body_html": md_to_html(include_path.read_text(encoding="utf-8"))}]
+        raw_md = include_path.read_text(encoding="utf-8")
+        return [{"title": "", "body_html": md_to_html(_sanitize_overview_metadata(raw_md))}]
+    md_body = _sanitize_overview_metadata(md_body)
     out = []
     current_title, current_buf = None, []
     in_fence = False
@@ -310,6 +364,37 @@ MD_EXTS = ["fenced_code", "tables", "attr_list", "def_list"]
 INLINE_MATH_RE = re.compile(r"\\\((.+?)\\\)", re.DOTALL)
 BRACKET_MATH_RE = re.compile(r"\\\[(.+?)\\\]", re.DOTALL)
 BLOCK_MATH_RE = re.compile(r"\$\$(.+?)\$\$", re.DOTALL)
+INLINE_DOLLAR_MATH_RE = re.compile(r"\$\$([^\n]+?)\$\$")
+
+
+def _normalize_inline_dollar_math(md: str) -> str:
+    """把段内 `$$...$$` 归一化为 `\\(...\\)`，避免被 KaTeX 当成块公式独占一行。"""
+    lines = md.splitlines()
+    out: list[str] = []
+    in_fence = False
+
+    for line in lines:
+        if line.strip().startswith("```"):
+            in_fence = not in_fence
+            out.append(line)
+            continue
+
+        if in_fence or line.count("$$") < 2:
+            out.append(line)
+            continue
+
+        def _replace_inline(match: re.Match[str]) -> str:
+            before = line[:match.start()].strip()
+            after = line[match.end():].strip()
+            # 整行只有一个 `$$...$$` 时保留为块公式；其余情况视为段内数学。
+            if not before and not after and line.strip() == match.group(0).strip():
+                return match.group(0)
+            body = match.group(1).strip()
+            return rf"\({body}\)"
+
+        out.append(INLINE_DOLLAR_MATH_RE.sub(_replace_inline, line))
+
+    return "\n".join(out)
 
 
 def _protect_math_spans(md: str):
@@ -341,6 +426,7 @@ def _restore_math_spans(html: str, stash: dict[str, str]) -> str:
 
 def md_inline_to_html(md: str) -> str:
     """把单行 markdown 转成适合嵌入列表项的 HTML。"""
+    md = _normalize_inline_dollar_math(md)
     protected_md, math_stash = _protect_math_spans(md)
     html = markdown.markdown(protected_md, extensions=MD_EXTS).strip()
     html = _restore_math_spans(html, math_stash)
@@ -393,6 +479,7 @@ def _normalize_pipe_tables(md: str) -> str:
 
 def md_to_html(md: str, image_base: str = "") -> str:
     md = _normalize_pipe_tables(md)
+    md = _normalize_inline_dollar_math(md)
     protected_md, math_stash = _protect_math_spans(md)
     html = markdown.markdown(protected_md, extensions=MD_EXTS)
     html = _restore_math_spans(html, math_stash)
