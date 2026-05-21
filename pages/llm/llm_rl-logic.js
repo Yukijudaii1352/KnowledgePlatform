@@ -1219,7 +1219,26 @@ function initChatWidget() {
 }
 
 /* ============ 10. KaTeX ============ */
+function renderStoredMath(root = document.body) {
+  if (typeof katex === 'undefined' || !root || !root.querySelectorAll) return;
+  root.querySelectorAll('.kb-math-inline:not([data-katex-ready]), .kb-math-display:not([data-katex-ready])').forEach(node => {
+    const expr = (node.textContent || '').trim();
+    if (!expr) return;
+    try {
+      katex.render(expr, node, {
+        displayMode: node.classList.contains('kb-math-display'),
+        throwOnError: false,
+        trust: true
+      });
+      node.setAttribute('data-katex-ready', '1');
+    } catch (err) {
+      console.warn('KaTeX render failed:', err);
+    }
+  });
+}
+
 function reRenderMath() {
+  renderStoredMath(document.body);
   if (typeof renderMathInElement !== 'undefined') {
     renderMathInElement(document.body, {
       delimiters: [
@@ -1227,6 +1246,7 @@ function reRenderMath() {
         { left: '\\(', right: '\\)', display: false },
         { left: '\\[', right: '\\]', display: true }
       ],
+      ignoredClasses: ['kb-math-inline', 'kb-math-display'],
       throwOnError: false,
       trust: true
     });

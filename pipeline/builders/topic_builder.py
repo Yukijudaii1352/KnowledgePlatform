@@ -13,6 +13,7 @@ import json
 import re
 import shutil
 import sys
+import html as html_lib
 from pathlib import Path
 
 try:
@@ -399,28 +400,42 @@ def _normalize_inline_dollar_math(md: str) -> str:
 
 def _protect_math_spans(md: str):
     """在 markdown 解析前先保护数学公式，避免 `_` 被当成强调语法。"""
-    stash: dict[str, str] = {}
+    stash: dict[str, dict[str, object]] = {}
     counter = 0
 
-    def _repl_factory(wrapper: str):
+    def _repl_factory(display: bool):
         def _repl(m):
             nonlocal counter
             token = f"@@MATH_{counter}@@"
             counter += 1
-            stash[token] = wrapper.format(body=m.group(1))
+            stash[token] = {
+                "display": display,
+                "body": m.group(1).strip(),
+            }
             return token
         return _repl
 
     protected = md
-    protected = BLOCK_MATH_RE.sub(_repl_factory("$${body}$$"), protected)
-    protected = BRACKET_MATH_RE.sub(_repl_factory(r"\[{body}\]"), protected)
-    protected = INLINE_MATH_RE.sub(_repl_factory(r"\({body}\)"), protected)
+    protected = BLOCK_MATH_RE.sub(_repl_factory(True), protected)
+    protected = BRACKET_MATH_RE.sub(_repl_factory(True), protected)
+    protected = INLINE_MATH_RE.sub(_repl_factory(False), protected)
     return protected, stash
 
 
-def _restore_math_spans(html: str, stash: dict[str, str]) -> str:
-    for token, original in stash.items():
-        html = html.replace(token, original)
+def _restore_math_spans(html: str, stash: dict[str, dict[str, object]]) -> str:
+    for token, payload in stash.items():
+        expr = html_lib.escape(str(payload.get("body", "")))
+        if payload.get("display"):
+            rendered = f'<div class="kb-math kb-math-display">{expr}</div>'
+        else:
+            rendered = f'<span class="kb-math kb-math-inline">{expr}</span>'
+        html = html.replace(token, rendered)
+    html = re.sub(
+        r"<p>\s*(<div class=\"kb-math kb-math-display\">.*?</div>)\s*</p>",
+        r"\1",
+        html,
+        flags=re.DOTALL,
+    )
     return html
 
 
