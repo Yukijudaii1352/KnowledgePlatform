@@ -1,94 +1,113 @@
----
-id: voxposer
-name: VoxPoser
-full_name: VoxPoser（3D值图驱动的LLM机器人操作框架）
-year: "2023"
-org: Stanford Vision and Learning Lab
-paper_url: https://arxiv.org/abs/2307.05973
-category: embodied
-parent: "—"
-motivation: 利用LLM/VLM在3D体素空间中提取可供性与约束，实现真实世界机器人零样本泛化操作
----
-
 ### VoxPoser
 
-> **一句话**：VoxPoser 利用 LLM 与 VLM 在**3D体素空间**中合成**价值图（value maps）**，将语言指令转化为可执行的末端轨迹，实现对开放集物体和指令的零样本真机操作（real-world zero-shot manipulation）。
+```yaml
+id: voxposer
+name: VoxPoser
+full_name: 体素价值图组合器 (VoxPoser)
+year: '2023.07'
+org: Stanford
+paper_url: https://arxiv.org/abs/2307.05973
+category: spatial_3d
+parent: cliport
+motivation: LLM生成3D体素价值图零样本操纵
+```
 
+#### 📝 一句话总结
+VoxPoser 把开放指令理解转化成在 3D 体素空间里合成价值图的问题，由 LLM 生成代码调用视觉 API 构造可供性图和约束图，再用 MPC 在这些值图上做闭环规划，实现真实机器人零样本操纵。
 
-#### ⚙️ 核心框架（Fig. 2）
-
-VoxPoser 通过三阶段管道将自然语言指令映射为可执行的机器人轨迹：
-
-1. **感知（Perception）**：外部模块（OWL-ViT + SAM + XMem）检测/分割/跟踪场景物体，构建**3D体素占据网格**（$100 \times 100 \times 100$，分辨率 2.5mm–1cm）。
-2. **3D值图合成（3D Value Map Synthesis）**：LLM（GPT-4）根据指令生成 Python 代码，调用预定义 API 在体素空间中操作 **可供性图（affordance map）** 和 **约束图（constraint map）**，合成最终任务值图 $F_{\text{task}}$。
-3. **运动规划（Motion Planning）**：以 $F_{\text{task}}$ 为优化目标，用**模型预测控制（MPC）+ 随机射击法（random shooting）** 生成末端执行器轨迹，并以 5Hz 频率实时重规划。
-
-**值图核心公式**：任务值图 $F_{\text{task}}$ 被定义为对体素位置 $\mathbf{p}_j^e \in \mathbb{R}^3$ 的函数求和（最大化末端执行器访问高价值区域）：
-
-$$F_{\text{task}}(\mathbf{p}_j^e) = -\sum_{j} V(\mathbf{p}_j^e)$$
-
-- 末端执行器轨迹 $\{ \mathbf{p}_j^e \}_{j=1}^{H}$ 通过 MPC 优化 $F_{\text{task}}$。
-- **扰动体素（perturbation voxels, Fig. 3）**：在约束区域（如桌面、障碍物旁）注入噪声值，使规划器主动远离危险区域，实现避碰。
-
-**系统组件**：
-| 模块 | 工具 | 功能 |
-|---|---|---|
-| 物体检测 | OWL-ViT (ViT-L/14) | 开放词汇目标检测 |
-| 分割/跟踪 | SAM + XMem | 像素级掩码与视频跟踪 |
-| 3D重建 | 多视角RGB-D | 结构光点云融合（≈$100^3$ 体素） |
-| 代码生成 | GPT-4 (gpt-4-0314) | 零样本生成 Python 操作 API |
-| 视觉问答 | 可选 ViLD / CLIP | 属性识别（如颜色、状态） |
-
-
-#### 🧪 实验关键发现
-
-**真实世界实验（Table 1）**：
-- **22 个任务 × 4 种场景设置**（含从未见过的物体/指令），每个任务 5 次试验。
-- **环境 A（桌面操作）成功率 88%**，环境 B（抽屉/货架）成功率 70%，总计 120 次试验。
-- **对比消融**：无 LLM 规划（仅 VLM）降至 26.7%，无 VLM（仅 LLM）降至 23.3%，无扰动体素降至 58.3%，证明 LLM+VLM 协同及扰动体素的必要性。
-
-**泛化能力（Table 2）**：
-- **物体泛化**：对训练中未见的 14 类新物体（如橡皮泥、蒜头）达 85% 成功率。
-- **指令泛化**：语义等价改写指令（如"把瓶子扶起来"→"让瓶子直立"）保持 80% 以上。
-- **干扰物鲁棒性**：桌面上增加 5–7 个干扰物体，成功率仅下降 6%。
-
-**局限性**：
-1. 依赖外部感知模块，不具备端到端视觉推理能力。
-2. 缺乏通用动力学模型，无法处理高精度接触式任务（如精细装配）。
-3. 仅规划末端轨迹，未考虑全臂避碰。
-4. 需要人工设计 LLM 提示词（prompt engineering）。
-
+#### 🎯 核心要点
+- 提出 **VoxPoser**：用 3D voxel value map 作为语言、视觉和运动规划之间的统一中间表示
+- 感知层使用 **OWL-ViT + SAM + XMem + RGB-D 重建**，得到开放词汇 3D 场景表征
+- LLM 不直接输出动作，而是输出操作 API 的代码来合成 **affordance map** 和 **constraint map**
+- 最终任务值图由多张局部值图组合而成，供 **MPC / random shooting** 规划器优化
+- 通过 **perturbation voxels** 在障碍物边界附近注入惩罚，提升避碰稳定性
+- 在真实机器人上展示了未见物体、未见指令和不同场景配置下的零样本泛化
 
 #### 🔬 深入细节
+##### 核心方法图
 
-**1. 3D 体素值图的合成机制（§3.1–3.2）**
+![VoxPoser 方法图](https://voxposer.github.io/media/figures/method.jpg)
+*图：VoxPoser 的三阶段流程。先把真实场景重建成 3D 体素网格，再由 LLM 生成程序组合体素值图，最后用 MPC 在值图上搜索末端执行器轨迹。*
 
-核心洞察是将 LLM 视作"零样本代码生成器"。给定场景的 3D 体素网格和物体标签，LLM 输出 Python 代码调用两类原子操作：
+##### 核心伪代码
 
-- `affordance_map`: 定义"应该去哪"——如"抓住杯子"生成杯子顶部以上 5cm 区域的高值。
-- `constraint_map`: 定义"不能去哪"——如"避免碰撞桌面"生成桌面区域的负值。
+```python
+# VoxPoser: language -> code -> voxel value maps -> MPC
 
-两类图通过 **加权求和** 融合：$F_{\text{task}} = w_a F_{\text{affordance}} + w_c F_{\text{constraint}}$。LLM 代码还自动计算物体间的空间关系（如"杯子在桌上"→杯子的可供性区域 z 坐标高于桌面）。**扰动体素** 在约束边界注入高斯噪声，迫使 MPC 采样器主动远离危险区域。
+scene = build_voxel_scene(rgbd_frames, detector="OWL-ViT", segmenter="SAM")
+objects = track_masks(scene, tracker="XMem")
 
-**2. 闭环在线重规划（§3.3, Fig. 2 右侧）**
+program = llm_generate_code(instruction, api_docs=voxel_api_reference)
 
-系统以 $5\text{Hz}$ 频率执行以下循环：① 摄像机更新场景点云 → ② 重新计算 $F_{\text{task}}$ → ③ MPC 随机射击 1000 条候选轨迹，选 $F_{\text{task}}$ 最高者 → ④ 执行第一步动作。这种设计使得系统可以**在线适应物体移动和遮挡变化**，无需显式状态估计。每次重规划约 $50\text{ms}$，满足实时性要求。
+affordance_map = zeros(scene.shape)
+constraint_map = zeros(scene.shape)
+exec(program, {
+    "scene": scene,
+    "objects": objects,
+    "affordance_map": affordance_map,
+    "constraint_map": constraint_map,
+})
 
-**3. 动力学学习（§3.4, 可选扩展）**
+task_map = combine_maps(affordance_map, constraint_map, perturbation_voxels=True)
+trajectory = mpc_random_shooting(task_map, horizon=H, replanning_hz=5)
+execute_ee_trajectory(trajectory)
+```
 
-虽然主打零样本，VoxPoser 也展示了将 3D 值图用于**高效动力学学习**：用执行成功的轨迹离线训练一个旋钮动力学残差模型（Gaussian Process），在旋钮开门任务中将成功率从 60% 提升至 90%，训练仅需 10 条演示。
+##### 动机：为什么 LLM 不应该直接输出机器人动作
 
-**4. 与 Code-as-Policies 的关键区别**
+VoxPoser 面对的是开放世界零样本操纵。用户给出的指令可能是 “put the apple on the plate”, “open the drawer and place the sponge inside”, 也可能是涉及接近、避障、支撑和相对方位的组合命令。LLM 对这些语言关系有很强的先验，但它本身并不适合直接产出连续机械臂轨迹。
 
-Code-as-Policies（Liang et al., 2023）同样用 LLM 生成代码控制机器人，但它是 2D 平面导航 + 刚性动作原语。VoxPoser 的创新在于将 LLM 代码输出**投影到 3D 体素值图**这一通用表示中，使得任何下游规划器（MPC、轨迹优化）都能消费，极大提升了灵活性和避碰能力。
+论文因此插入了一个非常巧妙的中间层：**3D 体素价值图**。LLM 的任务不再是“给出动作”，而是“写程序描述哪里值得去、哪里必须避开”。这样，语言推理和机器人控制被自然解耦。LLM 负责语义组合和空间关系抽象，传统规划器负责连续轨迹搜索和闭环执行。
 
+这使系统既保留了大模型的开放词汇泛化，又没有把低层控制外包给一个并不擅长动力学约束的语言模型。
 
-#### 📚 可选习题（检查理解）
+##### 核心机制一：affordance map 和 constraint map
 
-1. **值图推导**：假设场景中有一圆柱体（半径 5cm，高 10cm），任务为"从上方抓取圆柱体顶端"。请写出 LLM 生成的 Python 伪代码，构造对应的 $F_{\text{affordance}}$（需体现体素遍历、空间关系条件判断）。
+VoxPoser 使用一组预定义 API 让 LLM 在 3D 体素网格上“编程”。对某个任务，LLM 生成的代码通常会产出两类图：
 
-2. **扰动体素分析**：在 $x=0$ 处有一垂直墙壁。扰动体素注入 $\mathcal{N}(-0.5, 0.2)$ 到墙壁前方 2cm 区域。若 MPC 采样 $H=20$ 步轨迹，步长 $1\text{cm}$，请推导末端执行器与墙壁的安全距离期望值，并解释为何扰动**仅施加于约束边界而非整个空间**。
+- **affordance map**：哪些空间区域值得末端执行器去
+- **constraint map**：哪些区域危险、不可达或违反任务约束
 
-3. **VLM 与 LLM 协同**：代码中同时调用 VLM 获取"抽屉把手形状"和 LLM 生成抓取策略。若 VLM 错误地报告把手为"圆形"而实际是"方形"，VoxPoser 会如何失效？从**值图合成**和**运动规划**两个阶段分析误差传播路径。
+最终任务值图可以理解为它们的加权组合：
 
-4. **设计改进题**：论文指出 VoxPoser 仅规划末端执行器轨迹。请设计一种扩展方案，在全臂运动规划中复用 3D 值图，并讨论需要额外引入的约束（如自碰撞、关节限位）。
+$$
+F_{\text{task}} = w_a F_{\text{affordance}} + w_c F_{\text{constraint}}
+$$
+
+比如执行 “从上方抓住杯子” 时，affordance map 会把杯口上方一小片空间设成高值；执行 “不要碰到桌面” 时，constraint map 会对桌面附近体素赋予负值。LLM 的优势在于它能根据语言组合这些规则，而不需要每种指令都单独训练一个策略。
+
+##### 核心机制二：闭环 MPC 在值图上优化轨迹
+
+任务值图一旦构造出来，后续控制就回到了经典规划问题。给定未来 \(H\) 步的末端轨迹 \(\{\mathbf{p}_j^e\}_{j=1}^{H}\)，系统希望最大化轨迹经过高值区域、避开低值区域，可写成：
+
+$$
+\max_{\mathbf{p}_1^e,\dots,\mathbf{p}_H^e}
+\sum_{j=1}^{H} F_{\text{task}}(\mathbf{p}_j^e)
+$$
+
+实现上，论文采用 random shooting MPC：采样多条候选轨迹，计算它们在体素值图上的累积得分，执行当前最优轨迹的首步，然后重新观测并重规划。系统以约 \(5\text{Hz}\) 做闭环更新，因此即便目标物发生轻微移动、遮挡变化或局部识别误差，规划仍能在线纠正。
+
+##### 核心机制三：perturbation voxels 为什么有效
+
+如果只用硬边界约束，MPC 很容易在障碍物边缘“擦边飞行”，导致真实执行时因为噪声而碰撞。VoxPoser 的做法是在约束边界附近额外布置 **perturbation voxels**，等价于人为扩厚危险区域，给规划器一个更平滑也更保守的代价地形。
+
+这看上去是个工程细节，但它直接决定了零样本系统能不能在真机上稳定工作。因为在没有专门为某台机器人学过碰撞恢复策略的前提下，更稳的代价景观往往比更激进的最优路径重要得多。
+
+> 💡 关键：VoxPoser 真正统一的不是控制网络，而是“任务价值表示”。LLM、VLM 和 MPC 都围绕这张值图协作。
+
+##### 结果怎么看：它证明了代码生成和几何规划可以自然结合
+
+VoxPoser 与很多端到端 VLA 的不同点在于，它没有试图把所有能力都压进一个神经网络，而是把语言推理、场景理解和轨迹优化用一个几何中间表示连接起来。对开放世界零样本操作来说，这条路线非常强，因为它允许系统直接继承成熟的视觉工具、成熟的规划器和成熟的语言模型，各自发挥所长。
+
+#### 🧪 练习题
+
+```yaml
+question: "VoxPoser 中 LLM 的直接输出为什么不是机器人动作，而是体素图操作程序？"
+options:
+  - "因为真实机器人不能执行连续控制"
+  - "因为程序化生成 3D affordance/constraint maps 更适合把语言关系交给规划器落到几何空间"
+  - "因为 LLM 无法处理任何自然语言指令"
+  - "因为 MPC 只能接受文本输入"
+answer: 1
+explain: "VoxPoser 让 LLM 负责语义和空间关系组合，把结果写成体素值图，再由 MPC 处理连续轨迹优化。这比让 LLM 直接输出低层控制更稳，也更容易零样本泛化。"
+```

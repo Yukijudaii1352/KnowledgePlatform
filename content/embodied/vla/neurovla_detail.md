@@ -1,136 +1,123 @@
-### NeuroVLA: 类脑视觉-语言-动作模型
+### NeuroVLA
 
 ```yaml
 id: neurovla
-full_name: 类脑VLA (Neuromorphic Vision-Language-Action)
-year: 2026
-org: AI² Robotics (智平方) / HKUST(GZ)
+name: NeuroVLA
+full_name: 神经形态视觉-语言-动作 (NeuroVLA)
+year: '2026.01'
+org: AI2 Robotics / HKUST(GZ)
+paper_url: https://arxiv.org/abs/2601.14628
+project_url: ''
 category: transformer_policy
 parent: hpt
-arxiv: "2601.14628"
-paper_url: "https://arxiv.org/abs/2601.14628"
-motivation: >
-  模拟生物运动神经系统(皮层-小脑-脊髓)三层分工架构，
-  在神经形态芯片上实现0.4W功耗、<20ms安全反射、
-  75%抖动抑制、few-shot学习超越预训练基线。
+motivation: 模拟皮层-小脑-脊髓分层控制，实现低功耗快速反射
 ```
 
-**一句话总结**：NeuroVLA首次在物理机器人上部署神经形态VLA，通过模拟皮层（语义规划）→小脑（状态调制/阻尼）→脊髓（脉冲SNN执行）三层生物运动架构，在仅用几百条下游样本微调的情况下，自发涌现出平滑轨迹、节能脉冲、时序记忆和<20ms碰撞反射等生物运动特性，抖动降低75%以上，神经形态芯片功耗仅0.4W。
+#### 📝 一句话总结
+NeuroVLA 提出了一种模仿皮层、小脑和脊髓分工的神经形态 VLA 架构，把高层语义规划、基于本体感觉的运动稳定化和脉冲式快速执行拆成三级控制回路，在真实机器人上同时实现了更平滑的动作、更低的能耗以及小于 20ms 的安全反射。
 
----
+#### 🎯 核心要点
+- 提出 **Neuromorphic Vision-Language-Action (NeuroVLA)**：首个部署到真实机器人的神经形态 VLA
+- 三层类脑架构：**Cortical** 负责语义规划，**Cerebellar** 负责高频传感反馈下的稳定化调制，**Spinal** 负责超低时延动作生成
+- Cerebellar 模块使用 **GRU + gated FiLM + iterative refinement**，把本体感觉历史转成对高层意图的动态增益调制
+- Spinal 模块采用 **LIF 脉冲神经网络** 与脉冲残差结构，利用神经形态处理器执行动作解码
+- 在无额外指导信号的情况下，涌现出抖动抑制、时序记忆、能量稀疏和快速反射等“生物运动特性”
+- 论文强调 **0.4W 神经形态功耗** 与 **<20ms 安全反射**，对实时具身控制尤其关键
+- 通过少量下游样本微调即可超过纯预训练基线，体现出生物启发分层结构带来的样本效率
 
-### 核心要点
+#### 🔬 深入细节
+##### 核心架构图
 
-1. **三层生物启发的解耦架构**：将VLA控制分解为Cortical（Qwen-VL + Q-Former生成语义意图）、Cerebellar（GRU状态估计 + Gated FiLM增益调制）、Spinal（LIF脉冲神经网络 + Spiking ResNet）三个功能模块，分别运行在CUDA计算层和神经形态芯片层，严格对应生物运动系统的皮层→小脑→脊髓通路。
+![NeuroVLA 架构总览](https://ar5iv.labs.arxiv.org/html/2601.14628/assets/x1.png)
+*图：论文总览图。NeuroVLA 将控制链条拆为皮层规划、小脑调制和脊髓执行三层，分别对应低频语义决策、中频状态稳定化和高频脉冲式动作生成。*
 
-2. **小脑计算原理是关键创新**：Cerebellar模块实现了Gated Feature-wise Linear Modulation (FiLM)——用GRU编码本体感觉历史(关节角/速度/力矩)→产生scale & shift参数→对皮层语义latent进行仿射调制，同时通过Iterative Refinement Loop (K=2)模拟Efference Copy（传出副本）的前向内部模型，实现"数字肌肉记忆"，无需重新调用重型的VLM即可实时补偿摩擦力/重力。
+##### 结果图：能效与快速反射
 
-3. **脉冲神经网络的涌现特性**：Spinal LIF网络采用stateful membrane dynamics（膜电位跨时间步保持），自然获得隐式时序工作记忆；网络自发涌现temporal sparsity（静止时神经元休眠）和spatial disentanglement（高维控制信号自动分离为不同行为模式），无需显式监督即实现节能和功能专门化。
+![NeuroVLA 的神经形态能效与反射能力](https://ar5iv.labs.arxiv.org/html/2601.14628/assets/x6.png)
+*图：论文结果图之一，展示神经形态执行层在低功耗和快速反射上的优势。*
 
-4. **极致的能效与快速反射**：神经形态芯片仅0.4W功耗；碰撞检测到撤回反射<20ms（绕过>200ms的皮层回路延迟），实现"生存先于理解"的安全保障；few-shot微调（仅几百条样本）即超越预训练基线。
-
-5. **抖动抑制与身体智能涌现**：小脑模块作为自适应阻尼器，将运动学jerk降低75%以上；在嘈杂视觉反馈下仍保持时序节律性（预测任务阶段而非单纯反应），展现出生物运动特有的平滑流畅特性。
-
----
-
-### 深入细节
-
-#### 1. 三层架构的形式化分解 (POMDP + Tri-Level Controller)
-
-论文将具身控制建模为POMDP：每时刻t接收多模态观测o_t（RGB图像I_t、语言指令L、本体感觉历史s_{t-H:t}含关节位置/速度/末端6-DoF力），目标为生成连续动作a_t。控制策略被严格分解为三个映射函数的层级组合：
-
-```
-a_t = Phi_spine( Phi_cerebellum( Phi_cortex(I_t, L), h_t ) )
-```
-
-其中动态上下文向量h_t由神经状态估计器从本体感觉历史中提取。这种分解明确了各模块的功能边界和运作时标：
-- **Cortical (CUDA)**: 抽象语义意图z_sem，低频（~5-10Hz级），处理"做什么"
-- **Cerebellar (CUDA)**: 基于物理状态的增益调制，中频（~50Hz级），处理"如何协调"
-- **Spinal (神经形态芯片)**: 脉冲驱动动作解码，高频（>100Hz级），处理"精准执行"
-
-![NeuroVLA架构总览](https://ar5iv.labs.arxiv.org/html/2601.14628/assets/x1.png)
-
-#### 2. Cerebellar Module的Gated FiLM与迭代精炼机制
-
-这是论文最具原创性的设计，模拟小脑的传出副本（Efference Copy）原理。具体流程：
-
-**步骤一：GRU状态估计**
-本体感觉历史s_{t-H:t}（含关节角度、速度、6-DoF力/力矩）通过GRU编码为紧凑的动态上下文h_t。GRU能捕捉变化率和接触瞬态（如碰撞脉冲），这些是静态MLP编码器无法获取的关键物理信息。
-
-**步骤二：门控FiLM调制**
-首先通过可学习门控因子g_t = sigma(W_g · Proj(h_t))选择性调控物理上下文对皮层计划的影响程度——防止稳定阶段的感受噪声淹没语义意图。随后将h_t投影为仿射变换参数(gamma_t, beta_t)，对皮层语义latent z_sem进行调制：
-
-```
-z_mod = (1 + gamma_t) * (z_sem * g_t) + beta_t
-```
-
-这一操作实现严格的增益控制：例如碰撞检测时，可将前向速度编码抑制（gamma_t ≈ -1）并注入撤回偏置（beta_t），实时重写运动计划，无需唤醒皮层VLM。
-
-**步骤三：迭代精炼循环（K=2）**
-每轮迭代预测试探性动作latent → 更新预期状态演化 → 重新调制输入。这一递归过程充当计算化的"心理模拟"，在执行前预先补偿预期动力学误差（重力、摩擦等），有效缩小Sim-to-Real差距。
+##### 核心伪代码
 
 ```python
-# Cerebellar FiLM + Iterative Refinement 伪代码
-z_mod = z_sem  # 初始化为皮层语义latent
-for k in range(K):  # K=2, 迭代精炼次数
-    h_t = GRU(s_hist)                    # 状态估计 (本体感觉历史)
-    g_t = sigmoid(W_g @ proj(h_t))       # 门控因子 [0,1]
-    gamma_t, beta_t = f_gamma(h_t), f_beta(h_t)  # 调制参数
-    z_mod = (1 + gamma_t) * (z_mod * g_t) + beta_t  # FiLM调制
-    s_next = predict_state(z_mod)        # 前向内部模型: 预测下一状态
-    s_hist = update(s_hist, s_next)      # 更新状态历史 (Efference Copy反馈)
-return z_mod  # 调制后的运动latent，送入Spinal模块
+# NeuroVLA: cortex -> cerebellum -> spinal cord
+# I_t: image observation, L: language instruction
+# s_hist: proprioceptive history (joint / velocity / force)
+
+z_sem = cortex_vlm(I_t, L)                 # high-level goal / semantic intent
+h_t = GRU(s_hist)                          # compact dynamic state
+g_t = sigmoid(W_g @ proj(h_t))             # gating from proprioception
+gamma_t, beta_t = film_params(h_t)         # modulation parameters
+
+z_mod = (1.0 + gamma_t) * (z_sem * g_t) + beta_t
+
+for _ in range(K):                         # iterative refinement loop
+    z_mod = refine_with_forward_model(z_mod, s_hist)
+
+spikes = spinal_snn(z_mod)                 # LIF spiking rollout on neuromorphic chip
+action = decode_action(spikes)
 ```
 
-#### 3. 脉冲神经网络的LIF动力学与Spiking ResNet架构
+##### 动机与背景
 
-**Stateful LIF神经元**：脊髓模块采用Leaky Integrate-and-Fire (LIF)模型，关键设计是膜电位u在连续时间步之间严格保持（非每步归零）：
+传统 VLA 模型的强项在于把视觉和语言语义对齐后直接映射到动作，但它们通常仍像“大一统前馈策略”一样工作：高层理解、运动稳定、快速反射都被塞在同一条控制通路里。这会带来两个典型问题。第一，策略容易抖动，因为模型缺少类似生物小脑那样针对动态误差做高频阻尼和修正的结构。第二，安全反射不够快，因为所有信息都要经过高层语义回路，无法像脊髓反射那样本地快速闭环。
 
+NeuroVLA 的思路不是单纯增大 VLA 规模，而是重新设计控制分工。论文把生物神经系统里的皮层、小脑、脊髓映射到具身模型里：皮层负责“做什么”，小脑负责“怎么更稳”，脊髓负责“怎么更快”。这让系统从一开始就具有多时标、多路径的控制结构，而不是让单一模型同时兼顾所有控制目标。
+
+> 💡 关键：NeuroVLA 的创新点不只是“把 SNN 接到 VLA 后面”，而是把具身控制问题显式分解为语义规划、动态稳定和快速执行三种不同时间尺度的子问题，再用不同计算底层分别实现。
+
+##### 核心机制一：皮层语义计划 + 小脑状态调制
+
+论文将控制过程抽象为一个层级组合：
+
+$$
+a_t = \Phi_{\text{spine}}\big(\Phi_{\text{cerebellum}}(\Phi_{\text{cortex}}(I_t, L), h_t)\big)
+$$
+
+其中 \(I_t\) 是视觉输入，\(L\) 是语言指令，\(h_t\) 是由本体感觉历史提取出的动态上下文。高层的 Cortical 模块先从图像和语言得到语义意图 \(z_{\text{sem}}\)，而不是直接出最终动作。之后，小脑模块再用来自关节位置、速度、力/力矩等本体感觉历史的信息，去重新塑形这个语义意图。
+
+具体地，Cerebellar 模块使用一个 GRU 对状态历史编码，并通过 gated FiLM 风格的调制把动态身体状态写回语义 latent：
+
+$$
+z_{\text{mod}} = (1+\gamma_t)\,(z_{\text{sem}}\cdot g_t) + \beta_t
+$$
+
+这里 \(g_t\) 是门控因子，\(\gamma_t\) 和 \(\beta_t\) 是由本体感觉上下文生成的调制参数。直觉上，这一步相当于“让身体状态去修正意图”。例如，当机器人检测到接触扰动或运动抖动时，小脑模块不必重新调用重型 VLM 做语义重推理，而是直接基于动态反馈对高层意图做增益抑制、偏置补偿和阻尼修正。
+
+##### 核心机制二：迭代精炼与数字化传出副本
+
+论文进一步加入了 iterative refinement loop，用来模拟生物系统中的 efference copy。也就是说，系统并不是只调制一次高层意图就结束，而是把“当前动作计划会引起怎样的状态变化”纳入一个短回路里反复精炼。这个机制的意义在于：在动作真正交给执行层之前，模型已经提前在内部做了一次或多次快速动力学修正。
+
+这类设计与普通 Transformer 的多层前馈不同，它不是单纯加深网络，而是在结构上显式引入“动作意图 - 预测状态 - 再修正意图”的闭环。对于机器人控制，这一步尤其重要，因为真实误差很多并不来自视觉理解，而来自摩擦、关节迟滞、重力补偿不准和瞬时接触扰动。论文报告的抖动下降和更平滑的轨迹，本质上就是这种中频稳定化回路在起作用。
+
+> ⚠️ 注意：NeuroVLA 的目标不是让皮层模块更强，而是让高层规划不要承担本该由低层控制系统处理的快速稳定任务。这样既减少高层负担，也使高频控制不再被大模型推理延迟拖慢。
+
+##### 核心机制三：脊髓式脉冲执行与快速反射
+
+NeuroVLA 最具“神经形态”特征的部分在于 Spinal 层。这里论文使用 LIF（Leaky Integrate-and-Fire）神经元构建脉冲网络，并部署到神经形态处理器上做动作执行。典型的膜电位更新形式可以写成：
+
+$$
+u_i^{(l)}[\tau] = \beta u_i^{(l)}[\tau-1] + \sum_j w_{ij}s_j^{(l-1)}[\tau] - s_i^{(l)}[\tau-1]\theta
+$$
+
+其中 \(u\) 是膜电位，\(\beta\) 是衰减系数，\(s\) 是离散脉冲发放，\(\theta\) 是发放阈值。与常规 ANN 不同，这种状态会在时间上自然积累和泄漏，因此不需要显式 RNN，也能保留一部分短时动态记忆。论文把这种性质与 temporal memory、temporal sparsity 以及快速 reflex 联系起来。
+
+更重要的是，这个脊髓层不必经过完整的高层语义通路就能响应高风险输入。于是碰撞或异常力反馈出现时，可以直接触发本地快速反射，论文给出的量级是 **小于 20ms**。这和依赖高层 VLM 重新规划的路径相比，时延差距是决定性的。与此同时，神经形态执行层的功耗只有 **0.4W**，说明它不仅快，而且便宜，适合长时间运行的实体机器人。
+
+##### 与传统 VLA 的区别
+
+如果把 OpenVLA、RT-2 这类方法看作“强语义、大一统”的 VLA，那么 NeuroVLA 更像“多层闭环控制系统”。它没有放弃 VLA 的语义能力，而是承认机器人控制里存在不同的时间尺度和不同的计算需求：高层需要强语义，中层需要状态估计和阻尼，低层需要快速局部反射。传统方法通常把这些问题都压到单一大模型里统一求解，而 NeuroVLA 则通过结构分工把它们拆开。
+
+这也是为什么论文强调的不只是成功率，而是一些更偏控制系统属性的指标：**抖动降低、时序记忆、反射延迟、能耗**。这些指标共同说明，NeuroVLA 不仅在“会不会做任务”上发力，也在“动作是否更像一个真实生物控制系统”上发力。对于 VLA 进入高速、接触丰富、人机共处的真实场景，这种转向是有意义的。
+
+#### 🧪 练习题
+
+```yaml
+question: "NeuroVLA 中负责利用高频本体感觉反馈对高层语义意图进行稳定化调制的模块是哪个？"
+options:
+  - "Cortical 模块，因为它负责理解语言和视觉"
+  - "Cerebellar 模块，因为它负责基于状态历史进行动态增益调制"
+  - "Spinal 模块，因为它直接在神经形态芯片上输出动作"
+  - "训练数据清洗模块，因为它降低了动作噪声"
+answer: 1
+explain: "NeuroVLA 的 Cerebellar 模块对应生物小脑，核心职责就是读取本体感觉历史并通过 gated FiLM 和迭代精炼去修正高层意图，从而抑制抖动并提升运动稳定性。"
 ```
-u_i^(l)[tau] = beta * u_i^(l)[tau-1]
-             + sum_j w_ij * s_j^(l-1)[tau]
-             - s_i^(l)[tau-1] * theta
-```
-
-其中beta∈(0,1)为膜衰减因子，s_j^(l-1)[tau]∈{0,1}为前层脉冲序列，theta为复位电压。这一stateful设计赋予脊髓底物**隐式时序工作记忆**——无需显式循环门控单元（如LSTM）即可编码历史依赖特征。当输入静止时，膜电位自然衰减至静息态（temporal sparsity涌现），大幅降低功耗。
-
-**深度脉冲残差架构**：为避免深层SNN的信号退化，采用Spiking ResNet设计：
-
-```
-x^(l+1) = x^(l) + LIF( Linear( x^(l) ) )
-```
-
-残差跳跃连接保证梯度无损传播，使深层SNN能学习复杂的感觉运动转换，同时保持脉冲编码的稀疏优势和时序记忆能力。
-
-#### 4. 涌现的生物运动特性与实验结果
-
-论文报告了四项无需额外数据或显式监督即自发涌现的生物运动能力：
-
-| 涌现特性 | 表现 | 生物学对应 |
-|---------|------|-----------|
-| **运动阻尼** | 高频意图震颤被抑制，jerk降低>75% | 小脑对运动指令的平滑滤波 |
-| **时序节律** | 在噪声视觉下仍预测任务阶段 | 小脑时序记忆与误差校正 |
-| **时空稀疏** | 静止时神经元自发休眠 | 生物神经元的能量最小化 |
-| **碰撞反射** | <20ms触觉反射（vs皮层>200ms）| 脊髓反射弧绕过脑皮层 |
-
-**Few-shot学习能力**：仅使用VLM预训练权重加几百条下游样本微调，任务成功率超越使用大规模专家数据预训练的基线方法，证实层次化解耦架构的样本效率优势。
-
-**能效**：神经形态芯片层（Spinal SNN）运行功耗仅0.4W，相比传统需要GPU全时推理的VLA方案，在大规模部署中具有显著的能耗优势。
-
-![神经形态芯片能效对比](https://ar5iv.labs.arxiv.org/html/2601.14628/assets/x6.png)
-
-#### 5. 训练策略：混合目标函数与代理梯度
-
-系统端到端训练，采用混合目标函数：行为克隆损失（MSE/负对数似然）+ 脉冲分量代理梯度（surrogate gradient method处理不可微的脉冲发放函数）。关键设计是三层模块虽功能解耦，但通过端到端梯度流保持功能一致性——皮层语义latent的更新受下游小脑调制效果和脊髓执行结果的反馈约束，确保"what to do"和"how to do"在优化层面保持协同。
-
----
-
-### 练习题（选做）
-
-1. **架构分析**：Cerebellar Module的Iterative Refinement（K=2）与标准Transformer的multi-step reasoning有何本质区别？如果K增大至5，可能带来什么副作用？
-
-2. **神经形态实现**：LIF神经元的stateful membrane dynamics提供了隐式时序记忆。请设计实验验证这一记忆机制对周期性运动任务（如搅拌、擦桌子）的性能提升是否超过显式GRU/LSTM。
-
-3. **安全与反射**：碰撞反射<20ms绕过了>200ms的皮层回路。如果机器人在高速运动中频繁触发这种短路反射，可能对任务成功率造成什么影响？如何在反射速度与任务坚持之间取得平衡？
-
-4. **可解释性**：Gated FiLM的调制参数(gamma_t, beta_t)提供了物理状态的"可读"编码。请提出一种可视化方法，展示不同任务阶段（接近物体→抓取→提起）的这些调制参数如何变化，并分析其与小脑功能区域（前庭小脑/脊髓小脑/大脑小脑）的对应关系。

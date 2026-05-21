@@ -37,8 +37,8 @@ algorithms:
   name: CLIPort
   full_name: 视觉语言操作路径 (CLIPort)
   year: '2022'
-  org: Google/UW
-  paper_url: https://proceedings.mlr.press/v164/shridhar22a.html
+  org: University of Washington / Google Research
+  paper_url: https://arxiv.org/abs/2109.12098
   category: spatial_3d
   parent: —
   motivation: 融合CLIP语义与Transporter几何精度
@@ -56,7 +56,7 @@ algorithms:
   full_name: 通用智能体 (Gato)
   year: '2022.05'
   org: DeepMind
-  paper_url: https://deepmind.google/research/publications/a-generalist-agent/
+  paper_url: https://arxiv.org/abs/2205.06175
   category: transformer_policy
   parent: —
   motivation: 单一Transformer处理600+多形态任务
@@ -82,7 +82,7 @@ algorithms:
   name: PaLM-E
   full_name: 具身多模态语言模型 (PaLM-E)
   year: '2023.03'
-  org: Google/TU Berlin
+  org: Google Research / TU Berlin
   paper_url: https://arxiv.org/abs/2303.03378
   category: vlm_finetune
   parent: —
@@ -127,7 +127,7 @@ algorithms:
   name: RT-X
   full_name: 跨形态机器人Transformer (RT-X)
   year: '2023.10'
-  org: Google/OXE
+  org: Google DeepMind / Open X-Embodiment Collaboration
   paper_url: https://arxiv.org/abs/2310.08864
   category: transformer_policy
   parent: rt2
@@ -136,7 +136,7 @@ algorithms:
   name: RoboFlamingo
   full_name: 机器人火烈鸟 (RoboFlamingo)
   year: '2023.11'
-  org: ByteDance/清华
+  org: ByteDance Research / Tsinghua University
   paper_url: https://arxiv.org/abs/2311.01378
   category: vlm_finetune
   parent: palm_e
@@ -154,7 +154,7 @@ algorithms:
   name: Octo
   full_name: 开源通用机器人策略 (Octo)
   year: '2024.05'
-  org: UC Berkeley等
+  org: UC Berkeley / Stanford / CMU / Google DeepMind
   paper_url: https://arxiv.org/abs/2405.12213
   category: diffusion_flow
   parent: roboagent
@@ -182,7 +182,7 @@ algorithms:
   full_name: 物理智能零号 (π0)
   year: '2024.10'
   org: Physical Intelligence
-  paper_url: https://www.pi.website/blog/pi0
+  paper_url: https://www.pi.website/download/pi0.pdf
   category: diffusion_flow
   parent: octo
   motivation: 流匹配动作专家支持50Hz高频控制
@@ -198,21 +198,21 @@ algorithms:
 - id: long_vla
   name: Long-VLA
   full_name: 长程视觉语言动作 (Long-VLA)
-  year: '2025.09'
-  org: CoRL 2025
-  paper_url: https://proceedings.mlr.press/v305/
+  year: '2025.08'
+  org: Westlake University / Zhejiang University / Xi'an Jiaotong University / UESTC / BUAA
+  paper_url: https://arxiv.org/abs/2508.19958
   category: transformer_policy
   parent: openvla
   motivation: 相位感知输入掩码解决长程任务
 - id: groot_n2
   name: GR00T N2
-  full_name: 英伟达人形基础模型 (GR00T N2)
-  year: '2026.03'
-  org: NVIDIA
-  paper_url: https://nvidianews.nvidia.com/news/nvidia-partners-with-global-robotics-ecosystem-to-power-production-scale-physical-ai
+  full_name: 世界动作模型 (DreamZero / GR00T N2)
+  year: '2026.02'
+  org: NVIDIA Research
+  paper_url: https://arxiv.org/abs/2602.15922
   category: diffusion_flow
   parent: helix
-  motivation: 世界动作模型预测物理状态演变
+  motivation: 联合预测视频与动作，零样本泛化与跨本体迁移显著提升
 - id: dfm_vla
   name: DFM-VLA
   full_name: 离散流匹配VLA (DFM-VLA)
@@ -224,13 +224,13 @@ algorithms:
   motivation: 迭代细化动作Token解决轨迹不稳定
 - id: pangu_embodied
   name: 盘古具身智能
-  full_name: 盘古具身智能大模型 (Pangu-Embodied)
-  year: '2026.03'
-  org: 华为
-  paper_url: https://www.huawei.com/cn/news/2026/3/huawei-full-stack-tech-2026
+  full_name: CloudRobo具身规划模型 (Pangu Robo Embodied Planning Model)
+  year: '2025.06'
+  org: Huawei Cloud
+  paper_url: https://www.huaweicloud.com/intl/zh-cn/news/20250620101057482.html
   category: llm_planning
   parent: code_as_policies
-  motivation: 10步+长程规划星闪纳秒级同步
+  motivation: 世界模型与规划执行三模型协同，面向跨本体具身任务规划
 - id: gemini_robotics_er
   name: Gemini Robotics-ER
   full_name: Gemini具身推理 (Gemini Robotics-ER)
@@ -243,30 +243,30 @@ algorithms:
 - id: univla
   name: UniVLA
   full_name: 统一视觉语言动作 (UniVLA)
-  year: '2026.04'
-  org: ICLR 2026
-  paper_url: https://openreview.net/forum?id=UniVLA_Paper_ID
+  year: '2025.06'
+  org: CASIA / BAAI / THU / HKISI
+  paper_url: https://arxiv.org/abs/2506.19850
   category: vlm_finetune
   parent: openvla
-  motivation: 原生多模态统一Token化达95.5%
+  motivation: 统一视觉语言动作Token化，并用world model后训练增强长程策略学习
 - id: hy_embodied
   name: HY-Embodied
-  full_name: 腾讯混元具身 (HY-Embodied-0.5)
+  full_name: 混元具身基础模型 (HY-Embodied-0.5)
   year: '2026.04'
-  org: 腾讯
-  paper_url: https://arxiv.org/abs/2604.07430v1
+  org: Tencent Robotics X / HY Vision
+  paper_url: https://arxiv.org/abs/2604.07430
   category: vlm_finetune
   parent: univla
-  motivation: MoT架构解耦视觉语言22项领先
+  motivation: MoT与视觉潜在Token增强空间感知，并蒸馏2B边缘具身模型
 - id: neurovla
   name: NeuroVLA
-  full_name: 类脑VLA (NeuroVLA)
-  year: '2026.04'
-  org: 智平方
-  paper_url: https://www.leiphone.com/category/ai/VLA-NeuroVLA-GuoYandong.html
+  full_name: 神经形态视觉-语言-动作 (NeuroVLA)
+  year: '2026.01'
+  org: AI2 Robotics / HKUST(GZ)
+  paper_url: https://arxiv.org/abs/2601.14628
   category: transformer_policy
   parent: hpt
-  motivation: 类脑架构0.4W功耗20ms生存本能
+  motivation: 模拟皮层-小脑-脊髓分层控制，实现低功耗快速反射
 - id: pi0_7
   name: π0.7
   full_name: 物理智能零点七 (π0.7)
@@ -277,14 +277,14 @@ algorithms:
   parent: pi0
   motivation: 组合泛化支持跨多种机器人本体
 - id: openvla2
-  name: OpenVLA 2
-  full_name: 开源VLA第二代 (OpenVLA 2)
-  year: '2026.05'
-  org: OpenVLA Consortium
-  paper_url: https://robotwale.com/openvla-2-released-with-improved-generalisation/
+  name: OpenVLA-OFT
+  full_name: 开源VLA优化微调 (OpenVLA-OFT)
+  year: '2025.02'
+  org: Stanford
+  paper_url: https://arxiv.org/abs/2502.19645
   category: vlm_finetune
   parent: openvla
-  motivation: 自适应推理模块多机协作泛化提升30%
+  motivation: 并行解码与连续动作兼顾速度、质量和高频控制
 - id: last_r1
   name: LaST-R1
   full_name: 潜在空间推理R1 (LaST-R1)
@@ -365,7 +365,7 @@ graph:
     y: 1
     category: transformer_policy
   - id: pi0
-    x: 2024.1
+    x: 2024.10
     y: 3
     category: diffusion_flow
   - id: helix
@@ -373,11 +373,11 @@ graph:
     y: 3
     category: diffusion_flow
   - id: long_vla
-    x: 2025.09
+    x: 2025.08
     y: 1
     category: transformer_policy
   - id: groot_n2
-    x: 2026.03
+    x: 2026.02
     y: 3
     category: diffusion_flow
   - id: dfm_vla
@@ -385,7 +385,7 @@ graph:
     y: 3.3
     category: diffusion_flow
   - id: pangu_embodied
-    x: 2026.03
+    x: 2025.06
     y: 4
     category: llm_planning
   - id: gemini_robotics_er
@@ -409,7 +409,7 @@ graph:
     y: 3.2
     category: diffusion_flow
   - id: openvla2
-    x: 2026.05
+    x: 2025.02
     y: 2
     category: vlm_finetune
   - id: last_r1
@@ -485,7 +485,7 @@ graph:
     label: 组合泛化
   - from: openvla
     to: openvla2
-    label: 自适应推理
+    label: 优化微调
   - from: pi0_7
     to: last_r1
     label: 潜在推理
