@@ -1,5 +1,5 @@
 /**
- * llm_rlhf-data.js — 由 pipeline/build.py 于 2026-05-21 11:23:26 自动生成。
+ * llm_rlhf-data.js — 由 pipeline/build.py 于 2026-05-26 10:35:19 自动生成。
  * 源文件：content/llm/llm_rlhf.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */

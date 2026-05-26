@@ -511,27 +511,12 @@ def download_one(
         md_path = os.path.join(out_dir, "article.md")
         _meta = item.get("meta") or {}
         _author = _meta.get("author", "") or "-"
-        _voteup = _meta.get("voteup_count", 0)
-        _comment = _meta.get("comment_count", 0)
-        _zfav = _meta.get("zfav_count", 0)
-        _ct = _meta.get("created_time", 0) or 0
-        _created_str = (
-            time.strftime("%Y-%m-%d", time.localtime(int(_ct))) if _ct else "-"
-        )
         header = (
             f"# {result['title'] or raw_title}\n\n"
             f"- 来源平台: **{platform}**（知乎专栏文章）\n"
             f"- 原文链接: <{url}>\n"
             f"- 作者: {_author}\n"
-            f"- 发表日期: {_created_str}\n"
-            f"- 互动数据: 👍 {_voteup} 赞 / 💬 {_comment} 评 / ⭐ {_zfav} 藏\n"
-            f"- 搜索命中查询: {', '.join(item.get('queries', []))}\n"
-            f"- 启发式分: {item.get('heuristic_score')}\n"
-            f"- LLM 三维分: {item.get('llm_scores')} (加权总分 {item.get('llm_total')})\n"
-            f"- 综合分: {item.get('final_score')}\n"
-            f"- LLM 点评: {item.get('llm_reason', '')}\n"
-            f"- 抓取方式: {source}\n"
-            f"- 抓取时间: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+            "\n"
             "---\n\n"
         )
         with open(md_path, "w", encoding="utf-8") as f:

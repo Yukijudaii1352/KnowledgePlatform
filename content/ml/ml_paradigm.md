@@ -1292,15 +1292,119 @@ motivation: 对比学习框架强调大批量训练
 ```
 
 #### 📝 一句话总结
-SimCLR 的核心目标是：对比学习框架强调大批量训练。
+SimCLR 用“同一图像的两种随机增强视图互相接近、不同图像的视图彼此远离”这一极简对比学习目标，统一了数据增强、编码器、投影头和 NT-Xent 损失四个组件，在不使用 memory bank 或动量编码器的前提下，把视觉自监督学习推到接近监督预训练的水平。它的真正贡献不只是提出一个 loss，而是系统揭示了强增强、非线性投影头、大 batch 和长训练在对比学习中的决定性作用。
 
 #### 🎯 核心要点
-- 核心动机：对比学习框架强调大批量训练
-- 代表机构：Google
+- 双视图对比框架：对同一张图像独立采样两次增强，形成正样本对，其余样本都作为负样本
+- 三类关键增强：随机裁剪并缩放、随机颜色扰动、随机高斯模糊；其中裁剪 + 颜色扰动的组合最关键
+- 编码器 + 投影头：用 ResNet 提取表示 \(h\)，再用一层隐藏层的 MLP 投影到 \(z\) 空间计算对比损失
+- NT-Xent 损失：在归一化嵌入上做温度缩放 softmax，使正对相似度高、负对相似度低
+- 大 batch 训练：不使用 memory bank，而是直接依赖大 batch 在批内提供大量负样本
+- 训练后丢弃投影头：下游任务使用编码器输出的 \(h\)，而不是训练损失所在的 \(z\)
+- 系统性消融：论文明确证明投影头、温度参数、增强策略、batch size 和训练轮数都会显著影响效果
 
 #### 🔬 深入细节
-对比学习框架强调大批量训练
+##### 核心示意图
 
+![SimCLR 框架图](https://1.bp.blogspot.com/-LpvCxgNepEI/Xo4axqZpoNI/AAAAAAAAFpE/NKjDKOQSnVEdq-gHUCDtl88LaUczNX_pACLcBGAsYHQ/s400/image2.png)
+*图：Google Research 博客给出的 SimCLR 框架示意。每个样本经过两次随机增强，送入共享的编码器 \(f(\cdot)\) 和投影头 \(g(\cdot)\)，在投影空间最大化正样本对一致性。*
+
+##### 算法伪代码
+
+```python
+# SimCLR
+for minibatch in dataloader:                # {x_k}_{k=1}^N
+    z_list = []
+    h_list = []
+
+    for x in minibatch:
+        x_i = augment(x)                    # random crop + color distort + blur
+        x_j = augment(x)
+
+        h_i = encoder(x_i)                  # ResNet representation
+        h_j = encoder(x_j)
+        z_i = projector(h_i)                # MLP projection head
+        z_j = projector(h_j)
+
+        h_list.extend([h_i, h_j])
+        z_list.extend([normalize(z_i), normalize(z_j)])
+
+    loss = 0.0
+    for i, j in positive_pairs(z_list):
+        numerator = exp(sim(z_list[i], z_list[j]) / tau)
+        denominator = sum(
+            exp(sim(z_list[i], z_list[k]) / tau)
+            for k in range(len(z_list)) if k != i
+        )
+        loss += -log(numerator / denominator)
+
+    loss /= len(z_list)
+    optimize(loss)
+
+# downstream 只保留 encoder，丢弃 projector
+```
+
+##### 动机与背景
+
+在 SimCLR 之前，视觉自监督学习已经有不少对比学习方法，但大多依赖 memory bank、专门的网络结构、复杂的采样策略，或者需要额外的动量编码器。SimCLR 的目标非常明确：把这类方法压缩成一个“任何人都能在标准图像分类 pipeline 里复用”的最小框架，同时搞清楚到底是什么因素真正让对比学习有效。
+
+论文把问题拆成四个模块：数据增强、编码器、投影头、对比损失。其核心观点是，视觉自监督学习的 supervision 不来自标签，而来自“你如何构造两个应该相似的视图”。换句话说，增强策略本身就是任务定义。如果任务定义得太简单，模型就会学到捷径而不是语义表示。
+
+##### 核心机制 1：两视图正样本与批内负样本
+
+给定一张原图 \(x\)，SimCLR 从增强分布 \(\mathcal{T}\) 中独立采样两次变换，得到 \(\tilde{x}_i\) 和 \(\tilde{x}_j\)，把它们视为一个正样本对。一个 batch 中原本有 \(N\) 张图，因此会生成 \(2N\) 个增强样本。对任意一个 anchor \(i\)，除去与它匹配的正样本 \(j\) 外，其余 \(2N-2\) 个样本都被当作负样本。
+
+编码器 \(f(\cdot)\) 输出表示 \(h\)，投影头 \(g(\cdot)\) 把 \(h\) 映射到对比空间中的 \(z\)。论文明确写出，投影头是一个含单个隐藏层的 MLP：
+
+$$
+z_i = g(h_i) = W^{(2)} \sigma\!\left(W^{(1)} h_i\right).
+$$
+
+这个设计看似简单，但它是 SimCLR 的关键发现之一：在 \(z\) 上做对比学习，比直接在 \(h\) 上做效果明显更好，而真正适合下游任务的表示反而往往是投影前的 \(h\)。
+
+##### 核心机制 2：NT-Xent 对比损失
+
+SimCLR 使用归一化温度缩放交叉熵损失（NT-Xent）。对正样本对 \((i,j)\)，单项损失为：
+
+$$
+\ell_{i,j} =
+- \log
+\frac{
+\exp(\mathrm{sim}(z_i, z_j)/\tau)
+}{
+\sum_{k=1}^{2N}\mathbf{1}[k \neq i]\exp(\mathrm{sim}(z_i, z_k)/\tau)
+},
+$$
+
+其中 \(\mathrm{sim}(u,v)=\frac{u^\top v}{\|u\|\|v\|}\) 是余弦相似度，\(\tau\) 是温度参数。最终损失会对 batch 中所有正样本对的两个方向同时求平均。
+
+这个式子的本质，是把“识别与 anchor 匹配的那个视图”写成一个 \(2N-1\) 类 softmax 分类问题。温度 \(\tau\) 控制 softmax 的尖锐程度：温度太高，正负样本区分不明显；温度太低，训练会过于极端、数值不稳定。论文的系统实验表明，归一化嵌入加合适温度，对性能影响非常大。
+
+##### 为什么增强组合这么重要
+
+论文最有价值的结论之一，是“强增强不是锦上添花，而是任务本身”。如果只有随机裁剪而没有颜色扰动，不同 crop 之间的颜色直方图可能高度相似，模型就能靠颜色统计这一浅层线索完成匹配，而不必真正理解语义内容。随机颜色扰动和高斯模糊，恰好是用来破坏这些捷径的。
+
+因此 SimCLR 的强大不在于发明了一个复杂结构，而在于把自监督任务定义得足够难且足够合理：模型必须在外观、颜色、局部视野都变化的情况下，仍然识别“这两张图其实来自同一个对象/场景”。这迫使它学习可迁移的语义表示，而不是低层像素模式。
+
+> 💡 关键：SimCLR 证明了视觉对比学习里最重要的不是“多一个模块”，而是“如何构造不让模型走捷径的正样本任务”。
+
+##### 大 batch、长训练与无 memory bank 设计
+
+SimCLR 不使用 memory bank，而是直接把 batch 做大。论文在方法部分明确指出，batch size 可以从 256 一直扩到 8192；当 \(N=8192\) 时，每个正样本对会天然拥有 \(16382\) 个批内负样本。这让实现更简洁，也使损失定义保持端到端一致。
+
+这种设计的代价是训练资源需求高，因此论文配套使用了 LARS 优化器和更长训练周期。实验表明，对比学习从更大的模型、更大的 batch、更长的训练里得到的收益，往往比监督学习更明显。最终，SimCLR 在 ImageNet 线性评估上达到 76.5% top-1，首次把纯自监督视觉表示拉到接近监督 ResNet-50 的水平。
+
+#### 🧪 练习题
+```yaml
+question: "为什么 SimCLR 要在编码器表示 h 之后再接一个投影头 g(h) 来计算对比损失？"
+options:
+  - "因为投影头负责生成图像增强后的新像素"
+  - "因为在投影空间 z 上做对比学习更有效，同时能让下游使用的 h 保留更多有用信息"
+  - "因为投影头可以把对比学习变成生成模型"
+  - "因为没有投影头就无法构造正样本对"
+answer: 1
+explain: "论文的关键消融发现之一就是：在 z 上优化对比损失比直接在 h 上优化更好，而下游任务常常更适合使用投影前的表示 h。"
+```
 
 ### MAE
 
@@ -1639,26 +1743,129 @@ id: dinov3
 num: 11
 name: DINOv3
 full_name: Self-Distillation with No Labels v3
-year: '2026'
-org: Meta
+year: '2025'
+org: Meta AI Research
 parent: ijepa
-paper_url: https://arxiv.org/abs/2603.00160
+paper_url: https://arxiv.org/abs/2508.10104
 project_url: ''
 category: frontier
-motivation: Gram锚定损失解决长尾分布
+motivation: Gram锚定缓解长训练下稠密特征退化
 ```
 
 #### 📝 一句话总结
-DINOv3 的核心目标是：Gram锚定损失解决长尾分布。
+DINOv3 将 DINO 风格自监督训练扩展到 7B 级视觉骨干，并提出 Gram anchoring 来专门修复“大模型 + 长训练”下稠密特征图逐步退化的问题，使一个冻结的自监督视觉编码器同时在全局识别和密集预测任务上达到新的通用基础模型水准。随后它再通过高分辨率适配和多学生蒸馏，把 7B teacher 的能力压缩到一整套可部署的 ViT 家族中。
 
 #### 🎯 核心要点
-- 核心动机：Gram锚定损失解决长尾分布
-- 演化来源：继承或改进自 ijepa
-- 代表机构：Meta
+- 7B 级自监督 teacher：基于 DINOv2 / iBOT 路线继续放大模型和数据规模，构建 ViT-7B 主干
+- 数据与训练扩展：使用大规模无标签“background”数据，并混入少量专门数据；主训练阶段采用常数超参数训练 1M iterations
+- Gram anchoring：对学生 patch 特征的 Gram 矩阵施加约束，直接抑制长训练过程中 dense feature map 的退化
+- Gram teacher 机制：选取较早、稠密特征质量更好的 teacher 作为 Gram teacher，并每 10k iter 刷新一次
+- 精炼阶段目标：在 DINO、iBOT、Koleo 项之外加入 \(L_{\text{Gram}}\)，专门修复局部特征质量
+- 高分辨率后适配：增加 mixed-resolution 高分辨率阶段，使模型在 4K 级输入上仍保持稳定 dense features
+- 多学生蒸馏：从 7B teacher 并行蒸馏出 ViT-S/B/L/S+/H+ 等多个学生模型，兼顾效果与部署成本
 
 #### 🔬 深入细节
-Gram锚定损失解决长尾分布
+##### 核心示意图
 
+![DINOv3 多学生蒸馏流程图](https://ar5iv.labs.arxiv.org/html/2508.10104/assets/x18.png)
+*图：论文 Figure 12 展示的 multi-student distillation。DINOv3 先训练出 7B teacher，再共享 teacher inference，把知识并行蒸馏到多个不同规模的学生模型。*
+
+##### 算法伪代码
+
+```python
+# DINOv3 training pipeline (condensed)
+
+# Stage 1: large-scale self-distillation pretraining
+teacher = EMA(student_init())
+student = student_init()
+for step in range(1_000_000):
+    views = sample_global_and_local_crops(batch)
+    loss_dino = dino_global_loss(student, teacher, views.global_crops)
+    loss_ibot = ibot_patch_loss(student, teacher, views)
+    loss_koleo = koleo_regularizer(student, views.global_crops)
+    loss = w_d * loss_dino + loss_ibot + w_dkl * loss_koleo
+    optimize(student, loss)
+    update_ema(teacher, student)
+
+# Stage 2: refinement with Gram anchoring
+gram_teacher = snapshot_of_early_teacher()
+for step in range(refinement_steps):
+    X_s = l2_normalized_patch_features(student, global_crops_only=True)
+    X_g = l2_normalized_patch_features(gram_teacher, global_crops_only=True)
+    loss_gram = frobenius_norm(X_s @ X_s.T - X_g @ X_g.T) ** 2
+    loss_ref = w_d * loss_dino + loss_ibot + w_dkl * loss_koleo + w_gram * loss_gram
+    optimize(student, loss_ref)
+    update_ema(teacher, student)
+    if step % 10_000 == 0:
+        gram_teacher = copy(teacher)
+
+# Stage 3: high-resolution adaptation
+train_with_mixed_resolutions(student, teacher, use_gram=True)
+
+# Stage 4: distillation to practical backbones
+for student_model in [vit_s, vit_b, vit_l, vit_s_plus, vit_h_plus]:
+    distill_from_teacher(vit_7b_teacher, student_model)
+```
+
+##### 动机与背景
+
+DINOv2 已经证明了自监督视觉模型可以作为强大的通用编码器，但论文指出，继续单纯扩大模型规模和训练时长时，会出现一个之前没有被真正解决的问题：**全局识别能力继续上涨，但局部 patch 特征会逐渐变脏，dense feature map 在长训练后退化**。这意味着模型在分类、检索等全局任务上更强了，却可能在分割、跟踪、匹配等依赖局部空间一致性的任务上变差。
+
+DINOv3 的核心目标，就是不再把“全局语义”和“局部稠密特征”视为天然兼容，而是明确承认两者会冲突，并为 dense features 单独设计修复机制。论文把这一问题概括为：大规模 SSL 模型需要成为真正的 frozen universal visual encoder，就不能只看 ImageNet linear probe，而必须保证 patch-level consistency 也能在长训练中维持住。
+
+##### 7B 基础模型：先把 DINO 路线扩到极限
+
+在基础架构上，DINOv3 并没有抛弃 DINOv2，而是沿着这条路继续做大。论文先构建了一个 7B 参数的 ViT teacher，引入 axial RoPE 等现代位置编码设计，并改掉 DINOv2 中多段 cosine schedule 的做法，转而采用**常数超参数训练 1M iterations**。这一步的目的很明确：先证明在超大无标签数据上，自监督 teacher 本身可以继续扩展。
+
+但作者紧接着就发现，单纯扩展虽然能继续提高 global representation，却会让 dense features 恶化。论文在多处可视化里展示了这个现象：patch token 之间的局部相似性随着训练推进变得越来越噪，说明模型在“看懂整张图”和“保留局部空间结构”之间发生了失衡。
+
+##### Gram anchoring：不直接锁特征，而是锁特征之间的关系
+
+DINOv3 最核心的创新是 Gram anchoring。作者不是直接要求学生 patch 特征去逼近某个旧 teacher 的特征向量，而是约束它们的 **Gram matrix**，也就是 patch 之间两两点积组成的相似性结构。记学生和 Gram teacher 的 L2 归一化局部特征分别为 \(X_S, X_G \in \mathbb{R}^{P \times d}\)，则：
+
+$$
+L_{\text{Gram}} =
+\left\|
+X_S X_S^\top - X_G X_G^\top
+\right\|_F^2.
+$$
+
+这个设计的直觉非常强。若直接约束特征向量本身，学生会被强行锁死在旧表示上，不利于继续提升全局语义能力；而约束 Gram matrix 则只要求“局部 patch 之间的相对关系别崩”，允许具体特征坐标继续移动。换句话说，DINOv3 锁住的是 dense representation 的几何结构，而不是每个 token 的绝对数值。
+
+论文进一步说明，Gram loss 只施加在 global crops 上，并且出于效率考虑，不是在一开始就用，而是**主训练完成 1M iterations 之后**才进入 refinement step。更关键的是，Gram teacher 不是固定死的，而是从早期 teacher 开始，在 refinement 阶段每隔 10k iterations 更新一次，使其逐步对齐当前 EMA teacher，但始终保留“局部特征更稳定”的参考作用。
+
+##### 精炼阶段与高分辨率适配
+
+Gram anchoring 并不是单独训练，而是被加进 refinement objective 中：
+
+$$
+L_{\text{Ref}} =
+w_D L_{\text{DINO}} + L_{\text{iBOT}} + w_{DKL} D_{\text{Koleo}} + w_{\text{Gram}} L_{\text{Gram}}.
+$$
+
+这里最关键的是，它没有替换掉原本的 DINO / iBOT 自监督目标，而是在保持全局语义学习的同时，额外补上对 dense feature structure 的约束。论文观察到，加入 Gram objective 后，iBOT loss 会更快下降，说明 Gram anchoring 其实也在间接稳住 patch-level 学习过程。
+
+在此基础上，DINOv3 还额外做了 high-resolution adaptation。作者指出，很多真实应用并不是在 \(224\) 或 \(518\) 分辨率下工作，而是需要 1K、2K 甚至 4K 输入。因此 DINOv3 在后处理阶段继续用 mixed-resolution global/local crops 训练，并继续使用 Gram anchoring，以保证模型在超高分辨率下仍能保持干净的局部特征图。这一点对分割、跟踪、匹配这类 dense tasks 很关键。
+
+> 💡 关键：DINOv3 的本质不是“再做一个更大的 DINO”，而是明确把 dense feature degeneration 当成独立问题，并用 Gram matrix 约束专门修复它。
+
+##### 多学生蒸馏：把 7B teacher 变成可用的模型家族
+
+仅有 7B teacher 还不够实用，因此论文最后一步是蒸馏。它把 7B teacher 作为固定教师，蒸馏到多个 ViT 学生中，并设计了 **single-teacher / multi-student** 并行蒸馏流程：先在全局组共享 teacher inference，再把结果 all-gather 到各学生组分别训练。这样做的好处是 teacher 推理成本被多学生共享，新增学生主要只增加自己的训练成本，整体效率明显高于串行蒸馏。
+
+最终，DINOv3 不只是一个大模型，而是一整套视觉基础模型家族。论文报告显示，冻结 backbone 即可在 COCO detection、ADE20K segmentation、DAVIS tracking 等任务上达到或超过当时专门设计的强基线，这也是它和“只会做图像分类的 SSL 模型”之间最本质的差别。
+
+#### 🧪 练习题
+```yaml
+question: "DINOv3 中 Gram anchoring 的直接作用对象是什么？"
+options:
+  - "图像像素重建误差"
+  - "学生与教师 patch 特征两两相似性构成的 Gram 矩阵"
+  - "分类头的 softmax 概率"
+  - "文本与图像的跨模态对齐分数"
+answer: 1
+explain: "DINOv3 不是直接对齐 patch 特征向量本身，而是约束学生和 Gram teacher 的 Gram matrix，从而稳住局部特征的关系结构并缓解 dense feature 退化。"
+```
 
 ### DQN
 
@@ -1677,15 +1884,124 @@ motivation: 深度Q网络实现人类水平游戏
 ```
 
 #### 📝 一句话总结
-DQN 的核心目标是：深度Q网络实现人类水平游戏。
+DQN 将卷积神经网络、经验回放和目标网络结合到 Q-learning 中，把 Atari 原始像素直接映射为各动作的 \(Q\) 值，首次在统一架构和固定超参数下实现了跨 49 个游戏的人类水平强化学习控制。2015 年 Nature 版本在 2013 年 workshop 论文基础上补全了目标网络、稳定化训练细节与大规模评测，奠定了深度强化学习的标准范式。
 
 #### 🎯 核心要点
-- 核心动机：深度Q网络实现人类水平游戏
-- 代表机构：DeepMind
+- 端到端像素控制：输入为 \(84 \times 84 \times 4\) 的连续帧堆叠，输出为每个合法动作的 \(Q\) 值
+- 卷积 Q 网络：3 层卷积 + 1 层 512 维全连接 + 动作线性输出层，用表示学习替代手工特征
+- 经验回放：把转移样本写入 replay memory，并从中均匀随机采样 mini-batch，打破时间相关性
+- 目标网络：每隔 \(C\) 步复制一次在线网络参数，用冻结的 \(\hat{Q}\) 生成 bootstrap target，降低目标漂移
+- 奖励裁剪：训练时把正奖励裁成 \(+1\)、负奖励裁成 \(-1\)，统一不同游戏的 reward scale
+- 误差裁剪：把 TD 误差裁到 \([-1, 1]\) 之外时转成绝对值型梯度，提升优化稳定性
+- 最小先验知识：同一网络结构、同一学习算法、同一超参数直接迁移到 49 个 Atari 游戏
 
 #### 🔬 深入细节
-深度Q网络实现人类水平游戏
+##### 核心示意图
 
+![DQN 卷积 Q 网络结构图](https://media.springernature.com/m312/springer-static/image/art%3A10.1038%2Fnature14236/MediaObjects/41586_2015_BFnature14236_Fig1_HTML.jpg)
+*图：Nature 2015 论文中的 DQN 网络结构。输入是预处理后的 \(84 \times 84 \times 4\) 图像堆叠，经过 3 层卷积和 2 层全连接后，一次前向传播直接输出所有动作的 \(Q\) 值。*
+
+##### 算法伪代码
+
+```python
+# DQN with experience replay and target network
+replay = ReplayBuffer(capacity=N)
+Q = ConvQNetwork()
+Q_target = copy(Q)
+
+for episode in range(M):
+    s = env.reset()
+    phi = preprocess_and_stack(s)  # 84x84x4
+
+    for t in range(T):
+        if random() < epsilon:
+            a = random_action()
+        else:
+            a = argmax_a(Q(phi)[a])
+
+        s_next, r, done = env.step(a)
+        phi_next = preprocess_and_stack(s_next)
+        replay.add(phi, a, r, phi_next, done)
+
+        batch = replay.sample(batch_size)
+        targets = []
+        for phi_j, a_j, r_j, phi_next_j, done_j in batch:
+            if done_j:
+                y_j = r_j
+            else:
+                y_j = r_j + gamma * max(Q_target(phi_next_j))
+            targets.append(y_j)
+
+        loss = mean((targets - Q(batch.phi, batch.a)) ** 2)
+        optimize(loss)
+
+        if step % C == 0:
+            Q_target.load_state_dict(Q.state_dict())
+
+        phi = phi_next
+        if done:
+            break
+```
+
+##### 动机与背景
+
+传统 Q-learning 在低维状态空间中可以直接维护 \(Q(s, a)\) 表，但在 Atari 这类高维视觉任务中，状态是 \(210 \times 160\) 的原始 RGB 图像，既无法枚举，也无法依赖手工特征稳定泛化。DQN 的核心目标，就是让一个卷积网络同时承担“状态表示学习”和“动作价值估计”两件事，把强化学习第一次真正推进到大规模视觉控制场景。
+
+但一旦把非线性神经网络塞进 Q-learning，训练立刻会变得不稳定。原因主要有三类：第一，连续时间步样本高度相关，违反了 SGD 假设的近似独立同分布；第二，网络一更新，策略就变，数据分布也跟着漂移；第三，bootstrap target 本身依赖当前网络，容易出现“自己追自己”的震荡。这三点正是 DQN 要解决的核心工程难题。
+
+##### 核心机制 1：把 Q-learning 写成可微目标
+
+论文将动作价值函数参数化为 \(Q(s, a; \theta)\)，并把单步 TD 更新改写为最小化平方 Bellman 误差：
+
+$$
+L_i(\theta_i) =
+\mathbb{E}_{(s,a,r,s') \sim U(D)}
+\left[
+\left(y_i - Q(s, a; \theta_i)\right)^2
+\right],
+$$
+
+其中 target 为
+
+$$
+y_i =
+\begin{cases}
+r, & s' \text{ 为终止状态} \\
+r + \gamma \max_{a'} \hat{Q}(s', a'; \theta_i^-), & \text{否则}
+\end{cases}
+$$
+
+这里最关键的变化有两个。第一，不再对每个状态动作单独更新，而是用卷积网络一次性输出所有动作的价值，从而能对视觉输入做泛化。第二，target 中使用冻结的目标网络 \(\hat{Q}\)，而不是直接用当前在线网络 \(Q\)。这让优化目标在若干步内近似固定，显著缓解了 bootstrap 造成的正反馈震荡。
+
+##### 核心机制 2：经验回放与目标网络如何稳定训练
+
+经验回放（experience replay）是 DQN 的第一根支柱。算法把每一步转移 \((s_t, a_t, r_t, s_{t+1})\) 存进 replay memory，并从中均匀随机抽样 mini-batch。这样做的作用不是“为了复用数据”这么简单，更重要的是把高度相邻、强相关的在线轨迹打散，从而让梯度估计更接近独立采样。论文明确指出，这既提升了样本效率，也降低了更新方差。
+
+目标网络（target network）是第二根支柱。论文做法是每隔 \(C\) 步把在线网络参数复制给目标网络一次，在这 \(C\) 步里都用旧参数产生 target。直觉上，这相当于给 Bellman target 增加一个时间延迟，让“被优化的函数”和“定义优化目标的函数”不要在同一时间尺度上一起快速漂移。DQN 后续所有重要分支，包括 Double DQN、Rainbow、Dueling DQN，几乎都保留了这个机制。
+
+##### 输入处理、网络结构与训练细节
+
+输入端也有一套非常关键的预处理。论文先对当前帧和前一帧做逐像素最大值，以消除 Atari 精灵闪烁；再抽取亮度通道并缩放到 \(84 \times 84\)；最后堆叠最近 \(m=4\) 帧，构造近似马尔可夫状态。这样做的核心原因是单帧图像无法表达速度与运动方向，而 4 帧堆叠可以把短时动态信息显式编码进去。
+
+网络本身采用标准而高效的卷积结构：第一层 32 个 \(8 \times 8\) 卷积核、stride 4；第二层 64 个 \(4 \times 4\) 卷积核、stride 2；第三层 64 个 \(3 \times 3\) 卷积核、stride 1；随后是 512 维全连接层和动作输出层。训练时还加入了两个常被忽略但很重要的稳定化技巧：一是 reward clipping，把所有正奖励压成 \(+1\)、负奖励压成 \(-1\)；二是 TD error clipping，把过大的平方误差梯度切换到绝对值型梯度区间，本质上类似后来的 Huber loss 思路。
+
+> 💡 关键：DQN 的真正突破不只是“用 CNN 近似 \(Q\) 函数”，而是同时用 replay memory 和 target network 解决了深度网络进入 bootstrap RL 后最致命的分布漂移与目标漂移问题。
+
+##### 与此前方法的区别
+
+在 DQN 之前，强化学习与深度学习的结合通常停留在“先学特征，再做 RL”或者“小网络 + 小任务”的阶段。DQN 直接把原始像素作为输入，用统一网络结构学习多种 Atari 游戏策略，证明了深度表示学习可以和时序差分学习结合并规模化工作。它把强化学习从依赖手工状态设计的阶段，推进到依赖表示学习的阶段，这也是后来 AlphaGo、MuZero、Decision Transformer、RLHF 一系列路线的基础前提。
+
+#### 🧪 练习题
+```yaml
+question: "DQN 中引入目标网络（target network）的主要作用是什么？"
+options:
+  - "增加动作空间大小，使网络能处理更多动作"
+  - "让输入从单帧图像变为四帧堆叠"
+  - "延迟 bootstrap target 的变化，减少训练震荡和发散"
+  - "把离策略学习改成在策略学习"
+answer: 2
+explain: "目标网络在若干步内保持冻结，用旧参数生成 y_j，从而避免在线网络更新后 target 同步剧烈漂移，这是 DQN 稳定训练的关键机制之一。"
+```
 
 ### PPO
 
@@ -1704,16 +2020,114 @@ motivation: 裁剪目标函数约束策略更新
 ```
 
 #### 📝 一句话总结
-PPO 的核心目标是：裁剪目标函数约束策略更新。
+PPO 用裁剪 surrogate objective 把“策略更新不要走太大步”直接写进目标函数里，使策略梯度方法能够在同一批 on-policy 数据上做多轮 mini-batch 优化，同时避免像 vanilla policy gradient 那样一更新就把策略推崩。它保留了 TRPO 的“近端更新”思想，但只需要一阶优化，因此很快成为强化学习和 RLHF 中最常用的策略优化算法。
 
 #### 🎯 核心要点
-- 核心动机：裁剪目标函数约束策略更新
-- 演化来源：继承或改进自 dqn
-- 代表机构：OpenAI
+- 裁剪目标函数：核心目标 \(L^{\text{CLIP}}\) 用 \(\min(\cdot,\cdot)\) 和 \(\mathrm{clip}(\cdot)\) 限制新旧策略概率比偏离 1 太远
+- 概率比重参数化：通过 \(r_t(\theta)=\frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)}\) 直接衡量策略更新幅度
+- 多 epoch 数据复用：同一批采样轨迹可以做多轮 mini-batch SGD / Adam 更新，显著提升样本效率
+- Actor-Critic 风格：策略网络负责行动，价值函数用于估计优势函数，实践里通常配合 GAE 使用
+- 两类 PPO 变体：论文同时讨论 KL-penalty 版和 clip 版，实验结论是 clip 版更稳、更简单
+- 兼顾简单与稳定：避免 TRPO 的二阶近似、共轭梯度和复杂约束求解，同时仍能抑制破坏性大更新
+- 广泛适配：在 MuJoCo 连续控制和 Atari 离散控制上都表现强势，后来也被 RLHF 直接复用
 
 #### 🔬 深入细节
-裁剪目标函数约束策略更新
+##### 核心示意图
 
+![PPO 裁剪目标曲线（按论文 Figure 1 重绘）](data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22900%22%20height%3D%22340%22%20viewBox%3D%220%200%20900%20340%22%3E%0A%3Cstyle%3E%0Atext%7Bfont-family%3AArial%2Csans-serif%3Bfill%3A%23222%7D%20.axis%7Bstroke%3A%23444%3Bstroke-width%3A2%7D%20.guide%7Bstroke%3A%23bbb%3Bstroke-dasharray%3A6%206%7D%20.line1%7Bstroke%3A%232b6cb0%3Bstroke-width%3A4%3Bfill%3Anone%7D%20.line2%7Bstroke%3A%23e67e22%3Bstroke-width%3A4%3Bfill%3Anone%7D%20.title%7Bfont-size%3A22px%3Bfont-weight%3A700%7D%20.label%7Bfont-size%3A16px%7D%20.small%7Bfont-size%3A14px%3Bfill%3A%23555%7D%0A%3C/style%3E%0A%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22%20fill%3D%22white%22/%3E%0A%3Ctext%20x%3D%22450%22%20y%3D%2230%22%20text-anchor%3D%22middle%22%20class%3D%22title%22%3EPPO%20clipped%20surrogate%20objective%20%28adapted%20from%20Figure%201%29%3C/text%3E%0A%3Cg%20transform%3D%22translate%2860%2C60%29%22%3E%0A%20%20%3Ctext%20x%3D%22180%22%20y%3D%22-10%22%20text-anchor%3D%22middle%22%20class%3D%22label%22%3EAdvantage%20%26gt%3B%200%3C/text%3E%0A%20%20%3Cline%20x1%3D%220%22%20y1%3D%22220%22%20x2%3D%22340%22%20y2%3D%22220%22%20class%3D%22axis%22/%3E%0A%20%20%3Cline%20x1%3D%220%22%20y1%3D%22220%22%20x2%3D%220%22%20y2%3D%2220%22%20class%3D%22axis%22/%3E%0A%20%20%3Cline%20x1%3D%2280%22%20y1%3D%2220%22%20x2%3D%2280%22%20y2%3D%22220%22%20class%3D%22guide%22/%3E%0A%20%20%3Cline%20x1%3D%22160%22%20y1%3D%2220%22%20x2%3D%22160%22%20y2%3D%22220%22%20class%3D%22guide%22/%3E%0A%20%20%3Cline%20x1%3D%22240%22%20y1%3D%2220%22%20x2%3D%22240%22%20y2%3D%22220%22%20class%3D%22guide%22/%3E%0A%20%20%3Cpath%20d%3D%22M0%20220%20L160%20120%20L340%2020%22%20class%3D%22line1%22/%3E%0A%20%20%3Cpath%20d%3D%22M0%20220%20L160%20120%20L240%2070%20L340%2070%22%20class%3D%22line2%22/%3E%0A%20%20%3Ctext%20x%3D%220%22%20y%3D%22245%22%20class%3D%22small%22%3E0%3C/text%3E%3Ctext%20x%3D%22153%22%20y%3D%22245%22%20class%3D%22small%22%3E1%3C/text%3E%3Ctext%20x%3D%22225%22%20y%3D%22245%22%20class%3D%22small%22%3E1%2B%CE%B5%3C/text%3E%0A%20%20%3Ctext%20x%3D%22280%22%20y%3D%22100%22%20class%3D%22small%22%3Eclip%20upper%20bound%3C/text%3E%0A%20%20%3Ctext%20x%3D%22250%22%20y%3D%2235%22%20class%3D%22small%22%3Er%C2%B7%C3%82%3C/text%3E%0A%20%20%3Ctext%20x%3D%22300%22%20y%3D%2265%22%20class%3D%22small%22%3Emin%28r%C2%B7%C3%82%2C%20clip%28r%29%C2%B7%C3%82%29%3C/text%3E%0A%3C/g%3E%0A%3Cg%20transform%3D%22translate%28500%2C60%29%22%3E%0A%20%20%3Ctext%20x%3D%22180%22%20y%3D%22-10%22%20text-anchor%3D%22middle%22%20class%3D%22label%22%3EAdvantage%20%26lt%3B%200%3C/text%3E%0A%20%20%3Cline%20x1%3D%220%22%20y1%3D%22220%22%20x2%3D%22340%22%20y2%3D%22220%22%20class%3D%22axis%22/%3E%0A%20%20%3Cline%20x1%3D%220%22%20y1%3D%22220%22%20x2%3D%220%22%20y2%3D%2220%22%20class%3D%22axis%22/%3E%0A%20%20%3Cline%20x1%3D%2280%22%20y1%3D%2220%22%20x2%3D%2280%22%20y2%3D%22220%22%20class%3D%22guide%22/%3E%0A%20%20%3Cline%20x1%3D%22160%22%20y1%3D%2220%22%20x2%3D%22160%22%20y2%3D%22220%22%20class%3D%22guide%22/%3E%0A%20%20%3Cline%20x1%3D%22240%22%20y1%3D%2220%22%20x2%3D%22240%22%20y2%3D%22220%22%20class%3D%22guide%22/%3E%0A%20%20%3Cpath%20d%3D%22M0%2020%20L160%20120%20L340%20220%22%20class%3D%22line1%22/%3E%0A%20%20%3Cpath%20d%3D%22M0%2070%20L80%2070%20L160%20120%20L340%20220%22%20class%3D%22line2%22/%3E%0A%20%20%3Ctext%20x%3D%220%22%20y%3D%22245%22%20class%3D%22small%22%3E0%3C/text%3E%3Ctext%20x%3D%2265%22%20y%3D%22245%22%20class%3D%22small%22%3E1-%CE%B5%3C/text%3E%3Ctext%20x%3D%22153%22%20y%3D%22245%22%20class%3D%22small%22%3E1%3C/text%3E%0A%20%20%3Ctext%20x%3D%225%22%20y%3D%2295%22%20class%3D%22small%22%3Eclip%20lower%20bound%3C/text%3E%0A%20%20%3Ctext%20x%3D%2220%22%20y%3D%2235%22%20class%3D%22small%22%3Emin%28r%C2%B7%C3%82%2C%20clip%28r%29%C2%B7%C3%82%29%3C/text%3E%0A%20%20%3Ctext%20x%3D%22270%22%20y%3D%22200%22%20class%3D%22small%22%3Er%C2%B7%C3%82%3C/text%3E%0A%3C/g%3E%0A%3C/svg%3E)
+*图：论文 Figure 1 的核心思想重绘。横轴是新旧策略概率比 \(r_t(\theta)\)，纵轴是单步 surrogate term；当优势为正时，超过 \(1+\epsilon\) 的继续放大不再被奖励，当优势为负时，低于 \(1-\epsilon\) 的继续减小也不再被奖励。*
+
+##### 算法伪代码
+
+```python
+# PPO, actor-critic style
+for iteration in range(num_iterations):
+    trajectories = []
+    for actor in range(N):
+        traj = rollout(policy_old, env, T)
+        traj.advantages = compute_gae(traj, value_fn, gamma, lam)
+        traj.returns = traj.advantages + value_fn(traj.states)
+        trajectories.append(traj)
+
+    batch = merge(trajectories)
+
+    for epoch in range(K):
+        for minibatch in random_minibatches(batch, size=M):
+            ratio = exp(
+                log_prob(policy, minibatch.actions, minibatch.states)
+                - log_prob(policy_old, minibatch.actions, minibatch.states)
+            )
+            unclipped = ratio * minibatch.advantages
+            clipped = clip(ratio, 1 - eps, 1 + eps) * minibatch.advantages
+            policy_loss = -mean(min(unclipped, clipped))
+
+            value_loss = mean((value_fn(minibatch.states) - minibatch.returns) ** 2)
+            entropy_bonus = mean(entropy(policy, minibatch.states))
+
+            loss = policy_loss + c1 * value_loss - c2 * entropy_bonus
+            optimize(loss)
+
+    policy_old.load_state_dict(policy.state_dict())
+```
+
+##### 动机与背景
+
+PPO 的直接背景是：vanilla policy gradient 虽然简单，但步长一大就容易把策略更新推得太远；TRPO 虽然能通过信赖域约束抑制大更新，但它需要二阶近似、共轭梯度和复杂的 KL 约束求解，工程实现与扩展性都不理想。PPO 想解决的是同一个问题: 如何保留“每次策略别变太猛”这一核心思想，同时把优化过程重新写回标准的一阶 mini-batch 训练形式。
+
+论文最重要的操作，是把“更新不要太大”从外部约束改写成内部目标。它不再直接求解受约束优化，而是对旧策略 \(\pi_{\theta_{\text{old}}}\) 采样得到的数据，构造一个只依赖概率比的 surrogate objective。这样就能像监督学习一样，在固定 batch 上做多轮梯度更新，而不是每用一次样本就必须重新采样。
+
+##### 核心机制：裁剪 surrogate objective
+
+定义新旧策略对同一动作的概率比：
+
+$$
+r_t(\theta) =
+\frac{\pi_\theta(a_t \mid s_t)}
+{\pi_{\theta_{\text{old}}}(a_t \mid s_t)}.
+$$
+
+如果优势函数 \(\hat{A}_t > 0\)，说明动作 \(a_t\) 比 baseline 更好，那么增大它的概率是合理的；如果 \(\hat{A}_t < 0\)，说明这是个坏动作，那么应该减小其概率。问题在于，如果完全按照 \(r_t(\theta)\hat{A}_t\) 优化，概率比可能被推得过大或过小，导致策略一步跳出“可信区域”。
+
+PPO 的 clip 版目标写成：
+
+$$
+L^{\text{CLIP}}(\theta)=
+\hat{\mathbb{E}}_t
+\left[
+\min\left(
+r_t(\theta)\hat{A}_t,\;
+\mathrm{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t
+\right)
+\right].
+$$
+
+这个式子的直觉非常重要。对于好动作（\(\hat{A}_t > 0\)），一旦 \(r_t(\theta)\) 超过 \(1+\epsilon\)，目标就不再继续奖励更大的概率提升；对于坏动作（\(\hat{A}_t < 0\)），一旦 \(r_t(\theta)\) 低于 \(1-\epsilon\)，目标也不再鼓励继续把概率压得更低。也就是说，PPO 不是“硬性禁止”越界，而是让越界之后的进一步更新失去收益，从目标函数层面自然抑制策略爆冲。
+
+> 💡 关键：PPO 的裁剪并不是把参数直接截断，而是把“继续远离旧策略”的收益截断。这样一来，优化器仍然是普通的一阶方法，但目标本身已经带有“近端更新”的偏好。
+
+##### 为什么 PPO 能重复利用同一批 on-policy 数据
+
+在普通策略梯度里，同一批样本如果反复优化，策略可能很快偏离采样时的分布，导致估计失真。PPO 用概率比 \(r_t(\theta)\) 显式建模“当前策略相对旧策略变了多少”，再用 clip 约束这种偏移，于是同一批轨迹可以安全地进行多轮 epoch 的 mini-batch SGD。论文的 Algorithm 1 正是：先 rollout 收集 \(N \times T\) 个时间步，再对 surrogate loss 做 \(K\) 轮优化。
+
+实际实现中，PPO 通常采用 actor-critic 结构。策略网络负责输出动作分布，价值网络负责估计 \(V(s)\)，并通过 GAE 计算优势函数 \(\hat{A}_t\)。虽然论文的核心创新在 policy loss，但价值损失和熵正则也常和它一起联合优化，这就是后来工程实践里最常见的 PPO 形式。
+
+##### 与 TRPO、KL-penalty 版 PPO 的区别
+
+TRPO 的思想是通过 KL 约束让每步更新都在信赖域内，但它优化复杂，和参数共享、噪声结构、超大模型并不总是兼容。PPO 论文也讨论了 KL-penalty 版本，即在目标里显式加入 KL 惩罚项并自适应调整系数，但实验结论是 clip 版往往更直接、更稳、更好调。它本质上用一个“悲观下界”近似替代了严格的 trust region 约束。
+
+从历史位置看，PPO 是强化学习工程化的分水岭。它没有重新定义策略梯度，只是在 objective 上做了一个极其高效的改写，却因此大幅改善了稳定性、复用率与可实现性。后来的 RLHF 之所以大规模采用 PPO，也是因为这个结构天然适合“先采样，再在固定 batch 上多轮优化”的训练范式。
+
+#### 🧪 练习题
+```yaml
+question: "PPO 的 clipped objective 最核心的作用是什么？"
+options:
+  - "让算法可以直接使用离策略 replay buffer"
+  - "把优势函数替换成状态价值函数"
+  - "在目标函数层面抑制新策略相对旧策略的过大偏移"
+  - "把随机策略变成确定性策略"
+answer: 2
+explain: "PPO 通过对概率比 r_t(θ) 的收益进行裁剪，阻止策略继续从“已经够大的更新”中获益，从而在一阶优化框架内实现近端更新。"
+```
 
 ### DPO
 

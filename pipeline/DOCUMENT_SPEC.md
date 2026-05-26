@@ -1,321 +1,144 @@
-# 知识文档写作规范（Document Spec v2.0）
+# 领域算法调研与演化关系构建
 
-> 本规范定义了一个「二级标签页面」（topic page，例如 `LLM / 强化学习`、`具身智能 / VLA`）所对应的**源知识文档**应当以怎样的格式编写，
-> 以保证通过 `pipeline/build.py` 稳定地编译为一致风格的前端页面。
->
-> 设计哲学：**Agent 只生产"数据"，不生产"代码"**。文档是唯一信息源（Single Source of Truth），模板与渲染逻辑固化在平台侧。
+**角色**：Deep Research Agent  
+**目标**：根据给定的三级信息，自主检索并筛选关键算法，补全所有页面元数据，输出结构化的演化关系图谱 YAML。
 
 ---
 
-## 0. 总览：一篇合格的知识文档 = YAML Front-Matter + 五大板块
+## 一、输入（用户提供）
 
-```
-┌─────────────────────────────────────────────────────┐
-│  1. YAML Front-Matter (元信息 / 顶部)                │
-│     - 标签体系、标题、图标、关键统计、路线类别定义      │
-├─────────────────────────────────────────────────────┤
-│  2. ## 领域综述 (必填)                               │
-│     - 3~5 段，每段一个 ### 小标题                     │
-├─────────────────────────────────────────────────────┤
-│  3. ## 最新进展综述 (建议必填；缺省则显示模板占位)     │
-│     - 聚焦最近一个月；3~5 段，每段一个 ### 小标题       │
-├─────────────────────────────────────────────────────┤
-│  4. ## 算法演化关系 (必填)                           │
-│     - YAML 代码块：定义节点坐标 + 继承边              │
-├─────────────────────────────────────────────────────┤
-│  5. ## 核心算法 (必填，最重要！)                     │
-│     - 每个算法一个 ### 条目，用 YAML 元信息 + 结构化  │
-│       小节描述（核心要点 / 深入细节 / 练习题）         │
-└─────────────────────────────────────────────────────┘
-```
-
-编译后的二级标签页面在**首屏**向用户展示两个入口卡片，由用户自行选择进入哪个视图：
-
-```
-┌────────────────────────────┐    ┌────────────────────────────┐
-│  📌 领域综述                 │    │  🚀 最新进展                 │
-│  • 领域综述（板块 2）          │    │  • 最新进展综述（板块 3）      │
-│  • 算法演化时间线（板块 5→排序） │    │  • 倒序时间线（板块 5→排序）   │
-│  • 算法演化图谱（板块 4）       │    │  • 核心算法详解                │
-└────────────────────────────┘    └────────────────────────────┘
-```
+| 字段 | 说明 | 示例 |
+|------|------|------|
+| `domain` | 一级领域 id | `llm` |
+| `topic_id` | 二级标签 id | `rlvr` |
+| `topic_name` | 二级标签显示名称 | `强化学习 (RLVR)` |
+| `search_scope` | 领域描述与边界 | `大语言模型后训练阶段的强化学习算法` |
 
 ---
 
-## 1. YAML Front-Matter（文档最顶部）
+## 二、输出：`{topic_id}.yaml`
+
+该文件必须严格遵循以下结构，包含所有未来渲染所需的 Front-Matter 及图谱数据。
 
 ```yaml
----
-# ============ 分类 ============
-domain: llm              # 一级标签 id，必须来自固定枚举见 §6
-topic_id: rlvr           # 二级标签 id（小写字母数字，将作为 URL：pages/llm/rlvr.html）
-topic_name: 强化学习 (RLVR)  # 面包屑 / 卡片上显示的名字
-
-# ============ 页面头 ============
+# ==================== 页面元信息（用户提供） ====================
+domain: llm
+topic_id: rlvr
+topic_name: 强化学习 (RLVR)
+# --- 下面全部自行设计 ---
 page_icon: "🎯"
 page_title: "大模型 RL 算法总结"
-page_subtitle: "{build_date} 版"   # 可选；支持 {build_date} 占位符，编译时自动替换为当天日期；留空则默认 "YYYY-MM-DD 版"
-page_desc: "回顾 PPO、DPO、GRPO… 的发展历程，系统梳理大模型强化学习从经典到前沿的技术演化。"
-hero_pills:                      # 右上 meta 胶囊；支持纯文本
-  - "📅 2026 年 3 月"
+page_subtitle: "{build_date} 版"          # 固定使用 {build_date} 占位符
+page_desc: "回顾 PPO、DPO、GRPO… 的发展历程，系统梳理大语言模型强化学习从经典到前沿的技术演化。"
+hero_pills:
   - "🏷️ RLVR · RLHF · Policy Optimization"
-# 注意：{count} 占位符会被替换为"核心算法"板块的条目数
-count_pill: "{count} 个算法"
+count_pill: "{count} 个算法"              # 固定写法，{count} 会被替换
 
-# ============ 资源路径 ============
-image_base: "../../assets/images/rl/大模型 RL 算法总结（2026.03版）  -"
-# ↑ detail 里写的 ![](xxx.png) 会被编译为 <img src="{image_base}xxx.png">
-
-# ============ 路线/分类体系 (定义筛选器与图谱着色) ============
-# 每个 key 是内部 id；每条记录包含中文名 + 颜色 (hex)
+# ==================== 分类体系（自行设计） ====================
 categories:
   foundation:  { label: "奠基算法", color: "#22a06b" }
   core:        { label: "核心改进", color: "#5b63d3" }
   specialized: { label: "特化优化", color: "#e8820c" }
-  arch:        { label: "架构专用", color: "#0891b2" }
-# categories 顺序 = 筛选 chip 顺序；最多 6 个类别
----
+
+# ==================== 算法元信息（每一项对应一个核心算法） ====================
+algorithms:
+  - id: ppo
+    name: PPO
+    full_name: "近端策略优化 (Proximal Policy Optimization)"
+    year: "2017"
+    org: OpenAI
+    paper_url: "https://arxiv.org/abs/1707.06347"
+    category: foundation
+    parent: "—"                             # 无前身则填 "—"
+    motivation: "用裁剪目标函数约束策略更新幅度，RLHF奠基算法"
+
+  - id: dpo
+    name: DPO
+    full_name: "直接偏好优化 (Direct Preference Optimization)"
+    year: "2023"
+    org: Stanford
+    paper_url: "https://arxiv.org/abs/2305.18290"
+    category: core
+    parent: "ppo"
+    motivation: "无需训练奖励模型，直接通过偏好对优化策略"
+
+# ==================== 图谱定义 ====================
+graph:
+  nodes:
+    - { id: ppo,    x: 100, y: 80,  category: foundation }
+    - { id: dpo,    x: 300, y: 80,  category: core }
+    - { id: grpo,   x: 500, y: 80,  category: core }
+    # ... 每个算法对应一个节点，id 必须与上面 algorithms 中的 id 一致
+  edges:
+    - { from: ppo,  to: dpo,    label: "简化流程" }
+    - { from: ppo,  to: grpo,   label: "移除Value Model" }
+    # ... 有向边，from/to 必须来自上述算法 id
+  milestones: [ppo, grpo]  # 可选，2~3 个锚点
 ```
 
-**规则**：
-
-- 一级领域 `domain` 必须是 §6 的合法枚举，否则编译失败（防止出现野生分类）。
-- `topic_id` 决定输出文件名；同一 `domain` 下必须全局唯一。
-- `categories` 至少 1 条，至多 6 条；后面每个算法的 `category` 字段必须是这里定义过的 key。
-
-> **v2.0 变更**：移除 `compare_dimensions` / `compare_table_columns` 字段（算法对比板块已下线）。旧文档保留这两个字段不会报错，但不会被使用。
-
 ---
 
-## 2. 领域综述 (板块 2)
+## 三、Agent 执行步骤
 
-```markdown
-## 领域综述
+### 1. 生成页面元信息
+基于 `topic_name` 和 `search_scope`，补全下列字段：
 
-### 一、从 RLHF 到 RLVR：大模型强化学习的范式演进
-强化学习（RL）在大语言模型（LLM）训练中的应用经历了三个关键阶段。**第一阶段（2017–2022）**……
+- **`page_icon`**：选择一个相关且简洁的 emoji（如 🎯 ⚙️ 🤖 🧪）。
+- **`page_title`**：建议格式 `{topic_name} 算法总结` 或 `{主题} 技术演进`，中文为主。
+- **`page_subtitle`**：一律写为 `"{build_date} 版"`，不要手动填数字。
+- **`page_desc`**：概括该技术线的发展脉络与核心问题。
+- **`hero_pills`**：1~2 个标签串，用 `·` 串联领域关键词，如 `"🏷️ RLHF · Alignment"`。
+- **`count_pill`**：永远写 `"{count} 个算法"`，不要手动填数字。
 
-### 二、后 GRPO 时代的挑战与解决方案
-GRPO 虽然简化了 PPO 的流程，但自身也暴露出一系列系统性问题……
+### 2. 文献检索与筛选
+- 检索策略：
+  - 先找高被引综述或奠基论文。
+  - 沿引用链扩展：向前追溯（奠基工作）、向后追踪（后续改进）。
+  - 关注顶会/顶刊（NeurIPS, ICML, ICLR, ACL, EMNLP 等）和重要机构的技术报告（OpenAI、Google、DeepSeek、Qwen、Kimi、MiniMax等）。
+- 记录每篇候选论文的：标题、、发表时间、机构、论文链接。
 
-- **训练稳定性**：GRPO 存在熵坍塌…
-- **优势估计偏差**：Dr.GRPO 发现…
+### 3. 构建分类体系
+- 将所有算法按**技术范式**或**发展阶段**分组，例如：
+  - `foundation`：开创性工作
+  - `core`：引发广泛跟随的核心改进
+  - `specialized`：针对特定问题的优化
+  - xx技术路线
+- 为每一类指定一个视觉颜色（hex）。颜色彼此应有辨识度，避免与其它领域默认色冲突。
+- 每条算法分配一个 `category`。
 
-### 三、发展趋势与未来方向
-纵观 RLVR 领域的发展脉络……
-```
+### 4. 填写算法元信息
+对于每一个入选算法，按以下约定填写：
 
-**规则**：
+| 字段         | 要求                                                         |
+| ------------ | ------------------------------------------------------------ |
+| `id`         | 小写英文简写，全文档唯一（如 `ppo`, `grpo`, `dpo`）          |
+| `name`       | 算法常用简称（如 `PPO`）                                     |
+| `full_name`  | 中文全称（若原文无中文名可直译，格式 `中文名 (English Name)`） |
+| `year`       | 统一为 `YYYY` 或 `YYYY.MM`，确保字符串排序就是时间顺序       |
+| `org`        | 第一单位或核心贡献机构                                       |
+| `paper_url`  | 优先 arXiv 稳定链接                                          |
+| `category`   | 必须是上面 categories 定义过的 key                           |
+| `parent`     | 若该算法是某个前身工作的直接改进，填前身 `id`，否则填 `"—"`。**禁止留空** |
+| `motivation` | **一句话**（不超过 30 字），直指该方法要解决的核心痛点或作出的标志性创新。避免笼统的“提升了性能”。 |
 
-- 板块标题必须一字不差等于 `## 领域综述`。
-- 内部用 `### 一、xxx` 分小节，**建议 3~5 个小节，每节 1~3 段**。
-- 支持 Markdown 加粗、列表、行内公式（`\\(...\\)`）、行间公式（`$$...$$`）。
-- 编译器会把每个 `###` 小节渲染为「领域综述」视图内的一块 `<section>`。
+### 5. 构建演化关系
+- 根据论文之间的 **直接关系** 建立有向边：
+  - A 方法被 B 方法明确宣称改进/替代。
+  - B 的理论基础或对比基线主要依赖 A。
+- 每条边的 `label` 简短概括改进动机，≤8 个字，如“移除 Value Model”。
+- 若难以确定方向性，可以暂时不连边，但确保核心演进路线清晰。
+- 指定  `milestones`（通常是奠基或范式级算法），它们在图谱中将被高亮放大。
 
----
+### 6. 图谱节点布局
+- 使用虚拟像素坐标，遵循：
+  - x 轴大致从左到右按**时间递进**（老算法 x 小，新算法 x 大）。
+  - y 轴按**技术路线或类别**分层，同一类算法尽量在同一水平带。
+- 只需接近实际比例即可，编译时会缩放。
 
-## 2.5 最新进展综述（板块 3，建议必填）
-
-```markdown
-## 最新进展综述
-
-### 一、2025-2026 年的核心转向
-待定。
-```
-
-**规则**：
-
-- 建议始终填写该板块，内容应聚焦**最近一个月**的最新工作、方法变化与趋势判断。
-- 若省略整个 `## 最新进展综述`，编译器会自动填充一个“待补充模板”并给出告警，前端也会明确提示该内容尚未从知识文档提供。
-- 若提供该板块，其内部格式与 `## 领域综述` 完全相同：使用若干 `###` 小节组织内容。
-- 前端会将它渲染在「最新进展」视图顶部，其下方依次是倒序时间线和算法详解列表。
-
----
-
-## 3. 算法演化关系 (板块 4)
-
-```markdown
-## 算法演化关系
-
-\`\`\`yaml
-# 节点坐标用虚拟坐标系（左上角为原点，x 向右 y 向下），编译时自动等比缩放。
-# id 必须对应板块 5 中某个算法的 id
-nodes:
-  - { id: ppo,    x: 150, y: 80,  category: foundation }
-  - { id: dpo,    x: 60,  y: 220, category: foundation }
-  - { id: grpo,   x: 330, y: 220, category: core }
-  - { id: dapo,   x: 160, y: 340, category: core }
-  # ...
-
-edges:
-  - { from: ppo,  to: dpo,    label: "简化流程" }
-  - { from: ppo,  to: grpo,   label: "移除 Value Model" }
-  - { from: grpo, to: dapo,   label: "解决不稳定" }
-  # ...
-
-# 奠基节点（会被渲染得更大，作为"锚点"，可选）
-milestones: [ppo, grpo]
-\`\`\`
-```
-
-**规则**：
-
-- 该板块只有 **一个 yaml 代码块**，不许再有其他内容。
-- `nodes[].id` 必须全部出现在板块 5；否则编译失败并给出"缺失算法"列表。
-- 虚拟坐标只需保证布局相对合理，编译器会把它映射到容器真实尺寸。
-- `edges[].label` 为边上的标注，简短概括"为什么产生这一次演进"。
-
----
-
-## 4. 核心算法 (板块 5，最重要)
-
-### 4.1 每个算法一个 `###` 条目
-
-```markdown
-## 核心算法
-
-### PPO · 近端策略优化 (Proximal Policy Optimization)
-
-\`\`\`yaml
-id: ppo                    # 必填，小写英数，全文档唯一
-num: 1                     # 显示序号（建议按时间升序 1,2,3...）
-name: PPO
-full_name: "近端策略优化 (Proximal Policy Optimization)"
-year: "2017"               # 允许 "2017" 或 "2024.02" 或 "2025.03"
-                           # ⚠️ 格式必须可按字符串排序后仍呈时间序
-org: OpenAI                # 发布机构
-parent: "—"                # 继承自哪个算法，无则写 "—"
-paper_url: "https://arxiv.org/abs/1707.06347"
-project_url: "https://openai.com/index/openai-baselines-ppo/"   # 可选
-category: foundation       # 必须是 front-matter 里 categories 的 key
-motivation: "用裁剪目标函数约束策略更新幅度，RLHF 奠基算法"    # 显示在「核心要点」顶部的动机条
-\`\`\`
-
-#### 📝 一句话总结
-PPO 是 RLHF 的代表算法，核心创新是用裁剪目标函数来约束策略更新幅度。
-
-#### 🎯 核心要点
-- 涉及 4 个模型：Policy Model、Value Model、Reward Model、Reference Model
-- 4 个流程：Reward Modeling → Rollout → Evaluation → Optimization
-- 裁剪机制：通过 \(\text{clip}(\text{ratio}, 1-\varepsilon, 1+\varepsilon)\) 限制新旧策略概率比
-- KL 散度约束 Reference Model 和 Policy Model 分布差异
-- Value Model 用于 GAE 计算优势函数
-
-#### 🔬 深入细节
-
-##### 1. PPO 涉及的 4 个模型
-![PPO 4 个模型](PPOALL.png)
-- **Reference Model**：参数冻结的 SFT 模型初始化……
-- **Reward Model**：评估 policy_model 生成的响应……
-
-##### 2. PPO 目标函数
-$$J_{PPO}(\theta) = \mathbb{E}\left[\min\left(\frac{\pi_\theta(a|s)}{\pi_{\theta_{\text{old}}}(a|s)} A,\; \text{clip}(\cdot, 1-\epsilon, 1+\epsilon) A\right)\right]$$
-
-其中 \(\frac{\pi_\theta(a|s)}{\pi_{\theta_{\text{old}}}(a|s)}\) 为重要性采样比率。
-
-#### 🧪 练习题 (可选，省略则此算法无 quiz)
-\`\`\`yaml
-question: "PPO 中裁剪机制的核心目的是什么？"
-options:
-  - "加速训练收敛速度"
-  - "限制新旧策略的概率比，防止策略更新幅度过大"
-  - "减少 GPU 内存占用"
-  - "增加探索多样性"
-answer: 1                          # 从 0 开始的索引
-explain: "裁剪机制的核心目的是限制新旧策略的概率比在 \\([1-\\varepsilon, 1+\\varepsilon]\\) 范围内，保证训练稳定性。"
-\`\`\`
-```
-
-### 4.2 小节与字段含义速查表
-
-| 小节（必须用这个标题）     | 含义                   | 可省略 | 编译去向                                   |
-|---------------------------|------------------------|--------|--------------------------------------------|
-| 开头 yaml 代码块            | 算法元信息              | 否     | 顶部徽章 / 时间线卡片                        |
-| `#### 📝 一句话总结`         | 长不超过 2 句         | 否     | 时间线卡片摘要、核心要点首段                 |
-| `#### 🎯 核心要点`           | 3–6 条无序列表         | 否     | 「核心要点」模式下的 bullet 列表            |
-| `#### 🔬 深入细节`           | 任意 Markdown          | 可     | 「深入细节」模式下的完整内容；**支持 `##### 小标题`**  |
-| `#### 🧪 练习题` yaml 块     | 一道四选一             | 可     | 「深入细节」模式底部 Quiz                    |
-
-> **v2.0 变更**：移除 `#### ⚖️ 对比维度` 小节（算法对比板块已下线）。旧文档保留该小节不会报错，但不会被使用。
-
-### 4.3 深入细节的写作约定
-
-- **图片**：`![caption](xxx.png)` 会被编译为带说明的 `<img>`；路径相对 `image_base`。
-- **公式**：KaTeX 语法，`$$...$$` 为行间，`\(...\)` 为行内；**反斜杠在 YAML 中请写 `\\(`**。
-- **表格**：标准 Markdown 表格即可。
-- **高亮块**：用 `> ⚠️ 注意：xxx` 会编译为黄色告警；`> 💡 关键：xxx` 会编译为蓝色 key-point。
-
-### 4.4 时间线排序约定
-
-- 领域综述视图中的**时间线**按 `year` **升序**（从早到晚）；
-- 最新进展视图中的**算法列表**按 `year` **降序**（从新到旧）；
-- 因此 `year` 字段必须保证"字符串排序"=="时间排序"，推荐统一写成 `"YYYY"` 或 `"YYYY.MM"`。
-
----
-
-## 5. 一级领域枚举 (domain 字段必须来自以下之一)
-
-| id            | 名称            | 输出目录              |
-|---------------|-----------------|-----------------------|
-| `ml`          | 机器学习        | `pages/ml/`           |
-| `cv`          | 计算机视觉      | `pages/cv/`           |
-| `llm`         | 大语言模型 (LLM)| `pages/llm/`          |
-| `multimodal`  | 多模态          | `pages/multimodal/`   |
-| `aigc`        | AIGC            | `pages/aigc/`         |
-| `embodied`    | 具身智能        | `pages/embodied/`     |
-| `infra`       | AI Infra        | `pages/infra/`        |
-| `ai4sci`      | AI4SCI          | `pages/ai4sci/`       |
-
-新增一级领域 = 修改 `pipeline/schema/domains.yml` + 首页 `index.html` 入口，不在此文档职责范围。
-
----
-
-## 6. 命令行编译流程
-
-```bash
-# 1. 把文档放到约定位置
-cp my_rl_report.md content/LLM/RL/
-
-# 2. 编译（生成 data.js + copy 模板 html + logic.js）
-python3 pipeline/build.py content/LLM/RL/my_rl_report.md
-
-# 可选：把某些本地图片一并拷贝到 assets/images/<topic_id>/
-python3 pipeline/build.py content/LLM/RL/my_rl_report.md --copy-images
-
-# 编译完成后将输出
-#   pages/llm/rlvr.html              ← 页面入口（视图选择屏）
-#   pages/llm/rlvr-data.js           ← 编译产物（数据）
-#   pages/llm/rlvr-logic.js          ← 从模板拷贝（通用渲染逻辑）
-```
-
-编译器会做严格校验，常见错误会以红色提示中断：
-- `domain` 不在枚举内
-- 图谱中的 id 没有对应算法 → 报错并列出缺失 id
-- 算法的 `category` 不是 `categories` 声明过的 key
-- 某个算法缺少 `#### 📝 一句话总结` 或 `#### 🎯 核心要点`
-
----
-
-## 7. 最小 checklist（给 Agent 的硬性要求）
-
-✅ 文档顶部有且只有一个 YAML Front-Matter，字段齐全且类型正确
-✅ `## 领域综述` 标题一字不差，下属 `###` 小节至少 3 个
-✅ `## 算法演化关系` 下有且仅有一个 yaml 代码块，nodes/edges 覆盖所有算法
-✅ `## 核心算法` 每个算法严格包含："开头 yaml + 📝 一句话总结 + 🎯 核心要点"（🔬 深入细节 / 🧪 练习题 可选）
-✅ 每个算法的 `year` 字段格式统一，保证字符串排序即为时间排序
-✅ 所有引用的本地图片都存在（编译器会校验）
-✅ 所有交叉引用 id（parent / edges / nodes / category）都能闭合
-
----
-
-## 8. v2.0 迁移说明（相对 v1.0）
-
-| 变更 | 说明 |
-|---|---|
-| ❌ 移除「算法对比」板块 | 页面不再有 `⚖️ 算法对比` tab / 表格 / 两两对比 |
-| ❌ 移除 `compare_dimensions` | front-matter 中的这个字段将被忽略 |
-| ❌ 移除 `compare_table_columns` | front-matter 中的这个字段将被忽略 |
-| ❌ 移除 `#### ⚖️ 对比维度` | 每个算法下的这个子小节不再必填，存在也会被忽略 |
-| ❌ 移除 `## 附录` | 整个板块已下线，不再渲染；文档中可删除该板块 |
-| ✨ 新增 首屏视图选择 | 进入二级页面后先展示两个入口卡片：领域综述 / 最新进展 |
-| ✨ 新增 最新进展视图 | 算法按 `year` **降序** 展示（从新到旧） |
+### 7. 输出前自检
+- [ ] `page_icon`、`page_title`、`page_desc`、`hero_pills` 均已自主生成，且风格一致。
+- [ ] `categories` 定义的所有 key 都至少被一个算法使用，且所有算法的 `category` 都在该集合内。
+- [ ] `algorithms` 与 `graph.nodes` 的 `id` 严格一一对应，无遗漏、无多余。
+- [ ] `edges` 中的 `from` 和 `to` 均存在于 `algorithms`。
+- [ ] 所有 `year` 格式统一，且可以字符串排序。
+- [ ] 所有 `paper_url` 是有效的链接。

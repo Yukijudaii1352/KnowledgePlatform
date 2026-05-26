@@ -34,10 +34,35 @@
   margin-bottom: 10px; padding-bottom: 6px;
   border-bottom: 1px solid var(--border);
 }
-.field-overview-section p { font-size: 0.92rem; color: var(--text-secondary); line-height: 1.85; margin-bottom: 10px; text-align: justify; }
+.field-overview-section p {
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+  line-height: 1.85;
+  margin-bottom: 10px;
+  text-align: left;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
 .field-overview-section ul { padding-left: 20px; margin-bottom: 10px; }
-.field-overview-section li { font-size: 0.92rem; color: var(--text-secondary); line-height: 1.85; margin-bottom: 8px; }
+.field-overview-section li {
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+  line-height: 1.85;
+  margin-bottom: 8px;
+  text-align: left;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
 .field-overview-section li strong, .field-overview-section p strong { color: var(--text); }
+.field-overview-section .katex {
+  font-size: 1em !important;
+  vertical-align: -0.05em;
+}
+.field-overview-section .katex-display {
+  margin: 0.9em 0 !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
 
 /* ---- Tab nav ---- */
 .tab-nav {

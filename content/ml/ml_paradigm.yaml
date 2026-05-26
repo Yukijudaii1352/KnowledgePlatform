@@ -113,12 +113,12 @@ algorithms:
 - id: dinov3
   name: DINOv3
   full_name: Self-Distillation with No Labels v3
-  year: '2026'
-  org: Meta
-  paper_url: https://arxiv.org/abs/2603.00160
+  year: '2025'
+  org: Meta AI Research
+  paper_url: https://arxiv.org/abs/2508.10104
   category: frontier
   parent: ijepa
-  motivation: Gram锚定损失解决长尾分布
+  motivation: Gram锚定缓解长训练下稠密特征退化
 - id: dqn
   name: DQN
   full_name: Deep Q-Network

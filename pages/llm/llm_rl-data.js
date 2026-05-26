@@ -1,5 +1,5 @@
 /**
- * llm_rl-data.js — 由 pipeline/build.py 于 2026-05-21 18:27:13 自动生成。
+ * llm_rl-data.js — 由 pipeline/build.py 于 2026-05-26 10:35:19 自动生成。
  * 源文件：content/llm/llm_rl.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "llm_rl",
     "topic_name": "LLM强化学习",
     "page_title": "LLM强化学习算法演进",
-    "page_subtitle": "2026-05-21 版",
+    "page_subtitle": "2026-05-26 版",
     "page_desc": "从PPO到RLHF、DPO、GRPO再到2026年最新VAPO等算法的完整演化图谱，涵盖策略梯度、偏好优化、在线强化学习三大技术路线",
     "page_icon": "🎯",
     "hero_pills": [
