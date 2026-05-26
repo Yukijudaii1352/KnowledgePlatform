@@ -99,11 +99,11 @@ nodes:
   x: 940
   y: 30
   category: modern_efficient
-- id: deepseek_v4_vision
+- id: vmamba
   x: 960
   y: 50
   category: modern_efficient
-- id: retformer
+- id: focalnet
   x: 950
   y: 80
   category: modern_efficient
@@ -147,12 +147,12 @@ edges:
 - from: vit
   to: raptor
   label: 块递归
-- from: vit
-  to: deepseek_v4_vision
-  label: 极简编码
 - from: swin_transformer
-  to: retformer
-  label: 检索增强
+  to: vmamba
+  label: 选择性扫描
+- from: swin_transformer
+  to: focalnet
+  label: 焦点调制
 milestones:
 - alexnet
 - resnet
@@ -1626,8 +1626,8 @@ id: deit
 num: 9
 name: DeiT
 full_name: 数据高效图像Transformer (Data-efficient Image Transformer)
-year: '2021.01'
-org: Facebook AI
+year: '2020.12'
+org: Facebook AI Research
 parent: vit
 paper_url: https://arxiv.org/abs/2012.12877
 project_url: ''
@@ -1980,7 +1980,7 @@ num: 11
 name: ConvNeXt
 full_name: 现代卷积网络 (A ConvNet for the 2020s)
 year: '2022.01'
-org: Facebook AI
+org: Meta AI
 parent: resnet
 paper_url: https://arxiv.org/abs/2201.03545
 project_url: ''
@@ -2161,7 +2161,7 @@ num: 12
 name: ConvNeXt V2
 full_name: 现代卷积网络V2 (ConvNeXt V2)
 year: '2023.01'
-org: Facebook AI
+org: Meta AI
 parent: convnext
 paper_url: https://arxiv.org/abs/2301.00808
 project_url: ''
@@ -2326,13 +2326,13 @@ id: mambavision
 num: 13
 name: MambaVision
 full_name: Mamba视觉模型 (Mamba Vision Model)
-year: '2026.04'
+year: '2024.07'
 org: NVIDIA
 parent: swin_transformer
-paper_url: https://arxiv.org/abs/2604.xxxxx
+paper_url: https://arxiv.org/abs/2407.08083
 project_url: ''
 category: modern_efficient
-motivation: 结合Mamba状态空间模型实现线性缩放
+motivation: 混合Mamba与Transformer获得更优精度吞吐比
 ```
 
 #### 📝 一句话总结
@@ -2470,27 +2470,66 @@ $$X^n = \text{MLP}(\text{Norm}(\hat{X}^n)) + \hat{X}^n$$
 id: jumbo_token
 num: 14
 name: Jumbo Token
-full_name: 巨型Token加速 (Jumbo Token Acceleration)
-year: '2026.04'
-org: Vector Institute
+full_name: 巨型Token高效ViT (Jumbo Token for Fast Plain Vision Transformers)
+year: '2026.01'
+org: Carleton University / UBC / Vector Institute
 parent: vit
-paper_url: https://openreview.net/forum?id=jumbo2026
+paper_url: https://arxiv.org/abs/2502.15021
 project_url: ''
 category: modern_efficient
 motivation: 引入巨型Token加速平原ViT，大幅提升吞吐量
 ```
 
 #### 📝 一句话总结
-Jumbo Token 的核心目标是：引入巨型Token加速平原ViT，大幅提升吞吐量。
+Jumbo Token 通过给 plain ViT 引入一个更宽的全局 token，并让它拥有独立且跨层共享的 FFN，在几乎不破坏 ViT 接口的前提下显著提升了速度-精度权衡。
 
 #### 🎯 核心要点
-- 核心动机：引入巨型Token加速平原ViT，大幅提升吞吐量
-- 演化来源：继承或改进自 vit
-- 代表机构：Vector Institute
+- 保持 plain ViT 的 attention-only、non-hierarchical 结构，不引入卷积或层级金字塔。
+- 用一个宽度为 patch token \(J\) 倍的 Jumbo token 替代普通 CLS token。
+- 自注意力前把 Jumbo token 拆成多个标准宽度 token，注意力后再拼回去。
+- 为 Jumbo token 配置独立 FFN，并在所有层之间共享该 FFN 参数以节省内存。
+- 在 ImageNet-1K、ImageNet-21K、ADE20K 和 MAE 预训练上都优于 ViT+Registers 基线。
 
 #### 🔬 深入细节
-引入巨型Token加速平原ViT，大幅提升吞吐量
+![Jumbo Token 仓库示意图](https://raw.githubusercontent.com/antofuller/jumbo/main/sophia.png)
+*图：Jumbo Token 官方仓库配图。该工作关注在不破坏 plain ViT 结构接口的前提下，用更宽的全局 token 提高容量与吞吐表现。*
 
+```python
+# Jumbo Token 核心流程
+patch_tokens = patch_embed(image)                 # [N, D]
+jumbo = jumbo_token.expand(1, J * D)             # [1, J*D]
+
+for layer in layers:
+    jumbo_split = jumbo.view(J, D)               # attention 前拆成 J 个标准 token
+    tokens = concat([jumbo_split, patch_tokens], dim=0)
+    tokens = self_attention(tokens)
+    jumbo_split, patch_tokens = tokens[:J], tokens[J:]
+    jumbo = jumbo_split.reshape(1, J * D)        # attention 后重新拼接
+    jumbo = jumbo + jumbo_ffn_shared(jumbo)      # Jumbo 独立 FFN
+    patch_tokens = patch_tokens + patch_ffn(patch_tokens)
+
+logits = classifier(jumbo)
+```
+
+Jumbo 的出发点是一个很实用的观察：plain ViT 的主要代价来自所有 patch token 的宽度和数量，但全局分类 token 只占极少一部分计算。如果直接把所有 token 一起加宽，模型会更贵；如果只把全局 token 做宽，则有机会以很低代价提升全局汇聚能力。
+
+论文因此把传统 CLS token 改造成一个更宽的 Jumbo token。设 patch token 宽度为 \(D\)，则 Jumbo token 宽度为 \(J \cdot D\)。为了兼容标准多头注意力，进入注意力层之前先把它拆成 \(J\) 个宽度为 \(D\) 的 token，与 patch token 一起做普通 self-attention；注意力完成后再把这 \(J\) 个 token 按通道维重新拼回一个大 token。这样整个模型仍然保持 plain ViT 的接口和行为习惯。
+
+真正的容量提升来自 Jumbo token 的专属 FFN。普通 patch token 继续走共享的 patch FFN，而 Jumbo token 走一个更宽的独立 FFN。由于这个 FFN 只处理一个 token，计算成本相对很低；论文进一步把它在层间共享，以控制参数量和显存开销。核心思想可以理解为：把额外模型容量集中投入到“全局汇聚通道”，而不是平均分摊给所有 patch。
+
+这种设计为什么有效？作者认为，很多视觉分类任务瓶颈不在局部 patch 表达，而在全局信息如何被高效汇聚到分类头。Jumbo 让模型在几乎不改变基础架构的前提下，拥有一个更强的“全局思考槽位”。因此它尤其适合本来就偏窄、偏快的 plain ViT 变体，在小模型上收益更明显。
+
+#### 🧪 练习题
+```yaml
+question: "Jumbo Token 为什么能在保持 plain ViT 结构的同时提升效率？"
+options:
+  - "因为它把所有 patch token 都改成了更宽的 token"
+  - "因为它只扩大全局 token 的容量，并在注意力前后做拆分/拼接，额外成本主要集中在单个全局 token 上"
+  - "因为它完全移除了 FFN"
+  - "因为它把自注意力改成卷积"
+answer: 1
+explain: "Jumbo 只放大全局 token，而不是所有 patch token；这样既保留了 plain ViT 接口，又把额外容量集中在代价最低的全局路径上。"
+```
 
 ### Raptor
 
@@ -2498,79 +2537,195 @@ Jumbo Token 的核心目标是：引入巨型Token加速平原ViT，大幅提升
 id: raptor
 num: 15
 name: Raptor
-full_name: 块递归视觉模型 (Block Recursive Vision Model)
-year: '2026.04'
-org: ICLR研究组
+full_name: 块递归视觉Transformer近似 (Recurrent Approximations to Phase-structured TransfORmers)
+year: '2026.01'
+org: Harvard University / Osnabrück University
 parent: vit
-paper_url: https://openreview.net/forum?id=raptor2026
+paper_url: https://arxiv.org/abs/2512.19941
 project_url: ''
 category: modern_efficient
-motivation: 发现ViT块递归假设，仅用2个块恢复94%精度
+motivation: 发现ViT块递归结构，用少量权重共享块逼近深层ViT
 ```
 
 #### 📝 一句话总结
-Raptor 的核心目标是：发现ViT块递归假设，仅用2个块恢复94%精度。
+Raptor 提出训练一个由少量共享块递归展开的 ViT 近似模型，验证了深层 ViT 内部存在显著的块递归结构，并用极少的不同 block 逼近原模型的大部分分类能力。
 
 #### 🎯 核心要点
-- 核心动机：发现ViT块递归假设，仅用2个块恢复94%精度
-- 演化来源：继承或改进自 vit
-- 代表机构：ICLR研究组
+- 提出 Block-Recurrent Hypothesis，认为训练好的 ViT 深度方向可分成少数重复计算阶段。
+- 用表征相似矩阵和 max-cut 方法自动发现 block phase 边界。
+- 训练权重共享的 recurrent surrogate，即 Raptor，去重建原始 ViT 的层间表示轨迹。
+- 在 DINOv2 上仅用 2 到 3 个递归 block 就恢复了原模型大部分线性探测精度。
+- 该工作更偏“机制解释 + 可重构性验证”，而不仅仅是压缩部署。
 
 #### 🔬 深入细节
-发现ViT块递归假设，仅用2个块恢复94%精度
+![Raptor 项目标识](https://raw.githubusercontent.com/KempnerInstitute/raptor/main/assets/raptor_logo.png)
+*图：Raptor 官方项目页标识。该工作关注 ViT 深度方向是否存在可重用的递归计算阶段。*
 
+```python
+# Raptor 近似训练流程
+teacher = pretrained_vit()
+phases = discover_phases_via_similarity(teacher)
+blocks = [init_from_phase(p) for p in phases[:k]]   # k << L
 
-### DeepSeek V4 Vision
+def raptor_forward(x):
+    h = patch_embed(x)
+    for t in range(L):
+        h = blocks[phase_id(t)](h)                  # 复用少量共享 block
+    return h
+
+loss = tf_loss(hidden_pred, hidden_teacher) + ar_loss(unrolled_pred, hidden_teacher)
+opt.step()
+```
+
+Raptor 的出发点并不是传统意义上的“做一个更快模型”，而是一个更基础的问题：ViT 的很多层是否真的都在做彼此不同的计算？论文通过层间表征相似度矩阵发现，许多训练好的 ViT 在深度方向会出现若干连续 phase，同一 phase 内多层的表征变化模式高度相似。
+
+基于这个观察，作者提出 Block-Recurrent Hypothesis：一个深层 ViT 可以被重写为少量不同 block 反复展开的递归系统。Raptor 就是这种假设的构造性验证。它并不只是模仿最终分类结果，而是尽量重建原 ViT 从浅层到深层的整个隐藏状态轨迹，因此训练目标既包括 teacher forcing 的逐层拟合，也包括真正展开后的自回归式层间重建。
+
+从动力系统视角看，这意味着 ViT 的深度计算并非任意堆叠，而更像若干阶段性更新规则反复作用于表征。论文里最有意思的结论是：在 DINOv2 这类 foundation ViT 上，仅用极少数共享 block，就能恢复绝大部分 ImageNet 线性探测精度，并保持接近的运行成本。这说明很多深层 block 的功能具有高度复用性。
+
+Raptor 的价值主要在两个方向。第一，它为 ViT 压缩、共享参数和递归化设计提供了直接证据；第二，它给解释性研究提供了一个更低复杂度的对象，因为你不必再把每一层都当作独立模块分析，而可以研究少量递归动力学单元如何驱动表征演化。
+
+#### 🧪 练习题
+```yaml
+question: "Raptor 试图验证的核心假设是什么？"
+options:
+  - "ViT 的所有层都必须保持完全独立才能工作"
+  - "训练好的 ViT 在深度方向可被少量不同 block 递归展开近似"
+  - "卷积一定优于 Transformer"
+  - "分类性能完全由 patch embedding 决定"
+answer: 1
+explain: "Raptor 的 Block-Recurrent Hypothesis 认为，深层 ViT 的计算可被压缩成少量可重用 block 反复展开。"
+```
+
+### VMamba
 
 ```yaml
-id: deepseek_v4_vision
+id: vmamba
 num: 16
-name: DeepSeek V4 Vision
-full_name: DeepSeek V4视觉模型 (DeepSeek V4 Vision Model)
-year: '2026.05'
-org: DeepSeek
-parent: vit
-paper_url: https://arxiv.org/abs/2605.xxxxx
+name: VMamba
+full_name: '视觉状态空间模型 (VMamba: Visual State Space Model)'
+year: '2024.01'
+org: 中国科学院大学 / 华为 / 鹏城实验室
+parent: swin_transformer
+paper_url: https://arxiv.org/abs/2401.10166
 project_url: ''
 category: modern_efficient
-motivation: 采用极简视觉编码，KV缓存仅需90条目，推理成本降低10倍
+motivation: 以2D选择性扫描实现线性复杂度全局建模
 ```
 
 #### 📝 一句话总结
-DeepSeek V4 Vision 的核心目标是：采用极简视觉编码，KV缓存仅需90条目，推理成本降低10倍。
+VMamba 把 Mamba 状态空间模型扩展到二维视觉场景，通过 2D Selective Scan 在保持线性复杂度的同时获得全局感受野，成为视觉状态空间模型路线中的代表工作。
 
 #### 🎯 核心要点
-- 核心动机：采用极简视觉编码，KV缓存仅需90条目，推理成本降低10倍
-- 演化来源：继承或改进自 vit
-- 代表机构：DeepSeek
+- 提出 Visual State-Space (VSS) block，把 Mamba 从 1D 序列推广到 2D 图像。
+- 核心模块 SS2D 用四条扫描路径在二维特征图上执行选择性扫描。
+- 保持全局感受野和输入缩放效率，对高分辨率输入更友好。
+- 采用分层主干结构，可直接迁移到分类、检测和分割任务。
+- 在 ImageNet 分类和下游视觉任务上显示出优于多种 CNN/ViT 基线的效率表现。
 
 #### 🔬 深入细节
-采用极简视觉编码，KV缓存仅需90条目，推理成本降低10倍
+![VMamba 整体架构图](https://raw.githubusercontent.com/MzeroMiko/VMamba/main/assets/architecture.png)
+*图：VMamba 用分层 VSS block 堆叠成视觉主干，并在每个 block 内通过 SS2D 完成二维全局信息聚合。*
 
+```python
+# VMamba 的 SS2D 思路
+def ss2d(x):
+    routes = [
+        scan_left_to_right(x),
+        scan_right_to_left(x),
+        scan_top_to_bottom(x),
+        scan_bottom_to_top(x),
+    ]
+    outputs = [selective_scan(route) for route in routes]
+    return merge_routes(outputs)
 
-### RetFormer
+def vss_block(x):
+    x = x + ss2d(layer_norm(x))
+    x = x + mlp(layer_norm(x))
+    return x
+```
+
+视觉版 Mamba 最大的问题，是原始 Mamba 面向一维序列，而图像本质上是二维结构。若简单把图像拉平成一条长序列，再直接用 1D selective scan，空间邻接关系会被严重扭曲。VMamba 的关键贡献，就是用 SS2D 解决这个结构错位问题。
+
+SS2D 的基本思路是从多个方向遍历二维特征图。论文采用四条扫描路线，让状态传播不只依赖单一序列顺序，而是分别从水平和垂直两个维度的正反方向收集上下文。这样每个位置都能通过多路扫描接收到更完整的全局信息。相比自注意力，扫描式计算不需要显式构造 token 两两交互矩阵，因此复杂度更接近线性。
+
+从机制上看，VMamba 保留了 Mamba 的“输入依赖参数”思想，也就是根据当前内容动态控制状态更新与信息选择。它既不是纯卷积，也不是注意力，而是一类具有全局传播能力的状态空间主干。论文特别强调其输入分辨率扩展效率，因为随着图像变大，注意力成本会快速膨胀，而 SS2D 的计算增长更可控。
+
+VMamba 之所以重要，不只是因为它做到了“视觉版 Mamba”，而是因为它提出了一套比较完整的二维状态空间建模范式。后续很多视觉 SSM 工作，包括更强的混合主干和 deformable/state-space 变种，基本都在沿着这条路线继续推进。
+
+#### 🧪 练习题
+```yaml
+question: "VMamba 中 SS2D 的主要作用是什么？"
+options:
+  - "把所有 token 送入标准全局自注意力"
+  - "通过多方向二维选择性扫描，把一维 Mamba 扩展到图像结构并获取全局上下文"
+  - "仅用于做数据增强"
+  - "替代分类头输出 logits"
+answer: 1
+explain: "SS2D 通过在二维特征图上进行多方向扫描，弥补了原始 Mamba 只适用于一维序列的限制。"
+```
+
+### FocalNet
 
 ```yaml
-id: retformer
+id: focalnet
 num: 17
-name: RetFormer
-full_name: 检索增强Transformer (Retrieval-augmented Transformer)
-year: '2026.04'
-org: CVPR研究组
+name: FocalNet
+full_name: 焦点调制网络 (Focal Modulation Networks)
+year: '2022.03'
+org: Microsoft Research
 parent: swin_transformer
-paper_url: https://arxiv.org/abs/2604.retformer
+paper_url: https://arxiv.org/abs/2203.11926
 project_url: ''
 category: modern_efficient
-motivation: 利用多模态知识库检索增强，通过外部知识辅助识别
+motivation: 用焦点调制替代自注意力，实现分层上下文聚合
 ```
 
 #### 📝 一句话总结
-RetFormer 的核心目标是：利用多模态知识库检索增强，通过外部知识辅助识别。
+FocalNet 用 focal modulation 机制完全替代自注意力，通过分层上下文聚合、门控选择和逐元素调制，实现了既有全局建模能力又更高效的视觉 token 交互。
 
 #### 🎯 核心要点
-- 核心动机：利用多模态知识库检索增强，通过外部知识辅助识别
-- 演化来源：继承或改进自 swin_transformer
-- 代表机构：CVPR研究组
+- 用 focal modulation 而不是 self-attention 建模 token 之间关系。
+- 先用多层深度卷积提取从局部到全局的上下文，再由门控动态聚合。
+- 将聚合后的上下文作为调制器，对 query token 做逐元素调制。
+- 仍然采用分层视觉骨干，便于迁移到分类、检测和分割。
+- 在 ImageNet、COCO、ADE20K 上以相似成本超过多种注意力基线。
 
 #### 🔬 深入细节
-利用多模态知识库检索增强，通过外部知识辅助识别
+![FocalNet 模型图](https://raw.githubusercontent.com/microsoft/FocalNet/main/figures/focalnet-model.png)
+*图：FocalNet 先用多尺度上下文聚合器收集不同感受野信息，再通过调制器作用到当前 token。*
+
+```python
+# Focal modulation 伪代码
+def focal_modulation(x):
+    q, ctx, gates = linear(x).split([d, d, L + 1], dim=-1)
+    contexts = []
+    for l in range(L):
+        ctx = depthwise_conv(ctx, kernel_size[level_k[l]])
+        contexts.append(ctx)
+    global_ctx = global_avg_pool(ctx)
+    agg = sum(gates[..., l:l+1] * contexts[l] for l in range(L))
+    agg = agg + gates[..., -1:] * global_ctx
+    modulator = conv1x1(agg)
+    return q * modulator
+```
+
+FocalNet 关注的核心问题是：视觉 Transformer 的强大建模能力，是否必须依赖成对 token 的自注意力矩阵？论文给出的答案是否定的。它认为 token 交互可以分成两步：先为每个位置收集一个结构化上下文，再让当前位置用这个上下文来调制自身表示，而不必显式计算 query-key 两两匹配。
+
+具体来说，focal modulation 有三个阶段。第一是 hierarchical contextualization：用多层不同感受野的 depthwise convolution，从短程到长程依次构造上下文。第二是 gated aggregation：模型学习一个门控向量，决定当前 token 更该依赖哪一级上下文。第三是 modulation：把聚合后的上下文变成一个调制器，对当前 query 做逐元素缩放或仿射变换。整个过程更像“先看周围环境，再调整自己”，而不是标准自注意力那种成对匹配。
+
+这种设计的直观优势是计算路径更规整、对硬件更友好，而且无需维护显式注意力图。与 Swin 这类局部窗口注意力相比，FocalNet 通过逐层扩大的上下文聚合器自然获得大范围感受野；与 CNN 相比，它又保留了内容自适应的门控调制能力，因此不是简单回到卷积，而是提出一种新的 token mixing 机制。
+
+论文结果表明，FocalNet 在图像分类上能和注意力模型正面竞争，并在检测和分割上继续保持优势。它的重要性在于证明了“替代自注意力”的路线不仅可行，而且可以做到统一、可扩展、跨任务迁移。
+
+#### 🧪 练习题
+```yaml
+question: "FocalNet 与自注意力最本质的区别是什么？"
+options:
+  - "它完全不做任何上下文建模"
+  - "它不通过 token 两两匹配建图，而是先聚合多尺度上下文，再用调制器作用到当前 token"
+  - "它只适用于卷积网络而不适用于视觉主干"
+  - "它去掉了所有非线性激活"
+answer: 1
+explain: "FocalNet 的关键在于上下文聚合 + 调制，而不是标准自注意力中的 query-key 成对交互。"
+```

@@ -1,5 +1,5 @@
 /**
- * optimization-data.js — 由 pipeline/build.py 于 2026-05-26 10:35:21 自动生成。
+ * optimization-data.js — 由 pipeline/build.py 于 2026-05-26 14:20:26 自动生成。
  * 源文件：content/ml/optimization.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -490,21 +490,35 @@ window.PAGE_CONFIG = {
       "id": "saga",
       "num": 8,
       "name": "SAGA",
-      "fullName": "快速增量梯度法 (SAGA)",
+      "fullName": "支持非强凸复合目标的快速增量梯度法 (SAGA)",
       "year": "2014",
-      "org": "INRIA",
+      "org": "INRIA / ENS",
       "parent": "svrg",
       "paperUrl": "https://arxiv.org/abs/1407.0202",
       "projectUrl": "",
       "category": "stochastic",
       "motivation": "无偏梯度估计，支持近端算子",
-      "summary": "SAGA 的核心目标是：无偏梯度估计，支持近端算子。",
+      "summary": "SAGA 是一种表格型方差缩减方法：它通过维护每个样本分量的历史梯度，构造对全梯度的无偏估计，在保持线性收敛的同时原生支持近端算子和非强凸复合目标。相比 SAG 与 SVRG，它最大的优点是“无偏 + 支持 prox + 不需要外层全梯度快照”。",
       "keyPoints": [
-        "核心动机：无偏梯度估计，支持近端算子",
-        "演化来源：继承或改进自 svrg",
-        "代表机构：INRIA"
+        "维护每个样本分量 <span class=\"kb-math kb-math-inline\">f_i</span> 的历史梯度表，以及它们的平均值，形成“表格型”方差缩减。",
+        "核心无偏估计器为 <span class=\"kb-math kb-math-inline\">f&#x27;_j(x^k)-f&#x27;_j(\\phi_j^k)+\\frac{1}{n}\\sum_i f&#x27;_i(\\phi_i^k)</span>，期望恰好等于全梯度。",
+        "原生支持复合目标 <span class=\"kb-math kb-math-inline\">\\min_x \\frac1n\\sum_i f_i(x)+h(x)</span>，可直接接近端算子 <span class=\"kb-math kb-math-inline\">\\mathrm{prox}_{\\gamma h}</span>。",
+        "强凸情形下可用 <span class=\"kb-math kb-math-inline\">\\gamma=\\frac{1}{2(\\mu n+L)}</span> 获得线性收敛，复杂度为 <span class=\"kb-math kb-math-inline\">O((n+L/\\mu)\\log(1/\\varepsilon))</span>。",
+        "非强凸情形下用 <span class=\"kb-math kb-math-inline\">\\gamma=\\frac{1}{3L}</span> 可得到 <span class=\"kb-math kb-math-inline\">O(n/k)</span> 的函数值收敛，无需外层快照循环。",
+        "从方法结构上看，SAGA 处在 SAG 与 SVRG 的中间：既保留了增量存储结构，又保留了无偏控制变量估计。"
       ],
-      "detail": "<p>无偏梯度估计，支持近端算子</p>"
+      "detail": "<p><img alt=\"SAGA 算法流程示意图\" src=\"https://quickchart.io/graphviz?graph=digraph%7Brankdir%3DLR%3B%20node%20%5Bshape%3Dbox%2C%20style%3Drounded%5D%3B%20A%5Blabel%3D%22Sample%20j%22%5D%3B%20B%5Blabel%3D%22Current%20gradient%20g_j%28x_k%29%22%5D%3B%20C%5Blabel%3D%22Stored%20gradient%20g_j%28phi_j%29%22%5D%3B%20E%5Blabel%3D%22Average%20stored%20gradient%22%5D%3B%20D%5Blabel%3D%22Variance-reduced%20estimator%0Ag_j%28x_k%29-g_j%28phi_j%29%2Bavg%22%5D%3B%20F%5Blabel%3D%22Prox%20%2F%20gradient%20step%22%5D%3B%20G%5Blabel%3D%22Update%20x_%7Bk%2B1%7D%22%5D%3B%20H%5Blabel%3D%22Replace%20table%20entry%20phi_j%20%3C-%20x_k%22%5D%3B%20A-%3EB%3B%20C-%3ED%3B%20B-%3ED%3B%20E-%3ED%3B%20D-%3EF%3B%20F-%3EG%3B%20G-%3EH%3B%7D\" />\n<em>图：根据论文 Section 2 的更新公式整理的 SAGA 主流程。其本质是用一份“历史梯度表”构造对全梯度的低方差、无偏近似。</em></p>\n<pre><code class=\"language-python\"># SAGA\ninitialize x = x0\ninitialize phi[i] = x0 for all i\ninitialize table[i] = grad_i(phi[i]) for all i\ng_bar = average(table)\n\nfor k in range(K):\n    j = sample_uniform(0, n - 1)\n    grad_new = grad_j(x)\n    grad_old = table[j]\n\n    direction = grad_new - grad_old + g_bar\n    w = x - gamma * direction\n    x = prox_gamma_h(w)\n\n    table[j] = grad_new\n    phi[j] = x\n    g_bar = g_bar + (grad_new - grad_old) / n\n</code></pre>\n<p>SAGA 要解决的是有限和优化里的经典问题：\n<div class=\"kb-math kb-math-display\">\\min_{x\\in\\mathbb{R}^d} F(x)=\\frac{1}{n}\\sum_{i=1}^n f_i(x)+h(x),</div>\n其中每个 <span class=\"kb-math kb-math-inline\">f_i</span> 是光滑凸函数，而 <span class=\"kb-math kb-math-inline\">h(x)</span> 可以是 <span class=\"kb-math kb-math-inline\">\\ell_1</span> 正则这类可做 proximal 的非光滑项。普通 SGD 的问题在于：单样本梯度虽然便宜，但方差在靠近最优解时也不自动消失，因此通常必须把步长逐渐降到 0，难以获得线性收敛。</p>\n<p>SAGA 的核心构造是控制变量估计器。论文把它放在一个更一般的框架里：若 <span class=\"kb-math kb-math-inline\">X</span> 是当前随机梯度样本，<span class=\"kb-math kb-math-inline\">Y</span> 是与之高度相关的旧梯度样本，则\n<div class=\"kb-math kb-math-display\">\\theta_\\alpha=\\alpha(X-Y)+\\mathbb{E}[Y]</div>\n可以显著降低方差。SAG 采用的是带偏版本，等价于较小的 <span class=\"kb-math kb-math-inline\">\\alpha</span>；SAGA 则直接取无偏形式 <span class=\"kb-math kb-math-inline\">\\alpha=1</span>。于是当随机抽到索引 <span class=\"kb-math kb-math-inline\">j</span> 时，SAGA 使用\n<div class=\"kb-math kb-math-display\">v_k=f&#x27;_j(x^k)-f&#x27;_j(\\phi_j^k)+\\frac{1}{n}\\sum_{i=1}^n f&#x27;_i(\\phi_i^k),</div>\n并且\n<div class=\"kb-math kb-math-display\">\\mathbb{E}_j[v_k] = \\frac{1}{n}\\sum_{i=1}^n f&#x27;_i(x^k)=\\nabla f(x^k).</div>\n这就是它相较 SAG 最重要的理论优势：方向估计无偏，证明更干净，同时常数更好。</p>\n<p>有了这个无偏低方差方向后，SAGA 的更新就很自然了：\n<div class=\"kb-math kb-math-display\">w^{k+1}=x^k-\\gamma v_k,\\qquad\nx^{k+1}=\\operatorname{prox}_{\\gamma h}(w^{k+1}),</div>\n其中 proximal 算子定义为\n<div class=\"kb-math kb-math-display\">\\operatorname{prox}_{\\gamma h}(y)=\\arg\\min_x\\left\\{h(x)+\\frac{1}{2\\gamma}\\|x-y\\|^2\\right\\}.</div>\n这一步非常关键，因为它让 SAGA 天然兼容复合优化，而不必像一些早期方差缩减算法那样只能处理纯光滑目标。与此同时，梯度表只更新被采样到的一个分量，因此每步的随机梯度开销仍然是常数级。</p>\n<p>在线性收敛方面，论文给出的强凸结果是：当 <span class=\"kb-math kb-math-inline\">f=\\frac1n\\sum_i f_i</span> 为 <span class=\"kb-math kb-math-inline\">\\mu</span>-强凸、每个 <span class=\"kb-math kb-math-inline\">f_i</span> 为 <span class=\"kb-math kb-math-inline\">L</span>-光滑时，取\n<div class=\"kb-math kb-math-display\">\\gamma=\\frac{1}{2(\\mu n+L)},</div>\n即可得到\n<div class=\"kb-math kb-math-display\">\\mathbb{E}\\|x^k-x^\\*\\|^2 \\le\n\\left(1-\\frac{\\mu}{2(\\mu n+L)}\\right)^k \\cdot C,</div>\n从而总复杂度为\n<div class=\"kb-math kb-math-display\">O\\!\\left(\\left(n+\\frac{L}{\\mu}\\right)\\log\\frac{1}{\\varepsilon}\\right).</div>\n对非强凸目标，论文又证明取 <span class=\"kb-math kb-math-inline\">\\gamma=\\frac{1}{3L}</span> 时，平均迭代点满足 <span class=\"kb-math kb-math-inline\">O(n/k)</span> 收敛。更有意思的是，如果问题实际上带有隐含强凸性，SAGA 在这个非强凸步长下还能“自动适应”到线性收敛，这也是图 1 中论文强调的一个差异点。</p>\n<div class=\"key-point\">💡 关键：SAGA 的真正创新不是“存梯度表”本身，而是把这个梯度表用成了一个无偏控制变量，从而同时拿到低方差、prox 支持和较干净的收敛理论。</p>\n<p>⚠️ 注意：SAGA 与 SVRG 的主要取舍是“空间换时间”。SAGA 不需要周期性全梯度快照，但要维护一张梯度表；SVRG 则反过来，用更少存储换取周期性的全梯度计算。</div>",
+      "quiz": {
+        "q": "为什么说 SAGA 的方向估计比 SAG 更适合做理论分析？",
+        "options": [
+          "因为 SAGA 每一步都精确计算全梯度",
+          "因为 SAGA 的方向估计是无偏的，而 SAG 的对应估计带偏",
+          "因为 SAGA 不需要保存任何历史梯度",
+          "因为 SAGA 只能处理强凸问题"
+        ],
+        "answer": 1,
+        "explain": "SAGA 的更新方向对全梯度是无偏估计，这让收敛证明显著简化；SAG 的方向估计带偏，因此理论分析更复杂，也不易直接推广到 prox 情形。"
+      }
     },
     {
       "id": "adagrad",
@@ -847,41 +861,69 @@ window.PAGE_CONFIG = {
       "id": "graal",
       "num": 19,
       "name": "GRAAL",
-      "fullName": "最优自适应梯度法 (GRAAL)",
+      "fullName": "Nesterov加速 GRAAL (Accelerated GRAAL)",
       "year": "2026",
-      "org": "Yandex Research",
+      "org": "Yandex Research / HSE",
       "parent": "nag",
-      "paperUrl": "https://arxiv.org/abs/2502.04153",
+      "paperUrl": "https://arxiv.org/abs/2507.09823",
       "projectUrl": "",
       "category": "frontier",
-      "motivation": "首个加速无参数梯度法，自适应局部曲率",
-      "summary": "GRAAL 的核心目标是：首个加速无参数梯度法，自适应局部曲率。",
+      "motivation": "将Nesterov加速与局部曲率自适应真正结合",
+      "summary": "GRAAL 把 Nesterov 加速、GRAAL 式外推和局部曲率自适应步长统一进同一个算法，在不做 line search 和超参搜索的前提下，实现了接近最优的凸优化收敛复杂度。它的关键突破是设计出可实现的耦合系数与几何增长步长规则，使“加速”和“自适应”不再互相掣肘。",
       "keyPoints": [
-        "核心动机：首个加速无参数梯度法，自适应局部曲率",
-        "演化来源：继承或改进自 nag",
-        "代表机构：Yandex Research"
+        "提出 Accelerated GRAAL：在原始 GRAAL 的外推结构上显式加入 Nesterov acceleration/STM 混合步骤。",
+        "使用基于 Bregman 距离的局部曲率估计器 <span class=\"kb-math kb-math-inline\">\\Lambda(x; z) = 2D_f(x;z)/\\|\\nabla f(x)-\\nabla f(z)\\|^2</span>。",
+        "通过额外的 coupling step 引入 <span class=\"kb-math kb-math-inline\">\\beta_k</span>，避免直接设定 <span class=\"kb-math kb-math-inline\">\\alpha_k</span> 时对未来步长的循环依赖。",
+        "自适应步长规则 <span class=\"kb-math kb-math-inline\">\\eta_{k+1} = \\min\\{(1+\\gamma)\\eta_k,\\; \\nu H_{k-1}\\lambda_{k+1}/\\eta_{k-1}\\}</span> 支持几何级数式增长，而不是只能 <span class=\"kb-math kb-math-inline\">1+1/k</span> 地缓慢增长。",
+        "对 <span class=\"kb-math kb-math-inline\">L</span>-smooth 目标给出近最优复杂度 <span class=\"kb-math kb-math-inline\">O(1+\\sqrt{L\\|x_0-x^\\*\\|^2/\\varepsilon}+\\log(1/\\eta_0L))</span>。",
+        "对更一般的 <span class=\"kb-math kb-math-inline\">(L_0, L_1)</span>-smooth 目标也给出自适应理论保证，这是它比 AC-FGM、AdaNAG 更强的地方。"
       ],
-      "detail": "<p>首个加速无参数梯度法，自适应局部曲率</p>"
+      "detail": "<p><img alt=\"GRAAL 算法流程示意图\" src=\"https://quickchart.io/graphviz?graph=digraph%7Brankdir%3DTB%3B%20node%20%5Bshape%3Dbox%2C%20style%3Drounded%5D%3B%20A%5Blabel%3D%22Current%20x_k%20and%20tilde%20x_k%22%5D%3B%20B%5Blabel%3D%22Gradient%20step%0Ax_%7Bk%2B1%7D%3Dx_k-eta_k%20nabla%20f%28tilde%20x_k%29%22%5D%3B%20C%5Blabel%3D%22Coupling%20with%20beta_k%22%5D%3B%20D%5Blabel%3D%22GRAAL%20extrapolation%0Ahat%20x_%7Bk%2B1%7D%3Dx_%7Bk%2B1%7D%2Btheta%28x_%7Bk%2B1%7D-x_k%29%22%5D%3B%20E%5Blabel%3D%22Nesterov%20mixing%0Atilde%20x_%7Bk%2B1%7D%3Dalpha%20hat%20x%20%2B%281-alpha%29x%22%5D%3B%20F%5Blabel%3D%22Local%20curvature%20estimate%20lambda_%7Bk%2B1%7D%22%5D%3B%20G%5Blabel%3D%22Adaptive%20stepsize%20eta_%7Bk%2B1%7D%22%5D%3B%20A-%3EB-%3EC-%3ED-%3EE-%3EF-%3EG%3B%7D\" />\n<em>图：根据论文 Algorithm 1 整理的 Accelerated GRAAL 主循环。它不是简单把 Nesterov 动量硬拼到 GRAAL 上，而是通过 <span class=\"kb-math kb-math-inline\">\\alpha_k,\\beta_k,H_k</span> 的联动设计，把可实现性和自适应性同时保住。</em></p>\n<pre><code class=\"language-python\"># Algorithm 1: Accelerated GRAAL\nalpha = beta = 1.0\nH = H_prev = eta_prev = eta0\ntilde_x = x = x0\n\nfor k in range(K):\n    alpha_next = (1 + gamma) * eta / (H + (1 + gamma) * eta)\n    x_grad = x - eta * grad(tilde_x)\n    x_next = beta * tilde_x + (1 - beta) * x_grad\n    hat_x_next = x_next + theta * (x_next - x)\n    tilde_x_next = alpha_next * hat_x_next + (1 - alpha_next) * x_next\n\n    lambda_next = min(Lambda(x_next, tilde_x), Lambda(x_next, tilde_x_next))\n    eta_next = min((1 + gamma) * eta, nu * H_prev * lambda_next / eta_prev)\n    H_next = H + eta_next\n    beta_next = eta_next / (alpha_next * H_next)\n\n    x, tilde_x = x_next, tilde_x_next\n    eta_prev, eta, H_prev, H = eta, eta_next, H, H_next\n    beta = beta_next\n</code></pre>\n<p>GRAAL 的问题背景很明确：经典梯度下降和 Nesterov 加速都能给出漂亮的理论复杂度，但都要提前知道全局 Lipschitz 常数 <span class=\"kb-math kb-math-inline\">L</span>；而原始 GRAAL/AdGD 虽然能根据局部曲率自动调步长，却没有把 Nesterov 加速真正做进来。论文的核心问题因此变成一句话：能不能既保留 GRAAL 的“局部曲率自适应”，又达到加速方法的 <span class=\"kb-math kb-math-inline\">O(\\sqrt{L/\\varepsilon})</span> 级别复杂度？</p>\n<p>作者的第一个关键设计是局部曲率估计器。对凸目标，定义 Bregman 距离\n<div class=\"kb-math kb-math-display\">D_f(x;z)=f(x)-f(z)-\\langle \\nabla f(z), x-z\\rangle,</div>\n然后用\n<div class=\"kb-math kb-math-display\">\\Lambda(x; z)=\n\\begin{cases}\n\\dfrac{2D_f(x;z)}{\\|\\nabla f(x)-\\nabla f(z)\\|^2}, &amp; \\nabla f(x)\\neq \\nabla f(z),\\\\[6pt]\n\\infty, &amp; \\nabla f(x)=\\nabla f(z)\n\\end{cases}</div>\n近似“当前区域的逆 Lipschitz 常数”。这比原始 GRAAL 在更一般 VI 场景使用的距离比值更适合纯优化问题，因为它直接利用了目标函数的凸结构和 Bregman 几何。</p>\n<p>第二个关键设计是把 Nesterov 加速真正接到自适应框架里。论文不是直接用预设的 <span class=\"kb-math kb-math-inline\">\\alpha_k \\propto 2/(k+2)</span>，而是引入了三层变量：普通点 <span class=\"kb-math kb-math-inline\">x_k</span>、外推点 <span class=\"kb-math kb-math-inline\">\\hat x_k</span>、以及混合点 <span class=\"kb-math kb-math-inline\">\\tilde x_k</span>。其中\n<div class=\"kb-math kb-math-display\">\\hat x_{k+1}=x_{k+1}+\\theta(x_{k+1}-x_k),\n\\qquad\n\\tilde x_{k+1}=\\alpha_{k+1}\\hat x_{k+1}+(1-\\alpha_{k+1})x_{k+1}.</div>\n如果只照搬标准 Nesterov 推导，会遇到 <span class=\"kb-math kb-math-inline\">\\alpha_k</span> 依赖未来步长、而未来步长又依赖当前曲率估计的循环依赖问题。为解决这一点，作者额外插入 coupling step\n<div class=\"kb-math kb-math-display\">x_{k+1}=\\beta_k\\tilde x_k + (1-\\beta_k)x_k,</div>\n并设置\n<div class=\"kb-math kb-math-display\">\\beta_k=\\frac{\\eta_k}{\\alpha_k H_k},\\qquad H_k=\\sum_{i=0}^k \\eta_i.</div>\n这一步是整篇论文最核心的结构性创新，因为它把“可实现的 Nesterov 混合系数”和“自适应步长累计量”绑在了一起。</p>\n<p>第三个关键设计是步长规则本身：\n<div class=\"kb-math kb-math-display\">\\eta_{k+1}=\\min\\left\\{(1+\\gamma)\\eta_k,\\; \\frac{\\nu H_{k-1}\\lambda_{k+1}}{\\eta_{k-1}}\\right\\}.</div>\n第一项允许步长以几何速度增长，第二项则由局部曲率估计器 <span class=\"kb-math kb-math-inline\">\\lambda_{k+1}</span> 控制，防止过冲。相比 AC-FGM 和 AdaNAG 只能满足 <span class=\"kb-math kb-math-inline\">\\eta_{k+1}\\le (1+1/k)\\eta_k</span> 之类的缓慢增长，这个几何增长上限是 GRAAL 真正具备“从很小初始步长快速恢复”的原因。作者也正是借此证明了：即使 <span class=\"kb-math kb-math-inline\">\\eta_0</span> 取得非常小，额外代价也只会落在一个对数项上。</p>\n<p>论文的理论结果分两层。一般凸连续可微情形下，Theorem 1 给出势函数单调下降：\n<div class=\"kb-math kb-math-display\">\\Psi_{k+1}(x)\\le \\Psi_k(x) - \\frac{\\gamma\\theta}{2}\\eta_k^2\\|\\nabla f(\\tilde x_k)\\|^2\n - \\frac{1}{4(1+\\gamma)}\\eta_k D_f(x_k;\\tilde x_k).</div>\n在 <span class=\"kb-math kb-math-inline\">L</span>-smooth 情形下，Corollary 2 进一步给出\n<div class=\"kb-math kb-math-display\">K = O\\!\\left(1+\\sqrt{\\frac{L\\|x_0-x^\\*\\|^2}{\\varepsilon}}+\\ln\\frac{1}{\\eta_0L}\\right),</div>\n而对更一般的 <span class=\"kb-math kb-math-inline\">(L_0,L_1)</span>-smooth 目标，又得到\n<div class=\"kb-math kb-math-display\">K = O\\!\\left(1+\\sqrt{\\frac{L_0D^2}{\\varepsilon}} + L_1^3D^3 + (1+L_1^2D^2)\\ln\\frac{1}{\\eta_0L_0}\\right),</div>\n其中 <span class=\"kb-math kb-math-inline\">D=O(\\|x_0-x^\\*\\|)</span>。这说明它不仅在标准平滑凸优化里接近最优，而且在更贴近深度学习实践的“梯度越大 Hessian 也可能越大”的广义平滑模型下，依然保持自适应优势。</p>\n<div class=\"key-point\">💡 关键：GRAAL 最重要的不是“又一个动量法”，而是证明了局部曲率自适应和 Nesterov 加速可以在一个可实现、可证明的算法里兼得。</p>\n<p>⚠️ 注意：论文里真正加速的是“自适应基线算法”而不是普通 GD，因此 <span class=\"kb-math kb-math-inline\">\\alpha_k,\\beta_k,H_k</span> 三者的耦合关系是不能随便删的；删掉 coupling step 后，理论闭环就会断。</div>",
+      "quiz": {
+        "q": "GRAAL 相比 AC-FGM / AdaNAG 的一个关键优势是什么？",
+        "options": [
+          "它完全不需要梯度信息，只依赖函数值",
+          "它把步长增长限制在 \\(1+1/k\\)，因此更稳定",
+          "它允许步长按几何速度增长，因此能从过小的初始步长中快速恢复",
+          "它把凸优化问题直接转成二阶牛顿法"
+        ],
+        "answer": 2,
+        "explain": "Accelerated GRAAL 的步长上界是 \\((1+\\gamma)\\eta_k\\)，而不是 \\((1+1/k)\\eta_k\\)。这种几何增长能力正是它保持自适应性的核心。"
+      }
     },
     {
       "id": "alias",
       "num": 20,
       "name": "ALIAS",
-      "fullName": "无参数符号随机梯度 (ALIAS)",
+      "fullName": "自动局部逐步步长近似 (ALIAS)",
       "year": "2026",
-      "org": "Yandex Research",
+      "org": "BRAIn Lab / Yandex Research",
       "parent": "adam",
-      "paperUrl": "https://arxiv.org/abs/2502.12989",
+      "paperUrl": "https://arxiv.org/abs/2506.03725",
       "projectUrl": "",
       "category": "frontier",
-      "motivation": "Sign-SGD无参数化，匹配精调AdamW",
-      "summary": "ALIAS 的核心目标是：Sign-SGD无参数化，匹配精调AdamW。",
+      "motivation": "为Sign-SGD提供无需调参的局部步长自适应",
+      "summary": "ALIAS 为 Sign-SGD 设计了一个真正无参数的步长选择机制：它一边在线估计全局尺度项和局部 \\(L_\\infty\\) 光滑度，一边自动设置每一步的符号更新步长，从而去掉人工学习率搜索。论文还给出了带动量的 Adam-style 变体，使 Sign-SGD 在大模型预训练中接近甚至优于精调基线。",
       "keyPoints": [
-        "核心动机：Sign-SGD无参数化，匹配精调AdamW",
-        "演化来源：继承或改进自 adam",
-        "代表机构：Yandex Research"
+        "以经典 Sign-SGD 的收敛上界为出发点，目标是消除其中对未知 <span class=\"kb-math kb-math-inline\">\\Delta^\\*</span> 和 <span class=\"kb-math kb-math-inline\">L_\\infty</span> 的依赖。",
+        "提出主算法 ALIAS：在线累积局部平滑度估计 <span class=\"kb-math kb-math-inline\">\\eta_t</span>，再令 <span class=\"kb-math kb-math-inline\">\\lambda_t = 1/\\sqrt{\\eta_t}</span> 作为步长分母。",
+        "提供两种全局尺度估计方式：Option I 用递增序列 <span class=\"kb-math kb-math-inline\">d_t</span> 近似 <span class=\"kb-math kb-math-inline\">\\Delta^\\* = f(x_0)-f(x^\\*)</span>；Option II 直接用 <span class=\"kb-math kb-math-inline\">f(x_0)-\\underline f</span>。",
+        "主更新仍保持 Sign-SGD 结构：<span class=\"kb-math kb-math-inline\">x_{t+1} = x_t - \\gamma_t \\,\\mathrm{sign}(\\nabla f(x_t))</span>，因此额外内存开销很低。",
+        "扩展到随机梯度与分布式学习场景，并给出带一阶/二阶动量的 Adam-style ALIAS 版本。",
+        "在 LLaMA 130M/350M 预训练和 Swin Transformer 微调中，ALIAS 在免调参前提下匹配 tuned Sign-SGD，并接近或超过 AdamW/Prodigy。"
       ],
-      "detail": "<p>Sign-SGD无参数化，匹配精调AdamW</p>"
+      "detail": "<p><img alt=\"ALIAS 算法流程示意图\" src=\"https://quickchart.io/graphviz?graph=digraph%7Brankdir%3DTB%3B%20node%20%5Bshape%3Dbox%2C%20style%3Drounded%5D%3B%20A%5Blabel%3D%22Gradient%20at%20x_t%22%5D%3B%20B%5Blabel%3D%22Smoothness%20accumulator%0Aeta_t%3Deta_%7Bt-1%7D%2B%7C%7Cg_t-g_%7Bt-1%7D%7C%7C_1%2F%7C%7Cx_t-x_%7Bt-1%7D%7C%7C_inf%22%5D%3B%20C%5Blabel%3D%22lambda_t%20%3D%201%2Fsqrt%28eta_t%29%22%5D%3B%20D%5Blabel%3D%22Global%20scale%20estimate%0Ad_t%20or%20f%28x_0%29-f_low%22%5D%3B%20E%5Blabel%3D%22Set%20stepsize%20gamma_t%22%5D%3B%20F%5Blabel%3D%22Sign%20step%0Ax_%7Bt%2B1%7D%3Dx_t-gamma_t%20sign%28g_t%29%22%5D%3B%20G%5Blabel%3D%22Optional%20momentum%20%2F%20Adam-style%20ALIAS%22%5D%3B%20A-%3EB-%3EC-%3EE%3B%20A-%3ED-%3EE%3B%20E-%3EF-%3EG%3B%7D\" />\n<em>图：根据论文 Algorithm 2/3 整理的 ALIAS 主流程。核心思想是把 Sign-SGD 的未知最优步长拆成“全局尺度项”和“局部曲率项”，并分别在线估计。</em></p>\n<pre><code class=\"language-python\"># Algorithm 2: ALIAS (deterministic version)\neta_prev = 0.0\nd = d0\n\nfor t in range(T):\n    g_t = grad(x_t)\n    if t &gt; 0:\n        eta_t = eta_prev + l1_norm(g_t - g_prev) / linf_norm(x_t - x_prev)\n        lambda_t = 1.0 / sqrt(eta_t)\n        d_tilde = sum(gamma_i * dot(grad(x_{i+1}), sign(grad(x_i))) for i in range(t))\n        d = max(d, d_tilde)   # Option I\n    else:\n        eta_t = eta_prev\n        lambda_t = 1.0 / sqrt(max(eta_t, 1e-12))\n\n    gamma_t = lambda_t * sqrt(d)              # Option I\n    # gamma_t = lambda_t * sqrt(f(x0) - f_low)  # Option II\n    x_next = x_t - gamma_t * sign(g_t)\n\n    x_prev, g_prev = x_t, g_t\n    x_t = x_next\n    eta_prev = eta_t\n</code></pre>\n<p>ALIAS 的出发点是 Sign-SGD 的经典收敛界。对精确梯度情形，论文回顾了如下上界：\n<div class=\"kb-math kb-math-display\">\\frac{1}{T}\\sum_{t=0}^{T-1}\\|\\nabla f(x_t)\\|_1 \\le \\frac{\\Delta^\\*}{\\gamma T} + \\frac{\\gamma L_\\infty}{2},</div>\n其中 <span class=\"kb-math kb-math-inline\">\\Delta^\\* = f(x_0)-f(x^\\*)</span>，<span class=\"kb-math kb-math-inline\">L_\\infty</span> 是相对于 <span class=\"kb-math kb-math-inline\">\\|\\cdot\\|_\\infty</span> 的光滑常数。最优固定步长满足\n<div class=\"kb-math kb-math-display\">\\gamma^\\* \\asymp \\sqrt{\\frac{\\Delta^\\*}{L_\\infty T}},</div>\n但这需要事先知道两个现实里通常未知的量：全局函数间隙 <span class=\"kb-math kb-math-inline\">\\Delta^\\*</span> 和局部光滑度 <span class=\"kb-math kb-math-inline\">L_\\infty</span>。ALIAS 的核心就是把这两个量拆开，各自在线近似。</p>\n<p>论文对分母部分采用了“局部 <span class=\"kb-math kb-math-inline\">L_\\infty</span> 曲率累计”的思路。它先定义\n<div class=\"kb-math kb-math-display\">\\eta_t = \\eta_{t-1} + \\frac{\\|\\nabla f(x_t)-\\nabla f(x_{t-1})\\|_1}{\\|x_t-x_{t-1}\\|_\\infty},\n\\qquad\n\\lambda_t = \\frac{1}{\\sqrt{\\eta_t}}.</div>\n直觉上，<span class=\"kb-math kb-math-inline\">\\eta_t</span> 越大，说明最近几步观察到的局部梯度变化越剧烈，步长就该更保守；因此用 <span class=\"kb-math kb-math-inline\">\\lambda_t</span> 作为步长分母与 AdaGrad-Norm 的“累积后再开根号衰减”是同一类想法，只不过这里累积的不是梯度范数，而是更直接反映局部平滑性的有限差分比值。</p>\n<p>对分子部分，ALIAS 给了两种方案。Option I 用\n<div class=\"kb-math kb-math-display\">\\widetilde d_t = \\sum_{i=0}^{t-1} \\gamma_i \\langle \\nabla f(x_{i+1}), \\operatorname{sign}(\\nabla f(x_i)) \\rangle,\n\\qquad\nd_t = \\max(d_{t-1}, \\widetilde d_t),</div>\n把它作为 <span class=\"kb-math kb-math-inline\">\\Delta^\\*</span> 的递增近似；Option II 则更实用，直接使用 <span class=\"kb-math kb-math-inline\">f(x_0)-\\underline f</span>，其中 <span class=\"kb-math kb-math-inline\">\\underline f \\le f(x^\\*)</span> 是一个已知下界。在很多经验风险最小化问题里，<span class=\"kb-math kb-math-inline\">\\underline f = 0</span> 就够用了。于是主步长写成\n<div class=\"kb-math kb-math-display\">\\gamma_t = \\lambda_t \\sqrt{d_t}\n\\quad \\text{或} \\quad\n\\gamma_t = \\lambda_t \\sqrt{f(x_0)-\\underline f}.</div>\n这样一来，ALIAS 每一步都能同时根据局部曲率和全局剩余尺度自动调节步长，而不需要单独搜索学习率。</p>\n<p>论文还把这套机制扩展到了更实用的设置。随机梯度版本用相邻两次 stochastic gradient 近似局部 <span class=\"kb-math kb-math-inline\">L_\\infty</span>；带动量的 Algorithm 3 则引入类似 Adam 的一阶、二阶指数滑动平均，但最终仍以 sign 方向作为主更新方向。这个 Adam-style ALIAS 的形式可写为\n<div class=\"kb-math kb-math-display\">m_{t+1} = \\beta_1 m_t + (1-\\beta_1)d_t g_t,\\qquad\nv_{t+1} = \\beta_2 v_t + (1-\\beta_2)d_t^2 g_t^2,</div>\n并配合符号化方向和归一化因子执行更新。作者在实验中发现，正是这个“参数自由的尺度估计 + sign 方向 + 动量归一化”的组合，让 ALIAS 在大模型训练里摆脱了必须人工网格搜索学习率的痛点。</p>\n<div class=\"key-point\">💡 关键：ALIAS 不是重新设计一个全新优化方向，而是保留 Sign-SGD 的低内存符号更新，只把“步长从哪里来”这件事彻底自动化。</p>\n<p>⚠️ 注意：论文的理论主结果仍以“找到 near-stationary point”为目标，因此复杂度形式仍是 Sign-SGD 一类方法常见的 <span class=\"kb-math kb-math-inline\">O(1/\\varepsilon^2)</span> 级别；它的主要贡献在于去掉未知超参数，而不是把阶数改写成更快的凸优化上界。</div>",
+      "quiz": {
+        "q": "ALIAS 中的 \\(\\lambda_t = 1/\\sqrt{\\eta_t}\\) 主要在做什么？",
+        "options": [
+          "为每个坐标学习独立的二阶矩统计",
+          "根据累计的局部平滑度估计自动缩放步长",
+          "把 Sign-SGD 改写成标准梯度下降",
+          "直接近似最优解 \\(x^*\\) 的位置"
+        ],
+        "answer": 1,
+        "explain": "ALIAS 将局部梯度差分比值累积到 \\(\\eta_t\\) 中，再用 \\(1/\\sqrt{\\eta_t}\\) 作为步长分母，从而根据局部曲率自动调节更新尺度。"
+      }
     }
   ],
   "categories": {

@@ -99,8 +99,8 @@ algorithms:
 - id: deit
   name: DeiT
   full_name: 数据高效图像Transformer (Data-efficient Image Transformer)
-  year: '2021.01'
-  org: Facebook AI
+  year: '2020.12'
+  org: Facebook AI Research
   paper_url: https://arxiv.org/abs/2012.12877
   category: vit_era
   parent: vit
@@ -118,7 +118,7 @@ algorithms:
   name: ConvNeXt
   full_name: 现代卷积网络 (A ConvNet for the 2020s)
   year: '2022.01'
-  org: Facebook AI
+  org: Meta AI
   paper_url: https://arxiv.org/abs/2201.03545
   category: modern_efficient
   parent: resnet
@@ -127,7 +127,7 @@ algorithms:
   name: ConvNeXt V2
   full_name: 现代卷积网络V2 (ConvNeXt V2)
   year: '2023.01'
-  org: Facebook AI
+  org: Meta AI
   paper_url: https://arxiv.org/abs/2301.00808
   category: modern_efficient
   parent: convnext
@@ -135,48 +135,48 @@ algorithms:
 - id: mambavision
   name: MambaVision
   full_name: Mamba视觉模型 (Mamba Vision Model)
-  year: '2026.04'
+  year: '2024.07'
   org: NVIDIA
-  paper_url: https://arxiv.org/abs/2604.xxxxx
+  paper_url: https://arxiv.org/abs/2407.08083
   category: modern_efficient
   parent: swin_transformer
-  motivation: 结合Mamba状态空间模型实现线性缩放
+  motivation: 混合Mamba与Transformer获得更优精度吞吐比
 - id: jumbo_token
   name: Jumbo Token
-  full_name: 巨型Token加速 (Jumbo Token Acceleration)
-  year: '2026.04'
-  org: Vector Institute
-  paper_url: https://openreview.net/forum?id=jumbo2026
+  full_name: 巨型Token高效ViT (Jumbo Token for Fast Plain Vision Transformers)
+  year: '2026.01'
+  org: Carleton University / UBC / Vector Institute
+  paper_url: https://arxiv.org/abs/2502.15021
   category: modern_efficient
   parent: vit
   motivation: 引入巨型Token加速平原ViT，大幅提升吞吐量
 - id: raptor
   name: Raptor
-  full_name: 块递归视觉模型 (Block Recursive Vision Model)
-  year: '2026.04'
-  org: ICLR研究组
-  paper_url: https://openreview.net/forum?id=raptor2026
+  full_name: 块递归视觉Transformer近似 (Recurrent Approximations to Phase-structured TransfORmers)
+  year: '2026.01'
+  org: Harvard University / Osnabrück University
+  paper_url: https://arxiv.org/abs/2512.19941
   category: modern_efficient
   parent: vit
-  motivation: 发现ViT块递归假设，仅用2个块恢复94%精度
-- id: deepseek_v4_vision
-  name: DeepSeek V4 Vision
-  full_name: DeepSeek V4视觉模型 (DeepSeek V4 Vision Model)
-  year: '2026.05'
-  org: DeepSeek
-  paper_url: https://arxiv.org/abs/2605.xxxxx
-  category: modern_efficient
-  parent: vit
-  motivation: 采用极简视觉编码，KV缓存仅需90条目，推理成本降低10倍
-- id: retformer
-  name: RetFormer
-  full_name: 检索增强Transformer (Retrieval-augmented Transformer)
-  year: '2026.04'
-  org: CVPR研究组
-  paper_url: https://arxiv.org/abs/2604.retformer
+  motivation: 发现ViT块递归结构，用少量权重共享块逼近深层ViT
+- id: vmamba
+  name: VMamba
+  full_name: "视觉状态空间模型 (VMamba: Visual State Space Model)"
+  year: '2024.01'
+  org: 中国科学院大学 / 华为 / 鹏城实验室
+  paper_url: https://arxiv.org/abs/2401.10166
   category: modern_efficient
   parent: swin_transformer
-  motivation: 利用多模态知识库检索增强，通过外部知识辅助识别
+  motivation: 以2D选择性扫描实现线性复杂度全局建模
+- id: focalnet
+  name: FocalNet
+  full_name: 焦点调制网络 (Focal Modulation Networks)
+  year: '2022.03'
+  org: Microsoft Research
+  paper_url: https://arxiv.org/abs/2203.11926
+  category: modern_efficient
+  parent: swin_transformer
+  motivation: 用焦点调制替代自注意力，实现分层上下文聚合
 graph:
   nodes:
   - id: alexnet
@@ -224,10 +224,10 @@ graph:
   - id: raptor
     x: 940
     y: 30
-  - id: deepseek_v4_vision
+  - id: vmamba
     x: 960
     y: 50
-  - id: retformer
+  - id: focalnet
     x: 950
     y: 80
   edges:
@@ -270,12 +270,12 @@ graph:
   - from: vit
     to: raptor
     label: 块递归
-  - from: vit
-    to: deepseek_v4_vision
-    label: 极简编码
   - from: swin_transformer
-    to: retformer
-    label: 检索增强
+    to: vmamba
+    label: 选择性扫描
+  - from: swin_transformer
+    to: focalnet
+    label: 焦点调制
   milestones:
   - alexnet
   - resnet

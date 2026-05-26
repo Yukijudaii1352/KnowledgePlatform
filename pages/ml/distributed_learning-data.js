@@ -1,5 +1,5 @@
 /**
- * distributed_learning-data.js — 由 pipeline/build.py 于 2026-05-26 10:35:20 自动生成。
+ * distributed_learning-data.js — 由 pipeline/build.py 于 2026-05-26 14:20:25 自动生成。
  * 源文件：content/ml/distributed_learning.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */

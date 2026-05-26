@@ -90,9 +90,9 @@ algorithms:
   motivation: 周期性全梯度快照修正，消除方差
 - id: saga
   name: SAGA
-  full_name: 快速增量梯度法 (SAGA)
+  full_name: 支持非强凸复合目标的快速增量梯度法 (SAGA)
   year: '2014'
-  org: INRIA
+  org: INRIA / ENS
   paper_url: https://arxiv.org/abs/1407.0202
   category: stochastic
   parent: svrg
@@ -189,22 +189,22 @@ algorithms:
   motivation: Newton-Schulz正交化动量，半数算力达同等性能
 - id: graal
   name: GRAAL
-  full_name: 最优自适应梯度法 (GRAAL)
+  full_name: Nesterov加速 GRAAL (Accelerated GRAAL)
   year: '2026'
-  org: Yandex Research
-  paper_url: https://arxiv.org/abs/2502.04153
+  org: Yandex Research / HSE
+  paper_url: https://arxiv.org/abs/2507.09823
   category: frontier
   parent: nag
-  motivation: 首个加速无参数梯度法，自适应局部曲率
+  motivation: 将Nesterov加速与局部曲率自适应真正结合
 - id: alias
   name: ALIAS
-  full_name: 无参数符号随机梯度 (ALIAS)
+  full_name: 自动局部逐步步长近似 (ALIAS)
   year: '2026'
-  org: Yandex Research
-  paper_url: https://arxiv.org/abs/2502.12989
+  org: BRAIn Lab / Yandex Research
+  paper_url: https://arxiv.org/abs/2506.03725
   category: frontier
   parent: adam
-  motivation: Sign-SGD无参数化，匹配精调AdamW
+  motivation: 为Sign-SGD提供无需调参的局部步长自适应
 graph:
   nodes:
   - id: newton

@@ -1,5 +1,5 @@
 /**
- * digital_human-data.js — 由 pipeline/build.py 于 2026-05-26 10:35:14 自动生成。
+ * digital_human-data.js — 由 pipeline/build.py 于 2026-05-26 14:20:19 自动生成。
  * 源文件：content/aigc/digital_human.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */

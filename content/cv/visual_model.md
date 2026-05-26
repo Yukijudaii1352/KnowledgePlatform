@@ -365,160 +365,70 @@ id: deit
 num: 2
 name: DeiT
 full_name: 数据高效图像Transformer (Data-efficient Image Transformers)
-year: '2021.01'
-org: Meta AI
+year: '2020.12'
+org: Facebook AI Research
 parent: vit
-paper_url: https://proceedings.mlr.press/v139/touvron21a
+paper_url: https://arxiv.org/abs/2012.12877
 project_url: ''
 category: foundation
 motivation: 知识蒸馏解决数据依赖
 ```
 
 #### 📝 一句话总结
-DeiT 提出了一套面向 Vision Transformer 的数据高效训练策略，并引入基于 distillation token 的知识蒸馏方法，仅使用 ImageNet-1K 数据即可训练出性能媲美甚至超越在 JFT-300M 上预训练的 ViT 的图像分类模型。
+DeiT 通过一套专门面向 ViT 的高效训练配方和 distillation token 蒸馏机制，让 Transformer 仅用 ImageNet-1K 就能达到接近大规模预训练 ViT 的性能，显著缓解了视觉 Transformer 的数据依赖问题。
 
 #### 🎯 核心要点
-- **无需大规模外部数据**：仅用 ImageNet-1K（120万张图）训练，DeiT-B 达到 81.8% top-1，蒸馏后达 83.4%，384分辨率微调后达 85.2%，超越 ViT-B/JFT-300M 的 84.15%
-- **Distillation Token 机制**：在 ViT 的 class token 之外新增一个可学习的 distillation token，专门用于从教师网络学习，与 class token 通过 self-attention 交互但学到互补表征
-- **Hard Distillation 优于 Soft Distillation**：将教师的 hard decision（argmax）作为真实标签，结合 label smoothing 的交叉熵损失，效果优于传统 KL 散度的 soft distillation
-- **ConvNet 教师优于 Transformer 教师**：使用 RegNetY-16GF（82.9%）作为教师效果最佳，蒸馏后的学生模型继承了 CNN 的归纳偏置
-- **三个模型变体**：DeiT-Ti（5M参数）、DeiT-S（22M）、DeiT-B（86M），覆盖不同计算预算
-- **完整训练策略**：AdamW 优化器、Rand-Augment、Mixup、CutMix、Random Erasing、Stochastic Depth、Repeated Augmentation、Label Smoothing、Cosine LR Decay
+- 只使用 ImageNet-1K 训练，不依赖 JFT-300M 等超大规模额外数据。
+- 提出 distillation token，使学生模型在 Transformer 内部直接接收教师监督。
+- 发现 hard distillation 比经典 soft distillation 更适合与强数据增强共同使用。
+- 使用 RegNetY 等 CNN 作为教师时，蒸馏效果优于 Transformer 教师。
+- 配套采用 AdamW、RandAugment、Mixup、CutMix、Repeated Augmentation 等完整训练配方。
 
 #### 🔬 深入细节
-![DeiT 蒸馏框架示意图](https://ar5iv.labs.arxiv.org/html/2012.12877/assets/x3.png)
-*图：DeiT 知识蒸馏框架。左侧为标准 ViT 的 class token 分类流程；右侧为 DeiT 新增的 distillation token，通过 Transformer 编码器与 class token 和 patch token 共同参与 self-attention，最终由教师网络（CNN）监督。*
-
-##### 动机与背景
-
-Vision Transformer（ViT）在 JFT-300M 等超大规模数据集上预训练后展现了强大的图像分类能力，但在仅使用 ImageNet-1K 训练时性能显著低于同等规模的卷积网络（ViT-B/16 仅 77.9% vs ResNet-152 的 78.3%）。核心原因在于 Transformer 缺乏卷积网络的归纳偏置（如局部性、平移等变性），需要更多数据来学习这些视觉先验。
-
-DeiT 的目标是：**不改变 ViT 架构本身**，仅通过改进训练策略和引入知识蒸馏，使 Transformer 在 ImageNet-1K 上即可达到有竞争力的性能。
-
-##### 核心机制一：数据高效训练策略
-
-DeiT 系统性地整合了多种数据增强和正则化技术，构建了一套适合 Transformer 的训练配方：
-
-| 组件 | 配置 |
-|------|------|
-| 优化器 | AdamW（lr = 0.0005 × batchsize/512） |
-| 学习率调度 | Cosine Decay + 5 epoch Warmup |
-| 权重衰减 | 0.05 |
-| 数据增强 | Rand-Augment (9/0.5)、Mixup (0.8)、CutMix (1.0)、Random Erasing (0.25) |
-| 正则化 | Stochastic Depth (0.1)、Label Smoothing (0.1) |
-| 训练技巧 | Repeated Augmentation（3次重复） |
-| 训练轮次 | 300 epochs（1000 epochs 可进一步提升） |
-
-> 💡 **关键发现**：消融实验表明，去除 Mixup 或 CutMix 中的任一项都会导致性能大幅下降（81.8% → 78.7%/80.0%），而 Repeated Augmentation 贡献了约 5.3% 的提升（76.5% → 81.8%）。Dropout 反而有害，被排除在训练流程之外。
-
-权重初始化采用截断正态分布（truncated normal distribution），这对 Transformer 的收敛至关重要。使用 SGD 替代 AdamW 会导致性能从 81.8% 骤降至 74.5%。
-
-##### 核心机制二：Distillation Token 蒸馏
-
-DeiT 的核心创新是引入了一个专用的 **distillation token**，其工作原理如下：
-
-**输入构造**：给定输入图像，将其分割为 \(N\) 个 patch 并线性映射为 patch embedding，然后在序列前端拼接两个特殊 token：
-
-$$\mathbf{z}_0 = [\mathbf{x}_{\text{class}};\; \mathbf{x}_{\text{distill}};\; \mathbf{x}_1^p;\; \mathbf{x}_2^p;\; \cdots;\; \mathbf{x}_N^p] + \mathbf{E}_{\text{pos}}$$
-
-其中 \(\mathbf{x}_{\text{class}}\) 是标准的 class token，\(\mathbf{x}_{\text{distill}}\) 是新增的 distillation token，二者均为可学习参数。
-
-**编码过程**：两个 token 与所有 patch token 一起通过 Transformer 编码器的 self-attention 层进行交互。在最后一层，class token 的输出 \(\mathbf{z}_L^{\text{class}}\) 用于与真实标签计算损失，distillation token 的输出 \(\mathbf{z}_L^{\text{distill}}\) 用于与教师网络的预测计算蒸馏损失。
-
-**Soft Distillation** 使用 KL 散度对齐学生与教师的软概率分布：
-
-$$\mathcal{L}_{\text{soft}} = (1-\lambda)\, \mathcal{L}_{\text{CE}}(\psi(Z_s),\, y) \;+\; \lambda\, \tau^2 \cdot \text{KL}\!\left(\psi(Z_s/\tau),\; \psi(Z_t/\tau)\right)$$
-
-其中 \(\psi\) 为 softmax，\(Z_s, Z_t\) 分别为学生和教师的 logits，\(\tau=3.0\) 为温度参数，\(\lambda=0.1\) 为平衡系数。
-
-**Hard Distillation**（DeiT 推荐方案）将教师的 argmax 预测视为伪标签：
-
-$$\mathcal{L}_{\text{hard}} = \frac{1}{2}\, \mathcal{L}_{\text{CE}}(\psi(Z_s),\, y) \;+\; \frac{1}{2}\, \mathcal{L}_{\text{CE}}(\psi(Z_s),\, y_t)$$
-
-其中 \(y_t = \arg\max_c Z_t(c)\) 为教师的硬标签。Hard distillation 将真实标签和教师标签等权混合，并对教师标签也施加 label smoothing（将 \(y_t\) 的概率设为 \(1-\varepsilon\)，其余类均分 \(\varepsilon\)）。
-
-> ⚠️ **注意**：Hard distillation 之所以优于 soft distillation，一个重要原因是它与 label smoothing 和数据增强（如 CutMix、Mixup）的兼容性更好。Soft distillation 中教师的软标签与这些增强产生的混合标签可能存在冲突。
-
-**推理阶段**：class token 和 distillation token 的输出通过各自的线性分类头得到两个预测，最终取二者 softmax 概率的平均值作为最终预测。
-
-##### 核心机制三：教师选择与表征互补性
-
-实验发现了一个反直觉的结论：**ConvNet 教师优于 Transformer 教师**。
-
-| 教师网络 | 教师 Top-1 | 学生 Top-1 |
-|----------|-----------|-----------|
-| DeiT-B (Transformer) | 81.8% | 82.7% |
-| RegNetY-16GF (CNN) | 82.9% | 83.4% |
-
-这一现象的解释是：CNN 教师向 Transformer 学生传递了卷积网络特有的归纳偏置（局部性、平移等变性），弥补了 Transformer 的先天不足。
-
-更有趣的是 **class token 与 distillation token 的表征分析**：
-- 在初始层，两个 token 的余弦相似度仅为 0.06，说明它们学到了截然不同的表征
-- 随着层数加深，相似度逐渐增加，在最后一层达到 0.93，但始终不完全相同
-- Distillation token 的输出更接近 CNN 教师的预测（disagreement rate 10.0%），而 class token 更接近原始 DeiT（disagreement rate 10.9%）
-- 融合两个 token 的预测（class + distill）比单独使用任一 token 都更好，验证了二者的互补性
+![DeiT 蒸馏框架图](https://ar5iv.labs.arxiv.org/html/2012.12877/assets/x3.png)
+*图：DeiT 在标准 class token 之外引入 distillation token，由教师网络对其进行监督。*
 
 ```python
-# DeiT 蒸馏训练伪代码
-class DeiT(nn.Module):
-    def __init__(self, ...):
-        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))      # class token
-        self.dist_token = nn.Parameter(torch.zeros(1, 1, embed_dim))     # distillation token
-        self.patch_embed = PatchEmbed(img_size, patch_size, embed_dim)
-        self.pos_embed = nn.Parameter(torch.zeros(1, num_patches+2, embed_dim))
-        self.transformer = TransformerEncoder(depth, heads, embed_dim)
-        self.head = nn.Linear(embed_dim, num_classes)       # 分类头
-        self.head_dist = nn.Linear(embed_dim, num_classes)  # 蒸馏头
+# DeiT 训练伪代码
+patch_tokens = patch_embed(image)
+tokens = concat([cls_token, dist_token, patch_tokens]) + pos_embed
+hidden = transformer(tokens)
+cls_logits = head(hidden[:, 0])
+dist_logits = head_dist(hidden[:, 1])
 
-    def forward(self, x):
-        patches = self.patch_embed(x)                       # [B, N, D]
-        # 拼接 class token 和 distillation token
-        tokens = torch.cat([self.cls_token, self.dist_token, patches], dim=1)
-        tokens = tokens + self.pos_embed
-        tokens = self.transformer(tokens)                   # [B, N+2, D]
-        cls_out = self.head(tokens[:, 0])                   # class token 输出
-        dist_out = self.head_dist(tokens[:, 1])             # distillation token 输出
-        return cls_out, dist_out
-
-# 训练循环（Hard Distillation）
-for images, labels in dataloader:
-    cls_logits, dist_logits = student(images)
-    with torch.no_grad():
-        teacher_labels = teacher(images).argmax(dim=-1)     # 教师硬标签
-    loss = 0.5 * CrossEntropy(cls_logits, labels) \
-         + 0.5 * CrossEntropy(dist_logits, teacher_labels)  # 等权混合
-    loss.backward()
-    optimizer.step()
-
-# 推理：融合两个 token 的预测
-cls_logits, dist_logits = model(image)
-prediction = (cls_logits.softmax(-1) + dist_logits.softmax(-1)) / 2
+teacher_label = teacher(image).argmax(dim=-1)
+loss = 0.5 * CE(cls_logits, gt_label) + 0.5 * CE(dist_logits, teacher_label)
+loss.backward()
+optimizer.step()
 ```
 
-##### 与 ViT 及传统方法的对比
+ViT 的第一个现实问题是：它在大数据预训练场景下很强，但在只用 ImageNet-1K 从头训练时，性能并不稳定，也难以和成熟 CNN 竞争。DeiT 的工作不是重新设计主干，而是回答一个更实际的问题：能否只靠更好的训练方法，把 ViT 训练得像卷积网络一样“省数据”。
 
-| 方法 | 预训练数据 | ImageNet Top-1 | 参数量 | 吞吐量 (img/s) |
-|------|-----------|---------------|--------|----------------|
-| ViT-B/16 | JFT-300M | 84.15% | 86M | 85.9 |
-| ViT-B/16 | ImageNet-1K | 77.9% | 86M | 85.9 |
-| DeiT-B | ImageNet-1K | 81.8% | 86M | 292.3 |
-| DeiT-B⚗ | ImageNet-1K | 83.4% | 87M | 290.9 |
-| DeiT-B⚗↑384 | ImageNet-1K | 85.2% | 87M | 85.8 |
-| EfficientNet-B7 | ImageNet-1K | 84.3% | 66M | 55.1 |
-| RegNetY-16GF | ImageNet-1K | 82.9% | 84M | 334.7 |
+论文最核心的结构创新是 distillation token。标准 ViT 只有一个 class token 用于汇聚全局信息，而 DeiT 增加了第二个可学习 token，让它和 patch token 一起参与自注意力计算，但最终单独接收教师网络的监督。于是蒸馏不再发生在模型输出层之外，而是直接嵌入 Transformer 的内部表征学习过程。推理时，class token 和 distillation token 的预测做平均，得到最终结果。
 
-> 💡 **关键**：DeiT-B⚗↑384 以 85.2% 的 top-1 准确率超越了在 3 亿张图上预训练的 ViT-B（84.15%），同时仅需 ImageNet-1K 的 120 万张图训练。在迁移学习（CIFAR-10/100、Flowers、Cars、iNaturalist）上，DeiT 也与 EfficientNet 等 SOTA 卷积网络持平。
+DeiT 比较了 soft distillation 和 hard distillation。soft 版本用教师输出分布做 KL 约束，hard 版本则直接把教师的 argmax 类别当作额外标签。论文发现后者更稳定，因为它与 Mixup、CutMix、label smoothing 等训练技巧的耦合更自然。目标函数可写成：
+
+$$
+\mathcal{L} =
+\frac{1}{2}\,\mathcal{L}_{\text{CE}}(y_{\text{cls}}, y)
+\;+\;
+\frac{1}{2}\,\mathcal{L}_{\text{CE}}(y_{\text{dist}}, y_t)
+$$
+
+其中 \(y\) 是真实标签，\(y_t\) 是教师预测的硬标签。直觉上，学生同时学习“数据本身的监督”和“成熟教师给出的归纳偏置”，后者尤其弥补了 ViT 缺少卷积先验的问题。
+
+另一个重要结论是：CNN 教师往往比 Transformer 教师更有效。原因在于 CNN 本身携带局部性和平移等变等视觉归纳偏置，恰好能补齐 ViT 的短板。DeiT 因此并不是否定 CNN，而是把 CNN 的归纳偏置通过蒸馏传递给 Transformer，这也是它成为“数据高效 ViT”代表作的关键。
 
 #### 🧪 练习题
 ```yaml
-question: "DeiT 中 distillation token 的作用是什么？"
+question: "DeiT 中 distillation token 的主要作用是什么？"
 options:
-  - "替代 class token 进行最终分类"
-  - "作为额外的可学习 token，专门从教师网络学习蒸馏知识，与 class token 互补"
-  - "用于生成数据增强的掩码"
-  - "作为位置编码的一部分，增强空间信息"
+  - "替代所有 patch token 参与编码"
+  - "专门承接教师模型监督，并在 Transformer 内部学习蒸馏表征"
+  - "只用于位置编码插值"
+  - "把图像切成更小 patch"
 answer: 1
-explain: "Distillation token 是 DeiT 新增的可学习 token，通过 self-attention 与其他 token 交互，其输出由教师网络监督。它与 class token 学到互补表征（初始层余弦相似度仅 0.06），融合后分类性能优于单独使用任一 token。"
+explain: "DeiT 新增 distillation token，让教师监督直接进入 Transformer 编码过程，而不是只在最终 logits 上做外部蒸馏。"
 ```
 
 ### Swin Transformer
@@ -538,16 +448,67 @@ motivation: 层级特征+线性复杂度
 ```
 
 #### 📝 一句话总结
-Swin Transformer 的核心目标是：层级特征+线性复杂度。
+Swin Transformer 用局部窗口注意力和跨层移位窗口机制，把 Transformer 从单尺度全局建模改造成可线性扩展、可输出层级特征的通用视觉骨干，直接打通了检测和分割等密集预测任务。
 
 #### 🎯 核心要点
-- 核心动机：层级特征+线性复杂度
-- 演化来源：继承或改进自 vit
-- 代表机构：Microsoft Research Asia
+- 用 window-based self-attention 把全局 \(O((HW)^2)\) 复杂度降为对图像尺寸线性增长。
+- 相邻层交替使用 W-MSA 和 shifted W-MSA，实现跨窗口信息交换。
+- 通过 patch merging 构建 4-stage 层级特征金字塔，形式上更接近 CNN/FPN。
+- 使用相对位置偏置而非绝对位置编码，便于迁移到不同窗口尺寸和下游任务。
+- 在分类、检测、实例分割和语义分割上都显著优于同时代 ViT/ResNet 骨干。
 
 #### 🔬 深入细节
-层级特征+线性复杂度
+![Swin Transformer 架构图](https://ar5iv.labs.arxiv.org/html/2103.14030/assets/x1.png)
+*图：Swin 采用分阶段层级结构，每个阶段内部交替堆叠常规窗口注意力和移位窗口注意力，并在阶段间做 patch merging。*
 
+```python
+# Swin Block 伪代码
+def swin_block(x, shift=False, window_size=7):
+    shortcut = x
+    x = layer_norm(x)
+    if shift:
+        x = torch.roll(x, shifts=(-window_size // 2, -window_size // 2), dims=(1, 2))
+    windows = partition_windows(x, window_size)
+    windows = window_attention(windows, relative_position_bias=True, use_mask=shift)
+    x = reverse_windows(windows, window_size)
+    if shift:
+        x = torch.roll(x, shifts=(window_size // 2, window_size // 2), dims=(1, 2))
+    x = shortcut + x
+    x = x + mlp(layer_norm(x))
+    return x
+```
+
+ViT 的两个短板很明显：第一，全局自注意力在高分辨率下计算量过高；第二，输出始终是单尺度 token 序列，不适合检测和分割等需要多尺度特征的任务。Swin 的贡献就是把这两个问题一起处理掉，而且尽量不牺牲 Transformer 的建模能力。
+
+它的第一步是把注意力限制在固定大小窗口内。若特征图大小为 \(h \times w\)，窗口边长为 \(M\)，则全局注意力复杂度近似为
+
+$$
+\Omega(\text{MSA}) = 4hwC^2 + 2(hw)^2C
+$$
+
+而窗口注意力变成
+
+$$
+\Omega(\text{W-MSA}) = 4hwC^2 + 2M^2hwC
+$$
+
+当 \(M\) 固定时，复杂度对图像尺寸 \(hw\) 线性增长。问题在于：如果永远只在独立窗口内部做注意力，不同窗口之间的信息就断开了。Swin 的解法是下一层把窗口平移半个窗口宽度，让原来分属不同窗口的 token 在新分组中相遇，这就是 shifted window 的核心。
+
+实现上，直接平移会导致边界出现尺寸不整齐的小窗口。论文因此使用 cyclic shift 加 attention mask：先对特征图做循环平移，再按原窗口数划分，最后用掩码阻断不该相互通信的位置。这样既保留了跨窗口连接，又不增加窗口数量，工程上非常高效。
+
+Swin 的第二个关键设计是 patch merging。每过一个阶段，把相邻 \(2\times2\) patch 拼接并线性映射，空间分辨率减半、通道数增加，于是模型天然得到类似 CNN 的多尺度层级表示。这也是它能无缝接到 FPN、Mask R-CNN、UPerNet 等下游框架上的根本原因。某种意义上，Swin 不是“把 CNN 替掉”，而是把 Transformer 改造成了更像 CNN 的视觉骨干。
+
+#### 🧪 练习题
+```yaml
+question: "Swin Transformer 中 shifted window 的主要作用是什么？"
+options:
+  - "让每层都恢复成全局自注意力"
+  - "在保持窗口注意力线性复杂度的同时，实现跨窗口的信息交互"
+  - "替代 patch embedding 做下采样"
+  - "去掉位置编码的需求"
+answer: 1
+explain: "如果只做独立窗口注意力，不同窗口之间不会通信；shifted window 通过跨层平移窗口，让边界 token 在下一层建立连接。"
+```
 
 ### CLIP
 
@@ -556,10 +517,10 @@ id: clip
 num: 4
 name: CLIP
 full_name: 对比语言-图像预训练 (Contrastive Language-Image Pre-training)
-year: '2021.01'
+year: '2021.03'
 org: OpenAI
 parent: vit
-paper_url: https://openai.com/research/clip
+paper_url: https://arxiv.org/abs/2103.00020
 project_url: ''
 category: multimodal
 motivation: 视觉语言对齐开创零样本
@@ -863,18 +824,59 @@ motivation: 首创掩码图像建模
 ```
 
 #### 📝 一句话总结
-BEiT 将 BERT 的掩码语言建模思想迁移到视觉领域，提出**掩码图像建模（Masked Image Modeling, MIM）**：将图像分为 patch 和 visual token 两种视图，预训练时随机掩码约 40% 的 patch，让 Vision Transformer 预测被掩码位置对应的离散 visual token（由预训练的 dVAE 生成），从而学到强大的视觉表征。
-
----
+BEiT 首次把 BERT 式掩码建模系统性迁移到视觉预训练中，用离散 visual token 作为预测目标而不是直接回归像素，从而显著提升了 ViT 的自监督表征质量。
 
 #### 🎯 核心要点
-- 核心动机：首创掩码图像建模
-- 演化来源：继承或改进自 vit
-- 代表机构：Microsoft Research
+- 提出 Masked Image Modeling，把图像 patch 的恢复任务改写成离散 token 分类任务。
+- 引入双视图：patch 序列作为 Transformer 输入，dVAE 生成的 visual token 作为监督信号。
+- 使用 block-wise masking，而不是独立随机 mask，迫使模型利用更大范围上下文推断语义。
+- 采用 DALL-E 风格 dVAE 作为图像 tokenizer，词表大小为 8192。
+- 在 ImageNet 分类和 ADE20K 分割上优于 DeiT、DINO、MoCo v3 等同时代方法。
 
 #### 🔬 深入细节
-首创掩码图像建模
+![BEiT 预训练流程图](https://ar5iv.labs.arxiv.org/html/2106.08254/assets/x1.png)
+*图：BEiT 将图像同时表示为 patch 序列和离散 visual token，模型输入被遮挡后的 patch，目标则是预测原图对应位置的 token。*
 
+```python
+# BEiT 预训练伪代码
+image = load_image()
+patches = patch_embed(image)                     # Transformer 输入
+tokens = dvae_tokenizer(image)                   # 离散监督目标
+masked_patches, mask_idx = blockwise_mask(patches, ratio=0.4)
+hidden = vit_encoder(masked_patches)
+logits = classifier(hidden[mask_idx])
+loss = cross_entropy(logits, tokens[mask_idx])
+loss.backward()
+optimizer.step()
+```
+
+BEiT 的出发点很直接：直接预测像素值虽然也能形成重建任务，但模型往往更容易学到局部纹理和颜色连续性，而不一定真正掌握高层语义。论文因此把监督目标切换成 dVAE 生成的离散 visual token，相当于先用 tokenizer 把图像压缩成“视觉词汇”，再让 ViT 去做类似 BERT 的分类恢复。
+
+这一设计的关键在于“输入视图”和“目标视图”分离。输入端仍然是标准 patch embedding，因此编码器结构和 ViT 完全兼容；目标端则是 dVAE 产生的离散 token。这样模型既能复用成熟的 Transformer 架构，又能避免像素重建带来的低层细节偏置。预训练目标可以写成：
+
+$$
+\mathcal{L}_{\text{MIM}} =
+\sum_{i \in \mathcal{M}}
+-\log p_\theta(z_i \mid x^\mathcal{M})
+$$
+
+其中 \(\mathcal{M}\) 是被遮挡位置集合，\(z_i\) 是对应的 visual token，\(x^\mathcal{M}\) 是 mask 后的输入图像。直观上，模型必须根据周围上下文判断“这里最可能是什么语义单元”，而不是做逐像素插值。
+
+BEiT 还特别强调 block-wise masking。原因是视觉 patch 之间局部相关性极强，如果只随机遮掉零散 patch，模型可以凭附近纹理轻松补全，任务难度偏低。将掩码做成连续块状区域后，模型必须利用更远距离的语义线索，比如“这里应当是狗的头部”而不是“这里颜色与周围相近”。这也是后来大量 MIM 工作沿用区域化 masking 的原因。
+
+从结果看，BEiT 证明了“预测离散语义 token”是一条有效路线，也直接催生了后续 MAE、EVA 等视觉预训练分支。它的重要性不只在于性能提升，更在于给视觉自监督预训练提供了一个与 NLP MLM 对齐的统一范式。
+
+#### 🧪 练习题
+```yaml
+question: "BEiT 相比直接重建像素，为什么改为预测离散 visual token？"
+options:
+  - "为了减小 patch 数量，降低输入分辨率"
+  - "为了把恢复任务转成更偏语义的分类任务，避免模型只学习低层纹理"
+  - "为了让 Transformer 可以使用卷积解码器"
+  - "为了彻底去掉位置编码"
+answer: 1
+explain: "BEiT 的核心思想是用 dVAE 生成的离散 token 作为监督目标，让模型恢复高层语义单元，而不是只做像素级纹理补全。"
+```
 
 ### MAE
 
@@ -1062,16 +1064,52 @@ motivation: 现代化CNN媲美Transformer
 ```
 
 #### 📝 一句话总结
-ConvNeXt 的核心目标是：现代化CNN媲美Transformer。
+ConvNeXt 通过系统吸收 Transformer 时代的训练配方和结构设计，把 ResNet 逐步现代化为更强的纯卷积骨干，证明精心设计的 CNN 仍然能在分类、检测和分割上与 Swin Transformer 正面竞争。
 
 #### 🎯 核心要点
-- 核心动机：现代化CNN媲美Transformer
-- 演化来源：继承或改进自 swin
-- 代表机构：Meta AI
+- 从 ResNet-50 出发，逐步替换训练策略、stem、深度卷积、大核、归一化和下采样设计。
+- 用 4×4 patchify stem 和独立下采样层，把卷积网络的宏观结构对齐到 Swin 风格。
+- 用 7×7 depthwise convolution、反转瓶颈、GELU 和 LayerNorm 重写 block。
+- 强调性能差距很大一部分来自训练 recipe，而不仅是注意力机制本身。
+- 在 ImageNet、COCO、ADE20K 上达到与 Swin 同级甚至更好的结果。
 
 #### 🔬 深入细节
-现代化CNN媲美Transformer
+![ConvNeXt 现代化路线图](https://ar5iv.labs.arxiv.org/html/2201.03545/assets/x2.png)
+*图：论文把 ResNet 到 ConvNeXt 的改造拆解成一系列可独立消融的步骤。*
 
+```python
+# ConvNeXt block 伪代码
+def convnext_block(x):
+    residual = x
+    x = depthwise_conv(x, kernel_size=7, padding=3)
+    x = layer_norm(x)
+    x = linear(x, 4 * dim)
+    x = gelu(x)
+    x = linear(x, dim)
+    return residual + x
+```
+
+ConvNeXt 的论文方法论很有代表性：作者没有从零发明一个新卷积架构，而是反过来问，“Transformer 时代到底哪些设计真正有效，这些设计是否也能迁移回 CNN？”因此它不是一次激进创新，而是一条清晰的现代化改造路线。
+
+第一类改造来自训练策略。仅仅把 ResNet-50 的训练 recipe 升级为 AdamW、300 epoch、Mixup、CutMix、RandAugment、label smoothing、stochastic depth 等 ViT/Swin 风格设置，性能就能明显上升。这说明早期“CNN 不如 Transformer”的一部分结论其实混杂了训练协议差异。
+
+第二类改造来自宏观结构。ConvNeXt 用 patchify stem 取代大卷积 + max-pooling 的传统开头，并把 stage 比例调整得更像 Swin，把更多计算量放到中间阶段。同时，阶段之间使用独立下采样层，而不是把降采样直接塞进残差块内部，使特征流更干净、更稳定。
+
+第三类改造落在 block 内部。ConvNeXt 使用 depthwise 大核卷积做空间混合，再用两层 \(1\times1\) 线性层做通道混合，形式上已经很接近 Transformer 中“token mixing + channel MLP”的分工。论文特别把核扩大到 \(7\times7\)，并采用反转瓶颈、GELU、LayerNorm，从而让卷积块既保留 CNN 的局部先验，又获得更大的感受野和更现代的优化行为。
+
+这篇论文最重要的结论不是“卷积比注意力更强”，而是“强视觉骨干的许多成功因素与是否使用注意力并不完全绑定”。ConvNeXt 因此成为后续大量 CNN 回潮工作的起点，也让“骨干网络设计”重新回到公平比较的语境中。
+
+#### 🧪 练习题
+```yaml
+question: "ConvNeXt 的核心论点最准确的表述是哪一项？"
+options:
+  - "只要去掉所有归一化层，CNN 就会超过 Transformer"
+  - "Transformer 的优势很大程度上也来自训练 recipe 和若干可迁移的结构设计，而不只是注意力机制本身"
+  - "Depthwise 卷积可以完全等价替代自注意力"
+  - "ConvNeXt 证明了卷积网络不需要大规模数据"
+answer: 1
+explain: "ConvNeXt 的方法是把 Transformer 时代被验证有效的设计逐步迁移回 CNN，说明性能差距并不只来自注意力本身。"
+```
 
 ### EVA
 
@@ -1557,7 +1595,7 @@ full_name: 分割一切模型 (Segment Anything Model)
 year: '2023.04'
 org: Meta AI
 parent: vit
-paper_url: http://openaccess.thecvf.com/content/ICCV2023/html/Kirillov_Segment_Anything_ICCV_2023_paper.html
+paper_url: https://openaccess.thecvf.com/content/ICCV2023/html/Kirillov_Segment_Anything_ICCV_2023_paper.html
 project_url: ''
 category: segmentation
 motivation: 可提示分割定义新范式
@@ -1756,10 +1794,10 @@ id: florence2
 num: 13
 name: Florence-2
 full_name: 统一视觉任务表征 (Florence-2)
-year: '2024'
+year: '2023.11'
 org: Microsoft Research
 parent: clip
-paper_url: http://openaccess.thecvf.com/content/CVPR2024/html/Xiao_Florence-2_Advancing_a_Unified_Representation_for_a_Variety_of_Vision_CVPR_2024_paper.html
+paper_url: https://arxiv.org/abs/2311.06242
 project_url: ''
 category: multimodal
 motivation: 统一Prompt处理多粒度任务
@@ -1923,10 +1961,10 @@ id: sam2
 num: 14
 name: SAM 2
 full_name: 分割一切模型2 (Segment Anything Model 2)
-year: '2024.07'
-org: Meta AI
+year: '2024.08'
+org: Meta FAIR
 parent: sam
-paper_url: https://ai.meta.com/blog/segment-anything-2/
+paper_url: https://arxiv.org/abs/2408.00714
 project_url: ''
 category: segmentation
 motivation: 统一图像视频分割
@@ -2112,11 +2150,11 @@ explain: "Memory Bank 存储三类信息：Recent Memories（最近 N 帧经 Mem
 id: vision_mamba
 num: 15
 name: Vision Mamba
-full_name: 视觉状态空间模型 (Vision Mamba)
-year: '2026.01'
-org: 多机构
+full_name: 双向状态空间视觉表征学习 (Vision Mamba)
+year: '2024.01'
+org: 华中科技大学 / 地平线机器人 / 北京智源人工智能研究院
 parent: swin
-paper_url: https://arxiv.org/abs/2601.xxxxx
+paper_url: https://arxiv.org/abs/2401.09417
 project_url: ''
 category: foundation
 motivation: SSM架构线性复杂度
@@ -2281,11 +2319,11 @@ explain: "图像 patch 之间的空间关系是非因果的，单向 SSM 只能�
 id: lookwhere
 num: 16
 name: LookWhere
-full_name: 自适应视觉识别 (LookWhere)
-year: '2026.01'
-org: Meta AI
+full_name: 自监督自适应视觉识别 (LookWhere)
+year: '2025.05'
+org: 多机构
 parent: dinov2
-paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/7dd74dcef03c8f88a58d18a9d49d7a10-Abstract-Conference.html
+paper_url: https://arxiv.org/abs/2505.18051
 project_url: ''
 category: representation
 motivation: 自适应计算动态分配
@@ -2428,8 +2466,8 @@ id: xsam
 num: 17
 name: X-SAM
 full_name: 任意分割模型 (X-SAM)
-year: '2026.02'
-org: 多机构
+year: '2026.03'
+org: 中山大学 / 美团 / 鹏城实验室
 parent: sam2
 paper_url: https://ojs.aaai.org/index.php/AAAI/article/view/39822
 project_url: ''
@@ -2438,16 +2476,50 @@ motivation: 任意分割交互式全实例
 ```
 
 #### 📝 一句话总结
-X-SAM 的核心目标是：任意分割交互式全实例。
+X-SAM 把 SAM 从“给定提示做单类分割”扩展为“统一处理任意分割任务”的多模态框架，通过双编码器、统一查询接口和 Mask2Former 风格解码器，把开放词汇、指代、推理、交互和视觉指向分割放进同一个模型里。
 
 #### 🎯 核心要点
-- 核心动机：任意分割交互式全实例
-- 演化来源：继承或改进自 sam2
-- 代表机构：多机构
+- 把多种分割任务统一为文本查询和视觉查询两类输入范式。
+- 采用 SigLIP2 提供语义视觉特征，SAM-L 提供细粒度空间分割特征。
+- 用 `<SEG>` 令牌触发分割解码，将 LLM 的语义理解直接传给掩码生成器。
+- 分割头改成 Mask2Former 风格的多尺度掩码解码器，支持多实例输出。
+- 提出 VGD 任务，要求根据视觉提示分割图中所有同类实例，而不是只分一个对象。
 
 #### 🔬 深入细节
-任意分割交互式全实例
+![X-SAM 架构图](https://ar5iv.labs.arxiv.org/html/2508.04655v2/assets/figures/fig2_arch.png)
+*图：X-SAM 同时接收语义编码器和分割编码器的特征，再由 LLM 生成 `<SEG>` 查询触发统一分割解码。*
 
+```python
+# X-SAM 推理伪代码
+img_feat = siglip2_encoder(image)
+seg_feat = sam_encoder(image)
+visual_tokens = concat(project_img(img_feat), project_seg(seg_feat))
+prompt_tokens = tokenize(query)                  # 文本查询或 <region> 视觉查询
+llm_out = llm(concat(visual_tokens, prompt_tokens))
+seg_queries = extract_seg_tokens(llm_out)
+masks = mask_decoder(seg_queries, multiscale(seg_feat))
+return masks
+```
+
+X-SAM 的问题意识来自一个现实割裂：SAM 很强，但它更像一个“交互式掩码工具”；而多模态大模型虽然理解语言和视觉语义，但往往缺乏像素级输出能力。论文想做的是把两者拼起来，而且不是针对某一种任务拼，而是做成一个统一接口。
+
+统一接口的关键是输入格式。对于文本驱动任务，X-SAM 使用 `<p>...</p>` 包裹类别或描述，例如开放词汇和指代表达；对于视觉驱动任务，则使用 `<region>` 占位符，把点、框、涂鸦等提示编码成区域嵌入塞进上下文。LLM 在理解输入后输出 `<SEG>` 特殊令牌，后者被当成条件查询送入分割头。于是“语义理解”和“掩码生成”之间建立了显式桥梁。
+
+结构上，SigLIP2 和 SAM-L 的双编码器设计也很有针对性。SigLIP2 更擅长高层语义对齐，适合理解文本描述和开放词汇概念；SAM-L 更擅长保留细粒度边界和几何结构。X-SAM 不尝试让一个编码器同时兼顾两件事，而是把两路特征投影后联合交给 LLM 和分割头。分割侧再利用像素洗牌构建多尺度特征，以适配 Mask2Former 式解码过程。
+
+训练上，论文采用三阶段流程：先单独把分割器调稳，再做视觉-语言对齐，最后混合多类任务进行端到端微调。这样能避免一开始就把“像素级学习”和“语言对齐”混在一起导致训练不稳定。X-SAM 的意义在于，它把“分割”从单任务工具升级成了可由统一多模态语义接口驱动的通用能力模块。
+
+#### 🧪 练习题
+```yaml
+question: "X-SAM 中 `<SEG>` 令牌最核心的作用是什么？"
+options:
+  - "替代图像编码器输出视觉 patch"
+  - "作为 LLM 生成的条件查询，把语义理解传给分割解码器"
+  - "只用于统计分割类别数量"
+  - "充当位置编码"
+answer: 1
+explain: "X-SAM 让 LLM 输出 `<SEG>` 令牌，再用它作为条件查询触发掩码生成，从而把语言理解和像素分割接起来。"
+```
 
 ### UniPixel
 
@@ -2456,26 +2528,64 @@ id: unipixel
 num: 18
 name: UniPixel
 full_name: 统一像素级推理 (UniPixel)
-year: '2026.01'
+year: '2025.09'
 org: 多机构
 parent: florence2
-paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/b783c44ba9adbc30344473dc633b4869-Abstract-Conference.html
+paper_url: https://arxiv.org/abs/2509.18094
 project_url: ''
 category: multimodal
 motivation: 像素推理融合MLLM
 ```
 
 #### 📝 一句话总结
-UniPixel 的核心目标是：像素推理融合MLLM。
+UniPixel 通过对象记忆库把视觉指代、像素级分割和问答统一到一个多模态模型里，使模型既能理解“你指的是谁”，又能持续追踪并分割这个对象，从而完成更灵活的像素级推理。
 
 #### 🎯 核心要点
-- 核心动机：像素推理融合MLLM
-- 演化来源：继承或改进自 florence2
-- 代表机构：多机构
+- 统一处理 referring、segmentation 和 PixelQA，不再把“理解提示”和“生成掩码”拆成两个系统。
+- 提出 Object Memory Bank，显式存储被引用对象的语义和视觉特征。
+- 采用 Prompt Encoder 编码点、框、掩码等视觉提示，并与时间信息联合建模。
+- 复用 SAM2.1 风格掩码解码器进行跨帧传播，支持视频级像素推理。
+- 设计 `<REF>`、`<SEG>`、`<MEM>` 特殊 token，驱动对象引用、掩码生成和记忆读取。
 
 #### 🔬 深入细节
-像素推理融合MLLM
+![UniPixel 架构图](https://arxiv.org/html/2509.18094v4/x3.png)
+*图：UniPixel 用对象记忆库把对象引用、掩码生成和后续推理串起来。*
 
+```python
+# UniPixel 核心流程
+prompt_tokens = prompt_encoder(visual_prompt, time_index=t)
+vlm_out = llm(video_tokens, text_query, prompt_tokens)
+
+if "<REF>" in vlm_out:
+    obj_state = build_object_state(vlm_out, visual_features)
+    memory_bank.store(obj_id, obj_state)
+
+if "<SEG>" in vlm_out:
+    masks = sam2_decoder(video_features, memory_bank[obj_id])
+
+if "<MEM>" in vlm_out:
+    llm_context = inject(memory_bank[obj_id], llm_context)
+```
+
+很多早期多模态模型要么能做 referring，知道“用户在说哪个对象”；要么能做 segmentation，知道“怎么画出掩码”。UniPixel 的目标是把这两种能力真正合并，否则模型在复杂交互场景里只能做其中一半。比如给出一点视觉提示，再问“这个物体后来做了什么”，单纯的分割器或单纯的问答模型都不够。
+
+论文的核心机制是 Object Memory Bank。模型在识别或分割某个对象后，不是把结果立即丢弃，而是以显式 slot 的形式存下来，包括引用 token、分割 token 和 mask-pooled 视觉特征。之后模型如果需要继续追踪、解释或回答与该对象有关的问题，就可以通过 `<MEM>` 读回对应对象的状态。这和普通 attention 的区别在于，它是结构化、持久化、按对象索引的记忆，而不是把所有 token 混在一个上下文窗口里。
+
+Prompt Encoder 也很关键。点、框、区域掩码等视觉提示都会先被编码成统一 token 序列，并与时间位置联合建模，否则在视频里同样的空间坐标可能指向不同帧上的不同对象。论文因此把时间信息也编码进 prompt，使模型学会“第几帧的哪个位置”这一更精确的对象索引方式。
+
+UniPixel 之所以能做 PixelQA，是因为它不把分割结果当最终输出，而把它当成推理中间状态。模型可以先理解提示对象，再生成分割掩码，再基于记忆中的对象特征输出文本答案。这个思路把“像素级 grounding”从工具能力提升成了多模态推理链的一部分，是它相比传统 MLLM 分割器更重要的地方。
+
+#### 🧪 练习题
+```yaml
+question: "UniPixel 中 Object Memory Bank 的核心价值是什么？"
+options:
+  - "把所有对象都压缩成一个全局 token"
+  - "显式保存被引用对象的状态，使模型能在后续轮次继续分割、追踪和回答相关问题"
+  - "替代视频编码器做时序建模"
+  - "只用于加速训练收敛"
+answer: 1
+explain: "Object Memory Bank 让对象信息可以被显式写入、读取和复用，因此模型能围绕同一个对象持续推理，而不是一次性输出后丢失状态。"
+```
 
 ### RynnBrain
 
@@ -2494,16 +2604,50 @@ motivation: 开源具身感知基础模型
 ```
 
 #### 📝 一句话总结
-RynnBrain 的核心目标是：开源具身感知基础模型。
+RynnBrain 试图把具身认知、空间定位和任务规划统一进一个开源视觉语言基础模型里，通过统一坐标 token 表示、大规模具身数据预训练和规则奖励强化学习，形成面向 embodied 场景的通用感知与规划底座。
 
 #### 🎯 核心要点
-- 核心动机：开源具身感知基础模型
-- 演化来源：继承或改进自 dinov2
-- 代表机构：多机构
+- 基于 decoder-only VLM，把图像和视频统一成帧序列输入。
+- 将 bbox、点、区域和轨迹都量化为离散坐标 token，由模型自回归生成。
+- 预训练数据同时覆盖通用视觉理解、空间定位、affordance 和操作规划。
+- 提出 Chain-of-Perception，把推理链中的实体显式锚定到帧和空间位置。
+- 使用 GRPO 和规则奖励优化轨迹、区域和空间决策质量。
 
 #### 🔬 深入细节
-开源具身感知基础模型
+![RynnBrain 任务与模型示意图](https://arxiv.org/html/2602.14979v1/x1.png)
+*图：RynnBrain 试图把感知、定位、规划和动作相关输出统一到一个视觉语言建模框架里。*
 
+```python
+# RynnBrain 统一输出形式
+video_tokens = vision_encoder(frames)
+hidden = llm(video_tokens, instruction)
+
+# 统一离散坐标输出
+response = """
+<object> <frame 3>: (214, 420), (650, 882) </object>
+<area> <frame 4>: (120,210), (180,240), (175,330) </area>
+"""
+```
+
+RynnBrain 的设计目标很明确：如果一个模型要在具身场景里真正可用，它不能只会看图说话，还得同时具备“找到物体在哪里”“判断什么位置可操作”“规划接下来怎么做”这些能力。论文因此没有把 embodied tasks 当成若干互相独立的小 benchmark，而是尝试构建一个共享的表示与输出接口。
+
+最关键的统一机制是离散坐标 token。传统做法往往会给 grounding、affordance、轨迹预测分别设计不同的回归头，而 RynnBrain 直接把空间坐标量化到统一整数区间，让 VLM 用 next-token prediction 方式生成。这么做的好处是接口统一、训练目标一致，也更方便和文本推理链结合；代价则是坐标精度受量化粒度限制，但在大多数 embodied 场景中这个代价是可接受的。
+
+论文的另一个亮点是 Chain-of-Perception。普通 CoT 只在文本空间里展开推理，而 CoP 会把“这个花纹墙纸”“那个抓手”“该走向哪里”等中间实体显式落到具体帧和坐标上，例如 `<object> <frame 3>: ... </object>`。这样模型的推理不再只是语言上的自洽，而是被视觉证据绑定，能明显减少具身场景中的空间幻觉。
+
+在优化层面，RynnBrain 使用 GRPO 这类组相对强化学习，并配合规则奖励而非学习型奖励模型，例如轨迹用 Fréchet distance、区域用 Chamfer distance、多边形区域用点内率评估。这类奖励设计的好处是目标直接、可验证，也更符合具身任务中“输出几何结构是否正确”的评价方式。整体上，这篇工作代表的是“把 embodied 能力看成基础模型原生能力”的路线，而不仅仅是后接一个导航或操作头。
+
+#### 🧪 练习题
+```yaml
+question: "RynnBrain 采用离散坐标 token 统一空间输出，最直接的工程收益是什么？"
+options:
+  - "完全消除空间误差"
+  - "让定位、区域和轨迹等任务都能复用同一种自回归生成接口，而不必为每个任务单独设计回归头"
+  - "让模型不再需要视觉编码器"
+  - "把视频输入长度压缩到常数"
+answer: 1
+explain: "RynnBrain 的核心做法是把不同空间输出统一成 token 序列，这样可以直接复用 VLM 的生成范式，而不是为每类空间任务分别造头。"
+```
 
 ### VideoLoom
 

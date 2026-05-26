@@ -1,144 +1,111 @@
-### SAGA: 快速增量梯度法
+### SAGA
 
 ```yaml
 id: saga
 name: SAGA
-full_name: "SAGA: A Fast Incremental Gradient Method With Support for Non-Strongly Convex Composite Objectives"
-year: 2014
-org: INRIA
+full_name: 支持非强凸复合目标的快速增量梯度法 (SAGA)
+year: '2014'
+org: INRIA / ENS
 paper_url: https://arxiv.org/abs/1407.0202
 category: stochastic
 parent: svrg
 motivation: 无偏梯度估计，支持近端算子
 ```
 
-## 📝 一句话总结
+#### 📝 一句话总结
+SAGA 是一种表格型方差缩减方法：它通过维护每个样本分量的历史梯度，构造对全梯度的无偏估计，在保持线性收敛的同时原生支持近端算子和非强凸复合目标。相比 SAG 与 SVRG，它最大的优点是“无偏 + 支持 prox + 不需要外层全梯度快照”。
 
-SAGA 是一种基于方差缩减的增量梯度方法，通过维护每个分量函数的历史梯度表并构造**无偏**梯度估计，在支持近端算子和非强凸问题的同时，实现了与 SAG/SVRG 匹配的线性收敛速率。
+#### 🎯 核心要点
+- 维护每个样本分量 \(f_i\) 的历史梯度表，以及它们的平均值，形成“表格型”方差缩减。
+- 核心无偏估计器为 \(f'_j(x^k)-f'_j(\phi_j^k)+\frac{1}{n}\sum_i f'_i(\phi_i^k)\)，期望恰好等于全梯度。
+- 原生支持复合目标 \(\min_x \frac1n\sum_i f_i(x)+h(x)\)，可直接接近端算子 \(\mathrm{prox}_{\gamma h}\)。
+- 强凸情形下可用 \(\gamma=\frac{1}{2(\mu n+L)}\) 获得线性收敛，复杂度为 \(O((n+L/\mu)\log(1/\varepsilon))\)。
+- 非强凸情形下用 \(\gamma=\frac{1}{3L}\) 可得到 \(O(n/k)\) 的函数值收敛，无需外层快照循环。
+- 从方法结构上看，SAGA 处在 SAG 与 SVRG 的中间：既保留了增量存储结构，又保留了无偏控制变量估计。
 
-## 🎯 核心要点
+#### 🔬 深入细节
+![SAGA 算法流程示意图](https://quickchart.io/graphviz?graph=digraph%7Brankdir%3DLR%3B%20node%20%5Bshape%3Dbox%2C%20style%3Drounded%5D%3B%20A%5Blabel%3D%22Sample%20j%22%5D%3B%20B%5Blabel%3D%22Current%20gradient%20g_j%28x_k%29%22%5D%3B%20C%5Blabel%3D%22Stored%20gradient%20g_j%28phi_j%29%22%5D%3B%20E%5Blabel%3D%22Average%20stored%20gradient%22%5D%3B%20D%5Blabel%3D%22Variance-reduced%20estimator%0Ag_j%28x_k%29-g_j%28phi_j%29%2Bavg%22%5D%3B%20F%5Blabel%3D%22Prox%20%2F%20gradient%20step%22%5D%3B%20G%5Blabel%3D%22Update%20x_%7Bk%2B1%7D%22%5D%3B%20H%5Blabel%3D%22Replace%20table%20entry%20phi_j%20%3C-%20x_k%22%5D%3B%20A-%3EB%3B%20C-%3ED%3B%20B-%3ED%3B%20E-%3ED%3B%20D-%3EF%3B%20F-%3EG%3B%20G-%3EH%3B%7D)
+*图：根据论文 Section 2 的更新公式整理的 SAGA 主流程。其本质是用一份“历史梯度表”构造对全梯度的低方差、无偏近似。*
 
-1. **无偏梯度估计**：与 SAG（$\alpha=1/n$，有偏）不同，SAGA 使用 $\alpha=1$ 的方差缩减策略，梯度估计无偏，使得理论分析更简洁、收敛常数更优。
+```python
+# SAGA
+initialize x = x0
+initialize phi[i] = x0 for all i
+initialize table[i] = grad_i(phi[i]) for all i
+g_bar = average(table)
 
-2. **支持近端算子**：SAGA 天然兼容复合目标 $\min_x \frac{1}{n}\sum_{i=1}^n f_i(x) + h(x)$，其中 $h(x)$ 可以是非光滑正则项（如 $\ell_1$ 范数），通过 proximal 步骤处理。
+for k in range(K):
+    j = sample_uniform(0, n - 1)
+    grad_new = grad_j(x)
+    grad_old = table[j]
 
-3. **强凸与非强凸统一**：强凸情况下以 $\gamma = \frac{1}{2(\mu n + L)}$ 获得线性收敛；非强凸情况下以 $\gamma = \frac{1}{3L}$ 获得 $O(n/k)$ 次线性收敛率，无需外层循环。
+    direction = grad_new - grad_old + g_bar
+    w = x - gamma * direction
+    x = prox_gamma_h(w)
 
-4. **方差缩减原理**：构造 $\theta = (X - Y) + \mathbb{E}Y$，其中 $X = f_j'(x^k)$，$Y = f_j'(\phi_j^k)$，利用 $X$ 和 $Y$ 的高相关性减小方差。
-
-5. **方法定位**：SAGA 是 SAG 和 SVRG 的中间方法——与 SAG 共享增量存储结构，与 SVRG 共享无偏性质，同时避免了 SVRG 的周期性全梯度计算。
-
-## 🔬 深入细节
-
-### 示意图
-
-![SAGA方法比较](https://ar5iv.labs.arxiv.org/html/1407.0202/assets/figure1.png)
-
-> **Figure 1**: 方法特性对比。SAGA 是唯一同时支持强凸、非强凸、近端算子、自适应强凸性且具有简单证明的方法。
-
-| 方法 | 强凸 | 非强凸 | 近端算子 | 自适应 | 简单证明 |
-|------|:----:|:------:|:--------:|:------:|:--------:|
-| SAG  | ✓    | ✗      | ✗        | ✗      | ✗        |
-| SVRG | ✓    | ✓      | ✓        | ✗      | ✓        |
-| SDCA | ✓    | ✗      | ✓        | ✗      | ✓        |
-| **SAGA** | **✓** | **✓** | **✓** | **✓** | **✓** |
-
-### 伪代码
-
-```
-Algorithm: SAGA
-────────────────────────────────────────────
-输入: 步长 γ, 初始点 x⁰, 初始梯度表 {f_i'(φ_i⁰)}_{i=1}^n
-初始化: 梯度均值 ḡ⁰ = (1/n) Σᵢ f_i'(φ_i⁰)
-
-for k = 0, 1, 2, ... do
-    1. 均匀随机选取 j ∈ {1, ..., n}
-    2. 更新参考点: φ_j^{k+1} = x^k (其余不变)
-    3. 计算方向: d^k = f_j'(x^k) - f_j'(φ_j^k) + ḡ^k
-    4. 更新梯度均值: ḡ^{k+1} = ḡ^k + (1/n)[f_j'(x^k) - f_j'(φ_j^k)]
-    5. 近端更新: x^{k+1} = prox_{γh}(x^k - γ d^k)
-end for
-────────────────────────────────────────────
+    table[j] = grad_new
+    phi[j] = x
+    g_bar = g_bar + (grad_new - grad_old) / n
 ```
 
-### 方法解释
+SAGA 要解决的是有限和优化里的经典问题：
+$$
+\min_{x\in\mathbb{R}^d} F(x)=\frac{1}{n}\sum_{i=1}^n f_i(x)+h(x),
+$$
+其中每个 \(f_i\) 是光滑凸函数，而 \(h(x)\) 可以是 \(\ell_1\) 正则这类可做 proximal 的非光滑项。普通 SGD 的问题在于：单样本梯度虽然便宜，但方差在靠近最优解时也不自动消失，因此通常必须把步长逐渐降到 0，难以获得线性收敛。
 
-**问题设定**：最小化复合目标
+SAGA 的核心构造是控制变量估计器。论文把它放在一个更一般的框架里：若 \(X\) 是当前随机梯度样本，\(Y\) 是与之高度相关的旧梯度样本，则
+$$
+\theta_\alpha=\alpha(X-Y)+\mathbb{E}[Y]
+$$
+可以显著降低方差。SAG 采用的是带偏版本，等价于较小的 \(\alpha\)；SAGA 则直接取无偏形式 \(\alpha=1\)。于是当随机抽到索引 \(j\) 时，SAGA 使用
+$$
+v_k=f'_j(x^k)-f'_j(\phi_j^k)+\frac{1}{n}\sum_{i=1}^n f'_i(\phi_i^k),
+$$
+并且
+$$
+\mathbb{E}_j[v_k] = \frac{1}{n}\sum_{i=1}^n f'_i(x^k)=\nabla f(x^k).
+$$
+这就是它相较 SAG 最重要的理论优势：方向估计无偏，证明更干净，同时常数更好。
 
-$$\min_{x \in \mathbb{R}^d} \quad \frac{1}{n}\sum_{i=1}^n f_i(x) + h(x)$$
+有了这个无偏低方差方向后，SAGA 的更新就很自然了：
+$$
+w^{k+1}=x^k-\gamma v_k,\qquad
+x^{k+1}=\operatorname{prox}_{\gamma h}(w^{k+1}),
+$$
+其中 proximal 算子定义为
+$$
+\operatorname{prox}_{\gamma h}(y)=\arg\min_x\left\{h(x)+\frac{1}{2\gamma}\|x-y\|^2\right\}.
+$$
+这一步非常关键，因为它让 SAGA 天然兼容复合优化，而不必像一些早期方差缩减算法那样只能处理纯光滑目标。与此同时，梯度表只更新被采样到的一个分量，因此每步的随机梯度开销仍然是常数级。
 
-其中每个 $f_i$ 是 $L$-光滑凸函数，$h$ 是近端友好的凸函数（可能非光滑）。
+在线性收敛方面，论文给出的强凸结果是：当 \(f=\frac1n\sum_i f_i\) 为 \(\mu\)-强凸、每个 \(f_i\) 为 \(L\)-光滑时，取
+$$
+\gamma=\frac{1}{2(\mu n+L)},
+$$
+即可得到
+$$
+\mathbb{E}\|x^k-x^\*\|^2 \le
+\left(1-\frac{\mu}{2(\mu n+L)}\right)^k \cdot C,
+$$
+从而总复杂度为
+$$
+O\!\left(\left(n+\frac{L}{\mu}\right)\log\frac{1}{\varepsilon}\right).
+$$
+对非强凸目标，论文又证明取 \(\gamma=\frac{1}{3L}\) 时，平均迭代点满足 \(O(n/k)\) 收敛。更有意思的是，如果问题实际上带有隐含强凸性，SAGA 在这个非强凸步长下还能“自动适应”到线性收敛，这也是图 1 中论文强调的一个差异点。
 
-**方差缩减框架**：给定两个相关随机变量 $X, Y$，构造控制变量估计：
+> 💡 关键：SAGA 的真正创新不是“存梯度表”本身，而是把这个梯度表用成了一个无偏控制变量，从而同时拿到低方差、prox 支持和较干净的收敛理论。
 
-$$\theta_\alpha = \alpha(X - Y) + \mathbb{E}Y$$
+> ⚠️ 注意：SAGA 与 SVRG 的主要取舍是“空间换时间”。SAGA 不需要周期性全梯度快照，但要维护一张梯度表；SVRG 则反过来，用更少存储换取周期性的全梯度计算。
 
-- 当 $\alpha = 1$ 时：$\mathbb{E}\theta_1 = \mathbb{E}X$（**无偏**，SAGA 采用）
-- 当 $\alpha = 1/n$ 时：有偏但方差更小（SAG 采用）
-- 方差为 $\text{Var}(\theta_\alpha) = \alpha^2[\text{Var}(X) + \text{Var}(Y) - 2\text{Cov}(X,Y)]$
-
-**SAGA 更新**：在 SAGA 中，$X = f_j'(x^k)$，$Y = f_j'(\phi_j^k)$，$\mathbb{E}Y = \frac{1}{n}\sum_i f_i'(\phi_i^k)$：
-
-$$x^{k+1} = \text{prox}_{\gamma h}\left(x^k - \gamma\left[f_j'(x^k) - f_j'(\phi_j^k) + \frac{1}{n}\sum_{i=1}^n f_i'(\phi_i^k)\right]\right)$$
-
-**无偏性验证**：
-
-$$\mathbb{E}_j[f_j'(x^k) - f_j'(\phi_j^k) + \frac{1}{n}\sum_i f_i'(\phi_i^k)] = \frac{1}{n}\sum_i f_i'(x^k) = f'(x^k)$$
-
-这是完整梯度的无偏估计，这一性质使得 SAGA 的收敛证明大幅简化。
-
-**与 SVRG 的区别**：SVRG 使用周期性快照点 $\tilde{x}$ 替代逐分量存储：
-
-$$x^{k+1} = x^k - \gamma\left[f_j'(x^k) - f_j'(\tilde{x}) + \frac{1}{n}\sum_i f_i'(\tilde{x})\right]$$
-
-SVRG 需要每隔 $m$ 步计算一次全梯度（$O(n)$ 代价），而 SAGA 通过增量更新梯度表避免了这一开销，但需要 $O(nd)$ 额外存储。
-
-**等价重构（非复合情形）**：引入辅助变量 $u^k = x^k + \gamma\sum_i f_i'(\phi_i^k)$：
-
-$$u^{k+1} = u^k + \frac{1}{n}(x^k - u^k)$$
-
-这揭示了 SAGA 与 Finito/MISO 方法的联系：SAGA 使用期望等价的 $u$ 更新替代 Finito 的精确 $\bar{\phi}$ 更新，从而免去存储所有 $\phi_i$ 的需要。
-
-### 收敛性分析
-
-**定理 1（强凸情形）**：设每个 $f_i$ 为 $L$-光滑凸函数，$f = \frac{1}{n}\sum_i f_i$ 为 $\mu$-强凸（$\mu > 0$），步长取 $\gamma = \frac{1}{2(\mu n + L)}$，则：
-
-$$\mathbb{E}\left[\|x^k - x^*\|^2 + \frac{1}{n}\sum_i \frac{2}{L}\left(f_i(\phi_i^k) - f_i(x^*) - f_i'(x^*)({\phi_i^k - x^*})\right)\right]$$
-
-以速率 $\rho = 1 - \frac{\mu}{2(\mu n + L)}$ 线性收敛。
-
-**总复杂度**：达到 $\epsilon$-精度需要 $O\left(\left(n + \frac{L}{\mu}\right)\log\frac{1}{\epsilon}\right)$ 次梯度计算。
-
-- 当 $L/\mu \leq n$ 时，复杂度为 $O(n\log(1/\epsilon))$，与 SAG 相同
-- 当 $L/\mu > n$ 时，复杂度为 $O((L/\mu)\log(1/\epsilon))$，优于全梯度法的 $O(n \cdot (L/\mu)\log(1/\epsilon))$
-
-**定理 2（非强凸情形）**：设每个 $f_i$ 为 $L$-光滑凸函数，步长取 $\gamma = \frac{1}{3L}$，则：
-
-$$\mathbb{E}[f(x^k) - f(x^*)] \leq O\left(\frac{nL\|x^0 - x^*\|^2 + \sum_i \|x^0 - \phi_i^0\|^2}{k}\right)$$
-
-收敛率为 $O(n/k)$，无需重启或外层循环。
-
-**自适应强凸性**：SAGA 自动适应目标函数的固有强凸性——即使用户不知道 $\mu$ 的值，使用非强凸步长 $\gamma = 1/(3L)$ 时，如果问题实际是 $\mu$-强凸的，SAGA 仍能获得线性收敛（虽然常数不如已知 $\mu$ 时最优）。
-
-### 关键公式汇总
-
-| 公式 | 表达式 |
-|------|--------|
-| SAGA 更新 | $x^{k+1} = \text{prox}_{\gamma h}(x^k - \gamma[f_j'(x^k) - f_j'(\phi_j^k) + \bar{g}^k])$ |
-| 梯度表更新 | $\bar{g}^{k+1} = \bar{g}^k + \frac{1}{n}[f_j'(x^k) - f_j'(\phi_j^k)]$ |
-| 强凸步长 | $\gamma = \frac{1}{2(\mu n + L)}$ |
-| 强凸收敛率 | $\rho = 1 - \frac{\mu}{2(\mu n + L)}$ |
-| 非强凸步长 | $\gamma = \frac{1}{3L}$ |
-| 非强凸收敛率 | $O\left(\frac{nL}{k}\right)$ |
-
-## 🧪 练习题
-
-1. **概念理解**：解释为什么 SAGA 的梯度估计 $g^k = f_j'(x^k) - f_j'(\phi_j^k) + \bar{g}^k$ 是全梯度 $f'(x^k)$ 的无偏估计。SAG 的对应估计为什么是有偏的？
-
-2. **方差分析**：设所有 $\phi_i^k = x^*$（最优解），证明此时 SAGA 梯度估计的方差为零。这说明了什么？
-
-3. **复杂度比较**：对于 $n = 10^6$，$L/\mu = 10^4$ 的问题，分别计算 SAGA、全梯度下降法（GD）和 SGD 达到 $\epsilon = 10^{-6}$ 精度所需的梯度计算次数（忽略常数）。
-
-4. **近端算子推导**：对于 $h(x) = \lambda\|x\|_1$（Lasso 正则），写出 SAGA 中 $\text{prox}_{\gamma h}(\cdot)$ 的显式表达式，并解释为什么 SAG 不能直接支持这种非光滑正则。
-
-5. **实现优化**：SAGA 需要存储 $n$ 个 $d$ 维梯度向量。对于稀疏数据（如文本分类中的 TF-IDF 特征），如何利用数据稀疏性减少存储和计算开销？提示：考虑 "lazy update" 策略。
+#### 🧪 练习题
+```yaml
+question: "为什么说 SAGA 的方向估计比 SAG 更适合做理论分析？"
+options:
+  - "因为 SAGA 每一步都精确计算全梯度"
+  - "因为 SAGA 的方向估计是无偏的，而 SAG 的对应估计带偏"
+  - "因为 SAGA 不需要保存任何历史梯度"
+  - "因为 SAGA 只能处理强凸问题"
+answer: 1
+explain: "SAGA 的更新方向对全梯度是无偏估计，这让收敛证明显著简化；SAG 的方向估计带偏，因此理论分析更复杂，也不易直接推广到 prox 情形。"
+```
