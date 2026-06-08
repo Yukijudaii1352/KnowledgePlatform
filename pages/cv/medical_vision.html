@@ -61,87 +61,112 @@
 <!-- ============== Hero ============== -->
 <div class="shell-narrow">
   <div class="page-hero">
-    <h1>🏥 医学影像算法演进 <span class="page-hero-sub">2026-05-26 版</span></h1>
+    <h1>🏥 医学影像算法演进 <span class="page-hero-sub">2026-06-08 版</span></h1>
     <p class="page-hero-desc">从U-Net到SAM 2，梳理医学分割、CT/MRI分析、病理识别与诊断辅助的技术发展脉络，涵盖经典架构到2026年Mamba与视觉语言模型的最新进展</p>
     <div class="meta-row" id="hero-meta-row"><!-- populated by logic --></div>
   </div>
 </div>
 
-<!-- ============== 视图选择屏 (首屏展示的两个入口卡片) ============== -->
-<div class="shell-narrow">
-  <section class="view-picker" id="view-picker">
-    <h2 class="view-picker-title">请选择你的学习路径</h2>
-    <p class="view-picker-sub">根据你的需求选择其中之一，随时可以在左上角「返回」切换。</p>
-    <div class="view-picker-grid">
-      <button class="view-card view-card-overview" onclick="enterView('overview')">
-        <div class="view-card-icon">📌</div>
-        <div class="view-card-title">领域综述</div>
-        <div class="view-card-desc">快速纵览本领域的发展脉络：综述文字、算法时间线、演化关系图谱。</div>
-        <div class="view-card-tags">
-          <span>📖 领域综述</span>
-          <span>📐 时间线</span>
-          <span>🕸️ 演化图谱</span>
+<div class="shell page-shell">
+  <div class="page-layout">
+    <aside class="page-sidebar" aria-label="本页导航与控制">
+      <div class="page-sidebar-sticky">
+        <div class="page-sidebar-card">
+          <div class="page-sidebar-kicker">On This Page</div>
+          <div class="page-sidebar-title">本页内容</div>
+          <nav class="page-outline" id="page-outline"></nav>
         </div>
-        <div class="view-card-cta">进入领域综述 →</div>
-      </button>
-      <button class="view-card view-card-progress" onclick="enterView('progress')">
-        <div class="view-card-icon">🚀</div>
-        <div class="view-card-title">最新进展</div>
-        <div class="view-card-desc">按时间从新到旧逐一解读核心算法，每个算法支持「核心要点 / 深入细节」两种模式。</div>
-        <div class="view-card-tags">
-          <span>🎯 核心要点</span>
-          <span>🔬 深入细节</span>
-          <span>🧪 练习题</span>
+        <div class="page-sidebar-card page-image-controls-card">
+          <div class="page-sidebar-subtitle">图片尺寸</div>
+          <div class="page-image-size-switch" id="page-image-size-controls">
+            <button type="button" class="page-image-size-btn" data-size="compact" onclick="setPageImageSize('compact')">紧凑</button>
+            <button type="button" class="page-image-size-btn" data-size="balanced" onclick="setPageImageSize('balanced')">标准</button>
+            <button type="button" class="page-image-size-btn" data-size="full" onclick="setPageImageSize('full')">宽图</button>
+          </div>
+          <p class="page-sidebar-note">默认会按屏幕自适应缩放，也可以点击文中图片单独展开查看。</p>
         </div>
-        <div class="view-card-cta">进入最新进展 →</div>
-      </button>
-    </div>
-  </section>
-</div>
+      </div>
+    </aside>
 
-<!-- ============== 视图：领域综述 ============== -->
-<div class="shell-narrow view-panel" id="view-overview">
-  <div class="view-back-bar">
-    <button class="view-back-btn" onclick="exitView()">← 返回选择</button>
-    <h2 class="view-panel-title">📌 领域综述</h2>
+    <main class="page-main">
+      <!-- ============== 视图选择屏 (首屏展示的两个入口卡片) ============== -->
+      <section class="view-picker" id="view-picker">
+        <h2 class="view-picker-title">请选择你的学习路径</h2>
+        <p class="view-picker-sub">根据你的需求选择其中之一，随时可以在左上角「返回」切换。</p>
+        <div class="view-picker-grid">
+          <button class="view-card view-card-overview" onclick="enterView('overview')">
+            <div class="view-card-icon">📌</div>
+            <div class="view-card-title">领域综述</div>
+            <div class="view-card-desc">快速纵览本领域的发展脉络：综述文字、算法时间线、演化关系图谱。</div>
+            <div class="view-card-tags">
+              <span>📖 领域综述</span>
+              <span>📐 时间线</span>
+              <span>🕸️ 演化图谱</span>
+            </div>
+            <div class="view-card-cta">进入领域综述 →</div>
+          </button>
+          <button class="view-card view-card-progress" onclick="enterView('progress')">
+            <div class="view-card-icon">🚀</div>
+            <div class="view-card-title">最新进展</div>
+            <div class="view-card-desc">按时间从新到旧逐一解读核心算法，每个算法支持「核心要点 / 深入细节」两种模式。</div>
+            <div class="view-card-tags">
+              <span>🎯 核心要点</span>
+              <span>🔬 深入细节</span>
+              <span>🧪 练习题</span>
+            </div>
+            <div class="view-card-cta">进入最新进展 →</div>
+          </button>
+        </div>
+      </section>
+
+      <!-- ============== 视图：领域综述 ============== -->
+      <div class="view-panel" id="view-overview">
+        <div class="view-back-bar">
+          <button class="view-back-btn" onclick="exitView()">← 返回选择</button>
+          <h2 class="view-panel-title">📌 领域综述</h2>
+        </div>
+
+        <section class="view-section" id="overview-summary-section">
+          <div class="field-overview" id="field-overview">
+            <!-- sections injected by logic -->
+          </div>
+        </section>
+
+        <section class="view-section" id="overview-graph-section">
+          <h3 class="view-section-title">🕸️ 算法演化知识图谱</h3>
+          <p class="section-desc" id="graph-desc"></p>
+          <div id="graph-container">
+            <svg id="graph-svg"></svg>
+            <div class="graph-legend" id="graph-legend"></div>
+          </div>
+        </section>
+
+        <section class="view-section" id="overview-timeline-section">
+          <h3 class="view-section-title">📐 算法演化时间线</h3>
+          <p class="section-desc" id="timeline-desc"></p>
+          <div class="timeline" id="timeline-container"></div>
+        </section>
+      </div>
+
+      <!-- ============== 视图：最新进展 ============== -->
+      <div class="view-panel" id="view-progress">
+        <div class="view-back-bar">
+          <button class="view-back-btn" onclick="exitView()">← 返回选择</button>
+          <h2 class="view-panel-title">🚀 最新进展</h2>
+        </div>
+
+        <section class="view-section" id="progress-summary-section">
+          <div class="field-overview" id="latest-progress-overview">
+            <!-- sections injected by logic -->
+          </div>
+        </section>
+
+        <section class="view-section" id="progress-algos-section">
+          <div class="algo-list" id="algo-list"></div>
+        </section>
+      </div>
+    </main>
   </div>
-
-  <section class="view-section">
-    <div class="field-overview" id="field-overview">
-      <!-- sections injected by logic -->
-    </div>
-  </section>
-
-  <section class="view-section">
-    <h3 class="view-section-title">🕸️ 算法演化知识图谱</h3>
-    <p class="section-desc" id="graph-desc"></p>
-    <div id="graph-container">
-      <svg id="graph-svg"></svg>
-      <div class="graph-legend" id="graph-legend"></div>
-    </div>
-  </section>
-
-  <section class="view-section">
-    <h3 class="view-section-title">📐 算法演化时间线</h3>
-    <p class="section-desc" id="timeline-desc"></p>
-    <div class="timeline" id="timeline-container"></div>
-  </section>
-</div>
-
-<!-- ============== 视图：最新进展 ============== -->
-<div class="shell-narrow view-panel" id="view-progress">
-  <div class="view-back-bar">
-    <button class="view-back-btn" onclick="exitView()">← 返回选择</button>
-    <h2 class="view-panel-title">🚀 最新进展</h2>
-  </div>
-
-  <section class="view-section">
-    <div class="field-overview" id="latest-progress-overview">
-      <!-- sections injected by logic -->
-    </div>
-  </section>
-
-  <div class="algo-list" id="algo-list"></div>
 </div>
 
 <!-- ============== Chat Widget (placeholder, Phase 2) ============== -->

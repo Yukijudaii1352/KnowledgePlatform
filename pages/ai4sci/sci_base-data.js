@@ -1,5 +1,5 @@
 /**
- * sci_base-data.js — 由 pipeline/build.py 于 2026-05-26 14:20:19 自动生成。
+ * sci_base-data.js — 由 pipeline/build.py 于 2026-06-08 12:11:56 自动生成。
  * 源文件：content/ai4sci/sci_base.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "sci_base",
     "topic_name": "科学基础模型",
     "page_title": "科学基础模型算法总结",
-    "page_subtitle": "2026-05-26 版",
+    "page_subtitle": "2026-06-08 版",
     "page_desc": "涵盖蛋白质结构预测、材料发现、气象预报、分子建模、科学大模型等领域，展示从单任务专用模型到跨学科统一架构的技术演进",
     "page_icon": "🔬",
     "hero_pills": [

@@ -1,5 +1,5 @@
 /**
- * ml_paradigm-data.js — 由 pipeline/build.py 于 2026-05-26 14:20:26 自动生成。
+ * ml_paradigm-data.js — 由 pipeline/build.py 于 2026-06-08 12:12:04 自动生成。
  * 源文件：content/ml/ml_paradigm.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "ml_paradigm",
     "topic_name": "机器学习范式",
     "page_title": "机器学习范式",
-    "page_subtitle": "2026-05-26 版",
+    "page_subtitle": "2026-06-08 版",
     "page_desc": "涵盖监督、无监督、半监督、自监督、强化学习五大核心范式的演化历程与前沿进展",
     "page_icon": "🧠",
     "hero_pills": [

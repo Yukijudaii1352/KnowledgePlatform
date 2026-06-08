@@ -1,5 +1,5 @@
 /**
- * navigation-data.js — 由 pipeline/build.py 于 2026-05-26 14:20:22 自动生成。
+ * navigation-data.js — 由 pipeline/build.py 于 2026-06-08 12:12:00 自动生成。
  * 源文件：content/embodied/navigation.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "navigation",
     "topic_name": "导航与移动智能",
     "page_title": "导航与移动智能",
-    "page_subtitle": "2026-05-26 版",
+    "page_subtitle": "2026-06-08 版",
     "page_desc": "涵盖视觉导航、SLAM、目标导向导航与长程任务规划的具身智能核心技术，从经典几何方法到2026年VLA基础模型的完整演进",
     "page_icon": "🧭",
     "hero_pills": [

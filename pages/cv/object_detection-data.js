@@ -1,5 +1,5 @@
 /**
- * object_detection-data.js — 由 pipeline/build.py 于 2026-05-26 14:20:21 自动生成。
+ * object_detection-data.js — 由 pipeline/build.py 于 2026-06-08 12:11:58 自动生成。
  * 源文件：content/cv/object_detection.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "object_detection",
     "topic_name": "目标检测",
     "page_title": "目标检测算法技术演进",
-    "page_subtitle": "2026-05-26 版",
+    "page_subtitle": "2026-06-08 版",
     "page_desc": "从R-CNN到YOLO、从Anchor-based到Anchor-free、从CNN到Transformer的技术演进脉络，涵盖两阶段检测、单阶段检测、无锚点检测及Transformer检测四大范式的核心算法与最新进展",
     "page_icon": "🎯",
     "hero_pills": [

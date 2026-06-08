@@ -21,6 +21,7 @@ DOMAIN_MAP = {
     "ml": "ml",
     "cv": "cv",
     "llm": "llm",
+    "agent": "agent",
     "mm": "multimodal",
     "multimodal": "multimodal",
     "aigc": "aigc",
@@ -621,6 +622,9 @@ def render_document(
         "count_pill": count_pill,
         "categories": categories,
     }
+    publish = meta.get("publish", source.get("publish", True))
+    if publish is False:
+        fm["publish"] = False
     image_base = detect_image_base(yaml_path)
     if image_base:
         fm["image_base"] = image_base

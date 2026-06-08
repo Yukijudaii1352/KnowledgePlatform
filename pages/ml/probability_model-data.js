@@ -1,5 +1,5 @@
 /**
- * probability_model-data.js — 由 pipeline/build.py 于 2026-05-26 14:20:26 自动生成。
+ * probability_model-data.js — 由 pipeline/build.py 于 2026-06-08 12:12:04 自动生成。
  * 源文件：content/ml/probability_model.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "probability_model",
     "topic_name": "概率模型技术演进",
     "page_title": "概率模型技术演进",
-    "page_subtitle": "2026-05-26 版",
+    "page_subtitle": "2026-06-08 版",
     "page_desc": "从经典概率图模型到现代深度生成模型的演进脉络，涵盖贝叶斯网络、隐马尔可夫、变分推断等核心方法",
     "page_icon": "🎲",
     "hero_pills": [

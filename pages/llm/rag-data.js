@@ -1,5 +1,5 @@
 /**
- * rag-data.js — 由 pipeline/build.py 于 2026-05-26 14:20:25 自动生成。
+ * rag-data.js — 由 pipeline/build.py 于 2026-06-08 12:12:03 自动生成。
  * 源文件：content/llm/rag.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "rag",
     "topic_name": "检索增强生成",
     "page_title": "检索增强生成 (RAG) 技术演进图谱",
-    "page_subtitle": "2026-05-26 版",
+    "page_subtitle": "2026-06-08 版",
     "page_desc": "系统梳理RAG技术从2020年DPR/REALM奠基到2026年Agentic RAG、多模态RAG的演进历程，涵盖架构设计、检索策略与评测方法的完整演化路径",
     "page_icon": "🔍",
     "hero_pills": [

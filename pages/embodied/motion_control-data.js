@@ -1,5 +1,5 @@
 /**
- * motion_control-data.js — 由 pipeline/build.py 于 2026-05-26 14:20:22 自动生成。
+ * motion_control-data.js — 由 pipeline/build.py 于 2026-06-08 12:12:00 自动生成。
  * 源文件：content/embodied/motion_control.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "motion_control",
     "topic_name": "运动控制",
     "page_title": "具身智能运动控制算法总结",
-    "page_subtitle": "2026-05-26 版",
+    "page_subtitle": "2026-06-08 版",
     "page_desc": "系统梳理四足/人形机器人运动控制技术演进，从经典ZMP/MPC到Teacher-Student RL再到VLA基础模型的发展历程",
     "page_icon": "🦿",
     "hero_pills": [

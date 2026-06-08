@@ -1,5 +1,5 @@
 /**
- * device-data.js — 由 pipeline/build.py 于 2026-05-26 14:20:23 自动生成。
+ * device-data.js — 由 pipeline/build.py 于 2026-06-08 12:12:01 自动生成。
  * 源文件：content/infra/device.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "device",
     "topic_name": "AI硬件",
     "page_title": "AI硬件技术演进图谱",
-    "page_subtitle": "2026-05-26 版",
+    "page_subtitle": "2026-06-08 版",
     "page_desc": "梳理从通用GPU到专用AI加速器（TPU/NPU）及存算一体、光计算等前沿硬件的发展历程。",
     "page_icon": "⚙️",
     "hero_pills": [

@@ -3,6 +3,7 @@
 # 规范版本: DOCUMENT_SPEC.md
 
 # ========== 页面元信息 ==========
+publish: false
 page_icon: "🤖"
 page_title: "LLM Agent"
 page_subtitle: "{build_date} 版"

@@ -17,6 +17,8 @@ const CFG = window.PAGE_CONFIG;
 const ALGOS = CFG.algos;
 const CATEGORIES = CFG.categories;          // { id: {label, color} }
 const PROJECT_URLS = CFG.projectUrls || {};
+const IMAGE_SIZE_STORAGE_KEY = 'kp_page_image_size_v1';
+const IMAGE_SIZE_CHOICES = new Set(['compact', 'balanced', 'full']);
 const CHAT_STORAGE_KEY = 'kp_page_chat_settings_v1';
 const CHAT_DEFAULT_CONFIG = {
   base: 'https://api.openai.com',
@@ -26,6 +28,11 @@ const CHAT_DEFAULT_CONFIG = {
 const GRAPH_STATE = {
   userPositions: {},
   drag: null
+};
+const OUTLINE_STATE = {
+  mode: 'picker',
+  items: [],
+  activeId: 'view-picker'
 };
 const CHAT_STATE = {
   config: loadChatConfig(),
@@ -64,6 +71,15 @@ function compareAlgoAsc(a, b) {
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
+}
+
+function escapeHtml(text) {
+  return String(text || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function getMilestoneIds() {
@@ -303,6 +319,86 @@ function ensureGraphToolbar(container) {
   }
 }
 
+function loadPageImageSize() {
+  try {
+    const stored = localStorage.getItem(IMAGE_SIZE_STORAGE_KEY) || 'balanced';
+    return IMAGE_SIZE_CHOICES.has(stored) ? stored : 'balanced';
+  } catch (_) {
+    return 'balanced';
+  }
+}
+
+function updateImageSizeControls() {
+  const current = document.documentElement.getAttribute('data-image-size') || 'balanced';
+  document.querySelectorAll('.page-image-size-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.size === current);
+  });
+}
+
+function applyPageImageSize(size) {
+  const normalized = IMAGE_SIZE_CHOICES.has(size) ? size : 'balanced';
+  document.documentElement.setAttribute('data-image-size', normalized);
+  updateImageSizeControls();
+}
+
+function setPageImageSize(size) {
+  const normalized = IMAGE_SIZE_CHOICES.has(size) ? size : 'balanced';
+  try {
+    localStorage.setItem(IMAGE_SIZE_STORAGE_KEY, normalized);
+  } catch (_) {}
+  applyPageImageSize(normalized);
+}
+
+function toggleImageExpanded(wrap) {
+  if (!wrap) return;
+  wrap.classList.toggle('is-expanded');
+  const btn = wrap.querySelector('.img-action-btn');
+  if (btn) {
+    btn.textContent = wrap.classList.contains('is-expanded') ? '收起' : '展开';
+  }
+}
+
+function enhanceContentImages() {
+  document.querySelectorAll('.field-overview .img-wrap, .algo-body .img-wrap').forEach((wrap) => {
+    if (wrap.dataset.enhanced === '1') return;
+    const img = wrap.querySelector('img');
+    if (!img) return;
+    wrap.dataset.enhanced = '1';
+    img.loading = 'lazy';
+    img.decoding = 'async';
+
+    const actions = document.createElement('div');
+    actions.className = 'img-actions';
+
+    const toggleBtn = document.createElement('button');
+    toggleBtn.type = 'button';
+    toggleBtn.className = 'img-action-btn';
+    toggleBtn.textContent = '展开';
+    toggleBtn.onclick = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleImageExpanded(wrap);
+    };
+
+    const rawLink = document.createElement('a');
+    rawLink.className = 'img-action-link';
+    rawLink.href = img.currentSrc || img.src;
+    rawLink.target = '_blank';
+    rawLink.rel = 'noopener';
+    rawLink.textContent = '原图';
+
+    actions.append(toggleBtn, rawLink);
+    const caption = wrap.querySelector('.img-caption');
+    if (caption) {
+      wrap.insertBefore(actions, caption);
+    } else {
+      wrap.appendChild(actions);
+    }
+
+    img.addEventListener('click', () => toggleImageExpanded(wrap));
+  });
+}
+
 
 /* ============ 2. Hero 区：count_pill + meta ============ */
 (function renderHero() {
@@ -320,9 +416,10 @@ function ensureGraphToolbar(container) {
 (function renderOverview() {
   const root = document.getElementById('field-overview');
   if (!root) return;
-  CFG.overview.forEach(sec => {
+  CFG.overview.forEach((sec, index) => {
     const el = document.createElement('div');
     el.className = 'field-overview-section';
+    el.id = `overview-sec-${index + 1}`;
     el.innerHTML = `${sec.title ? `<h3>${sec.title}</h3>` : ''}${sec.body_html}`;
     root.appendChild(el);
   });
@@ -338,13 +435,169 @@ function ensureGraphToolbar(container) {
     note.textContent = '当前“最新进展综述”仍是编译器注入的模板占位，请在源知识文档中补充最近一个月的真实内容。';
     root.appendChild(note);
   }
-  (CFG.latest_overview || []).forEach(sec => {
+  (CFG.latest_overview || []).forEach((sec, index) => {
     const el = document.createElement('div');
     el.className = 'field-overview-section';
+    el.id = `latest-sec-${index + 1}`;
     el.innerHTML = `${sec.title ? `<h3>${sec.title}</h3>` : ''}${sec.body_html}`;
     root.appendChild(el);
   });
 })();
+
+function getPickerOutlineItems() {
+  return [
+    { type: 'group', label: '学习路径' },
+    { type: 'link', label: '学习路径选择', target: 'view-picker', view: 'picker', depth: 1 },
+    { type: 'link', label: '领域综述', target: 'field-overview', view: 'overview', depth: 1 },
+    { type: 'link', label: '最新进展', target: 'latest-progress-overview', view: 'progress', depth: 1 }
+  ];
+}
+
+function getOverviewOutlineItems() {
+  const items = [
+    { type: 'group', label: '领域综述' },
+    { type: 'link', label: '综述总览', target: 'field-overview', view: 'overview', depth: 1 }
+  ];
+  (CFG.overview || []).forEach((sec, index) => {
+    items.push({
+      type: 'link',
+      label: sec.title || `综述小节 ${index + 1}`,
+      target: `overview-sec-${index + 1}`,
+      view: 'overview',
+      depth: 2
+    });
+  });
+  items.push(
+    { type: 'link', label: '算法演化知识图谱', target: 'overview-graph-section', view: 'overview', depth: 1 },
+    { type: 'link', label: '算法演化时间线', target: 'overview-timeline-section', view: 'overview', depth: 1 },
+    { type: 'group', label: '切换视图' },
+    { type: 'link', label: '最新进展', target: 'latest-progress-overview', view: 'progress', depth: 1 }
+  );
+  return items;
+}
+
+function getProgressOutlineItems() {
+  const items = [
+    { type: 'group', label: '最新进展' },
+    { type: 'link', label: '进展综述', target: 'latest-progress-overview', view: 'progress', depth: 1 }
+  ];
+  (CFG.latest_overview || []).forEach((sec, index) => {
+    items.push({
+      type: 'link',
+      label: sec.title || `进展小节 ${index + 1}`,
+      target: `latest-sec-${index + 1}`,
+      view: 'progress',
+      depth: 2
+    });
+  });
+  items.push(
+    { type: 'link', label: '核心算法列表', target: 'progress-algos-section', view: 'progress', depth: 1 },
+    { type: 'group', label: '算法目录' }
+  );
+  ALGOS_DESC.forEach(algo => {
+    items.push({
+      type: 'link',
+      label: `${algo.name} · ${algo.year || '未知年份'}`,
+      target: `algo-${algo.id}`,
+      view: 'progress',
+      depth: 2
+    });
+  });
+  items.push(
+    { type: 'group', label: '切换视图' },
+    { type: 'link', label: '领域综述', target: 'field-overview', view: 'overview', depth: 1 }
+  );
+  return items;
+}
+
+function getCurrentOutlineItems() {
+  if (OUTLINE_STATE.mode === 'overview') return getOverviewOutlineItems();
+  if (OUTLINE_STATE.mode === 'progress') return getProgressOutlineItems();
+  return getPickerOutlineItems();
+}
+
+function syncOutlineActive() {
+  document.querySelectorAll('.outline-link').forEach(link => {
+    link.classList.toggle('active', link.dataset.target === OUTLINE_STATE.activeId);
+  });
+}
+
+function renderOutline() {
+  const nav = document.getElementById('page-outline');
+  if (!nav) return;
+  const items = getCurrentOutlineItems();
+  OUTLINE_STATE.items = items.filter(item => item.type === 'link');
+  const validTargets = new Set(OUTLINE_STATE.items.map(item => item.target));
+  if (!validTargets.has(OUTLINE_STATE.activeId)) {
+    OUTLINE_STATE.activeId = OUTLINE_STATE.items[0]?.target || '';
+  }
+  nav.innerHTML = items.map(item => {
+    if (item.type === 'group') {
+      return `<div class="page-outline-group">${escapeHtml(item.label)}</div>`;
+    }
+    return `
+      <button
+        type="button"
+        class="outline-link depth-${item.depth || 1}"
+        data-target="${item.target}"
+        data-view="${item.view}"
+        onclick="jumpToOutlineTarget('${item.view}','${item.target}')"
+      >${escapeHtml(item.label)}</button>
+    `.trim();
+  }).join('');
+  syncOutlineActive();
+}
+
+function updateOutlineActiveByScroll() {
+  if (OUTLINE_STATE.mode === 'picker') {
+    OUTLINE_STATE.activeId = 'view-picker';
+    syncOutlineActive();
+    return;
+  }
+  const tracked = OUTLINE_STATE.items.filter(item => item.view === OUTLINE_STATE.mode);
+  if (!tracked.length) return;
+  let active = tracked[0].target;
+  const threshold = 150;
+  tracked.forEach(item => {
+    const el = document.getElementById(item.target);
+    if (el && el.getBoundingClientRect().top <= threshold) {
+      active = item.target;
+    }
+  });
+  if (active !== OUTLINE_STATE.activeId) {
+    OUTLINE_STATE.activeId = active;
+    syncOutlineActive();
+  }
+}
+
+function jumpToOutlineTarget(view, target) {
+  if (view === 'picker') {
+    exitView({ skipScrollTop: true });
+    setTimeout(() => {
+      const el = document.getElementById(target);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      OUTLINE_STATE.activeId = target;
+      syncOutlineActive();
+    }, 60);
+    return;
+  }
+
+  enterView(view, { skipScrollTop: true });
+  setTimeout(() => {
+    if (view === 'progress' && target.startsWith('algo-') && currentRouteFilter !== 'all') {
+      filterByRoute('all');
+    }
+    const el = document.getElementById(target);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (target.startsWith('algo-')) {
+      const header = el.querySelector('.algo-header');
+      if (header && !header.classList.contains('expanded')) header.click();
+    }
+    OUTLINE_STATE.activeId = target;
+    syncOutlineActive();
+  }, 120);
+}
 
 /* ============ 5. 时间线 (升序) ============ */
 function renderTimeline() {
@@ -602,7 +855,7 @@ function renderQuiz(a) {
 /* ============ 8. 视图切换 ============ */
 const VIEW_LABELS = { overview: '领域综述', progress: '最新进展' };
 
-function enterView(name) {
+function enterView(name, options = {}) {
   const picker = document.getElementById('view-picker');
   const vo = document.getElementById('view-overview');
   const vp = document.getElementById('view-progress');
@@ -617,18 +870,24 @@ function enterView(name) {
     wrap.style.display = '';
     bc.textContent = VIEW_LABELS[name] || '';
   }
+  OUTLINE_STATE.mode = name;
+  OUTLINE_STATE.activeId = name === 'overview' ? 'field-overview' : 'latest-progress-overview';
+  renderOutline();
   // URL hash 方便刷新/分享
   try { history.replaceState(null, '', '#' + name); } catch(_) {}
-  window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
+  if (!options.skipScrollTop) {
+    window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
+  }
 
   if (name === 'overview') {
     // 图谱尺寸依赖容器可见性，这里重新渲染一次
     setTimeout(renderGraph, 30);
   }
+  setTimeout(updateOutlineActiveByScroll, 80);
   reRenderMath();
 }
 
-function exitView() {
+function exitView(options = {}) {
   const picker = document.getElementById('view-picker');
   const vo = document.getElementById('view-overview');
   const vp = document.getElementById('view-progress');
@@ -637,14 +896,19 @@ function exitView() {
   if (vp) vp.style.display = 'none';
   const wrap = document.getElementById('bc-view-wrap');
   if (wrap) wrap.style.display = 'none';
+  OUTLINE_STATE.mode = 'picker';
+  OUTLINE_STATE.activeId = 'view-picker';
+  renderOutline();
   try { history.replaceState(null, '', location.pathname + location.search); } catch(_) {}
-  window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
+  if (!options.skipScrollTop) {
+    window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
+  }
 }
 
 /* ============ 9. 交互辅助 ============ */
 function showAlgo(id) {
   // 跳转到「最新进展」并展开对应算法
-  enterView('progress');
+  enterView('progress', { skipScrollTop: true });
   if (currentRouteFilter !== 'all') filterByRoute('all');
   setTimeout(() => {
     const el = document.getElementById('algo-' + id);
@@ -658,7 +922,7 @@ function showAlgo(id) {
 }
 
 function scrollToAlgo(id) {
-  enterView('progress');
+  enterView('progress', { skipScrollTop: true });
   if (currentRouteFilter !== 'all') filterByRoute('all');
   setTimeout(() => {
     const el = document.getElementById('algo-' + id);
@@ -1306,6 +1570,9 @@ function reRenderMath() {
 /* ============ 11. Init ============ */
 renderTimeline();
 renderAlgos();
+enhanceContentImages();
+applyPageImageSize(loadPageImageSize());
+renderOutline();
 
 // 初始状态：两个视图都隐藏（由 CSS 默认隐藏），展示视图选择屏
 document.addEventListener('DOMContentLoaded', () => {
@@ -1316,6 +1583,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   initChatWidget();
   reRenderMath();
+  updateOutlineActiveByScroll();
 });
 window.addEventListener('load', () => {
   reRenderMath();
@@ -1325,6 +1593,7 @@ window.addEventListener('load', () => {
     if (vo && vo.style.display !== 'none') renderGraph();
   });
 });
+window.addEventListener('scroll', updateOutlineActiveByScroll, { passive: true });
 document.addEventListener('fullscreenchange', () => {
   const container = document.getElementById('graph-container');
   if (!container) return;

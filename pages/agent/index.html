@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent · AI Knowledge Hub</title>
+<link rel="stylesheet" href="../../assets/css/common.css">
+<style>
+.topic-card { position: relative; transition: all 0.28s ease; }
+.topic-card.ready { border-left: 3px solid var(--accent); }
+.topic-card.coming { opacity: 0.55; }
+.topic-card.card-clickable:hover { transform: translateY(-3px); }
+.topic-name { font-size: 1.08rem; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+.topic-desc { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.65; }
+.topic-meta {
+  display: flex; gap: 14px; margin-top: 14px;
+  font-size: 0.82rem; color: var(--text-dim);
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="shell">
+    <div class="topbar-inner">
+      <a class="brand" href="../../index.html">
+        <div class="brand-icon">AI</div>
+        <div>
+          <div class="brand-text">AI Knowledge Hub</div>
+          <div class="brand-sub">AI知识学习平台</div>
+        </div>
+      </a>
+    </div>
+  </div>
+</header>
+
+<div class="shell-narrow">
+  <div class="breadcrumb">
+    <a href="../../index.html">首页</a> <span class="sep">/</span> <span class="current">Agent</span>
+  </div>
+</div>
+
+<div class="shell-narrow">
+  <div class="page-header">
+    <h1>🧭 Agent</h1>
+    <p>聚焦 Agent 的范式、记忆、工具使用、多智能体协作、强化学习与评测编排等核心问题。</p>
+  </div>
+</div>
+
+<section class="section">
+  <div class="shell-narrow">
+    <div class="grid-auto">
+
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">范式</div><div class="topic-desc">从 ReAct 到规划-执行闭环，梳理 Agent 系统的基本范式。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">Memory</div><div class="topic-desc">短期记忆、长期记忆、检索式记忆与状态管理机制。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">Tool Use</div><div class="topic-desc">函数调用、API 选择、工具链编排与外部环境交互。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">Multi-Agent</div><div class="topic-desc">多智能体协作、角色分工、通信协议与群体决策。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">Agentic RL</div><div class="topic-desc">面向 Agent 的强化学习、奖励设计、在线反馈与自我改进。</div><div class="topic-meta"><span>建设中</span></div></div>
+      <div class="card topic-card coming"><span class="badge badge-soon">即将上线</span><div class="topic-name" style="margin-top:10px">Harness</div><div class="topic-desc">Agent 的评测 harness、任务环境、基准与自动回归框架。</div><div class="topic-meta"><span>建设中</span></div></div>
+
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="shell">
+    <p>AI Knowledge Hub  © 2026 · AI知识学习平台</p>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 
 from .common import DOMAIN_MAP, INDEX_HTML, PAGES_DIR, apply_placeholder, ok, today_str, warn
-from .domain_builder import _resolve_live_topic, _scan_live_topics
+from .domain_builder import _resolve_live_topic, _scan_live_topics, _source_is_public
 from .common import DOMAIN_CATALOG
 
 
@@ -15,20 +15,13 @@ DATA_JS_SOURCE_RE = re.compile(r"源文件：([^\n]+)")
 
 
 def _is_example_topic_html(html_file: Path) -> bool:
-    """判断一个专题 HTML 是否来自 pipeline/examples/ 示例文档。"""
+    """判断一个专题 HTML 是否应从首页统计中隐藏。"""
     if html_file.name == "index.html" or html_file.suffix != ".html":
         return False
     data_js = html_file.with_name(f"{html_file.stem}-data.js")
     if not data_js.is_file():
         return False
-    try:
-        text = data_js.read_text(encoding="utf-8")
-    except OSError:
-        return False
-    m = DATA_JS_SOURCE_RE.search(text)
-    if not m:
-        return False
-    return m.group(1).strip().startswith("pipeline/examples/")
+    return not _source_is_public(data_js)
 
 
 def _count_live_topics(pages_dir: Path) -> int:

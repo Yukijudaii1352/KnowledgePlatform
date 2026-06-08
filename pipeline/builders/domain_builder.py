@@ -12,7 +12,8 @@ import json
 import re
 from pathlib import Path
 
-from .common import DOMAIN_CATALOG, DOMAIN_MAP, PAGES_DIR, ROOT, ok, warn
+from .common import DOMAIN_CATALOG, DOMAIN_MAP, PAGES_DIR, ROOT, is_publish_enabled, ok, warn
+from .topic_builder import peek_front_matter
 
 
 # ============ 已上线信息扫描 ============
@@ -58,6 +59,17 @@ def _read_data_js_source(data_js: Path) -> str:
     return m.group(1).strip()
 
 
+def _source_is_public(data_js: Path) -> bool:
+    source_path = _read_data_js_source(data_js)
+    if not source_path or source_path.startswith("pipeline/examples/"):
+        return False
+    src = (ROOT / source_path).resolve()
+    if not src.is_file():
+        return False
+    fm = peek_front_matter(src)
+    return bool(fm) and is_publish_enabled(fm.get("publish", True))
+
+
 def _scan_live_topics(domain_id: str) -> dict[str, dict]:
     """扫描 pages/<domain>/ 下所有 <topic_id>-data.js，返回 {topic_id: info}。
 
@@ -75,8 +87,7 @@ def _scan_live_topics(domain_id: str) -> dict[str, dict]:
 
     result: dict[str, dict] = {}
     for data_js in domain_dir.glob("*-data.js"):
-        source_path = _read_data_js_source(data_js)
-        if source_path.startswith("pipeline/examples/"):
+        if not _source_is_public(data_js):
             continue
         cfg = _load_page_config(data_js)
         if not cfg:

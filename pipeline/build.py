@@ -53,6 +53,7 @@ from pipeline.builders.common import (
     ROOT,
     err,
     info,
+    is_publish_enabled,
     ok,
     warn,
 )
@@ -91,14 +92,23 @@ def discover_sources(include_examples: bool = False) -> list[Path]:
             if fm["domain"] not in DOMAIN_MAP:
                 warn(f"跳过 {md.relative_to(ROOT)}：domain={fm['domain']} 不在白名单")
                 continue
+            if not is_publish_enabled(fm.get("publish", True)):
+                continue
             found.append(md)
     # 固定顺序，便于可复现的输出
     found.sort()
     return found
 
 
-def prune_example_outputs():
-    """删除由 pipeline/examples/ 生成、但不应进入正式站点的历史产物。"""
+def _output_targets_for_data_js(data_js: Path) -> tuple[Path, Path, Path]:
+    topic_id = data_js.name[: -len("-data.js")]
+    html_file = data_js.with_name(f"{topic_id}.html")
+    logic_file = data_js.with_name(f"{topic_id}-logic.js")
+    return html_file, data_js, logic_file
+
+
+def prune_hidden_outputs(prune_examples: bool):
+    """清理示例产物与已标记为 publish=false 的历史页面产物。"""
     removed = 0
     for data_js in (ROOT / "pages").glob("*/*-data.js"):
         try:
@@ -106,19 +116,29 @@ def prune_example_outputs():
         except OSError:
             continue
         m = DATA_JS_SOURCE_RE.search(text)
-        if not m or not m.group(1).strip().startswith("pipeline/examples/"):
+        if not m:
+            continue
+        source_rel = m.group(1).strip()
+        source_path = (ROOT / source_rel).resolve()
+        should_prune = False
+
+        if source_rel.startswith("pipeline/examples/"):
+            should_prune = prune_examples
+        else:
+            fm = peek_front_matter(source_path) if source_path.is_file() else None
+            if not fm or not is_publish_enabled(fm.get("publish", True)):
+                should_prune = True
+
+        if not should_prune:
             continue
 
-        topic_id = data_js.name[: -len("-data.js")]
-        html_file = data_js.with_name(f"{topic_id}.html")
-        logic_file = data_js.with_name(f"{topic_id}-logic.js")
-        for target in (html_file, data_js, logic_file):
+        for target in _output_targets_for_data_js(data_js):
             if target.exists():
                 target.unlink()
                 removed += 1
 
     if removed:
-        info(f"已清理 {removed} 个示例产物文件")
+        info(f"已清理 {removed} 个隐藏/示例产物文件")
 
 
 # ============ 编译模式 ============
@@ -142,8 +162,7 @@ def build_all(copy_images: bool, dry_run: bool, include_examples: bool):
     if dry_run:
         return
 
-    if not include_examples:
-        prune_example_outputs()
+    prune_hidden_outputs(prune_examples=not include_examples)
 
     render_index()
     render_domain_indexes()
@@ -155,6 +174,16 @@ def build_one(src_path: str, copy_images: bool, dry_run: bool):
     src = Path(src_path).resolve()
     if not src.is_file():
         err(f"找不到源文件：{src}")
+    fm = peek_front_matter(src)
+    if fm and not is_publish_enabled(fm.get("publish", True)):
+        warn(f"跳过 {src}：该文档已标记 publish=false")
+        if dry_run:
+            return
+        prune_hidden_outputs(prune_examples=True)
+        render_index()
+        render_domain_indexes()
+        ok("已同步清理隐藏专题产物 ✅")
+        return
     compile_doc(src, copy_images=copy_images, dry_run=dry_run)
 
     if dry_run:

@@ -1,5 +1,5 @@
 /**
- * meta_learning-data.js — 由 pipeline/build.py 于 2026-05-26 14:20:26 自动生成。
+ * meta_learning-data.js — 由 pipeline/build.py 于 2026-06-08 12:12:04 自动生成。
  * 源文件：content/ml/meta_learning.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "meta_learning",
     "topic_name": "元学习",
     "page_title": "元学习算法总结",
-    "page_subtitle": "2026-05-26 版",
+    "page_subtitle": "2026-06-08 版",
     "page_desc": "回顾从 Siamese Networks、MAML、ProtoNet 到 TTT-Discover、FSPO 的元学习发展脉络，涵盖度量学习、优化初始化与快速适应三大范式及 2026 年前沿突破",
     "page_icon": "🧠",
     "hero_pills": [

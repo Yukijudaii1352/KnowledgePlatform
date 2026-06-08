@@ -2,6 +2,7 @@ page_meta:
   domain: mm
   topic_id: mm_agent
   topic_name: 多模态Agent
+  publish: false
   page_icon: 🤖
   page_title: 多模态Agent 技术演进图谱
   page_subtitle: '{build_date} 版'
