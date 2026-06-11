@@ -1,5 +1,5 @@
 /**
- * aigc_base-data.js — 由 pipeline/build.py 于 2026-06-08 12:11:57 自动生成。
+ * aigc_base-data.js — 由 pipeline/build.py 于 2026-06-11 12:39:13 自动生成。
  * 源文件：content/aigc/aigc_base.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "aigc_base",
     "topic_name": "生成基础模型",
     "page_title": "生成基础模型技术演进图谱",
-    "page_subtitle": "2026-06-08 版",
+    "page_subtitle": "2026-06-11 版",
     "page_desc": "涵盖从自回归生成、扩散模型到流匹配（Flow Matching）的技术演进，系统梳理生成式 AI 的底层算法架构。",
     "page_icon": "🎨",
     "hero_pills": [

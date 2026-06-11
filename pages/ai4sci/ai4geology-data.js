@@ -1,5 +1,5 @@
 /**
- * ai4geology-data.js — 由 pipeline/build.py 于 2026-06-08 12:11:56 自动生成。
+ * ai4geology-data.js — 由 pipeline/build.py 于 2026-06-11 12:39:12 自动生成。
  * 源文件：content/ai4sci/ai4geology.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "ai4geology",
     "topic_name": "地球科学AI",
     "page_title": "地球科学AI技术演进图谱",
-    "page_subtitle": "2026-06-08 版",
+    "page_subtitle": "2026-06-11 版",
     "page_desc": "从数值天气预报到AI大模型，涵盖气象预报、气候建模、遥感分析与灾害预测的技术演进历程。",
     "page_icon": "🌍",
     "hero_pills": [

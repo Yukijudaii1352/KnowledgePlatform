@@ -1,5 +1,5 @@
 /**
- * embodied_rl-data.js — 由 pipeline/build.py 于 2026-06-08 12:12:00 自动生成。
+ * embodied_rl-data.js — 由 pipeline/build.py 于 2026-06-11 12:39:16 自动生成。
  * 源文件：content/embodied/embodied_rl.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "embodied_rl",
     "topic_name": "具身强化学习",
     "page_title": "具身强化学习算法总结",
-    "page_subtitle": "2026-06-08 版",
+    "page_subtitle": "2026-06-11 版",
     "page_desc": "系统梳理具身智能中强化学习的发展历程，涵盖从基础控制策略到Sim2Real迁移、离线RL预训练及复杂技能层次化学习的技术演进。",
     "page_icon": "🤖",
     "hero_pills": [

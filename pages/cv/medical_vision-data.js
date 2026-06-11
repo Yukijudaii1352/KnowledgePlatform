@@ -1,5 +1,5 @@
 /**
- * medical_vision-data.js — 由 pipeline/build.py 于 2026-06-08 12:11:58 自动生成。
+ * medical_vision-data.js — 由 pipeline/build.py 于 2026-06-11 12:39:15 自动生成。
  * 源文件：content/cv/medical_vision.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "medical_vision",
     "topic_name": "医学影像算法演进",
     "page_title": "医学影像算法演进",
-    "page_subtitle": "2026-06-08 版",
+    "page_subtitle": "2026-06-11 版",
     "page_desc": "从U-Net到SAM 2，梳理医学分割、CT/MRI分析、病理识别与诊断辅助的技术发展脉络，涵盖经典架构到2026年Mamba与视觉语言模型的最新进展",
     "page_icon": "🏥",
     "hero_pills": [

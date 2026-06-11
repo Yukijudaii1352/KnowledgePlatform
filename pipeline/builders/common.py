@@ -44,6 +44,10 @@ DOMAIN_MAP = {
     "ai4sci":     {"name": "AI4SCI",         "dir": "pages/ai4sci"},
 }
 
+DISABLED_DOMAINS = {
+    "ml",
+}
+
 
 # ============ 一级领域目录页的二级标签配置 ============
 # 字段：name(显示名)、desc(简介)。已上线信息由 topic-data.js 自动注入，
@@ -229,3 +233,8 @@ def is_publish_enabled(value) -> bool:
     if isinstance(value, str):
         return value.strip().lower() not in {"0", "false", "no", "off"}
     return value is not False
+
+
+def is_domain_enabled(domain_id: str) -> bool:
+    """仅返回当前允许参与站点发布的一级领域。"""
+    return domain_id in DOMAIN_MAP and domain_id not in DISABLED_DOMAINS

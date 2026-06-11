@@ -1,0 +1,238 @@
+domain: agent
+topic_id: memory
+topic_name: Agent记忆
+page_icon: "🧠"
+page_title: "Agent记忆技术演进"
+page_subtitle: "{build_date} 版"
+page_desc: "系统梳理Agent记忆从反思式文本记忆、陪伴型长期记忆，到结构化检索、OS式层级管理，再到2026年的统一短长时记忆、多模态可信记忆与神经符号记忆的演进路线。"
+hero_pills:
+  - "🏷️ STM · LTM · Episodic · Semantic"
+  - "Retrieval Memory · MemGPT · AgeMem · Multimodal"
+count_pill: "{count} 个算法"
+
+categories:
+  episodic:    { label: "情节与长期记忆", color: "#0F766E" }
+  reflective:  { label: "反思与经验记忆", color: "#2563EB" }
+  structured:  { label: "结构化检索记忆", color: "#7C3AED" }
+  management:  { label: "分层与策略管理", color: "#EA580C" }
+  multimodal:  { label: "多模态与神经符号", color: "#DC2626" }
+
+algorithms:
+  - id: reflexion
+    name: Reflexion
+    full_name: "语言反思强化 (Reflexion)"
+    year: "2023.03"
+    org: Princeton/Northeastern
+    paper_url: "https://arxiv.org/abs/2303.11366"
+    category: reflective
+    parent: "—"
+    motivation: "把失败反思写入情节记忆驱动重试"
+
+  - id: generative_agents
+    name: Generative Agents
+    full_name: "生成式代理人 (Generative Agents)"
+    year: "2023.04"
+    org: Stanford
+    paper_url: "https://arxiv.org/abs/2304.03442"
+    category: episodic
+    parent: "—"
+    motivation: "首次把记忆反思规划做成完整闭环"
+
+  - id: memorybank
+    name: MemoryBank
+    full_name: "记忆库 (MemoryBank)"
+    year: "2023.05"
+    org: Sun Yat-sen University
+    paper_url: "https://arxiv.org/abs/2305.10250"
+    category: episodic
+    parent: "generative_agents"
+    motivation: "用遗忘曲线筛存长期个性化记忆"
+
+  - id: memgpt
+    name: MemGPT
+    full_name: "记忆分页代理 (MemGPT)"
+    year: "2023.10"
+    org: UC Berkeley
+    paper_url: "https://arxiv.org/abs/2310.08560"
+    category: management
+    parent: "memorybank"
+    motivation: "以虚拟上下文分页突破窗口限制"
+
+  - id: a_mem
+    name: A-MEM
+    full_name: "代理式记忆 (A-MEM)"
+    year: "2025.02"
+    org: Rutgers/AIOS Foundation
+    paper_url: "https://arxiv.org/abs/2502.12110"
+    category: structured
+    parent: "memorybank"
+    motivation: "动态建链让记忆像卡片盒持续生长"
+
+  - id: mem0
+    name: Mem0
+    full_name: "可扩展长期记忆层 (Mem0)"
+    year: "2025.04"
+    org: Mem0 AI
+    paper_url: "https://arxiv.org/abs/2504.19413"
+    category: structured
+    parent: "memorybank"
+    motivation: "只抽取高价值记忆兼顾精度成本"
+
+  - id: memoryos
+    name: MemoryOS
+    full_name: "记忆操作系统 (Memory OS of AI Agent)"
+    year: "2025.06"
+    org: BUPT/Tencent AI Lab
+    paper_url: "https://arxiv.org/abs/2506.06326"
+    category: management
+    parent: "memgpt"
+    motivation: "分层迁移短中长期记忆统一管理"
+
+  - id: mirix
+    name: MIRIX
+    full_name: "多智能体记忆系统 (MIRIX)"
+    year: "2025.07"
+    org: MIRIX AI
+    paper_url: "https://arxiv.org/abs/2507.07957"
+    category: multimodal
+    parent: "memoryos"
+    motivation: "六类记忆协同支撑真实多模态回忆"
+
+  - id: agemem
+    name: AgeMem
+    full_name: "统一短长时Agent记忆 (Agentic Memory)"
+    year: "2026.01"
+    org: Wuhan University/Alibaba
+    paper_url: "https://arxiv.org/abs/2601.01885"
+    category: management
+    parent: "memoryos"
+    motivation: "把存取删改忘统一成可学习动作"
+
+  - id: himem
+    name: HiMem
+    full_name: "分层长期记忆 (HiMem)"
+    year: "2026.01"
+    org: Macau University of Science and Technology
+    paper_url: "https://arxiv.org/abs/2601.06377"
+    category: structured
+    parent: "a_mem"
+    motivation: "连接事件层与笔记层并支持重整固"
+
+  - id: m2a
+    name: M2A
+    full_name: "双层混合多模态记忆代理 (M2A)"
+    year: "2026.02"
+    org: Peking University/Xi'an Jiaotong University
+    paper_url: "https://arxiv.org/abs/2602.07624"
+    category: multimodal
+    parent: "mirix"
+    motivation: "原始消息与语义记忆双层个性化"
+
+  - id: mma
+    name: MMA
+    full_name: "多模态记忆代理 (MMA)"
+    year: "2026.02"
+    org: Peking University
+    paper_url: "https://arxiv.org/abs/2602.16493"
+    category: multimodal
+    parent: "m2a"
+    motivation: "按可信度时效冲突重排多模态记忆"
+
+  - id: amv_l
+    name: AMV-L
+    full_name: "生命周期管理记忆 (AMV-L)"
+    year: "2026.03"
+    org: Georgia Institute of Technology
+    paper_url: "https://arxiv.org/abs/2603.04443"
+    category: management
+    parent: "memoryos"
+    motivation: "用价值驱动升降级压住尾延迟"
+
+  - id: ns_mem
+    name: NS-Mem
+    full_name: "神经符号长期记忆 (NS-Mem)"
+    year: "2026.03"
+    org: UNSW/Zhejiang University
+    paper_url: "https://arxiv.org/abs/2603.15280"
+    category: multimodal
+    parent: "mma"
+    motivation: "引入规则层让记忆支持演绎推理"
+
+  - id: memmachine
+    name: MemMachine
+    full_name: "保真记忆机 (MemMachine)"
+    year: "2026.04"
+    org: MemVerge
+    paper_url: "https://arxiv.org/abs/2604.04853"
+    category: structured
+    parent: "mem0"
+    motivation: "保留整段对话轨迹减少抽取失真"
+
+  - id: lightmem
+    name: LightMem
+    full_name: "轻量级代理记忆 (LightMem)"
+    year: "2026.04"
+    org: UESTC/Kyung Hee University
+    paper_url: "https://arxiv.org/abs/2604.07798"
+    category: management
+    parent: "memoryos"
+    motivation: "小模型分工处理在线离线记忆"
+
+  - id: h_mem
+    name: H-Mem
+    full_name: "混合结构记忆 (H-Mem)"
+    year: "2026.05"
+    org: CUHK-Shenzhen/Huawei Cloud
+    paper_url: "https://arxiv.org/abs/2605.15701"
+    category: structured
+    parent: "himem"
+    motivation: "树图混合建模记忆演化与检索"
+
+  - id: dimmem
+    name: DimMem
+    full_name: "维度化长期记忆 (DimMem)"
+    year: "2026.05"
+    org: StepOS/Xiamen University
+    paper_url: "https://arxiv.org/abs/2605.15759"
+    category: structured
+    parent: "h_mem"
+    motivation: "把记忆原子化为可按维召回单元"
+
+graph:
+  nodes:
+    - { id: reflexion,         x: 80,   y: 90,  category: reflective }
+    - { id: generative_agents, x: 140,  y: 170, category: episodic }
+    - { id: memorybank,        x: 240,  y: 170, category: episodic }
+    - { id: memgpt,            x: 360,  y: 340, category: management }
+    - { id: a_mem,             x: 560,  y: 255, category: structured }
+    - { id: mem0,              x: 660,  y: 255, category: structured }
+    - { id: memoryos,          x: 760,  y: 340, category: management }
+    - { id: mirix,             x: 860,  y: 430, category: multimodal }
+    - { id: agemem,            x: 930,  y: 340, category: management }
+    - { id: himem,             x: 980,  y: 255, category: structured }
+    - { id: m2a,               x: 1060, y: 430, category: multimodal }
+    - { id: mma,               x: 1140, y: 430, category: multimodal }
+    - { id: amv_l,             x: 1200, y: 340, category: management }
+    - { id: ns_mem,            x: 1260, y: 430, category: multimodal }
+    - { id: memmachine,        x: 1330, y: 255, category: structured }
+    - { id: lightmem,          x: 1390, y: 340, category: management }
+    - { id: h_mem,             x: 1460, y: 255, category: structured }
+    - { id: dimmem,            x: 1540, y: 255, category: structured }
+  edges:
+    - { from: generative_agents, to: memorybank, label: "遗忘更新" }
+    - { from: memorybank, to: memgpt, label: "分页扩窗" }
+    - { from: memorybank, to: a_mem, label: "动态建链" }
+    - { from: memorybank, to: mem0, label: "只存要点" }
+    - { from: memgpt, to: memoryos, label: "层级存储" }
+    - { from: memoryos, to: mirix, label: "多记忆体" }
+    - { from: memoryos, to: agemem, label: "策略调度" }
+    - { from: memoryos, to: amv_l, label: "生命周期" }
+    - { from: memoryos, to: lightmem, label: "轻量在线" }
+    - { from: a_mem, to: himem, label: "层级笔记" }
+    - { from: himem, to: h_mem, label: "树图混合" }
+    - { from: h_mem, to: dimmem, label: "维度原子" }
+    - { from: mem0, to: memmachine, label: "保真召回" }
+    - { from: mirix, to: m2a, label: "双层个性" }
+    - { from: m2a, to: mma, label: "可信重排" }
+    - { from: mma, to: ns_mem, label: "规则层" }
+  milestones: [generative_agents, memgpt, agemem]

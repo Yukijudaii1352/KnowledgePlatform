@@ -1,5 +1,5 @@
 /**
- * ml_platform-data.js — 由 pipeline/build.py 于 2026-06-08 12:12:01 自动生成。
+ * ml_platform-data.js — 由 pipeline/build.py 于 2026-06-11 12:39:18 自动生成。
  * 源文件：content/infra/ml_platform.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "ml_platform",
     "topic_name": "机器学习平台",
     "page_title": "机器学习平台技术演进",
-    "page_subtitle": "2026-06-08 版",
+    "page_subtitle": "2026-06-11 版",
     "page_desc": "回顾从Parameter Server到万卡训练、从TFX到智能MLOps的技术演进，系统梳理机器学习平台从分布式训练到全生命周期治理的发展历程。",
     "page_icon": "⚙️",
     "hero_pills": [

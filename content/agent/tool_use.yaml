@@ -1,0 +1,263 @@
+domain: agent
+topic_id: tool_use
+topic_name: Agent工具调用
+page_icon: "🛠️"
+page_title: "Agent工具调用技术演进"
+page_subtitle: "{build_date} 版"
+page_desc: "从模块化专家路由、ReAct工具闭环、自监督Toolformer，到Gorilla/ToolLLM的API检索选择、LLMCompiler与AsyncFC的复杂编排，再到MCP、BFCL、τ-bench与APB代表的协议和评测标准化，系统梳理Agent工具调用主线。"
+hero_pills:
+  - "🏷️ Tool Use · Function Calling · API Retrieval · MCP"
+  - "Planning · Orchestration · RL · Benchmarks"
+count_pill: "{count} 个算法"
+
+categories:
+  foundation:    { label: "奠基范式", color: "#0F766E" }
+  learning:      { label: "工具学习与选择", color: "#2563EB" }
+  orchestration: { label: "规划与执行编排", color: "#EA580C" }
+  protocol:      { label: "标准协议", color: "#7C3AED" }
+  evaluation:    { label: "评测基准", color: "#DC2626" }
+
+algorithms:
+  - id: mrkl
+    name: MRKL
+    full_name: "模块化推理知识与语言系统 (MRKL Systems)"
+    year: "2022.05"
+    org: AI21 Labs
+    paper_url: "https://arxiv.org/abs/2205.00445"
+    category: foundation
+    parent: "—"
+    motivation: "把专家模块接入LM形成可路由系统"
+
+  - id: react
+    name: ReAct
+    full_name: "推理-行动协同 (ReAct)"
+    year: "2022.10"
+    org: Princeton/Google
+    paper_url: "https://arxiv.org/abs/2210.03629"
+    category: foundation
+    parent: "—"
+    motivation: "交错思考与行动驱动工具闭环"
+
+  - id: toolformer
+    name: Toolformer
+    full_name: "自学工具调用模型 (Toolformer)"
+    year: "2023.02"
+    org: Meta AI
+    paper_url: "https://arxiv.org/abs/2302.04761"
+    category: learning
+    parent: "mrkl"
+    motivation: "自监督学会何时调用何种API"
+
+  - id: hugginggpt
+    name: HuggingGPT
+    full_name: "模型协同调度器 (HuggingGPT)"
+    year: "2023.03"
+    org: Zhejiang University
+    paper_url: "https://arxiv.org/abs/2303.17580"
+    category: orchestration
+    parent: "mrkl"
+    motivation: "按描述规划并选择外部模型"
+
+  - id: api_bank
+    name: API-Bank
+    full_name: "工具增强模型基准库 (API-Bank)"
+    year: "2023.04"
+    org: Alibaba Group
+    paper_url: "https://arxiv.org/abs/2304.08244"
+    category: evaluation
+    parent: "toolformer"
+    motivation: "首次系统评测规划检索调用三能力"
+
+  - id: gorilla
+    name: Gorilla
+    full_name: "海量API连接模型 (Gorilla)"
+    year: "2023.05"
+    org: UC Berkeley
+    paper_url: "https://arxiv.org/abs/2305.15334"
+    category: learning
+    parent: "toolformer"
+    motivation: "检索文档后稳健生成API参数"
+
+  - id: toolllm
+    name: ToolLLM
+    full_name: "万级API工具学习框架 (ToolLLM)"
+    year: "2023.07"
+    org: Tsinghua University
+    paper_url: "https://arxiv.org/abs/2307.16789"
+    category: learning
+    parent: "gorilla"
+    motivation: "把万级真实API纳入训练与搜索"
+
+  - id: llm_compiler
+    name: LLMCompiler
+    full_name: "并行函数调用编译器 (LLMCompiler)"
+    year: "2023.12"
+    org: UC Berkeley
+    paper_url: "https://arxiv.org/abs/2312.04511"
+    category: orchestration
+    parent: "react"
+    motivation: "把串行工具链编译成并行执行图"
+
+  - id: tau_bench
+    name: "τ-Bench"
+    full_name: "工具-代理-用户交互基准 (τ-Bench)"
+    year: "2024.06"
+    org: Princeton University
+    paper_url: "https://arxiv.org/abs/2406.12045"
+    category: evaluation
+    parent: "api_bank"
+    motivation: "引入用户交互与领域规则约束"
+
+  - id: toolsandbox
+    name: ToolSandbox
+    full_name: "有状态工具沙箱评测 (ToolSandbox)"
+    year: "2024.08"
+    org: Apple
+    paper_url: "https://arxiv.org/abs/2408.04682"
+    category: evaluation
+    parent: "api_bank"
+    motivation: "评测多轮有状态工具执行能力"
+
+  - id: toolace
+    name: ToolACE
+    full_name: "工具调用自演化数据引擎 (ToolACE)"
+    year: "2024.09"
+    org: SJTU/USTC/Huawei
+    paper_url: "https://arxiv.org/abs/2409.00920"
+    category: learning
+    parent: "toolllm"
+    motivation: "多代理自演化生成高质量调用数据"
+
+  - id: mcp
+    name: MCP
+    full_name: "模型上下文协议 (Model Context Protocol)"
+    year: "2024.11"
+    org: Anthropic
+    paper_url: "https://www.anthropic.com/news/model-context-protocol?stargate_lang=en"
+    category: protocol
+    parent: "—"
+    motivation: "统一工具资源提示的JSON-RPC接口"
+
+  - id: acebench
+    name: ACEBench
+    full_name: "工具使用综合评测 (ACEBench)"
+    year: "2025.01"
+    org: USTC/Huawei/SJTU
+    paper_url: "https://arxiv.org/abs/2501.12851"
+    category: evaluation
+    parent: "toolsandbox"
+    motivation: "以Normal/Special/Agent三类场景细分工具评测"
+
+  - id: bfcl
+    name: BFCL
+    full_name: "伯克利函数调用排行榜 (BFCL)"
+    year: "2025.05"
+    org: UC Berkeley
+    paper_url: "https://openreview.net/forum?id=2GmDdhBdDk"
+    category: evaluation
+    parent: "gorilla"
+    motivation: "以AST与执行统一函数调用评测"
+
+  - id: tau2_bench
+    name: "τ²-Bench"
+    full_name: "双控对话代理基准 (τ²-Bench)"
+    year: "2025.06"
+    org: Sierra/Princeton
+    paper_url: "https://arxiv.org/abs/2506.07982"
+    category: evaluation
+    parent: "tau_bench"
+    motivation: "让用户与代理共同操控环境"
+
+  - id: vrrl_agents
+    name: EigenData+VR-RL
+    full_name: "自演化数据与可验证奖励后训练 (EigenData + VR-RL)"
+    year: "2026.01"
+    org: Tsinghua/Eigen AI
+    paper_url: "https://arxiv.org/abs/2601.22607"
+    category: learning
+    parent: "toolace"
+    motivation: "自演化数据结合可验证奖励后训练"
+
+  - id: intent
+    name: INTENT
+    full_name: "意图感知预算规划 (INTENT)"
+    year: "2026.02"
+    org: RUC/SUFE/Baidu
+    paper_url: "https://arxiv.org/abs/2602.11541"
+    category: orchestration
+    parent: "llm_compiler"
+    motivation: "在预算约束下规划高成本工具调用"
+
+  - id: cm2
+    name: CM2
+    full_name: "清单奖励工具代理强化学习 (CM2)"
+    year: "2026.02"
+    org: UC Santa Barbara
+    paper_url: "https://arxiv.org/abs/2602.12268"
+    category: learning
+    parent: "vrrl_agents"
+    motivation: "用清单奖励替代难构造验证器"
+
+  - id: asyncfc
+    name: AsyncFC
+    full_name: "异步函数调用框架 (AsyncFC)"
+    year: "2026.05"
+    org: UC Berkeley
+    paper_url: "https://arxiv.org/abs/2605.15077"
+    category: orchestration
+    parent: "llm_compiler"
+    motivation: "不改模型实现未来值驱动异步调用"
+
+  - id: apb
+    name: APB
+    full_name: "Agent规划基准 (Agent Planning Benchmark)"
+    year: "2026.06"
+    org: Tongji University
+    paper_url: "https://arxiv.org/abs/2606.04874"
+    category: evaluation
+    parent: "tau2_bench"
+    motivation: "把规划能力从执行结果中单独诊断"
+
+graph:
+  nodes:
+    - { id: mrkl,         x: 80,   y: 80,  category: foundation }
+    - { id: react,        x: 180,  y: 80,  category: foundation }
+    - { id: toolformer,   x: 300,  y: 180, category: learning }
+    - { id: hugginggpt,   x: 360,  y: 290, category: orchestration }
+    - { id: api_bank,     x: 430,  y: 510, category: evaluation }
+    - { id: gorilla,      x: 500,  y: 180, category: learning }
+    - { id: toolllm,      x: 620,  y: 180, category: learning }
+    - { id: llm_compiler, x: 680,  y: 290, category: orchestration }
+    - { id: tau_bench,    x: 760,  y: 510, category: evaluation }
+    - { id: toolsandbox,  x: 840,  y: 510, category: evaluation }
+    - { id: toolace,      x: 920,  y: 180, category: learning }
+    - { id: mcp,          x: 980,  y: 400, category: protocol }
+    - { id: acebench,     x: 1080, y: 510, category: evaluation }
+    - { id: bfcl,         x: 1160, y: 510, category: evaluation }
+    - { id: tau2_bench,   x: 1240, y: 510, category: evaluation }
+    - { id: vrrl_agents,  x: 1320, y: 180, category: learning }
+    - { id: intent,       x: 1380, y: 290, category: orchestration }
+    - { id: cm2,          x: 1440, y: 180, category: learning }
+    - { id: asyncfc,      x: 1500, y: 290, category: orchestration }
+    - { id: apb,          x: 1580, y: 510, category: evaluation }
+  edges:
+    - { from: mrkl,         to: toolformer,   label: "可学调用" }
+    - { from: mrkl,         to: hugginggpt,   label: "模块控制" }
+    - { from: react,        to: llm_compiler, label: "并行编排" }
+    - { from: toolformer,   to: api_bank,     label: "建立基准" }
+    - { from: toolformer,   to: gorilla,      label: "精准调参" }
+    - { from: gorilla,      to: toolllm,      label: "万级扩展" }
+    - { from: api_bank,     to: tau_bench,    label: "面向用户" }
+    - { from: api_bank,     to: toolsandbox,  label: "状态执行" }
+    - { from: hugginggpt,   to: llm_compiler, label: "显式编排" }
+    - { from: toolllm,      to: toolace,      label: "数据自演" }
+    - { from: gorilla,      to: mcp,          label: "接口统一" }
+    - { from: toolsandbox,  to: acebench,     label: "细分误差" }
+    - { from: gorilla,      to: bfcl,         label: "函数评测" }
+    - { from: tau_bench,    to: tau2_bench,   label: "双控环境" }
+    - { from: toolace,      to: vrrl_agents,  label: "合成+RL" }
+    - { from: vrrl_agents,  to: cm2,          label: "开放奖励" }
+    - { from: llm_compiler, to: intent,       label: "预算规划" }
+    - { from: llm_compiler, to: asyncfc,      label: "异步执行" }
+    - { from: tau2_bench,   to: apb,          label: "前置诊断" }
+  milestones: [toolformer, mcp, bfcl]

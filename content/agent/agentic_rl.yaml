@@ -1,0 +1,263 @@
+domain: agent
+topic_id: agentic_rl
+topic_name: Agentic RL
+page_icon: "🤖"
+page_title: "Agentic RL 技术演进"
+page_subtitle: "{build_date} 版"
+page_desc: "从 WebGPT、SayCan 的交互式反馈原型，到 Reflexion、Voyager 的语言自改进，再到 WebRL、WebAgent-R1、AgentRL、AgentJet 等端到端训练栈，以及 iStar、Agent-RRM、VPR、Q-Evolve 等奖励与信用分配方法，系统梳理面向 Agent 的强化学习主线与 2026 年最新进展。"
+hero_pills:
+  - "🏷️ Agentic RL · Online Feedback · Self-Improvement"
+  - "Reward Design · Tool Use · Web Agents · Self-Play"
+count_pill: "{count} 个算法"
+
+categories:
+  foundation:   { label: "交互奠基", color: "#0F766E" }
+  self_improve: { label: "反馈与自进化", color: "#2563EB" }
+  online_rl:    { label: "端到端在线RL", color: "#EA580C" }
+  reward:       { label: "奖励与信用分配", color: "#7C3AED" }
+  frontier:     { label: "系统扩展与前沿", color: "#DC2626" }
+
+algorithms:
+  - id: webgpt
+    name: WebGPT
+    full_name: "网页浏览问答代理 (WebGPT)"
+    year: "2021.12"
+    org: OpenAI
+    paper_url: "https://arxiv.org/abs/2112.09332"
+    category: foundation
+    parent: "—"
+    motivation: "把网页交互纳入端到端反馈训练"
+
+  - id: saycan
+    name: SayCan
+    full_name: "语言-可供性接地代理 (SayCan)"
+    year: "2022.04"
+    org: Google Robotics
+    paper_url: "https://arxiv.org/abs/2204.01691"
+    category: foundation
+    parent: "—"
+    motivation: "用价值函数约束LLM选可执行技能"
+
+  - id: reflexion
+    name: Reflexion
+    full_name: "反思式语言强化 (Reflexion)"
+    year: "2023.03"
+    org: Princeton/Northeastern
+    paper_url: "https://arxiv.org/abs/2303.11366"
+    category: self_improve
+    parent: "webgpt"
+    motivation: "把失败反馈转成可复用语言记忆"
+
+  - id: voyager
+    name: Voyager
+    full_name: "开放式具身终身学习代理 (Voyager)"
+    year: "2023.05"
+    org: NVIDIA/Caltech
+    paper_url: "https://arxiv.org/abs/2305.16291"
+    category: self_improve
+    parent: "reflexion"
+    motivation: "靠课程与技能库持续自我进化"
+
+  - id: werewolf_rl
+    name: Werewolf-RL
+    full_name: "狼人杀战略语言代理 (Strategic Play in the Werewolf Game)"
+    year: "2023.10"
+    org: Tsinghua University
+    paper_url: "https://arxiv.org/abs/2310.18940"
+    category: foundation
+    parent: "saycan"
+    motivation: "用RL纠正语言动作的固有偏置"
+
+  - id: agile
+    name: AGILE
+    full_name: "环境交互学习代理 (AGILE)"
+    year: "2024.05"
+    org: ByteDance Research
+    paper_url: "https://arxiv.org/abs/2405.14751"
+    category: online_rl
+    parent: "werewolf_rl"
+    motivation: "把记忆工具求助纳入统一RL代理"
+
+  - id: agent_q
+    name: "Agent Q"
+    full_name: "自主代理推理与学习 (Agent Q)"
+    year: "2024.08"
+    org: Stanford/MultiOn
+    paper_url: "https://arxiv.org/abs/2408.07199"
+    category: online_rl
+    parent: "agile"
+    motivation: "结合搜索自评和偏好学习提效"
+
+  - id: webrl
+    name: WebRL
+    full_name: "自演化在线课程网页强化学习 (WebRL)"
+    year: "2024.11"
+    org: Tsinghua/Zhipu AI
+    paper_url: "https://arxiv.org/abs/2411.02337"
+    category: online_rl
+    parent: "agent_q"
+    motivation: "以自演化课程缓解稀疏网页奖励"
+
+  - id: webagent_r1
+    name: WebAgent-R1
+    full_name: "端到端多轮网页代理强化学习 (WebAgent-R1)"
+    year: "2025.05"
+    org: Amazon
+    paper_url: "https://arxiv.org/abs/2505.16421"
+    category: online_rl
+    parent: "webrl"
+    motivation: "用纯在线多轮RL直训网页代理"
+
+  - id: agent_lightning
+    name: "Agent Lightning"
+    full_name: "通用代理强化学习解耦框架 (Agent Lightning)"
+    year: "2025.08"
+    org: Microsoft Research
+    paper_url: "https://arxiv.org/abs/2508.03680"
+    category: online_rl
+    parent: "agile"
+    motivation: "解耦代理执行与RL训练栈"
+
+  - id: mua_rl
+    name: MUA-RL
+    full_name: "多轮用户交互式工具代理强化学习 (MUA-RL)"
+    year: "2025.08"
+    org: Meituan
+    paper_url: "https://arxiv.org/abs/2508.18669"
+    category: online_rl
+    parent: "webagent_r1"
+    motivation: "把动态用户模拟接入工具RL闭环"
+
+  - id: istar
+    name: iStar
+    full_name: "隐式步骤奖励 (Implicit Step Rewards / iStar)"
+    year: "2025.09"
+    org: Tongyi Lab
+    paper_url: "https://arxiv.org/abs/2509.19199"
+    category: reward
+    parent: "webagent_r1"
+    motivation: "从轨迹偏好学习隐式步骤奖励"
+
+  - id: agentrl
+    name: AgentRL
+    full_name: "多轮多任务代理强化学习框架 (AgentRL)"
+    year: "2025.10"
+    org: Tsinghua University
+    paper_url: "https://arxiv.org/abs/2510.04206"
+    category: online_rl
+    parent: "agent_lightning"
+    motivation: "扩展到异步多任务多轮训练"
+
+  - id: sage
+    name: SAGE
+    full_name: "技能增强组相对策略优化 (SAGE)"
+    year: "2025.12"
+    org: AWS Agentic AI
+    paper_url: "https://arxiv.org/abs/2512.17102"
+    category: self_improve
+    parent: "voyager"
+    motivation: "让技能生成与调用获得联合奖励"
+
+  - id: ssr
+    name: SSR
+    full_name: "自博弈软件工程强化学习 (Self-play SWE-RL)"
+    year: "2025.12"
+    org: Meta FAIR
+    paper_url: "https://arxiv.org/abs/2512.18552"
+    category: self_improve
+    parent: "sage"
+    motivation: "用自博弈缺陷注入驱动软件代理进化"
+
+  - id: dynaweb
+    name: DynaWeb
+    full_name: "基于世界模型的网页代理强化学习 (DynaWeb)"
+    year: "2026.01"
+    org: Shanghai Jiao Tong University
+    paper_url: "https://arxiv.org/abs/2601.22149"
+    category: frontier
+    parent: "webagent_r1"
+    motivation: "在网页世界模型中做想象式RL"
+
+  - id: agent_rrm
+    name: Agent-RRM
+    full_name: "代理推理奖励模型 (Agent-RRM)"
+    year: "2026.01"
+    org: Meituan/CUHK
+    paper_url: "https://arxiv.org/abs/2601.22154"
+    category: reward
+    parent: "istar"
+    motivation: "以推理轨迹批评提供结构化奖励"
+
+  - id: vpr
+    name: VPR
+    full_name: "可验证过程奖励 (VPR)"
+    year: "2026.05"
+    org: Tsinghua University
+    paper_url: "https://arxiv.org/abs/2605.10325"
+    category: reward
+    parent: "istar"
+    motivation: "把可验证中间步骤转成稠密奖励"
+
+  - id: agentjet
+    name: AgentJet
+    full_name: "群体式代理强化学习训练框架 (AgentJet)"
+    year: "2026.06"
+    org: Tongyi Lab
+    paper_url: "https://arxiv.org/abs/2606.04484"
+    category: frontier
+    parent: "agentrl"
+    motivation: "用群体式分布架构扩展代理RL"
+
+  - id: q_evolve
+    name: Q-Evolve
+    full_name: "分布内自进化代理强化学习 (Q-Evolve)"
+    year: "2026.06"
+    org: Eindhoven University of Technology
+    paper_url: "https://arxiv.org/abs/2606.07367"
+    category: frontier
+    parent: "istar"
+    motivation: "在分布内联合演化过程奖励与策略"
+
+graph:
+  nodes:
+    - { id: webgpt,           x: 80,   y: 80,  category: foundation }
+    - { id: saycan,           x: 190,  y: 80,  category: foundation }
+    - { id: reflexion,        x: 340,  y: 220, category: self_improve }
+    - { id: voyager,          x: 430,  y: 220, category: self_improve }
+    - { id: werewolf_rl,      x: 520,  y: 80,  category: foundation }
+    - { id: agile,            x: 650,  y: 360, category: online_rl }
+    - { id: agent_q,          x: 740,  y: 360, category: online_rl }
+    - { id: webrl,            x: 850,  y: 360, category: online_rl }
+    - { id: webagent_r1,      x: 1000, y: 360, category: online_rl }
+    - { id: agent_lightning,  x: 1080, y: 360, category: online_rl }
+    - { id: mua_rl,           x: 1160, y: 360, category: online_rl }
+    - { id: istar,            x: 1240, y: 500, category: reward }
+    - { id: agentrl,          x: 1320, y: 360, category: online_rl }
+    - { id: sage,             x: 1380, y: 220, category: self_improve }
+    - { id: ssr,              x: 1480, y: 220, category: self_improve }
+    - { id: dynaweb,          x: 1540, y: 640, category: frontier }
+    - { id: agent_rrm,        x: 1600, y: 500, category: reward }
+    - { id: vpr,              x: 1680, y: 500, category: reward }
+    - { id: agentjet,         x: 1760, y: 640, category: frontier }
+    - { id: q_evolve,         x: 1840, y: 640, category: frontier }
+  edges:
+    - { from: webgpt,          to: reflexion,       label: "语言反馈" }
+    - { from: saycan,          to: werewolf_rl,     label: "LM+RL" }
+    - { from: reflexion,       to: voyager,         label: "技能记忆" }
+    - { from: werewolf_rl,     to: agile,           label: "通用化" }
+    - { from: agile,           to: agent_q,         label: "搜索优化" }
+    - { from: agent_q,         to: webrl,           label: "在线课程" }
+    - { from: webrl,           to: webagent_r1,     label: "端到端" }
+    - { from: agile,           to: agent_lightning, label: "训练解耦" }
+    - { from: webagent_r1,     to: mua_rl,          label: "动态用户" }
+    - { from: agent_lightning, to: agentrl,         label: "异步多任务" }
+    - { from: webagent_r1,     to: istar,           label: "步骤奖励" }
+    - { from: voyager,         to: sage,            label: "技能库RL" }
+    - { from: sage,            to: ssr,             label: "自博弈" }
+    - { from: webagent_r1,     to: dynaweb,         label: "世界模型" }
+    - { from: istar,           to: agent_rrm,       label: "结构反馈" }
+    - { from: istar,           to: vpr,             label: "可验证奖" }
+    - { from: agentrl,         to: agentjet,        label: "分布式" }
+    - { from: istar,           to: q_evolve,        label: "分布内奖" }
+    - { from: sage,            to: q_evolve,        label: "自进化" }
+  milestones: [webgpt, webagent_r1, q_evolve]

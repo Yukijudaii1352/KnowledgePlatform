@@ -1,5 +1,5 @@
 /**
- * world_model-data.js — 由 pipeline/build.py 于 2026-06-08 12:12:00 自动生成。
+ * world_model-data.js — 由 pipeline/build.py 于 2026-06-11 12:39:17 自动生成。
  * 源文件：content/embodied/world_model.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "world_model",
     "topic_name": "世界模型",
     "page_title": "世界模型 算法总结",
-    "page_subtitle": "2026-06-08 版",
+    "page_subtitle": "2026-06-11 版",
     "page_desc": "从早期状态空间模型到生成式视频世界模型，涵盖物理世界建模、时空预测与基于模型的规划的完整演化历程。",
     "page_icon": "🌍",
     "hero_pills": [

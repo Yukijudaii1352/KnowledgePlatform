@@ -1,5 +1,5 @@
 /**
- * video_vision-data.js — 由 pipeline/build.py 于 2026-06-08 12:11:59 自动生成。
+ * video_vision-data.js — 由 pipeline/build.py 于 2026-06-11 12:39:16 自动生成。
  * 源文件：content/cv/video_vision.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "video_vision",
     "topic_name": "视频视觉",
     "page_title": "视频视觉技术演进",
-    "page_subtitle": "2026-06-08 版",
+    "page_subtitle": "2026-06-11 版",
     "page_desc": "从手工特征到深度学习，再到视频基础模型与世界模型的技术演进",
     "page_icon": "🎬",
     "hero_pills": [

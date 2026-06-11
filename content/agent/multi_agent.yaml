@@ -1,0 +1,250 @@
+domain: agent
+topic_id: multi_agent
+topic_name: 多智能体协作
+page_icon: "🤝"
+page_title: "多智能体协作技术演进"
+page_subtitle: "{build_date} 版"
+page_desc: "围绕角色分工、群体决策、通信拓扑与开放协议，梳理LLM多智能体从角色扮演、SOP工作流、辩论投票，到A2A互操作、层级决策与协同训练的演进主线。"
+hero_pills:
+  - "🏷️ Role Playing · Workflow · Debate · Voting"
+  - "Topology · A2A · Hierarchy · Multi-Agent RL"
+count_pill: "{count} 个算法"
+
+categories:
+  foundation:   { label: "协作奠基", color: "#0F766E" }
+  organization: { label: "角色分工与编排", color: "#2563EB" }
+  deliberation: { label: "辩论与群体决策", color: "#7C3AED" }
+  communication: { label: "通信拓扑与治理", color: "#EA580C" }
+  protocol:     { label: "互操作协议", color: "#DC2626" }
+  optimization: { label: "训练与内化", color: "#CA8A04" }
+
+algorithms:
+  - id: camel
+    name: "CAMEL"
+    full_name: "交流式智能体 (CAMEL)"
+    year: "2023.03"
+    org: "KAUST"
+    paper_url: "https://arxiv.org/abs/2303.17760"
+    category: foundation
+    parent: "—"
+    motivation: "以角色扮演启动自主多Agent协作"
+
+  - id: mad
+    name: "MAD"
+    full_name: "多智能体辩论 (Multiagent Debate)"
+    year: "2023.05"
+    org: "MIT"
+    paper_url: "https://arxiv.org/abs/2305.14325"
+    category: deliberation
+    parent: "—"
+    motivation: "多轮互辩缓解推理谬误与幻觉"
+
+  - id: chatdev
+    name: "ChatDev"
+    full_name: "聊天驱动开发 (ChatDev)"
+    year: "2023.07"
+    org: "清华大学"
+    paper_url: "https://arxiv.org/abs/2307.07924"
+    category: organization
+    parent: "camel"
+    motivation: "用Chat Chain组织软件公司分工"
+
+  - id: autogen
+    name: "AutoGen"
+    full_name: "自动生成智能体 (AutoGen)"
+    year: "2023.08"
+    org: "Microsoft"
+    paper_url: "https://arxiv.org/abs/2308.08155"
+    category: foundation
+    parent: "camel"
+    motivation: "统一多Agent对话与工具编排接口"
+
+  - id: metagpt
+    name: "MetaGPT"
+    full_name: "元编程协作框架 (MetaGPT)"
+    year: "2023.08"
+    org: "DeepWisdom"
+    paper_url: "https://arxiv.org/abs/2308.00352"
+    category: organization
+    parent: "chatdev"
+    motivation: "把SOP编码进多角色流水线"
+
+  - id: agentverse
+    name: "AgentVerse"
+    full_name: "智能体协作宇宙 (AgentVerse)"
+    year: "2023.08"
+    org: "清华大学"
+    paper_url: "https://arxiv.org/abs/2308.10848"
+    category: foundation
+    parent: "camel"
+    motivation: "支持动态组队并分析群体涌现"
+
+  - id: dylan
+    name: "DyLAN"
+    full_name: "动态LLM智能体网络 (Dynamic LLM-Powered Agent Network)"
+    year: "2023.10"
+    org: "Tsinghua AIR"
+    paper_url: "https://arxiv.org/abs/2310.02170"
+    category: communication
+    parent: "agentverse"
+    motivation: "按任务自选团队并动态连边"
+
+  - id: agentprune
+    name: "AgentPrune"
+    full_name: "智能体通信剪枝 (AgentPrune)"
+    year: "2024.10"
+    org: "HKUST"
+    paper_url: "https://arxiv.org/abs/2410.02506"
+    category: communication
+    parent: "dylan"
+    motivation: "剪除冗余恶意消息降低通信成本"
+
+  - id: magentic_one
+    name: "Magentic-One"
+    full_name: "通用多智能体系统 (Magentic-One)"
+    year: "2024.11"
+    org: "Microsoft"
+    paper_url: "https://arxiv.org/abs/2411.04468"
+    category: organization
+    parent: "autogen"
+    motivation: "总控协调专才Agent解复杂任务"
+
+  - id: vote_consensus
+    name: "Vote/Consensus"
+    full_name: "投票还是共识 (Voting or Consensus?)"
+    year: "2025.02"
+    org: "University of Göttingen"
+    paper_url: "https://arxiv.org/abs/2502.19130"
+    category: deliberation
+    parent: "mad"
+    motivation: "系统比较投票与共识协议优劣"
+
+  - id: talkhier
+    name: "TalkHier"
+    full_name: "结构化对话与分层执行 (Talk Structurally, Act Hierarchically)"
+    year: "2025.02"
+    org: "Sony Group Corporation"
+    paper_url: "https://arxiv.org/abs/2502.11098"
+    category: communication
+    parent: "agentprune"
+    motivation: "以结构化消息配合层级修正"
+
+  - id: acp
+    name: "ACP"
+    full_name: "智能体通信协议 (Agent Communication Protocol)"
+    year: "2025.03"
+    org: "IBM Research"
+    paper_url: "https://research.ibm.com/projects/agent-communication-protocol"
+    category: protocol
+    parent: "—"
+    motivation: "用轻量HTTP接口打通异构Agent"
+
+  - id: a2a
+    name: "A2A"
+    full_name: "智能体到智能体协议 (Agent2Agent)"
+    year: "2025.04"
+    org: "Google Cloud"
+    paper_url: "https://developers.googleblog.com/en/a2a-a-new-era-of-agent-interoperability/"
+    category: protocol
+    parent: "—"
+    motivation: "标准化跨框架任务协作与发现"
+
+  - id: debate_or_vote
+    name: "Debate or Vote"
+    full_name: "辩论还是投票 (Debate or Vote)"
+    year: "2025.08"
+    org: "University of Wisconsin-Madison"
+    paper_url: "https://arxiv.org/abs/2508.17536"
+    category: deliberation
+    parent: "vote_consensus"
+    motivation: "证明多数投票贡献大于互辩"
+
+  - id: coral
+    name: "CORAL"
+    full_name: "信息流编排范式 (CORAL)"
+    year: "2026.01"
+    org: "Coral Protocol"
+    paper_url: "https://arxiv.org/abs/2601.09883"
+    category: communication
+    parent: "a2a"
+    motivation: "摆脱预设工作流改用信息流调度"
+
+  - id: latent_agents
+    name: "Latent Agents"
+    full_name: "潜在智能体 (Latent Agents)"
+    year: "2026.04"
+    org: "Boston University"
+    paper_url: "https://arxiv.org/abs/2604.24881"
+    category: optimization
+    parent: "mad"
+    motivation: "把显式辩论蒸馏进单模型"
+
+  - id: blackwell_dm
+    name: "Blackwell-DM"
+    full_name: "布莱克韦尔信息聚合 (Blackwell Decision-Making)"
+    year: "2026.05"
+    org: "University of Surrey"
+    paper_url: "https://arxiv.org/abs/2605.06028"
+    category: deliberation
+    parent: "debate_or_vote"
+    motivation: "以后验聚合替代经验式投票辩论"
+
+  - id: ma_workflow_rl
+    name: "MA-Workflow RL"
+    full_name: "多智能体工作流强化学习 (When Does Multi-Agent RL Improve LLM Workflows?)"
+    year: "2026.05"
+    org: "Oregon State University"
+    paper_url: "https://arxiv.org/abs/2605.24202"
+    category: optimization
+    parent: "—"
+    motivation: "揭示共享策略与隔离策略权衡"
+
+  - id: multi2
+    name: "Multi^2"
+    full_name: "分层多智能体决策 (Multi^2)"
+    year: "2026.06"
+    org: "Sungkyunkwan University"
+    paper_url: "https://arxiv.org/abs/2606.03698"
+    category: organization
+    parent: "magentic_one"
+    motivation: "高低层双Agent缓解长程目标漂移"
+
+graph:
+  nodes:
+    - { id: camel,          x: 80,   y: 90,  category: foundation }
+    - { id: mad,            x: 140,  y: 290, category: deliberation }
+    - { id: chatdev,        x: 230,  y: 190, category: organization }
+    - { id: autogen,        x: 340,  y: 90,  category: foundation }
+    - { id: metagpt,        x: 300,  y: 190, category: organization }
+    - { id: agentverse,     x: 390,  y: 90,  category: foundation }
+    - { id: dylan,          x: 500,  y: 390, category: communication }
+    - { id: agentprune,     x: 900,  y: 390, category: communication }
+    - { id: magentic_one,   x: 960,  y: 190, category: organization }
+    - { id: vote_consensus, x: 1040, y: 290, category: deliberation }
+    - { id: talkhier,       x: 1080, y: 390, category: communication }
+    - { id: acp,            x: 1120, y: 490, category: protocol }
+    - { id: a2a,            x: 1180, y: 490, category: protocol }
+    - { id: debate_or_vote, x: 1260, y: 290, category: deliberation }
+    - { id: coral,          x: 1360, y: 390, category: communication }
+    - { id: latent_agents,  x: 1440, y: 590, category: optimization }
+    - { id: blackwell_dm,   x: 1500, y: 290, category: deliberation }
+    - { id: ma_workflow_rl, x: 1560, y: 590, category: optimization }
+    - { id: multi2,         x: 1620, y: 190, category: organization }
+  edges:
+    - { from: camel, to: chatdev, label: "角色协作" }
+    - { from: camel, to: autogen, label: "会话框架" }
+    - { from: autogen, to: agentverse, label: "扩展群体" }
+    - { from: chatdev, to: metagpt, label: "SOP流水" }
+    - { from: agentverse, to: dylan, label: "动态组队" }
+    - { from: dylan, to: agentprune, label: "消息剪枝" }
+    - { from: agentprune, to: talkhier, label: "结构通信" }
+    - { from: autogen, to: magentic_one, label: "总控编排" }
+    - { from: magentic_one, to: multi2, label: "分层决策" }
+    - { from: mad, to: vote_consensus, label: "决策协议" }
+    - { from: vote_consensus, to: debate_or_vote, label: "拆解增益" }
+    - { from: debate_or_vote, to: blackwell_dm, label: "后验聚合" }
+    - { from: mad, to: latent_agents, label: "辩论蒸馏" }
+    - { from: acp, to: a2a, label: "协议收敛" }
+    - { from: a2a, to: coral, label: "A2A流控" }
+    - { from: magentic_one, to: ma_workflow_rl, label: "协作RL" }
+  milestones: [camel, metagpt, a2a]

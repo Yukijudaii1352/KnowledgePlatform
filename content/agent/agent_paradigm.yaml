@@ -1,0 +1,240 @@
+domain: agent
+topic_id: agent_paradigm
+topic_name: Agent范式
+page_icon: "🧭"
+page_title: "Agent范式技术演进"
+page_subtitle: "{build_date} 版"
+page_desc: "围绕单体 LLM Agent 的控制与规划主线，梳理从零样本规划、ReAct 循环，到搜索式规划、世界模型、分层 plan-execute，再到前瞻反思与约束执行闭环的核心范式。"
+hero_pills:
+  - "🏷️ ReAct · Search · World Model · Plan-Execute"
+  - "Reflection · Replanning · Constrained Execution"
+count_pill: "{count} 个算法"
+
+categories:
+  foundation:    { label: "早期规划原型", color: "#0F766E" }
+  reactive:      { label: "交错式Agent循环", color: "#2563EB" }
+  search:        { label: "搜索与世界模型", color: "#7C3AED" }
+  decomposition: { label: "分层规划-执行", color: "#EA580C" }
+  closed_loop:   { label: "反思与重规划闭环", color: "#DC2626" }
+
+algorithms:
+  - id: zero_shot_planner
+    name: Zero-Shot Planner
+    full_name: "零样本规划器 (Language Models as Zero-Shot Planners)"
+    year: "2022.01"
+    org: UC Berkeley
+    paper_url: "https://arxiv.org/abs/2201.07207"
+    category: foundation
+    parent: "—"
+    motivation: "首次把LLM直接用于高层任务分解"
+
+  - id: inner_monologue
+    name: Inner Monologue
+    full_name: "内心独白 (Inner Monologue)"
+    year: "2022.07"
+    org: Google
+    paper_url: "https://arxiv.org/abs/2207.05608"
+    category: foundation
+    parent: "zero_shot_planner"
+    motivation: "把环境反馈写回语言规划回路"
+
+  - id: react
+    name: ReAct
+    full_name: "推理-行动协同 (ReAct)"
+    year: "2022.10"
+    org: Google
+    paper_url: "https://arxiv.org/abs/2210.03629"
+    category: reactive
+    parent: "—"
+    motivation: "交错生成思考行动观测主循环"
+
+  - id: reflexion
+    name: Reflexion
+    full_name: "语言反思强化 (Reflexion)"
+    year: "2023.03"
+    org: Northeastern
+    paper_url: "https://arxiv.org/abs/2303.11366"
+    category: closed_loop
+    parent: "react"
+    motivation: "把失败教训写入记忆驱动重试"
+
+  - id: rap
+    name: RAP
+    full_name: "通过规划进行推理 (Reasoning via Planning)"
+    year: "2023.05"
+    org: UC San Diego
+    paper_url: "https://arxiv.org/abs/2305.14992"
+    category: search
+    parent: "react"
+    motivation: "将LLM重塑为世界模型并做MCTS"
+
+  - id: adaplanner
+    name: AdaPlanner
+    full_name: "自适应规划器 (AdaPlanner)"
+    year: "2023.05"
+    org: Georgia Tech
+    paper_url: "https://arxiv.org/abs/2305.16653"
+    category: closed_loop
+    parent: "react"
+    motivation: "按反馈重写计划并断点续跑"
+
+  - id: rewoo
+    name: ReWOO
+    full_name: "无观测推理 (ReWOO)"
+    year: "2023.05"
+    org: Microsoft
+    paper_url: "https://arxiv.org/abs/2305.18323"
+    category: decomposition
+    parent: "react"
+    motivation: "先产蓝图再执行工具减少串行依赖"
+
+  - id: llm_dp
+    name: LLM-DP
+    full_name: "动态规划器 (Dynamic Planning with a LLM)"
+    year: "2023.08"
+    org: University of Edinburgh
+    paper_url: "https://arxiv.org/abs/2308.06391"
+    category: decomposition
+    parent: "react"
+    motivation: "LLM与经典规划器协同求解任务"
+
+  - id: lats
+    name: LATS
+    full_name: "语言智能体树搜索 (Language Agent Tree Search)"
+    year: "2023.10"
+    org: UIUC
+    paper_url: "https://arxiv.org/abs/2310.04406"
+    category: search
+    parent: "rap"
+    motivation: "把ReAct扩展为带反馈的树搜索"
+
+  - id: adapt
+    name: ADaPT
+    full_name: "按需分解与规划 (ADaPT)"
+    year: "2023.11"
+    org: Allen AI
+    paper_url: "https://arxiv.org/abs/2311.05772"
+    category: decomposition
+    parent: "rewoo"
+    motivation: "子任务卡住时递归分解再执行"
+
+  - id: llm_compiler
+    name: LLMCompiler
+    full_name: "并行函数调用编译器 (LLMCompiler)"
+    year: "2023.12"
+    org: UC Berkeley
+    paper_url: "https://arxiv.org/abs/2312.04511"
+    category: decomposition
+    parent: "rewoo"
+    motivation: "将工具调用编译成并行执行图"
+
+  - id: devils_advocate
+    name: Devil's Advocate
+    full_name: "预判式反思 (Devil's Advocate)"
+    year: "2024.05"
+    org: UPenn/Google DeepMind
+    paper_url: "https://arxiv.org/abs/2405.16334"
+    category: closed_loop
+    parent: "reflexion"
+    motivation: "行动前预判失败并准备补救分支"
+
+  - id: wkm
+    name: WKM
+    full_name: "世界知识模型 (World Knowledge Model)"
+    year: "2024.05"
+    org: Zhejiang University
+    paper_url: "https://arxiv.org/abs/2405.14205"
+    category: search
+    parent: "rap"
+    motivation: "用全局先验和局部状态知识导规划"
+
+  - id: system_1_x
+    name: System-1.x
+    full_name: "快慢混合规划器 (System-1.x)"
+    year: "2024.07"
+    org: UNC Chapel Hill
+    paper_url: "https://arxiv.org/abs/2407.14414"
+    category: search
+    parent: "rap"
+    motivation: "在直出规划与显式搜索间自适应切换"
+
+  - id: plan_and_act
+    name: Plan-and-Act
+    full_name: "计划并行动 (Plan-and-Act)"
+    year: "2025.03"
+    org: UC Berkeley
+    paper_url: "https://arxiv.org/abs/2503.09572"
+    category: decomposition
+    parent: "adapt"
+    motivation: "显式拆分Planner与Executor两层"
+
+  - id: preflect
+    name: PreFlect
+    full_name: "前瞻反思 (PreFlect)"
+    year: "2026.02"
+    org: Penn State
+    paper_url: "https://arxiv.org/abs/2602.07187"
+    category: closed_loop
+    parent: "devils_advocate"
+    motivation: "执行前批判计划并触发动态重规划"
+
+  - id: lwm_planner
+    name: LWM-Planner
+    full_name: "事实增强前瞻规划 (LWM-Planner)"
+    year: "2025.06"
+    org: University of Cambridge
+    paper_url: "https://arxiv.org/abs/2506.09171"
+    category: search
+    parent: "lats"
+    motivation: "用原子事实支撑前瞻搜索与估值"
+
+  - id: tape
+    name: TAPE
+    full_name: "工具引导自适应规划与约束执行 (TAPE)"
+    year: "2026.02"
+    org: University of Wisconsin-Madison
+    paper_url: "https://arxiv.org/abs/2602.19633"
+    category: closed_loop
+    parent: "plan_and_act"
+    motivation: "求解器选可行路径并约束解码执行"
+
+graph:
+  nodes:
+    - { id: zero_shot_planner, x: 80, y: 80, category: foundation }
+    - { id: inner_monologue, x: 170, y: 80, category: foundation }
+    - { id: react, x: 240, y: 170, category: reactive }
+    - { id: reflexion, x: 330, y: 440, category: closed_loop }
+    - { id: rap, x: 380, y: 260, category: search }
+    - { id: adaplanner, x: 430, y: 440, category: closed_loop }
+    - { id: rewoo, x: 470, y: 350, category: decomposition }
+    - { id: llm_dp, x: 560, y: 350, category: decomposition }
+    - { id: lats, x: 650, y: 260, category: search }
+    - { id: adapt, x: 730, y: 350, category: decomposition }
+    - { id: llm_compiler, x: 810, y: 350, category: decomposition }
+    - { id: devils_advocate, x: 860, y: 440, category: closed_loop }
+    - { id: wkm, x: 920, y: 260, category: search }
+    - { id: system_1_x, x: 1000, y: 260, category: search }
+    - { id: plan_and_act, x: 1080, y: 350, category: decomposition }
+    - { id: preflect, x: 1160, y: 440, category: closed_loop }
+    - { id: lwm_planner, x: 1220, y: 260, category: search }
+    - { id: tape, x: 1240, y: 440, category: closed_loop }
+  edges:
+    - { from: zero_shot_planner, to: inner_monologue, label: "接入反馈" }
+    - { from: inner_monologue, to: react, label: "通用闭环" }
+    - { from: react, to: reflexion, label: "失败记忆" }
+    - { from: react, to: rap, label: "搜索规划" }
+    - { from: react, to: adaplanner, label: "显式改写" }
+    - { from: react, to: rewoo, label: "先计划后做" }
+    - { from: react, to: llm_dp, label: "神经符号" }
+    - { from: rap, to: lats, label: "接入环境" }
+    - { from: rewoo, to: adapt, label: "递归分解" }
+    - { from: rewoo, to: llm_compiler, label: "并行编排" }
+    - { from: reflexion, to: devils_advocate, label: "预判失败" }
+    - { from: rap, to: wkm, label: "知识建模" }
+    - { from: rap, to: system_1_x, label: "快慢混合" }
+    - { from: adapt, to: plan_and_act, label: "双层执行" }
+    - { from: devils_advocate, to: preflect, label: "前瞻反思" }
+    - { from: lats, to: lwm_planner, label: "事实前瞻" }
+    - { from: adaplanner, to: tape, label: "反馈重规划" }
+    - { from: plan_and_act, to: tape, label: "约束执行" }
+  milestones: [react, lats, tape]

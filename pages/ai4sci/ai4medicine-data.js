@@ -1,5 +1,5 @@
 /**
- * ai4medicine-data.js — 由 pipeline/build.py 于 2026-06-08 12:11:56 自动生成。
+ * ai4medicine-data.js — 由 pipeline/build.py 于 2026-06-11 12:39:12 自动生成。
  * 源文件：content/ai4sci/ai4medicine.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "ai4medicine",
     "topic_name": "药学AI",
     "page_title": "药学AI 算法总结",
-    "page_subtitle": "2026-06-08 版",
+    "page_subtitle": "2026-06-11 版",
     "page_desc": "药学AI是人工智能在生命科学领域最具变革潜力的应用方向，涵盖从分子生成、虚拟筛选到ADMET预测的全流程药物研发。该领域经历了从传统QSAR到深度学习，再到生成式AI与基础模型的技术演进，2026年已有173个AI原创药物进入临床阶段。",
     "page_icon": "💊",
     "hero_pills": [

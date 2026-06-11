@@ -53,6 +53,7 @@ from pipeline.builders.common import (
     ROOT,
     err,
     info,
+    is_domain_enabled,
     is_publish_enabled,
     ok,
     warn,
@@ -92,6 +93,8 @@ def discover_sources(include_examples: bool = False) -> list[Path]:
             if fm["domain"] not in DOMAIN_MAP:
                 warn(f"跳过 {md.relative_to(ROOT)}：domain={fm['domain']} 不在白名单")
                 continue
+            if not is_domain_enabled(fm["domain"]):
+                continue
             if not is_publish_enabled(fm.get("publish", True)):
                 continue
             found.append(md)
@@ -126,7 +129,11 @@ def prune_hidden_outputs(prune_examples: bool):
             should_prune = prune_examples
         else:
             fm = peek_front_matter(source_path) if source_path.is_file() else None
-            if not fm or not is_publish_enabled(fm.get("publish", True)):
+            if (
+                not fm
+                or not is_domain_enabled(str(fm.get("domain", "")).strip())
+                or not is_publish_enabled(fm.get("publish", True))
+            ):
                 should_prune = True
 
         if not should_prune:
@@ -139,6 +146,23 @@ def prune_hidden_outputs(prune_examples: bool):
 
     if removed:
         info(f"已清理 {removed} 个隐藏/示例产物文件")
+
+
+def prune_disabled_domain_outputs():
+    """清理已禁用领域的目录页与残留产物。"""
+    removed = 0
+    for domain_id, meta in DOMAIN_MAP.items():
+        if is_domain_enabled(domain_id):
+            continue
+        domain_dir = ROOT / meta["dir"]
+        if not domain_dir.is_dir():
+            continue
+        for target in domain_dir.iterdir():
+            if target.is_file():
+                target.unlink()
+                removed += 1
+    if removed:
+        info(f"已清理 {removed} 个禁用领域产物文件")
 
 
 # ============ 编译模式 ============
@@ -163,6 +187,7 @@ def build_all(copy_images: bool, dry_run: bool, include_examples: bool):
         return
 
     prune_hidden_outputs(prune_examples=not include_examples)
+    prune_disabled_domain_outputs()
 
     render_index()
     render_domain_indexes()
@@ -180,15 +205,27 @@ def build_one(src_path: str, copy_images: bool, dry_run: bool):
         if dry_run:
             return
         prune_hidden_outputs(prune_examples=True)
+        prune_disabled_domain_outputs()
         render_index()
         render_domain_indexes()
         ok("已同步清理隐藏专题产物 ✅")
+        return
+    if fm and not is_domain_enabled(str(fm.get("domain", "")).strip()):
+        warn(f"跳过 {src}：domain={fm.get('domain')} 当前已禁用发布")
+        if dry_run:
+            return
+        prune_hidden_outputs(prune_examples=True)
+        prune_disabled_domain_outputs()
+        render_index()
+        render_domain_indexes()
+        ok("已同步清理禁用领域产物 ✅")
         return
     compile_doc(src, copy_images=copy_images, dry_run=dry_run)
 
     if dry_run:
         return
 
+    prune_disabled_domain_outputs()
     render_index()
     render_domain_indexes()
     ok("增量更新完成 ✅")
@@ -196,6 +233,7 @@ def build_one(src_path: str, copy_images: bool, dry_run: bool):
 
 def build_only_index():
     """模式 C：只刷新首页与一级目录页，不编译 markdown。"""
+    prune_disabled_domain_outputs()
     render_index()
     render_domain_indexes()
 

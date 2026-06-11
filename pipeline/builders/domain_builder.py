@@ -12,7 +12,7 @@ import json
 import re
 from pathlib import Path
 
-from .common import DOMAIN_CATALOG, DOMAIN_MAP, PAGES_DIR, ROOT, is_publish_enabled, ok, warn
+from .common import DOMAIN_CATALOG, DOMAIN_MAP, ROOT, is_domain_enabled, is_publish_enabled, ok, warn
 from .topic_builder import peek_front_matter
 
 
@@ -67,7 +67,11 @@ def _source_is_public(data_js: Path) -> bool:
     if not src.is_file():
         return False
     fm = peek_front_matter(src)
-    return bool(fm) and is_publish_enabled(fm.get("publish", True))
+    return (
+        bool(fm)
+        and is_domain_enabled(str(fm.get("domain", "")).strip())
+        and is_publish_enabled(fm.get("publish", True))
+    )
 
 
 def _scan_live_topics(domain_id: str) -> dict[str, dict]:
@@ -247,6 +251,8 @@ DOMAIN_INDEX_TEMPLATE = """<!DOCTYPE html>
 def render_domain_indexes():
     """为每个一级领域生成 pages/<domain>/index.html 目录页。"""
     for domain_id, meta in DOMAIN_MAP.items():
+        if not is_domain_enabled(domain_id):
+            continue
         catalog = DOMAIN_CATALOG.get(domain_id)
         if not catalog:
             warn(f"领域 {domain_id} 未配置二级标签，跳过目录页生成")

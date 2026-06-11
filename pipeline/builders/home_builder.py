@@ -6,12 +6,8 @@ import html
 import re
 from pathlib import Path
 
-from .common import DOMAIN_MAP, INDEX_HTML, PAGES_DIR, apply_placeholder, ok, today_str, warn
+from .common import DOMAIN_CATALOG, DOMAIN_MAP, INDEX_HTML, PAGES_DIR, apply_placeholder, is_domain_enabled, ok, today_str, warn
 from .domain_builder import _resolve_live_topic, _scan_live_topics, _source_is_public
-from .common import DOMAIN_CATALOG
-
-
-DATA_JS_SOURCE_RE = re.compile(r"源文件：([^\n]+)")
 
 
 def _is_example_topic_html(html_file: Path) -> bool:
@@ -29,7 +25,10 @@ def _count_live_topics(pages_dir: Path) -> int:
     if not pages_dir.is_dir():
         return 0
     count = 0
-    for domain_dir in pages_dir.iterdir():
+    for domain_id, meta in DOMAIN_MAP.items():
+        if not is_domain_enabled(domain_id):
+            continue
+        domain_dir = pages_dir.parent / meta["dir"]
         if not domain_dir.is_dir():
             continue
         for f in domain_dir.iterdir():
@@ -45,10 +44,12 @@ def _count_live_topics(pages_dir: Path) -> int:
 
 def _count_live_topics_by_domain(pages_dir: Path) -> dict[str, int]:
     """统计每个一级领域下实际编译出的专题 HTML 数量（不含 index.html）。"""
-    counts = {domain_id: 0 for domain_id in DOMAIN_MAP}
+    counts = {domain_id: 0 for domain_id in DOMAIN_MAP if is_domain_enabled(domain_id)}
     if not pages_dir.is_dir():
         return counts
     for domain_id, meta in DOMAIN_MAP.items():
+        if not is_domain_enabled(domain_id):
+            continue
         domain_dir = Path(meta["dir"])
         if not domain_dir.is_absolute():
             domain_dir = pages_dir.parent / domain_dir
@@ -69,14 +70,24 @@ def _count_live_topics_by_domain(pages_dir: Path) -> dict[str, int]:
 
 def _count_total_topics() -> int:
     """首页知识专题数 = DOMAIN_CATALOG 中配置的全部二级标签数。"""
-    return sum(len(catalog.get("topics", [])) for catalog in DOMAIN_CATALOG.values())
+    return sum(
+        len(DOMAIN_CATALOG.get(domain_id, {}).get("topics", []))
+        for domain_id in DOMAIN_MAP
+        if is_domain_enabled(domain_id)
+    )
 
 
 def _render_home_domain_cards() -> str:
     """根据 DOMAIN_CATALOG + 已编译专题实时生成首页领域卡片。"""
     cards: list[str] = []
 
-    for idx, (domain_id, meta) in enumerate(DOMAIN_MAP.items(), start=1):
+    visible_domains = [
+        (domain_id, meta)
+        for domain_id, meta in DOMAIN_MAP.items()
+        if is_domain_enabled(domain_id)
+    ]
+
+    for idx, (domain_id, meta) in enumerate(visible_domains, start=1):
         catalog = DOMAIN_CATALOG.get(domain_id, {})
         topics = catalog.get("topics", [])
         live_map = _scan_live_topics(domain_id)
@@ -134,7 +145,7 @@ def render_index():
 
     build_date   = today_str()
     stat_live    = _count_live_topics(PAGES_DIR)
-    stat_domains = len(DOMAIN_MAP)
+    stat_domains = sum(1 for domain_id in DOMAIN_MAP if is_domain_enabled(domain_id))
     stat_total   = _count_total_topics()
 
     html = apply_placeholder(html, "BUILD_DATE",        build_date)

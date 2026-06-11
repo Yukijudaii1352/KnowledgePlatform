@@ -1,0 +1,273 @@
+domain: agent
+topic_id: harness
+topic_name: Harness
+page_icon: "🧰"
+page_title: "Agent Harness Engineering 技术演进"
+page_subtitle: "{build_date} 版"
+page_desc: "从 WebArena、AgentBench、SWE-bench 的可复现实验环境，到 Codex、Claude Code、GenericAgent、OpenClaw 的执行 harness，再到 Meta-Harness、AHE、Harness-Bench、RHO 代表的自动优化与诊断范式，系统梳理 Agent 评测 harness、任务环境、自动回归与运行时工程主线。"
+hero_pills:
+  - "🏷️ Benchmark · Sandbox · Runtime · Regression"
+  - "Codex · Claude Code · OpenClaw · Harness Optimization"
+count_pill: "{count} 个算法"
+
+categories:
+  foundation:   { label: "奠基基准", color: "#0F766E" }
+  environment:  { label: "环境与沙箱", color: "#2563EB" }
+  evaluation:   { label: "编码回归", color: "#7C3AED" }
+  runtime:      { label: "运行时框架", color: "#EA580C" }
+  optimization: { label: "Harness 优化", color: "#DC2626" }
+
+algorithms:
+  - id: webarena
+    name: WebArena
+    full_name: "真实网页环境 (WebArena)"
+    year: "2023.07"
+    org: CMU
+    paper_url: "https://arxiv.org/abs/2307.13854"
+    category: environment
+    parent: "—"
+    motivation: "把网页任务做成可复现实验环境"
+
+  - id: agentbench
+    name: AgentBench
+    full_name: "智能体评测基准 (AgentBench)"
+    year: "2023.08"
+    org: 清华大学
+    paper_url: "https://arxiv.org/abs/2308.03688"
+    category: foundation
+    parent: "—"
+    motivation: "首次系统评测LLM作为交互Agent"
+
+  - id: swebench
+    name: SWE-bench
+    full_name: "软件工程问题基准 (SWE-bench)"
+    year: "2023.10"
+    org: Princeton
+    paper_url: "https://arxiv.org/abs/2310.06770"
+    category: evaluation
+    parent: "agentbench"
+    motivation: "用真实GitHub issue评测代码代理"
+
+  - id: osworld
+    name: OSWorld
+    full_name: "真实操作系统环境 (OSWorld)"
+    year: "2024.04"
+    org: HKU/CMU
+    paper_url: "https://arxiv.org/abs/2404.07972"
+    category: environment
+    parent: "webarena"
+    motivation: "把浏览器任务扩展到真实操作系统"
+
+  - id: toolsandbox
+    name: ToolSandbox
+    full_name: "状态化工具沙箱 (ToolSandbox)"
+    year: "2024.08"
+    org: Apple
+    paper_url: "https://arxiv.org/abs/2408.04682"
+    category: environment
+    parent: "agentbench"
+    motivation: "评测多轮状态依赖的工具调用"
+
+  - id: swe_verified
+    name: SWE-bench Verified
+    full_name: "人工校验软件工程基准 (SWE-bench Verified)"
+    year: "2024.08"
+    org: OpenAI
+    paper_url: "https://openai.com/index/introducing-swe-bench-verified/"
+    category: evaluation
+    parent: "swebench"
+    motivation: "过滤原始样本噪声并标准化执行"
+
+  - id: browsergym
+    name: BrowserGym
+    full_name: "网页智能体训练场生态 (BrowserGym)"
+    year: "2024.12"
+    org: ServiceNow
+    paper_url: "https://arxiv.org/abs/2412.05467"
+    category: environment
+    parent: "webarena"
+    motivation: "统一多种网页基准的观测动作接口"
+
+  - id: codex
+    name: Codex
+    full_name: "云端编码代理 (Codex)"
+    year: "2025.05"
+    org: OpenAI
+    paper_url: "https://openai.com/index/introducing-codex/"
+    category: runtime
+    parent: "swe_verified"
+    motivation: "把代码基准能力产品化为云端代理"
+
+  - id: claude_longrun
+    name: Long-Running Harness
+    full_name: "长时运行智能体 harness (Effective Harnesses for Long-Running Agents)"
+    year: "2025.11"
+    org: Anthropic
+    paper_url: "https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents"
+    category: runtime
+    parent: "—"
+    motivation: "让代理跨多个上下文窗口持续推进"
+
+  - id: idebench
+    name: IDE-Bench
+    full_name: "IDE 原生代理基准 (IDE-Bench)"
+    year: "2026.01"
+    org: AfterQuery
+    paper_url: "https://arxiv.org/abs/2601.20886"
+    category: evaluation
+    parent: "swe_verified"
+    motivation: "用IDE原生工具链评测协作式编码"
+
+  - id: openai_harness
+    name: Harness Engineering
+    full_name: "Codex Harness 工程方法论 (Harness Engineering)"
+    year: "2026.02"
+    org: OpenAI
+    paper_url: "https://openai.com/index/harness-engineering/"
+    category: runtime
+    parent: "codex"
+    motivation: "把环境设计与反馈闭环提升为方法论"
+
+  - id: meta_harness
+    name: Meta-Harness
+    full_name: "元 Harness 外环优化 (Meta-Harness)"
+    year: "2026.03"
+    org: Stanford/MIT
+    paper_url: "https://arxiv.org/abs/2603.28052"
+    category: optimization
+    parent: "openai_harness"
+    motivation: "外环搜索可执行harness代码"
+
+  - id: harness_design
+    name: Harness Design
+    full_name: "长程应用开发 Harness 设计 (Harness Design for Long-Running Application Development)"
+    year: "2026.03"
+    org: Anthropic
+    paper_url: "https://www.anthropic.com/engineering/harness-design-long-running-apps"
+    category: runtime
+    parent: "claude_longrun"
+    motivation: "用规划生成评审三Agent突破长程开发"
+
+  - id: managed_agents
+    name: Managed Agents
+    full_name: "托管长程智能体服务 (Managed Agents)"
+    year: "2026.04"
+    org: Anthropic
+    paper_url: "https://www.anthropic.com/engineering/managed-agents"
+    category: runtime
+    parent: "harness_design"
+    motivation: "解耦session、harness与sandbox接口"
+
+  - id: genericagent
+    name: GenericAgent
+    full_name: "自进化通用 Agent Harness (GenericAgent)"
+    year: "2026.04"
+    org: 复旦/北大/Qiji Zhifeng
+    paper_url: "https://arxiv.org/abs/2604.17091"
+    category: runtime
+    parent: "claude_longrun"
+    motivation: "以最小工具和自演化记忆控制上下文"
+
+  - id: ahe
+    name: AHE
+    full_name: "自动演化编码 Harness (Agentic Harness Engineering)"
+    year: "2026.04"
+    org: 复旦/北大/Qiji Zhifeng
+    paper_url: "https://arxiv.org/abs/2604.25850"
+    category: optimization
+    parent: "meta_harness"
+    motivation: "用可观测闭环自动进化编码harness"
+
+  - id: openclaw
+    name: OpenClaw
+    full_name: "统一 Agent 控制平面 (OpenClaw)"
+    year: "2026.05"
+    org: OpenClaw
+    paper_url: "https://docs.openclaw.ai/plugins/sdk-agent-harness"
+    category: runtime
+    parent: "codex"
+    motivation: "把Codex等原生运行时并入统一控制面"
+
+  - id: roadmapbench
+    name: RoadmapBench
+    full_name: "版本升级长程开发基准 (RoadmapBench)"
+    year: "2026.05"
+    org: UniPat AI
+    paper_url: "https://arxiv.org/abs/2605.15846"
+    category: evaluation
+    parent: "idebench"
+    motivation: "用版本升级任务检验长程工程能力"
+
+  - id: harness_bench
+    name: Harness-Bench
+    full_name: "Harness 配置诊断基准 (Harness-Bench)"
+    year: "2026.05"
+    org: 北大/Qiyuan Tech
+    paper_url: "https://arxiv.org/abs/2605.27922"
+    category: evaluation
+    parent: "ahe"
+    motivation: "分离模型与harness配置效应"
+
+  - id: codex_safety
+    name: Codex Safety
+    full_name: "Codex 安全治理运行栈 (Running Codex Safely)"
+    year: "2026.05"
+    org: OpenAI
+    paper_url: "https://openai.com/index/running-codex-safely/"
+    category: runtime
+    parent: "codex"
+    motivation: "用规则审批与遥测约束高风险执行"
+
+  - id: rho
+    name: RHO
+    full_name: "回顾式 Harness 优化 (Retrospective Harness Optimization)"
+    year: "2026.06"
+    org: CityU/MSRA
+    paper_url: "https://arxiv.org/abs/2606.05922"
+    category: optimization
+    parent: "ahe"
+    motivation: "只靠历史轨迹自监督优化harness"
+
+graph:
+  nodes:
+    - { id: webarena,        x: 80,   y: 150, category: environment }
+    - { id: agentbench,      x: 150,  y: 70,  category: foundation }
+    - { id: swebench,        x: 260,  y: 290, category: evaluation }
+    - { id: osworld,         x: 400,  y: 150, category: environment }
+    - { id: toolsandbox,     x: 500,  y: 150, category: environment }
+    - { id: swe_verified,    x: 560,  y: 290, category: evaluation }
+    - { id: browsergym,      x: 680,  y: 150, category: environment }
+    - { id: codex,           x: 820,  y: 430, category: runtime }
+    - { id: claude_longrun,  x: 940,  y: 430, category: runtime }
+    - { id: idebench,        x: 1040, y: 290, category: evaluation }
+    - { id: openai_harness,  x: 1120, y: 430, category: runtime }
+    - { id: meta_harness,    x: 1200, y: 570, category: optimization }
+    - { id: harness_design,  x: 1260, y: 430, category: runtime }
+    - { id: managed_agents,  x: 1360, y: 430, category: runtime }
+    - { id: genericagent,    x: 1420, y: 500, category: runtime }
+    - { id: ahe,             x: 1480, y: 570, category: optimization }
+    - { id: openclaw,        x: 1560, y: 500, category: runtime }
+    - { id: roadmapbench,    x: 1600, y: 290, category: evaluation }
+    - { id: harness_bench,   x: 1660, y: 570, category: evaluation }
+    - { id: codex_safety,    x: 1700, y: 430, category: runtime }
+    - { id: rho,             x: 1780, y: 570, category: optimization }
+  edges:
+    - { from: webarena,       to: osworld,        label: "扩到桌面" }
+    - { from: webarena,       to: browsergym,     label: "统一接口" }
+    - { from: agentbench,     to: swebench,       label: "转向代码" }
+    - { from: agentbench,     to: toolsandbox,    label: "状态工具" }
+    - { from: swebench,       to: swe_verified,   label: "人工复核" }
+    - { from: swe_verified,   to: idebench,       label: "IDE原生" }
+    - { from: idebench,       to: roadmapbench,   label: "长程开发" }
+    - { from: swe_verified,   to: codex,          label: "云端代理" }
+    - { from: codex,          to: openai_harness, label: "方法论化" }
+    - { from: codex,          to: openclaw,       label: "第三方宿主" }
+    - { from: codex,          to: codex_safety,   label: "规则治理" }
+    - { from: claude_longrun, to: harness_design, label: "三Agent" }
+    - { from: harness_design, to: managed_agents, label: "接口抽象" }
+    - { from: claude_longrun, to: genericagent,   label: "密度记忆" }
+    - { from: openai_harness, to: meta_harness,   label: "自动搜索" }
+    - { from: meta_harness,   to: ahe,            label: "闭环进化" }
+    - { from: ahe,            to: harness_bench,  label: "配置诊断" }
+    - { from: ahe,            to: rho,            label: "无标自优" }
+  milestones: [webarena, codex, rho]

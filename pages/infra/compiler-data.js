@@ -1,5 +1,5 @@
 /**
- * compiler-data.js — 由 pipeline/build.py 于 2026-06-08 12:12:01 自动生成。
+ * compiler-data.js — 由 pipeline/build.py 于 2026-06-11 12:39:17 自动生成。
  * 源文件：content/infra/compiler.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "compiler",
     "topic_name": "AI编译器",
     "page_title": "AI编译器技术演进总结",
-    "page_subtitle": "2026-06-08 版",
+    "page_subtitle": "2026-06-11 版",
     "page_desc": "系统梳理从 XLA、TVM 到 MLIR、Triton 的 AI 编译器发展历程与核心技术突破，覆盖经典奠基工作与2026年最新进展。",
     "page_icon": "⚙️",
     "hero_pills": [

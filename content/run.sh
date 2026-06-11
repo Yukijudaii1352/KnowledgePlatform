@@ -7,7 +7,7 @@ set -uo pipefail
 
 CALLER_CWD="${PWD}"
 YAML_INPUT="${1:?Usage: $0 <yaml_file> [jobs]}"
-JOBS="${2:-${JOBS:-5}}"
+JOBS="${2:-${JOBS:-2}}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
@@ -71,6 +71,10 @@ FAIL_LIST="${LOG_DIR}/_failed_${RUN_TS}.txt"
 LOCK_FILE="${LOG_DIR}/.pipeline.lock"
 WORK_DIR="${GENERIC_AGENT_ROOT}"
 PYTHON_BIN="${PYTHON_BIN:-python}"
+GENERIC_AGENT_MAX_TURNS="${GENERIC_AGENT_MAX_TURNS:-80}"
+GENERIC_AGENT_BATCH_MODE="${GENERIC_AGENT_BATCH_MODE:-1}"
+GENERIC_AGENT_DISABLE_ASK_USER="${GENERIC_AGENT_DISABLE_ASK_USER:-1}"
+GENERIC_AGENT_DISABLE_LTM_UPDATE="${GENERIC_AGENT_DISABLE_LTM_UPDATE:-1}"
 
 mkdir -p "${OUTPUT_DIR}" "${LOG_DIR}"
 : > "${FAIL_LIST}"
@@ -106,6 +110,55 @@ validate_detail_file() {
     grep -q '一句话总结' "${path}" || return 1
     grep -q '核心要点' "${path}" || return 1
     grep -q '深入细节' "${path}" || return 1
+}
+
+recover_detail_from_log() {
+    local log_path="$1"
+    local detail_path="$2"
+    python3 - "${log_path}" "${detail_path}" <<'PYEOF'
+import re
+import sys
+from pathlib import Path
+
+log_path, detail_path = sys.argv[1], sys.argv[2]
+text = Path(log_path).read_text(encoding="utf-8", errors="ignore")
+
+def looks_like_report(s: str) -> bool:
+    s = s.strip()
+    return (
+        s.startswith("### ")
+        and "一句话总结" in s
+        and "核心要点" in s
+        and "深入细节" in s
+    )
+
+def clean_candidate(s: str) -> str:
+    s = re.split(r"\n(?:\\[Chat\\] 执行完毕。|----- End -----)", s, maxsplit=1)[0]
+    return s.strip()
+
+candidates = []
+for m in re.finditer(r"<file_content>\s*(.*?)\s*</file_content>", text, re.DOTALL | re.IGNORECASE):
+    candidates.append(clean_candidate(m.group(1)))
+
+for m in re.finditer(r"```(?:markdown|md)?\n(.*?)\n```", text, re.DOTALL | re.IGNORECASE):
+    candidates.append(clean_candidate(m.group(1)))
+
+matches = list(re.finditer(r"(?m)^###\s+.*$", text))
+for m in reversed(matches):
+    candidate = clean_candidate(text[m.start():])
+    candidates.append(candidate)
+
+for candidate in reversed(candidates):
+    if looks_like_report(candidate):
+        out = Path(detail_path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(candidate.strip() + "\n", encoding="utf-8")
+        print(f"[recover] wrote {detail_path} from log candidate ({len(candidate)} chars)")
+        sys.exit(0)
+
+print("[recover] no valid markdown report found in log")
+sys.exit(1)
+PYEOF
 }
 
 log_info "YAML       : ${YAML_ABS}"
@@ -181,7 +234,11 @@ ${DETAIL_FILE}
 要求：
 1. 文件名必须严格是 ${ALGO_ID}_detail.md，不能写成 ${ALGO_ID}.md 或其他名字。
 2. 内容开头直接以 ### 标题开始，不要添加额外说明。
-3. 写完后自行检查该路径下文件已经生成且非空；如果写到了其他文件名，请立刻修正到上述目标文件。"
+3. 必须包含这些小节关键词：#### 一句话总结、#### 核心要点、#### 深入细节。
+4. 当前是非交互批处理：禁止 ask_user，禁止 start_long_term_update。遇到网络或工具失败时，必须自动切换备用策略，不能停下来等用户。
+5. 先读取 PAPER_SPEC.md；如果 ar5iv / 浏览器 / web_execute_js 失败，不要反复重试同一条路径，请改用 arxiv abs、arxiv html/pdf、本地已缓存的 paper_*.txt / *.html / *_fulltext.txt 等来源继续完成。
+6. 最终必须把 Markdown 写入 ${DETAIL_FILE}，然后再次读取或检查该文件，确认文件存在、非空、且标题结构正确。
+7. 如果 file_write 连续失败，请在最后一轮直接输出完整 Markdown，且第一行必须是 ### 标题，便于系统兜底自动回填到目标文件。"
 
     # 终端起始分隔（整块一次性 printf，降低并发打断）
     printf '%s[pipeline]%s ▶ %s%s%s  (log: %s)\n' \
@@ -204,7 +261,12 @@ ${DETAIL_FILE}
     # 行缓冲：stdbuf；Python 再加 -u / PYTHONUNBUFFERED 双保险
     # tee 写独立日志；awk 给终端每行加 [algo_id] 前缀
     cd "${WORK_DIR}"
-    PYTHONUNBUFFERED=1 stdbuf -oL -eL "${PYTHON_BIN}" -u "${CHAT_SCRIPT}" "${INSTRUCTION}" 2>&1 \
+    PYTHONUNBUFFERED=1 \
+    GENERIC_AGENT_MAX_TURNS="${GENERIC_AGENT_MAX_TURNS}" \
+    GENERIC_AGENT_BATCH_MODE="${GENERIC_AGENT_BATCH_MODE}" \
+    GENERIC_AGENT_DISABLE_ASK_USER="${GENERIC_AGENT_DISABLE_ASK_USER}" \
+    GENERIC_AGENT_DISABLE_LTM_UPDATE="${GENERIC_AGENT_DISABLE_LTM_UPDATE}" \
+    stdbuf -oL -eL "${PYTHON_BIN}" -u "${CHAT_SCRIPT}" "${INSTRUCTION}" 2>&1 \
         | stdbuf -oL tee -a "${LOG_FILE}" \
         | stdbuf -oL awk -v tag="${ALGO_ID}" -v c1="${C_DIM}" -v c0="${C_RESET}" \
               '{ printf "%s[%s]%s %s\n", c1, tag, c0, $0; fflush(); }'
@@ -220,6 +282,12 @@ ${DETAIL_FILE}
     } >> "${LOG_FILE}"
 
     AFTER_MTIME=$(get_mtime "${DETAIL_FILE}")
+    if [[ "${RC}" -eq 0 ]]; then
+        if [[ ! -f "${DETAIL_FILE}" ]] || ! validate_detail_file "${DETAIL_FILE}"; then
+            recover_detail_from_log "${LOG_FILE}" "${DETAIL_FILE}" >> "${LOG_FILE}" 2>&1 || true
+            AFTER_MTIME=$(get_mtime "${DETAIL_FILE}")
+        fi
+    fi
 
     local FAIL_REASON=""
     if [[ "${RC}" -ne 0 ]]; then
@@ -257,7 +325,7 @@ ${DETAIL_FILE}
     fi
 }
 
-export -f get_mtime validate_detail_file process_one
+export -f get_mtime validate_detail_file recover_detail_from_log process_one
 export SPEC_FILE OUTPUT_DIR LOG_DIR SUMMARY_LOG FAIL_LIST LOCK_FILE WORK_DIR CHAT_SCRIPT PYTHON_BIN
 export C_RESET C_DIM C_BOLD C_BLUE C_GREEN C_RED C_YELLOW
 

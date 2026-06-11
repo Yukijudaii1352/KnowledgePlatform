@@ -1,0 +1,2952 @@
+---
+domain: agent
+topic_id: tool_use
+topic_name: Agent工具调用
+page_icon: 🛠️
+page_title: Agent工具调用技术演进
+page_subtitle: '{build_date} 版'
+page_desc: 从模块化专家路由、ReAct工具闭环、自监督Toolformer，到Gorilla/ToolLLM的API检索选择、LLMCompiler与AsyncFC的复杂编排，再到MCP、BFCL、τ-bench与APB代表的协议和评测标准化，系统梳理Agent工具调用主线。
+hero_pills:
+- 🏷️ Tool Use · Function Calling · API Retrieval · MCP
+- Planning · Orchestration · RL · Benchmarks
+count_pill: '{count} 个算法'
+categories:
+  foundation:
+    label: 奠基范式
+    color: '#0F766E'
+  learning:
+    label: 工具学习与选择
+    color: '#2563EB'
+  orchestration:
+    label: 规划与执行编排
+    color: '#EA580C'
+  protocol:
+    label: 标准协议
+    color: '#7C3AED'
+  evaluation:
+    label: 评测基准
+    color: '#DC2626'
+---
+
+## 领域综述
+
+### 待补充：阶段性领域总结
+请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+
+## 最新进展综述
+
+### 待补充：最近一个月最新动向
+请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+
+## 算法演化关系
+
+```yaml
+nodes:
+- id: mrkl
+  x: 80
+  y: 80
+  category: foundation
+- id: react
+  x: 180
+  y: 80
+  category: foundation
+- id: toolformer
+  x: 300
+  y: 180
+  category: learning
+- id: hugginggpt
+  x: 360
+  y: 290
+  category: orchestration
+- id: api_bank
+  x: 430
+  y: 510
+  category: evaluation
+- id: gorilla
+  x: 500
+  y: 180
+  category: learning
+- id: toolllm
+  x: 620
+  y: 180
+  category: learning
+- id: llm_compiler
+  x: 680
+  y: 290
+  category: orchestration
+- id: tau_bench
+  x: 760
+  y: 510
+  category: evaluation
+- id: toolsandbox
+  x: 840
+  y: 510
+  category: evaluation
+- id: toolace
+  x: 920
+  y: 180
+  category: learning
+- id: mcp
+  x: 980
+  y: 400
+  category: protocol
+- id: acebench
+  x: 1080
+  y: 510
+  category: evaluation
+- id: bfcl
+  x: 1160
+  y: 510
+  category: evaluation
+- id: tau2_bench
+  x: 1240
+  y: 510
+  category: evaluation
+- id: vrrl_agents
+  x: 1320
+  y: 180
+  category: learning
+- id: intent
+  x: 1380
+  y: 290
+  category: orchestration
+- id: cm2
+  x: 1440
+  y: 180
+  category: learning
+- id: asyncfc
+  x: 1500
+  y: 290
+  category: orchestration
+- id: apb
+  x: 1580
+  y: 510
+  category: evaluation
+edges:
+- from: mrkl
+  to: toolformer
+  label: 可学调用
+- from: mrkl
+  to: hugginggpt
+  label: 模块控制
+- from: react
+  to: llm_compiler
+  label: 并行编排
+- from: toolformer
+  to: api_bank
+  label: 建立基准
+- from: toolformer
+  to: gorilla
+  label: 精准调参
+- from: gorilla
+  to: toolllm
+  label: 万级扩展
+- from: api_bank
+  to: tau_bench
+  label: 面向用户
+- from: api_bank
+  to: toolsandbox
+  label: 状态执行
+- from: hugginggpt
+  to: llm_compiler
+  label: 显式编排
+- from: toolllm
+  to: toolace
+  label: 数据自演
+- from: gorilla
+  to: mcp
+  label: 接口统一
+- from: toolsandbox
+  to: acebench
+  label: 细分误差
+- from: gorilla
+  to: bfcl
+  label: 函数评测
+- from: tau_bench
+  to: tau2_bench
+  label: 双控环境
+- from: toolace
+  to: vrrl_agents
+  label: 合成+RL
+- from: vrrl_agents
+  to: cm2
+  label: 开放奖励
+- from: llm_compiler
+  to: intent
+  label: 预算规划
+- from: llm_compiler
+  to: asyncfc
+  label: 异步执行
+- from: tau2_bench
+  to: apb
+  label: 前置诊断
+milestones:
+- toolformer
+- mcp
+- bfcl
+```
+
+## 核心算法
+
+### MRKL
+
+```yaml
+id: mrkl
+num: 1
+name: MRKL
+full_name: 模块化推理知识与语言系统 (MRKL Systems)
+year: '2022.05'
+org: AI21 Labs
+parent: —
+paper_url: https://arxiv.org/abs/2205.00445
+project_url: ''
+category: foundation
+motivation: 把专家模块接入LM形成可路由系统
+```
+
+#### 📝 一句话总结
+MRKL 提出了一种 Router + Experts 的神经符号架构，让语言模型把自然语言请求路由到通用语言模块或符号专家模块，从而系统性补足 LLM 在最新知识、私有数据和精确计算上的短板。
+
+#### 🎯 核心要点
+- 提出 **MRKL Systems** 架构：由轻量 Router 负责路由，后接可扩展的 Neural Experts 与 Symbolic Experts。
+- 系统总结了纯 LLM 的四类核心缺陷：**无当前信息、无私有数据、精确推理不稳、能力扩展导致模型爆炸**。
+- 给出 **安全回落机制**：当没有匹配专家时，仍可退回通用语言模型回答，避免系统不可用。
+- 把“自然语言到符号模块参数提取”作为核心接口问题，并用 **算术计算** 做神经到符号跨越的测试床。
+- 比较了从规则提取到 text-to-text 提取的多种参数化方法，展示了结构化接口设计对工具调用稳定性的决定性作用。
+
+#### 🔬 深入细节
+![MRKL 架构图](https://ar5iv.labs.arxiv.org/html/2205.00445/assets/x1.png)
+
+*图：MRKL 系统总览。输入问题先进入 Router，再被分发到通用语言模块或符号专家模块，最后由系统返回答案。*
+
+##### 动机与背景
+
+MRKL 论文的切入点非常直接：即使大语言模型语言能力很强，它们在一些看似基础的问题上仍然会稳定失误。论文把这类缺陷归纳为四类：
+
+- **缺乏当前信息**：训练语料有时间截断，模型不知道最新汇率、最新新闻、当前日期。
+- **缺乏私有知识**：企业数据库、个人信息、实时系统状态不在预训练语料里。
+- **精确推理不可靠**：两位数加法可能还行，四位数以上就可能自信地产生错误结果。
+- **模型爆炸问题**：每引入一类新能力就继续端到端扩模型或重训，成本高且容易遗忘旧能力。
+
+MRKL 的核心判断是：这些问题不是“再把模型做大一点”就能优雅解决的，而应该把系统拆成多个专长模块，让语言模型只负责理解与协调，把计算、检索、数据库访问等任务交给更合适的专家。
+
+##### 核心机制：Router + Experts
+
+MRKL 可以理解为一种早期的“工具调用蓝图”：
+
+- **Router**：读入自然语言问题，判断应该调用哪个专家模块。
+- **Neural Experts**：比如通用语言模型、专用小模型，负责开放式语言理解和生成。
+- **Symbolic Experts**：比如计算器、数据库查询器、搜索接口、外部 API，负责精确和可验证的操作。
+
+它不是把所有能力都塞进一个巨大模型里，而是让系统执行：
+
+```python
+def mrkl_answer(query):
+    expert = router.select(query)
+    if expert.type == "symbolic":
+        args = extract_structured_args(query, expert.schema)
+        result = expert.run(args)
+        return verbalize(result)
+    return neural_expert.generate(query)
+```
+
+这里真正困难的不是“调 API”这件事，而是 **从自然语言里稳定提取符号模块所需的离散参数**。如果参数抽错，后面的符号模块再精确也没用。
+
+> 💡 关键：MRKL 的创新重点不只是“模块化”三个字，而是把“语言理解”和“精确执行”硬拆开，并把两者之间的接口问题单独提出。
+
+##### 论文如何验证：用算术做神经-符号接口测试床
+
+论文没有直接做一个复杂通用 Agent，而是选择了 **算术计算** 作为最干净的测试案例。原因很合理：
+
+- 算术的正确答案完全可验证；
+- 语言模型在简单算术上似乎“有点会”，但一上复杂位数就容易崩；
+- 算术调用需要把自然语言转成结构化表达式，非常适合研究参数提取。
+
+作者构造了不同问题格式，例如：
+
+- 纯表达式：`124+235`
+- 半结构化：`124 plus 235`
+- 自然语言模板：`What is 124 plus 235?`
+- 更开放的叙述式问题
+
+然后比较多种参数提取方案，包括：
+
+- 直接让 LM 端到端作答；
+- 简单规则抽取；
+- 基于问题模板的格式化抽取；
+- seq2seq 抽取；
+- 句法分析抽取；
+- text-to-text 风格的提取模型。
+
+结果显示，在结构较规整的格式下，**简单格式化提取就能达到接近完美的正确率**；真正困难的是完全自然语言、尤其带语义歧义的输入。这说明工具调用系统的质量，很多时候取决于接口层设计，而不是底层大模型本身。
+
+##### 与后续工具调用框架的关系
+
+MRKL 对后续工作的影响很深：
+
+- 它把 **“调用外部工具”** 从临时 prompt 技巧，上升成了系统架构问题。
+- 它明确区分了 **路由、参数提取、执行、回落** 这些子问题。
+- 后面的 Toolformer、Gorilla、Function Calling、ReAct、LangChain，本质上都在沿着 MRKL 这条路继续自动化或工程化。
+
+从今天回看，MRKL 还没有完整讨论多步规划、长链调用和交互式环境，但它已经把“LLM 不必独自完成所有事情”这个范式讲清楚了。
+
+> ⚠️ 注意：MRKL 论文对真正的 Router 训练与多跳组合执行讨论并不充分，更多是在提出范式并用算术案例证明“神经到符号接口是可行的”。
+
+#### 🧪 练习题
+```yaml
+question: "MRKL 中引入 Symbolic Expert 的最核心目的是什么？"
+options:
+  - "让语言模型生成更长的回答"
+  - "把所有能力继续压缩回单一模型参数中"
+  - "把精确计算、数据库访问等高可靠任务交给更合适的外部模块"
+  - "避免 Router 参与任何决策"
+answer: 2
+explain: "MRKL 的核心思想就是让 LM 负责理解与路由，让计算器、数据库、API 等符号模块负责精确执行，从而补足纯 LLM 的鲁棒性缺陷。"
+```
+
+### ReAct
+
+```yaml
+id: react
+num: 2
+name: ReAct
+full_name: 推理-行动协同 (ReAct)
+year: '2022.10'
+org: Princeton/Google
+parent: —
+paper_url: https://arxiv.org/abs/2210.03629
+project_url: ''
+category: foundation
+motivation: 交错思考与行动驱动工具闭环
+```
+
+#### 📝 一句话总结
+ReAct 提出**在语言模型的行动空间中注入“思维（thought）”**——一种不影响外部环境、仅用于推理的语言动作——通过交替生成 Thought-Action-Observation 三元组，实现推理与行动的协同，在知识密集问答和交互决策两类任务上显著降低了幻觉并提升了可解释性。
+
+#### 🎯 核心要点
+- **动作空间扩展**：将策略的动作空间从纯环境动作 𝒜 扩展为 𝒜 ∪ ℒ（ℒ 为语言空间），其中“思维”不产生环境反馈，仅通过推理当前上下文更新内部状态。
+- **两种思维模式**：推理任务采用**密集思维**（每步行动前都有思维），决策任务采用**稀疏思维**（模型自主决定何时插入思维），体现框架的灵活性。
+- **Prompt 即策略**：利用 PaLM-540B 的 few-shot 能力，人工编写含 Thought-Action-Observation 的完整轨迹作为 in-context 示例（1-6个），无需额外训练。
+- **幻觉大幅降低**：HotPotQA 上 ReAct 失败模式中幻觉率 0%，而 CoT 高达 56%；成功模式中正确率 94% vs 86%。
+- **微调潜力巨大**：PaLM-8B 微调 ReAct 即可超越 PaLM-540B 所有 Prompt 方法，证明外部知识交互是可迁移的通用技能。
+- **人类可编辑**：思维以自然语言呈现，人类可随时插入/修改思维来纠正 Agent 行为，实现实时可控性。
+
+#### 🔬 深入细节
+![ReAct 示意图](https://ar5iv.labs.arxiv.org/html/2210.03629/assets/x1.png)
+*图：ReAct 的核心框架或评测示意。*
+
+##### 1. 形式化定义：增强动作空间
+
+**原始 MDP 问题**：给定上下文 $c_t = (o_1, a_1, \cdots, o_{t-1}, a_{t-1}, o_t)$，策略需学习 $c_t \mapsto a_t$ 的映射。当推理链复杂时（如多跳 QA），该映射高度隐式且极易出错。
+
+**ReAct 核心创新**：将动作空间扩展为 $\hat{\mathcal{A}} = \mathcal{A} \cup \mathcal{L}$，其中 $\mathcal{L}$ 为无限的语言空间。一个“思维” $\hat{a}_t \in \mathcal{L}$：
+- **不影响外部环境**（无 observation 反馈）
+- **更新内部上下文**：$c_{t+1} = (c_t, \hat{a}_t)$
+- **用途多样**：分解任务目标、注入常识知识、提取关键信息、跟踪进度、处理异常、调整计划
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    ReAct 循环 (密集模式)                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  for each step t:                                                │
+│      Thought_t  ← 推理当前上下文 c_t                              │
+│      Action_t   ← 基于 Thought_t 生成环境动作                     │
+│      Obs_t      ← 环境返回观察结果                               │
+│      c_{t+1}    ← c_t ∪ {Thought_t, Action_t, Obs_t}            │
+│                                                                  │
+│  关键性质：                                                       │
+│  • Thought ∈ ℒ 不影响环境，仅推进内部推理链                       │
+│  • Action  ∈ 𝒜 产生真实的 Observation                            │
+│  • 稀疏模式下，Thought 由模型自主决定何时插入                      │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+##### 2. 实现方式：Few-Shot Prompt 即策略
+
+ReAct 不对模型参数做任何修改，完全依赖**冻结的大语言模型（PaLM-540B）**的 few-shot in-context learning 能力。
+
+**Prompt 构建流程**：
+1. 从训练集中随机选取 1-6 条任务实例（HotpotQA 用 6，FEVER 用 3，ALFWorld 用 6）
+2. 人类标注者**手动编写完整的 Thought-Action-Observation 轨迹**
+3. 这些轨迹以自然语言形式拼接为 few-shot prompt
+4. 测试时模型按相同格式生成推理-行动-观察序列
+
+**思维类型的多样性**（单条轨迹中可能包含多种）：
+
+| 思维类型 | 示例 | 作用 |
+|---------|------|------|
+| 任务分解 | "I need to search x, find y, then find z" | 制定搜索计划 |
+| 信息提取 | "x was started in 1844" | 从观察中提炼关键事实 |
+| 常识推理 | "x is not y, so z must instead be…" | 基于外部知识推理 |
+| 算术推理 | "1844 < 1989" | 数值比较与计算 |
+| 搜索重规划 | "maybe I can search/look up x instead" | 失败后的策略调整 |
+| 最终合成 | "…so the answer is x" | 综合所有信息给出答案 |
+
+**密集 vs 稀疏模式**：
+- **密集模式**（知识推理任务）：每一步环境动作前都插入 Thought → Thought-Action-Observation 严格交替
+- **稀疏模式**（决策任务）：模型自主决定插入 Thought 的位置和频率，在大量动作中仅在关键节点推理
+
+##### 3. 关键实验发现
+
+**主实验（HotpotQA & FEVER）**：
+
+| 方法 | HotpotQA (EM) | FEVER (Acc) |
+|------|:------------:|:----------:|
+| Standard Prompt | 25.7 | 57.1 |
+| CoT (Chain-of-Thought) | **29.4** | 56.3 |
+| Act (纯行动) | 25.7 | 58.9 |
+| ReAct | 27.4 | **60.9** |
+| ReAct→CoT-SC (3-5 samples) | **33.8**† | 62.9 |
+| CoT-SC→ReAct (3-5 samples) | 32.9 | **64.6**† |
+
+† 达到 CoT-SC 需 21 个 sample 的性能水平，仅用 3-5 个样本
+
+**失败模式分析（HotpotQA 200条随机轨迹）**：
+
+| 类别 | ReAct | CoT |
+|------|:-----:|:---:|
+| **成功-正确推理** | 94% | 86% |
+| **成功-幻觉** | 6% | 14% |
+| **失败-推理错误** | 47% | 16% |
+| **失败-搜索无结果** | 23% | - |
+| **失败-幻觉** | **0%** | **56%** |
+| **失败-标签歧义** | 29% | 28% |
+
+**核心洞察**：
+> ReAct 通过引入外部知识检索，**完全消除了 CoT 中最大的失败源——幻觉（56%→0%）**。代价是推理的灵活性降低（推理错误 47% vs 16%），以及检索失败时的恢复困难（23% 因搜索无结果失败）。这体现了**事实性（factuality）与灵活性（flexibility）之间的基本权衡**，启发后续 ReAct+CoT-SC 的组合策略。
+
+**微调 Scaling（HotpotQA PaLM-8B/62B）**：
+- PaLM-8B 微调 ReAct > PaLM-62B 所有 Prompt 方法
+- PaLM-62B 微调 ReAct > PaLM-540B 所有 Prompt 方法
+- 仅需 **3000 条标注数据**即可实现大幅超越
+- 关键结论：微调教给模型的是"如何与 Wikipedia 交互"这一**可泛化的技能**，而非记忆事实——因此微调 Act 和 ReAct 远优于微调 CoT
+
+**决策任务（ALFWorld & WebShop）**：
+
+| 任务 | ReAct | Act (纯行动) | BUTLER (SOTA) |
+|------|:-----:|:----------:|:-----------:|
+| ALFWorld (6 tasks avg) | **71%** | 45% | 37% (专家系统) |
+| WebShop (success rate) | **66.6%** | 58.0% | 59.8% (IL + RL) |
+
+- ALFWorld：ReAct 仅用 **6** 个 in-context 示例即超越领域专用专家系统 BUTLER
+- WebShop：ReAct 超越 Imitation Learning + RL 的 1100 万训练样本模型
+- 稀疏思维模式下，模型学会在遇到歧义观察时才插入思维进行推理
+
+##### 4. 人类可控性
+
+如 Figure 5 所示，由于思维以自然语言呈现，人类可以在推理过程的任意节点**插入或编辑 Thought**，直接修正 Agent 行为。例如：
+- Agent 陷入循环时，插入 "You have already searched... try looking up..."
+- Agent 忽略关键信息时，插入 "The observation says... this means..."
+- 这种**运行时编辑**无需重新训练，实现了对黑箱模型的即时行为修正
+
+##### 5. 理论意义：为什么 ReAct 有效？
+
+1. **认知科学对齐**：人类的决策过程天然包含“内部独白”（inner monologue），ReAct 让模型模拟这一机制
+2. **接地性（Groundedness）**：思维由环境观察驱动，反过来指导行动，形成“感知→推理→行动”的闭环，避免纯推理的空想
+3. **组合泛化**：Reasoning 和 Acting 两种技能在 ReAct 框架中解耦又协同，使模型能在需要时调用内部知识，在必要时查询外部环境
+4. **可诊断性**：思维链为模型行为提供了逐级解释，使失败分析从“黑箱猜测”变为“逻辑追踪”
+
+##### 6. 局限与未来方向
+
+- **推理错误增加**：思维-行动的结构化约束降低了 CoT 的自由推理能力，47% 的失败源于推理错误
+- **检索依赖**：当搜索 API 返回无用信息时（23% 失败），模型难以恢复——这是接地性的代价
+- **贪心解码缺陷**：观察到的“重复生成”错误可能与贪心解码有关，beam search 等策略或可缓解
+- **跨任务泛化**：本文仅测试了 Wiki API 和文本游戏两类环境，更丰富的环境交互（如代码执行、多模态感知）仍有待探索
+
+#### 🧪 练习题
+```yaml
+question: "ReAct 相比纯 Chain-of-Thought，为什么更容易降低工具使用场景中的幻觉？"
+options:
+  - "因为 ReAct 会禁止模型输出自然语言推理"
+  - "因为 ReAct 让推理过程不断接受外部观察反馈，避免长期脱离环境空想"
+  - "因为 ReAct 完全不需要 prompt 示例"
+  - "因为 ReAct 只适用于单步检索任务"
+answer: 1
+explain: "ReAct 的 Thought-Action-Observation 闭环让模型持续被环境反馈校正，因此比纯 CoT 更不容易在错误假设上一路推理下去。"
+```
+
+### Toolformer
+
+```yaml
+id: toolformer
+num: 3
+name: Toolformer
+full_name: 自学工具调用模型 (Toolformer)
+year: '2023.02'
+org: Meta AI
+parent: mrkl
+paper_url: https://arxiv.org/abs/2302.04761
+project_url: ''
+category: learning
+motivation: 自监督学会何时调用何种API
+```
+
+#### 📝 一句话总结
+Toolformer 提出了一种自监督学习方法，让LLM在无人工标注的情况下自主学会决定何时调用何种外部工具（计算器、问答系统、搜索引擎、翻译、日历），通过在文本中插入API调用标记并基于困惑度损失自筛选高质量调用，实现零样本工具使用能力的涌现。
+
+#### 🎯 核心要点
+- **核心问题**：大语言模型在数学计算、事实查询、时间感知等能力上存在固有局限，现有few-shot让LLM调用工具但依赖大量人工标注和精心设计的prompt，难以规模化——Toolformer希望让模型"自学工具调用"。
+- **自监督数据生成**：用少量few-shot示例引导LM在原始预训练语料中随机插入API调用（格式：`<API> 调用文本 </API>` → 填充API结果），生成大量候选"增强语料"。
+- **困惑度筛选机制**：核心过滤函数 `w = min(P(x|z), P(x|z,r)) / P(x|ε)`，衡量插入API调用是否真正降低了后续token的生成困惑度。仅保留API调用降低困惑度的样本——这构成自监督训练信号。
+- **工具API集**：5类API——计算器（四则运算）、维基百科搜索（返回短摘要）、问答系统（Atlas）、翻译器（en↔de/zh/fr等）、日历（返回日期）。每类API用独立token标识。
+- **训练方式**：在增强后的语料上，用标准语言模型目标（next token prediction）对预训练GPT-J（6B）进行微调。模型在API调用token处学习决定是否调用；在API输出token处学习消化调用结果。
+- **关键结果**：Toolformer在零样本或少样本设置下，在数学、问答、翻译、事实性、时间推理等下游任务上显著优于同规模的纯语言模型；特别是数学和事实性任务有大幅提升；且几乎不影响模型在其他标准NLP任务上的表现。
+- **消融与发现**：自监督筛选至关重要，随机插入API调用会损害性能；模型同时学会了"调用时机"与"调用后的信息融合"两种能力；去偏采样策略（重新加权使不同工具的使用频率均衡）提升了训练稳定性。
+
+#### 🔬 深入细节
+```python
+# 工具调用代理的抽象流程
+selected = router.pick(query, tools)
+observation = executor.run(selected)
+return synthesizer.answer(query, observation)
+```
+
+![Toolformer 示意图](https://ar5iv.labs.arxiv.org/html/2302.04761/assets/x1.png)
+*图：Toolformer 的核心框架或评测示意。*
+
+**1. 方法总览：三步走**
+- Step 1 — 候选生成：从预训练语料C中采样，用少量标注的few-shot prompt（约25条/API）让LM（M）在文本中插入API调用。每个位置最多采样k个候选API调用。API调用的格式为 `<API> param1, param2 </API>`，然后在执行API后获得结果r，插入在 `</API>` 之后用 `<API> 结果 </API>` 标记。最终得到形式上"文本中夹杂API调用和结果"的增强版语料。
+- Step 2 — 自监督过滤：对每个候选增强文本，比较三个版本的token概率：①使用空token ε作为基线；②加入API调用但无实际结果（z）；③加入API完整调用并有执行结果（r）。仅当有结果的token概率同时优于无API和无语义结果两者时（取min加权），该候选被保留。这使得模型只学习那些"真正有用"的API调用模式。
+- Step 3 — 模型微调：在保留下来的高质量增强语料上，以标准语言建模损失微调M，新语料占总量的比例一般不超过~2%（数据效率极高）。训练过程不引入额外辅助损失，所有学习信号来自自监督过滤。
+
+**2. 工具API的实现细节**
+- 计算器：基于Python eval，输入为数学表达式字符串。约25个few-shot示例中包含加减乘除等基础运算的上下文。
+- 维基百科搜索：输入查询字符串返回BM25检索的前几条文本，约25个示例教模型将疑问转化为简洁查询。
+- QA系统（Atlas）：通过检索增强的QA模型回答结构化问题；few-shot示例展示了对知识的"查证"行为。
+- 翻译：用LaBSE+fast-align构建的简单翻译模型，在英语<->目标语言间翻译；示例包含成语、专有名词等典型需翻译场景。
+- 日历：返回日期文本；few-shot示例捕获模型在时间相关查询时"何时需要调用日期API"的模式。
+- 重要：所有API的few-shot示例由研究者手工编写但数量极少（每种仅~25条），关键的自监督扩展由模型在百万级原始语料上自动完成。
+
+**3. 实验设置**
+- 基座模型：GPT-J 6B（6亿参数，在The Pile数据集上预训练）；
+- 增强语料来源：CCNet（来自CommonCrawl的网页文本），采样约1300万文档，每个API调用插入后过滤，保留约2%左右的样本；
+- 下游评测：
+  - LAMA（知识探测）、数学应用题（ASDiv, GSM8K, SVAMP, MAWPS）、QA（Web Questions, Natural Questions, TriviaQA）、翻译（WMT en↔de, en↔zh）、时间推理（TempLAMA）；
+  - 评测方式：纯零样本或使用标准少样本prompt，但prompt中**不包含API调用指令**——模型需要自主判断是否调用。
+- 关键指标：精度/准确率（数学、问答）、F1/EM、困惑度。
+
+**4. 主要实验结果**
+- 数学基准（ASDiv等）：准确率从纯GPT-J的~10-15%提升到Toolformer的~50-70%，在简单算术上有质的飞跃。
+- 事实性知识（LAMA准确性）：提升尤其显著，从约30%到约70%。
+- 问答：在NQ/TriviaQA上零样本性能提升明显（+5~15点），但不如增加模型规模的效果大；这表明"自学工具调用"在知识密集型任务上有上限。
+- 翻译：提升了低资源方向的性能，但并非大幅跃升，尤其在已有基本翻译能力的语言对（如en→de）上提升有限。
+- 时间推理（TempLAMA）：提升明显，因为日历API提供了准确的时态锚定信息。
+- 负效应检查：在标准NLU基准（HellaSwag, StoryCloze等）上，Toolformer基本保持了GPT-J的性能，说明"工具调用能力"并未以牺牲通用语言能力为代价。
+
+**5. 消融实验关键结论**
+- 自监督过滤是关键：直接使用随机插入的API调用而不做困惑度筛选，会导致下游任务性能下降（甚至低于纯基线），说明"乱调用"的噪声大于收益。
+- 数据效率极高：仅用约2%的增强语料微调即可获得大部分收益；继续增大增强语料比例到5%收益递减。
+- 工具多样性有价值：每个工具贡献的主要维度不同（计算器→数学、搜索→事实、日历→时间），但移除任一工具不影响模型使用其他工具的能力——这表明"工具调用技能"在不同API间具有**迁移性**，可能源于模型学会了"元技能"（何时外部化处理+如何融合API结果）。
+- 去偏采样：训练时对不同API类型的样本做re-weight以保持均衡，否则高频工具（如搜索）会主导学习信号。
+- 模型规模影响：在GPT-2不同大小上的对比实验表明，只有较大模型（≥775M参数）才能有效从自监督工具学习中受益，小模型无法稳定学习何时调用API。
+
+**6. 局限与后续工作**
+- API格式高度结构化（依赖固定标记`<API>`），在真实开放世界中API接口多样，不具可迁移性；
+- 仅验证了文本生成场景中调用API，未涉及多模态或交互式环境；
+- 训练和推理中存在API调用的计算开销（每个候选调用都需实际执行API并前向传播对比困惑度）；
+- 后续工作Gorilla/Berkeley Function Calling等沿用了类似的"function calling"范式，证明了此方向的深远影响。
+
+**7. 对Agent领域的意义**
+Toolformer是"语言模型自学工具使用"方向的开创性工作，奠定了如下基础思想：
+- 语言模型可以通过困惑度信号自主发现"何时需要外部工具"的数据模式；
+- 少量few-shot种子+自监督扩展是一种高效的数据构造范式；
+- API调用可以嵌入到token序列中，以统一的自回归语言建模框架完成工具调用的决策和执行；
+- 这直接启发了后续的ReAct、MRKL System、Gorilla、Function Calling等一系列Agent工具使用框架。
+
+#### 🧪 练习题
+```yaml
+question: "Toolformer 用什么信号决定某个候选 API 调用是否值得保留进训练数据？"
+options:
+  - "只看 API 返回文本是否足够长"
+  - "只看 few-shot 示例里是否出现过同类调用"
+  - "看插入 API 调用和结果后，后续 token 的语言建模困惑度是否下降"
+  - "让人工逐条审核 API 调用是否合理"
+answer: 2
+explain: "Toolformer 的核心是基于语言建模损失筛选调用样本，只有真正能降低后续 token 困惑度的 API 调用才会保留。"
+```
+
+### HuggingGPT
+
+```yaml
+id: hugginggpt
+num: 4
+name: HuggingGPT
+full_name: 模型协同调度器 (HuggingGPT)
+year: '2023.03'
+org: Zhejiang University
+parent: mrkl
+paper_url: https://arxiv.org/abs/2303.17580
+project_url: ''
+category: orchestration
+motivation: 按描述规划并选择外部模型
+```
+
+#### 📝 一句话总结
+HuggingGPT 提出以 ChatGPT 作为核心控制器，将用户请求自动分解为子任务、从 Hugging Face 选取专家模型执行，并将结果汇总为最终回复，从而让 LLM 能够跨模态、跨领域协调数百个专家模型。
+
+#### 🎯 核心要点
+- 提出一种"LLM 作为大脑、专家模型作为执行器"的协作协议，语言成为连接二者的通用接口。
+- 将整个流程划分为四个阶段：任务规划、模型选择、任务执行、响应生成。
+- 任务规划中设计基于规范的 JSON 模板（id、task、dep、args），并通过示例驱动的提示使 LLM 输出结构化任务计划。
+- 模型选择采用上下文内任务-模型匹配机制，利用模型描述作为语言接口，结合下载量排序过滤候选模型。
+- 任务执行阶段通过 `<resource>-task_id` 符号动态解决资源依赖，支持无依赖任务的并行执行。
+- 响应生成阶段将各专家模型的推理结果整合为连贯的自然语言回答。
+- 在语言、视觉、语音等跨模态任务上验证了框架的有效性，展示了通往通用人工智能的新路径。
+
+#### 🔬 深入细节
+![HuggingGPT 架构总览](https://ar5iv.labs.arxiv.org/html/2303.17580/assets/x1.png)
+*图：语言作为接口连接 LLM（大脑）与专家模型（执行器），实现复杂 AI 任务的自动分解与求解。*
+
+![HuggingGPT 工作流四阶段](https://ar5iv.labs.arxiv.org/html/2303.17580/assets/x2.png)
+*图：四阶段工作流——任务规划、模型选择、任务执行、响应生成。*
+
+##### 动机与背景
+传统 AI 模型通常只能处理单一领域或模态的任务。面对需要多步推理、多模态组合的复杂用户请求（例如"数出图片中有多少物体并为每个物体生成描述"），缺乏一个能够自动拆解任务并协调多种模型的系统。HuggingGPT 的动机正是利用 LLM 强大的语言理解与推理能力，作为"总控制器"动态组合 Hugging Face 社区中的大量专家模型，实现真正的通用任务求解。
+
+##### 阶段一：任务规划（Task Planning）
+LLM 接收用户请求后，首先需要将其拆解为若干结构化子任务。为此，HuggingGPT 设计了一套 **规范驱动 + 示例驱动** 的提示方法：
+1. **Specification-based Instruction**：要求 LLM 按 JSON 格式输出任务列表，每个任务包含 `task`（任务类型）、`id`（唯一标识）、`dep`（依赖的前置任务 id）、`args`（参数）。模板确保了后续阶段的自动化处理。
+2. **Demonstration-based Parsing**：在提示中加入多个用户请求→任务序列的示例，帮助 LLM 理解任务间的逻辑依赖和执行顺序。
+3. **多轮对话支持**：通过注入聊天历史，使 LLM 能跟踪上下文中的资源，用于任务规划。
+
+> 💡 关键：任务规划不仅输出任务清单，还明确任务间的资源依赖关系，为后续并行执行奠定基础。
+
+##### 阶段二：模型选择（Model Selection）
+完成规划后，需要为每个子任务从 Hugging Face 海量模型中选出最合适的专家模型：
+- 模型描述作为"语言接口"，LLM 通过阅读模型卡（类似 README）理解其功能。
+- **In-context Task-model Assignment**：将任务与候选模型列表一同送入 LLM，让其以"单选题"形式选出最佳匹配。
+- 受限于上下文长度，**先按任务类型过滤**，再按模型下载量排序选取 Top-K 候选，有效降低 token 消耗。
+
+> ⚠️ 注意：模型选择并非简单基于关键词，LLM 需要理解模型描述中的语义细节，这正是语言接口的优势。
+
+##### 阶段三：任务执行（Task Execution）
+选定模型后，HuggingGPT 自动传参调用模型进行推理。关键的 **资源依赖** 问题通过独创的 `<resource>-task_id` 符号解决：
+- 在任务规划阶段，若某任务依赖前置任务的输出，则在 `args` 中写入 `<resource>-task_id`（例如 `<resource>-0` 表示依赖 id=0 的任务的输出）。
+- 执行时，系统将该符号替换为前序任务的实际返回结果，再传给模型。
+- 对于无依赖的任务，系统会**并行执行**以提升效率。
+- 模型部署采用混合推理端点，保障计算稳定性和速度。
+
+##### 阶段四：响应生成（Response Generation）
+所有子任务执行完毕后，LLM 汇总各模型的推理结果，结合原始用户请求，生成最终的自然语言回复。这一阶段本质是**多源信息融合**：LLM 不仅要整合结果，还需根据执行日志判断任务是否成功，并进行错误处理或补充说明。
+
+##### 与传统方法的对比
+- 相比 **统一多模态模型**（如 Flamingo、Kosmos-1），HuggingGPT 无需训练一个万能大模型，而是动态调用现有专家，更灵活且可扩展。
+- 相比 **Toolformer 等工具调用方法**，HuggingGPT 不仅调用工具，还实现了复杂任务的自动拆解和跨工具协同。
+- 框架与具体模型解耦：Hugging Face 社区持续新增的模型均可即插即用，实现能力的持续增长。
+
+##### 伪代码：HuggingGPT 主流程
+```python
+def hugginggpt(user_request, chat_history):
+    # 阶段1: 任务规划
+    task_plan = llm.plan(user_request, chat_history, demonstrations)
+    # task_plan 形如 [{"id":0,"task":"image-classification","dep":[],"args":{...}}, ...]
+
+    # 阶段2: 模型选择
+    for task in task_plan:
+        candidates = huggingface.filter(task.task_type, top_k=10, sort='downloads')
+        task.model = llm.select_model(task, candidates)
+
+    # 阶段3: 任务执行（拓扑顺序、无依赖并行）
+    results = {}
+    for task in topological_order(task_plan):
+        resolved_args = replace_dependencies(task.args, results)  # 替换 <resource>-id
+        if task.model.is_local:
+            output = task.model.run(resolved_args)
+        else:
+            output = remote_invoke(task.model, resolved_args)
+        results[task.id] = output
+
+    # 阶段4: 响应生成
+    final_answer = llm.generate_response(user_request, task_plan, results)
+    return final_answer
+```
+
+#### 🧪 练习题
+```yaml
+question: "HuggingGPT 在任务执行阶段如何处理子任务间的资源依赖？"
+options:
+  - "将所有任务串行执行，依次传递输出"
+  - "通过 <resource>-task_id 符号引用，在运行时动态替换为前置任务的输出"
+  - "要求 LLM 在每步执行前重新推理依赖关系"
+  - "忽略依赖关系，将所有子任务独立执行"
+answer: 1
+explain: "HuggingGPT 在任务规划阶段将依赖表示为 `<resource>-task_id`，执行时动态替换，既保证了依赖正确性，又允许无依赖任务并行。"
+```
+
+### API-Bank
+
+```yaml
+id: api_bank
+num: 5
+name: API-Bank
+full_name: 工具增强模型基准库 (API-Bank)
+year: '2023.04'
+org: Alibaba Group
+parent: toolformer
+paper_url: https://arxiv.org/abs/2304.08244
+project_url: ''
+category: evaluation
+motivation: 首次系统评测规划检索调用三能力
+```
+
+#### 📝 一句话总结
+API-Bank 首次提出规划（Plan）、检索（Retrieve）、调用（Call）三级工具使用能力评估体系，构建含 73 个真实 API 的可执行评测系统和基于五智能体协作的大规模训练集（2,138 API / 1,888 对话），并基于此训练出超越 Alpaca-7B 26 个点的工具增强模型 Lynx，系统揭示了 GPT-4 最强在规划、GPT-3.5 最强在调用、以及幻觉与检索失败是当前核心瓶颈。
+
+#### 🎯 核心要点
+- 首创三级工具使用能力定义：**Call**（给定 API 描述直接调用）、**Retrieve+Call**（从 API 池检索并调用）、**Plan+Retrieve+Call**（自主规划多步 API 调用链）
+- 构建首个可执行评测系统：**73 个真实 API**、**314 个对话**、**753 次 API 调用**，覆盖 7 大领域（账户管理、信息查询、健康管理、日程管理、智能家居、金融管理、其他），人工标注成本 $8/对话
+- 提出 **Multi-agent 数据生成框架**：5 个 LLM 智能体（Domain → API → Query → API Call & Response → Quality Check）协作自动生成训练数据，将标注成本降低 **98%**（对比纯人工）
+- 构建最大规模工具增强训练集：**2,138 个 API**、**1,888 个对话**、**4,149 次 API 调用**，横跨 **1,000+ 领域**
+- 训练开源模型 **Lynx**（基于 Alpaca-7B）：Call 准确率提升超 **26 个百分点**，ROUGE-L 提升 **0.41**，接近 GPT-3.5 水平
+- 系统分析三大类模型的错误模式：Alpaca 主错「不调用 API」（36.77%），Lynx 主错「API 幻觉」（61.38%），GPT-4 主错「API 检索失败」（67.86%）
+- 关键发现：**指令微调**是模型具备工具调用能力的必要条件（未经指令微调的 GPT-3 Davinci 几乎为零能力）；GPT-4 在规划推理上显著优于 GPT-3.5（Plan+Retrieve+Call 提升近 50%）
+
+#### 🔬 深入细节
+##### 1. 核心示意图
+
+![API-Bank 三级能力示意图](https://ar5iv.labs.arxiv.org/html/2304.08244/assets/x1.png)
+*图 1：API-Bank 定义的三级工具使用能力——Call（调用）、Retrieve+Call（检索+调用）、Plan+Retrieve+Call（规划+检索+调用）*
+
+![用户需求四象限](https://ar5iv.labs.arxiv.org/html/2304.08244/assets/x2.png)
+*图 2：基于 500+ 用户访谈提炼的两维度四象限需求模型——API 数量（少 vs 多）× 每轮调用数（单次 vs 多次）*
+
+![Multi-agent 数据生成框架](https://ar5iv.labs.arxiv.org/html/2304.08244/assets/x3.png)
+*图 3：五个 LLM 智能体协作自动生成训练数据——Domain Agent → API Agent → Query Agent → API Call Agent → Quality Check Agent*
+
+##### 2. 三级能力定义（核心框架）
+
+API-Bank 的核心创新在于首次系统定义了工具增强 LLM 的三级递进能力：
+
+- **Level 1 — Call（调用）**：给定少量 API（2-3 个）的完整描述（名称、参数、返回值），模型需在单轮对话中准确选择并调用正确的 API。这本质上是「槽位填充」任务——理解指令并填入正确的 API 参数。
+  
+- **Level 2 — Retrieve+Call（检索+调用）**：API 池扩大至数十到上百个，模型不再能一次性看到所有 API 描述。它必须先通过一个特殊的 `API Search` 工具，用关键词检索相关 API，再执行调用。这测试模型的「需求到关键词」凝练能力。
+  
+- **Level 3 — Plan+Retrieve+Call（规划+检索+调用）**：用户给出一个复杂需求（如「帮我规划一次旅行」），模型需自主将其分解为多步 API 调用链（查天气 → 订酒店 → 订机票 → 设日程提醒），每一步都可能需要先检索再调用。这测试模型的**长程规划与推理能力**。
+
+> 💡 关键：这三个能力是严格递进的。实验表明，GPT-3.5 从 Level 1 到 Level 3 性能下降约 38%，而 GPT-4 仅下降约 21%，揭示了**规划能力**是区分大模型工具使用水平的关键维度。
+
+##### 3. Multi-agent 数据生成方法
+
+由于人工标注 API 对话成本极高（$8/对话）且难以覆盖上千领域，API-Bank 提出了革命性的 Multi-agent 自动数据生成流水线：
+
+**五个智能体的分工**：
+1. **Domain Agent**：生成多样化领域主题（如心理健康、牙科费用估算、营养规划等），确保领域广度
+2. **API Agent**：在给定领域下，设计真实可用的 API（如 SearchDoctors、GetPrice、RecordMaintenance），确保 API 多样性与真实性
+3. **Query Agent**：生成用户查询，要求覆盖三个能力等级，确保训练数据的能力完整性
+4. **API Call & Response Agent**：生成对应的 API 调用及返回结果，确保对话逻辑一致性
+5. **Quality Check Agent**：对生成数据逐一校验，过滤格式错误、逻辑不一致、API 幻觉等问题，确保数据质量
+
+**核心设计洞见**：直接将所有需求（领域多样 + API 真实 + 三级能力 + 格式规范）一次性输入 ChatGPT 生成，仅 5% 数据可用；升级到 GPT-4 也仅有 25% 可用。将复杂需求**分解为多个简单子任务**交给不同智能体串行执行，是提升数据生成质量的关键。这一洞见本身对后续工作（如 ToolAlpaca、ToolLLM 等）有深远影响。
+
+##### 4. 评测系统设计
+
+评测系统的核心是「可执行性」——每个 API 都经过实际编码实现，数据库预填充初始值，外部信息查询结果被硬编码以确保可复现。此外：
+
+- **特殊 API「API Search」**：当评估 Retrieve+Call 和 Plan+Retrieve+Call 时，模型不能直接看到 API 池中的所有 API，必须通过 API Search 检索。API Search 将用户的查询关键词与所有 API 元信息的句子嵌入做余弦相似度匹配，返回最相关 API。
+- **评测指标**：API 调用准确性（Accuracy，判断预测与标注是否执行相同的数据库操作并返回相同结果）+ 响应质量（ROUGE-L）。注意这里的 Accuracy 并非简单的文本匹配，而是**执行层面的语义等价判断**。
+
+##### 5. 实验结果与错误分析
+
+![Call 示例](https://ar5iv.labs.arxiv.org/html/2304.08244/assets/x6.png)
+*图 6：Level 1 Call 能力示例——给定天气和翻译 API，直接选择调用*
+
+![Retrieve+Call 示例](https://ar5iv.labs.arxiv.org/html/2304.08244/assets/x7.png)
+*图 7：Level 2 Retrieve+Call 能力示例——先用 API Search 检索，再调用*
+
+![Plan+Retrieve+Call 示例](https://ar5iv.labs.arxiv.org/html/2304.08244/assets/x8.png)
+*图 8：Level 3 Plan+Retrieve+Call 能力示例——多步规划，自主分解复杂需求*
+
+**主要结论**：
+| 模型 | Call 能力 | Retrieve+Call | Plan+Retrieve+Call |
+|------|-----------|---------------|---------------------|
+| GPT-3 Davinci | 几乎为零 | — | — |
+| Alpaca-7B / ChatGLM-6B | ~20% | — | 可忽略 |
+| GPT-3.5 | 最优秀 | 下降 21% | 再降 17% |
+| GPT-4 | 比 GPT-3.5 +4pt | 与 GPT-3.5 持平 | **提升近 50%**（最强规划） |
+| **Lynx（基于 Alpaca）** | +26pt 领先 Alpaca | — | 接近 GPT-3.5 |
+
+**Lynx vs ToolAlpaca 公平对比**：在使用相同基座模型（Alpaca-7B）的前提下，API-Bank 训练的 Lynx 仅用 6,184 个训练样本即超越 ToolAlpaca 的 10,366 样本效果，验证了 Multi-agent 数据生成的高质量。
+
+**错误模式深度分析**：
+- **Alpaca-7B 原始模型**（36.77%「No API Call」）：根本问题是其训练数据（52K instruction data）的模式与 API 调用格式不匹配，模型不理解「API 调用」这一行为范式。
+- **Lynx 模型**（61.38%「API Hallucination」）：训练后虽学会了调用，但产生了严重幻觉——调用训练中见过的但当前不可用的虚假 API。同时 32% 的错误与参数问题相关（传未替换参数、格式错误、缺少参数、语义误解）。
+- **GPT-4 模型**（67.86%「Failed API Retrieval」）：核心瓶颈不是调用本身，而是无法有效使用 API Search 检索到正确的 API。这说明**检索能力独立于生成能力**，是当前最强模型的主要短板。
+
+> ⚠️ 核心洞见：工具增强 LLM 的能力瓶颈随模型能力提升而转移——从「会不会调用」（Alpaca）到「调哪个真 API」（Lynx 幻觉）再到「怎么找到该调的 API」（GPT-4 检索），每一阶段对应不同的技术挑战。
+
+```python
+tools = retrieve_tools(query)
+action = planner.select(query, tools)
+obs = execute(action)
+return synthesize_answer(query, obs)
+```
+
+#### 🧪 练习题
+```yaml
+question: "API-Bank 测试中，GPT-4 在 Plan+Retrieve+Call 场景下表现显著优于 GPT-3.5，但最主要的错误类型是什么？"
+options:
+  - "API 调用格式错误（False API Call Format）"
+  - "API 幻觉（API Hallucination），调用不存在的 API"
+  - "API 检索失败（Failed API Retrieval），无法有效找到正确 API"
+  - "缺少输入参数（Missing Input Parameters）"
+answer: 2
+explain: "GPT-4 的错误中 67.86% 属于 API 检索失败，说明即使是最强模型在从大量 API 中准确检索目标工具方面仍存在显著短板，检索能力与生成能力存在独立的能力维度。"
+```
+
+### Gorilla
+
+```yaml
+id: gorilla
+num: 6
+name: Gorilla
+full_name: 海量API连接模型 (Gorilla)
+year: '2023.05'
+org: UC Berkeley
+parent: toolformer
+paper_url: https://arxiv.org/abs/2305.15334
+project_url: ''
+category: learning
+motivation: 检索文档后稳健生成API参数
+```
+
+#### 📝 一句话总结
+Gorilla 通过在大规模 API 文档和合成指令对上微调 LLaMA，并引入 retriever-aware 训练，让模型能够从自然语言请求中稳定生成正确的 API 调用，在大规模 ML API 调用任务上显著超过同期通用大模型并明显降低工具幻觉。
+
+#### 🎯 核心要点
+- 构建了 **APIBench**：从 HuggingFace、TorchHub、TensorFlow Hub 收集 **1,645** 个 API 文档，形成系统化的 API 调用数据集。
+- 采用 **self-instruct** 生成训练数据：只用少量人工种子示例，就为每个 API 合成多条自然语言指令与目标调用对。
+- 提出 **retriever-aware fine-tuning**：训练时把检索到的 API 文档拼接到用户请求中，教模型学会“读文档再调用”。
+- 设计 **AST subtree matching** 评测：不再只看字符串是否完全相同，而是检查候选调用是否在语法树层面匹配目标 API。
+- 显式区分 **hallucination** 与 **error**：调用了根本不存在的 API 记为 hallucination；调用了库内 API 但参数或选择错误记为 error。
+- 验证了 **测试时文档变更适应能力**：当 API 名称、registry 或约束发生变化时，retriever-aware Gorilla 比纯零样本模型更稳。
+
+#### 🔬 深入细节
+![Gorilla 框架图](https://ar5iv.labs.arxiv.org/html/2305.15334/assets/x1.png)
+
+*图：Gorilla 总体流程。上半部分是用 API 文档和合成指令构造训练数据，下半部分是推理时的两种模式：零样本直接调用，或先检索文档再调用。*
+
+##### 数据集构建：从 API 文档到指令-调用对
+
+Gorilla 的第一步不是改模型结构，而是先把“工具调用”这件事数据化。作者从三个模型中心收集 API 文档：
+
+- **HuggingFace**：筛到 925 个高质量模型卡；
+- **TensorFlow Hub**：保留 626 个模型；
+- **Torch Hub**：保留 95 个模型。
+
+合计 **1,645 个 API**。每个 API 文档被整理成统一 JSON 结构，包含：
+
+- domain
+- framework
+- functionality
+- api_name
+- api_call
+- api_arguments
+- environment_requirements
+- example_code
+- performance
+- description
+
+接着作者借助 GPT-4 按 self-instruct 范式，把 API 文档转成自然语言指令。关键点在于：**用户指令里不能直接泄露 API 名称**，必须像真实用户一样只描述任务目标。
+
+```python
+def build_training_pair(api_doc):
+    instruction = gpt4_self_instruct(api_doc, few_shot_examples=3)
+    target_call = api_doc["api_call"]
+    return {"user": instruction, "assistant": target_call}
+```
+
+每个 API 最终生成 10 条左右指令-调用对，训练时再转成一轮 user-agent 对话格式，对 LLaMA-7B 做标准 instruction tuning。
+
+##### 核心机制：retriever-aware training
+
+Gorilla 的真正技术点不只是“微调一个会调 API 的模型”，而是让模型学会在推理时**依赖外部文档而不是死记参数**。训练时，用户输入会被扩成：
+
+`<user_prompt> + "Use this API documentation for reference:" + <retrieved_API_doc_JSON>`
+
+这样模型被教会两件事：
+
+- 前半段是用户意图；
+- 后半段是 API 文档证据，模型需要“看文档回答问题”。
+
+推理时有两种模式：
+
+- **zero-shot**：不给检索文档，直接根据模型记忆生成调用；
+- **with retrieval**：先用 BM25、GPT-Index 或 oracle retriever 找到相关文档，再拼接进 prompt。
+
+这让 Gorilla 能在 API 文档变动时保持适应性。论文专门验证了两类变化：
+
+- 模型规格升级，如 backbone 从 ResNet-50 换到 ResNet-101；
+- registry 变化，如 API 来源从 `pytorch/vision` 换到新的 registry。
+
+> 💡 关键：Gorilla 不是把“所有 API 参数背下来”，而是把“根据外部文档拼出正确调用”训练成一种可迁移能力。
+
+##### 评测创新：AST subtree matching
+
+API 调用评测的难点是：同一任务可能有多个合法答案，简单字符串精确匹配不够合理。Gorilla 采用 **AST subtree matching**：
+
+1. 把模型输出的 Python API 调用解析成抽象语法树；
+2. 与数据集中的参考 API 树比对；
+3. 如果调用主干和关键参数能匹配到某个参考子树，就判为命中了正确 API。
+
+这样做有两个好处：
+
+- **允许可选参数差异**，不因无关字段误伤；
+- 能直接识别 **hallucination**：如果输出根本不属于库中任何 API，就说明模型凭空捏造了工具。
+
+##### 关键实验发现
+
+论文最有代表性的结果有三点：
+
+- **零样本 API 调用能力**：Gorilla 在 Torch Hub、HuggingFace、TensorFlow Hub 三个集合上都显著优于 GPT-4、GPT-3.5、Claude 和原始 LLaMA。
+- **检索不是越多越好**：如果 retriever 不准，拼进去的文档反而会误导模型；这说明“有 retrieval”不等于“会用 retrieval”。
+- **带检索训练优于纯拼接检索**：只有在训练阶段就把 retrieval 纳入输入格式，模型才能真正学会利用文档，并在测试时应对 API 变化。
+
+论文还单独考察了 **带约束的 API 调用**，例如要求模型在多个图像分类模型中，选出参数量低于某阈值、但精度高于某阈值的那个。这要求模型不仅理解功能，还要理解约束字段。
+
+##### Gorilla 的定位
+
+如果说 Toolformer 证明了“模型可以学会何时调用工具”，那 Gorilla 更进一步证明了：
+
+- **开放 API 文档可以成为训练信号**；
+- **工具调用的关键不是函数名，而是文档理解 + 参数生成**；
+- **外部检索文档应被纳入训练分布，而不是只在推理时临时拼接**。
+
+后面的 BFCL、ToolLLM、OpenFunctions，本质上都延续了 Gorilla 把 API 调用做成独立能力赛道的思路。
+
+> ⚠️ 注意：Gorilla 论文主要研究的是“单次 API 调用正确性”，多步工具链、长程状态管理和复杂 agent 规划，并不是这篇工作的重点。
+
+#### 🧪 练习题
+```yaml
+question: "Gorilla 采用 AST subtree matching 评测 API 调用，主要是为了解决什么问题？"
+options:
+  - "让训练速度更快"
+  - "避免把语义等价但字符串不完全相同的调用误判为错误"
+  - "把所有 API 自动翻译成 SQL"
+  - "让模型在推理时不再需要文档检索"
+answer: 1
+explain: "同一任务可能有多个合法调用写法，AST subtree matching 能容忍可选参数差异，并识别真正的 API 命中与 hallucination。"
+```
+
+### ToolLLM
+
+```yaml
+id: toolllm
+num: 7
+name: ToolLLM
+full_name: 万级API工具学习框架 (ToolLLM)
+year: '2023.07'
+org: Tsinghua University
+parent: gorilla
+paper_url: https://arxiv.org/abs/2307.16789
+project_url: ''
+category: learning
+motivation: 把万级真实API纳入训练与搜索
+```
+
+#### 📝 一句话总结
+ToolLLM 首次将 16,464 个真实 REST API 纳入 LLM 的工具学习闭环，通过 **DFSDT（深度优先搜索决策树）** 规划策略和 **ToolBench** 数据集，使开源模型在工具使用评测 **ToolEval** 上达到甚至超越闭源 GPT-4 的水平。
+
+#### 🎯 核心要点
+- **动机**：现有工具增强 LLM 研究仅使用少量（通常 < 10 个）手工挑选或合成的 API，远远无法复现真实世界中 ChatGPT Plugins 等系统需要从数万级 API 中精确选用的复杂度。
+- **ToolBench 数据集**：从 RapidAPI 爬取了 16,464 个真实 REST API（49 个粗粒度类别，如 Weather、Finance、Crypto），并自动生成指令-解决方案对。每条指令对应一个多步骤 API 调用链（单步到最多 8 步），共覆盖单工具和多工具组合场景。
+- **DFSDT 决策策略**：针对多步 API 链中每一步可能有多候选工具的情况，提出深度优先搜索决策树——LLM 在每个步骤生成多个候选 API 调用，若某分支执行失败则回溯尝试下一条，显著提升规划成功率。
+- **ToolLLaMA 模型**：基于 LLaMA 对 ToolBench 数据进行监督微调（SFT），获得与 GPT-4 可比的工具使用能力。
+- **ToolEval 评测基准**：引入基于 LLM 的自动化评估器，从「是否选择了正确的 API」「参数是否正确填充」「最终答案是否正确」等多个维度自动评判工具使用质量，与人工评估高度一致（Pearson 相关系数 > 0.8）。
+
+#### 🔬 深入细节
+##### (a) 系统架构与工作流
+
+ToolLLM 的工作流分为四个阶段：
+
+1. **API 收集与筛选**：从 RapidAPI Hub 收集 16,464 个 REST API，涵盖 Sports、Finance、Weather、Translation 等 49 个类别，清洗后保留可调用的 API，提取其 OpenAPI/Swagger 文档。
+2. **指令生成**：基于 API 文档，利用 ChatGPT 自动生成多样化用户指令及对应的多步 API 调用链。指令生成策略包括：单工具单步、单工具多步、多工具组合、带条件分支的调用。
+3. **解决方案搜索**：在训练阶段使用 DFSDT 搜索正确的 API 调用序列；每一步评估多个候选，失败则回溯，最终得到可执行的 ground-truth 轨迹。
+4. **模型训练与评估**：用搜得的轨迹对 LLaMA 进行 SFT，得到 ToolLLaMA；在 ToolEval 上与 ChatGPT、GPT-4 等对比。
+
+![ToolLLM 系统架构](https://ar5iv.labs.arxiv.org/html/2307.16789/assets/figures/overview.png)
+
+*图：ToolLLM 整体框架，包括 API收集、指令生成、DFSDT 求解搜索、ToolLLaMA 训练评估四阶段。*
+
+```
+┌─────────────────┐     ┌──────────────────────┐     ┌──────────────────┐
+│  RapidAPI Hub    │────▶│  16,464 REST APIs    │────▶│  Instruction     │
+│  (49 categories) │     │  + OpenAPI Docs      │     │  Generation      │
+└─────────────────┘     └──────────────────────┘     └────────┬─────────┘
+                                                              │
+                    ┌──────────────────────┐                  │
+                    │  ToolEval (Auto Eval) │◀─────────────────┤
+                    │  - API Selection      │                  │
+                    │  - Param Correctness  │     ┌────────────▼──────────┐
+                    │  - Answer Quality     │     │  DFSDT Solution       │
+                    └──────────────────────┘     │  Search (train)       │
+                                                  │  - Candidate gen      │
+                                                  │  - Backtrack on fail  │
+                                                  └───────────┬───────────┘
+                                                              │
+                                                  ┌───────────▼───────────┐
+                                                  │  ToolLLaMA (SFT)      │
+                                                  │  ← LLaMA + ToolBench  │
+                                                  └───────────────────────┘
+```
+
+> 💡 关键：DFSDT 是连接指令和可执行轨迹的核心桥梁，它将 LLM 生成的多候选调用的「试错」过程变成系统化的搜索问题。
+
+##### (b) DFSDT（深度优先搜索决策树）核心机制
+
+DFSDT 是 ToolLLM 的核心规划算法。给定用户指令和 API 候选池，LLM 在每一步生成 \(B\) 个候选 API 调用，然后将成功执行的调用结果追加到上下文栈中，若某分支失败则自动回溯。
+
+![DFSDT 示意图](https://ar5iv.labs.arxiv.org/html/2307.16789/assets/figures/dfsdt.png)
+
+*图：DFSDT 搜索树示意——每个节点为一次 API 调用决策，红色叉标明执行失败后回溯到父节点尝试下一个候选项。*
+
+**伪代码**：
+
+```python
+def dfsdt(instruction, api_pool, max_depth=H, beam_size=B):
+    stack = [(instruction, [])]  # (current_context, history)
+
+    while stack:
+        context, history = stack.pop()
+        if len(history) >= max_depth:
+            if answer_reached(context):
+                return history  # 成功路径
+
+        # 1. LLM 为当前步骤生成 B 个候选 API 调用
+        candidates = llm_propose(context, api_pool, beam_size=B)
+
+        # 2. 按置信度排序，逆序入栈以保持优先序
+        for api_call in reversed(candidates):
+            try:
+                result = execute_api(api_call)
+                new_context = context + f"\nAPI Result: {result}"
+                stack.append((new_context, history + [api_call]))
+            except APIError:
+                continue  # 该分支失败，自动回溯
+
+    return None  # 搜索失败
+```
+
+**要点解释**：
+
+- **Beam候选生成**：每步 LLM 不单选 1 个 API，而是生成 \(B\) 个候选（beam），极大降低单步失败率。论文中 \(B\) 一般设为 3~5。
+- **自动回溯**：当某个 API 调用返回错误（404、参数错误等），DFSDT 自动丢弃该分支并尝试栈中下一个候选，无需人工干预。这使得模型可以在数万级 API 的真实「噪音」环境中鲁棒执行。
+- **终止条件**：达到最大深度 \(H\) 或 LLM 判断已给出完整答案时终止搜索返回路径。
+
+> ⚠️ 注意：DFSDT 仅在 **训练阶段** 用作 ground-truth 求解器；**推理阶段** ToolLLaMA 直接自回归生成 API 调用，不执行回溯，以保证实时性。
+
+##### (c) 实验结果要点
+
+- **ToolLLaMA-7B** 在 ToolEval 上综合得分达到 GPT-3.5-turbo 的约 95%，部分场景超越 GPT-4。
+- **DFSDT vs 贪婪搜索**：在需要多步组合的复杂指令上，DFSDT 的通过率比贪婪解码高 18% 以上。
+- **API 规模影响**：随着候选 API 池从 100 扩大到 10000，闭源模型（GPT-4）性能下降约 30%，而 ToolLLaMA 仅下降约 12%，表明其在大规模工具检索场景下的鲁棒性。
+- **ToolEval 与人工评估一致性**：自动评估与人工评分的 Pearson 相关系数达到 0.85，验证了 ToolEval 作为自动化评测基准的可靠性。
+
+##### (d) API Retriever 模块
+
+面对 16,464 个 API，不可能全部塞入 prompt。ToolLLM 引入了一个轻量级 **API Retriever**：
+- 基于 Sentence-BERT 将所有 API 文档描述编码为稠密向量，存入 FAISS 索引。
+- 给定用户指令，检索 top-\(k\)（通常 \(k=100 \sim 200\)）最相关的候选 API，大幅缩减搜索空间。
+- 该检索器与 LLM 解耦，可独立升级或替换为更强大的检索模型。
+
+##### (e) 关键发现与洞察
+
+1. **真实 API 的「噪音」反而提升泛化**：RapidAPI 文档天然包含不完整描述、过时接口、非结构化返回体，模型在训练中学会应对这些不确定性，测试时泛化优于全合成 API 训练。
+2. **多步骤链中的错误传播是瓶颈**：即使单独 API 调用正确率很高，3 步以上的链中错误累积导致最终成功率大幅下降。DFSDT 通过回溯机制在此类场景收益最大。
+3. **指令多样性至关重要**：ToolBench 包含 13 类指令（如 Explain、Create、Update、Compare 等），消融实验表明移除任何一类指令都会导致对应场景的性能断崖式下降。
+
+> 💡 关键启发：将真实世界的不完备性（过期文档、返回异常）视为一种噪声正则化，是 ToolLLM 泛化性的重要保证。
+
+#### 🧪 练习题
+```yaml
+question: "DFSDT 在 ToolLLM 中的主要设计目的是什么？"
+options:
+  - "提升 API 调用时的网络传输速率"
+  - "在多步 API 链中通过候选生成与失败回溯，提高规划成功率"
+  - "压缩 API 文档长度，减少 prompt token 消耗"
+  - "将 REST API 自动转换为 GraphQL 接口"
+answer: 1
+explain: "DFSDT 在每一步生成多个候选 API，执行失败后自动回溯尝试下一个，从而在真实的不可靠 API 环境中实现高成功率的规划。"
+```
+
+### LLMCompiler
+
+```yaml
+id: llm_compiler
+num: 8
+name: LLMCompiler
+full_name: 并行函数调用编译器 (LLMCompiler)
+year: '2023.12'
+org: UC Berkeley
+parent: react
+paper_url: https://arxiv.org/abs/2312.04511
+project_url: ''
+category: orchestration
+motivation: 把串行工具链编译成并行执行图
+```
+
+#### 📝 一句话总结
+LLMCompiler 借鉴经典编译器的指令并行优化思想，将 ReAct 式的"推理-行动-观察"串行循环重构为 Planner→Task Fetching Unit→Executor 的三阶段并行流水线，在多任务/多工具场景下实现最高 3.7× 延迟降低与 6.7× 成本节约。
+
+#### 🎯 核心要点
+- 提出 Function Calling Planner (FCP)：通过单次 LLM 推理将用户任务分解为带依赖关系的子任务 DAG，以 `$N` 引用标记标记对前置任务输出的依赖
+- 设计 Task Fetching Unit (TFU)：类比 CPU 指令取指单元，贪婪地将所有依赖已满足的任务分发给 Executor，并完成引用标记→实际输出的替换
+- 构建并行 Executor：异步并发执行无依赖的子任务，支持搜索引擎、计算器、API、子 LLM Agent 等多种工具类型
+- 支持流式规划 (Streaming Planner)：任务一经生成立即流出，不等完整 DAG 完成，进一步降低首 token 延迟
+- 引入动态重规划 (Dynamic Replanning)：当执行结果与预期不符时，FCP 可基于中间结果重新生成计划，适配 Game of 24 等需迭代推理的场景
+- 在 HotpotQA、Movie Recommendation、ParallelQA、Game of 24、WebShop 五大基准上验证，覆盖易并行、复杂依赖、动态重规划、交互式决策四种模式
+- 在 LLaMA-2、GPT-3.5、GPT-4 等模型上均表现优异，且在某些场景超越 OpenAI 原生并行函数调用
+
+#### 🔬 深入细节
+##### 核心架构图
+
+![LLMCompiler 架构总览](https://raw.githubusercontent.com/SqueezeAILab/LLMCompiler/main/figs/thumbnail.png)
+*图：LLMCompiler 的三组件流水线架构——Planner 生成 DAG，Task Fetching Unit 调度就绪任务，Executor 并行执行*
+
+##### 算法伪代码
+
+```python
+# LLMCompiler 核心执行流程
+def llm_compiler(user_input, tools):
+    # 阶段1: 规划 (一次LLM推理)
+    dag = FunctionCallingPlanner(user_input, tools)
+    # dag = [
+    #   {"id": 1, "tool": "search", "args": "微软市值", "deps": []},
+    #   {"id": 2, "tool": "search", "args": "苹果市值", "deps": []},
+    #   {"id": 3, "tool": "math",  "args": "$1 / $2",   "deps": [1,2]},
+    #   {"id": 4, "tool": "llm",   "args": "$3",         "deps": [3]}
+    # ]
+
+    results = {}
+    running = []
+    idx = 0
+
+    while idx < len(dag) or running:
+        # 阶段2: TFU — 收集依赖已就绪的任务
+        ready = []
+        while idx < len(dag):
+            task = dag[idx]
+            if all(dep in results for dep in task["deps"]):
+                # 引用标记替换: $1 → 前驱任务实际输出
+                resolved_args = task["args"]
+                for dep_id in task["deps"]:
+                    resolved_args = resolved_args.replace(
+                        f"${dep_id}", str(results[dep_id])
+                    )
+                ready.append((task["id"], task["tool"], resolved_args))
+                idx += 1
+            elif not task["deps"]:
+                ready.append((task["id"], task["tool"], task["args"]))
+                idx += 1
+            else:
+                break  # 后续任务依赖未就绪，阻塞等待
+
+        # 阶段3: Executor — 并行执行所有就绪任务
+        if ready:
+            outputs = parallel_execute(ready, executor_pool)
+            for tid, output in outputs.items():
+                results[tid] = output
+        else:
+            # 动态重规划: 无任务就绪且未完成时触发
+            if idx < len(dag):
+                dag = replan(dag, results)
+
+    # 最终合并: 一次LLM调用生成面向用户的答案
+    return final_merge(results)
+```
+
+##### 1. 动机与背景：ReAct 的串行瓶颈
+
+传统 LLM Agent 框架（如 ReAct）遵循"推理→行动→观察→推理→..."的固定循环。每一轮工具调用都需要一次完整的 LLM 前向推理，且必须等待工具返回结果后才能进入下一轮思考。当用户查询包含多个**相互独立**的子任务时——例如"对比微软和苹果的市值"——串行执行搜索引擎两次查询、一次数学计算、一次结果总结，共需 4 轮 LLM 推理，但其中前两次搜索完全可以并行。
+
+LLMCompiler 的核心洞察是：**LLM 的函数调用图本质上是一个指令依赖图（Instruction Dependency Graph）**，与经典编译器中待优化的程序指令图完全同构。编译器通过数据流分析识别可并行基本块，LLMCompiler 则将这一范式迁移到工具调用领域。
+
+##### 2. 三组件流水线详解
+
+**Function Calling Planner (FCP)**
+Planner 接收用户自然语言输入和工具定义列表，通过一次 LLM 推理输出结构化的任务 DAG。每个任务包含：
+- `id`：唯一标识符
+- `tool`：调用的工具名称
+- `args`：工具参数，其中 `$N` 表示对第 N 个任务输出的依赖
+- `deps`：显式的依赖列表（冗余但增强了可靠性）
+
+Planner 的 prompt 工程是该方法的关键：它要求 LLM 输出严格的 JSON 格式，并通过 in-context examples 引导 LLM 正确识别并行机会。例如，当用户问"查找 A 和 B 的信息并比较"时，Planner 应识别出 A 和 B 的检索无数据依赖，将其标记为可并行任务。
+
+**Task Fetching Unit (TFU)**
+TFU 是一个轻量级调度器，不涉及任何 LLM 调用。其工作流程为：
+1. 维护一个就绪队列，扫描 DAG 中所有依赖已满足的任务
+2. 执行**引用标记替换**（placeholder substitution）：将 `$N` 替换为前驱任务的实际字符串输出
+3. 以贪婪策略将所有就绪任务派发给 Executor
+4. 若无就绪任务且 DAG 未完成，触发动态重规划信号
+
+引用标记替换机制是 LLMCompiler 区别于 OpenAI 原生并行调用的关键。OpenAI 允许同时触发多个函数，但**不管理函数间的数据依赖**——开发者必须手动将前驱输出填入后继输入。LLMCompiler 的 `$N` 引用标记自动完成这一过程。
+
+**Executor**
+Executor 是一个异步并发执行引擎。每个任务配有独立内存空间存储中间结果。支持的工具类型包括：
+- 搜索引擎（如 Google Search API）
+- 计算器（math tool）
+- 子 LLM Agent（递归调用 LLM 完成子任务）
+- 通用 API 调用
+
+所有任务完成后，最终结果通过一次 LLM 调用全量合并，生成面向用户的自然语言回答。
+
+##### 3. 动态重规划：当 DAG 不够时
+
+某些任务（如 Game of 24：用 4 个数字通过四则运算得到 24）无法预先规划完整 DAG——每一步的最佳操作取决于上一步的中间结果。LLMCompiler 引入**闭环重规划**机制：
+
+1. Planner 初始生成探索计划（`thought_proposer` 提议候选操作）
+2. Executor 并行执行 `state_evaluator` 评估所有候选，`top_k_select` 筛选
+3. 若无候选达到目标状态（24），Executor 向 Planner 发送 `replan` 信号
+4. Planner 基于上轮筛选后的中间状态重新生成计划
+
+这使得 LLMCompiler 在需要深度搜索的任务中仍能保持并行优势——每轮评估多个候选而非逐一尝试。对比 Tree-of-Thoughts（纯串行树搜索），LLMCompiler 在 Game of 24 上实现 2× 加速。
+
+##### 4. 与传统方法的区别
+
+| 特性 | ReAct | OpenAI Parallel FC | LLMCompiler |
+|------|-------|-------------------|-------------|
+| 任务分解 | 每步推理一次 | 无显式分解 | 单次 DAG 生成 |
+| 并行执行 | 不支持 | 支持（无依赖管理） | 支持（依赖感知） |
+| 依赖管理 | 手动编排 | 无 | 引用标记自动替换 |
+| 动态重规划 | 天然支持（逐轮调整） | 不支持 | 支持（反馈回路） |
+| LLM 调用次数 | O(N) | O(1)（但需手动拼接） | O(1) + 最终合并 |
+
+> 💡 关键：LLMCompiler 的核心优势在于**通过一次 LLM 推理完成全量规划，利用 DAG 依赖分析最大化并行度**。它不是替代 ReAct，而是在"规划阶段"就完成依赖分析，将"思考"和"行动"分离到不同组件。
+
+##### 5. 实验关键结果
+
+LLMCompiler 在五大基准上全面超越 ReAct 基线（使用 GPT-3.5-Turbo）：
+
+| 基准 | 模式 | 加速比 (vs ReAct) | 成本节省 | 准确率 |
+|------|------|-------------------|----------|--------|
+| HotpotQA | 易并行 | 1.80× | 3.37× | 持平 |
+| Movie Recommendation | 易并行 | 3.74× | 6.73× | 持平 |
+| ParallelQA | 复杂依赖 | 2.27× | 4.65× | +9% |
+| Game of 24 | 动态重规划 | 2.0× (vs ToT) | — | — |
+| WebShop | 交互决策 | 101.7× (vs LATS) | — | +28.4% 成功率 |
+
+在 WebShop 上的巨大加速（101.7× vs LATS）尤具说服力：LLMCompiler 将搜索、点击等多步骤并行化，而 LATS 需要逐步骤串行树搜索。在 ParallelQA（新提出的复杂依赖基准）上，LLMCompiler 不仅更快，准确率还提升了 9%——作者认为这是因为并行规划减少了长链推理中的错误累积。
+
+##### 6. 局限性
+
+- **强依赖任务退化为 ReAct**：当任务链几乎无法并行化时，LLMCompiler 与 ReAct 无差异
+- **规划质量依赖底层 LLM**：小模型可能输出错误依赖标注，导致 Executor 死锁
+- **工具调用可靠性**：并行执行大量工具时的错误处理与重试机制尚需完善
+- **动态重规划开销**：闭环场景下额外的 replan 调用可能抵消部分并行增益
+
+#### 🧪 练习题
+```yaml
+question: "LLMCompiler 中 Task Fetching Unit (TFU) 的核心功能是什么？"
+options:
+  - "执行 LLM 推理生成子任务 DAG"
+  - "扫描依赖已满足的任务并完成引用标记替换后派发给 Executor"
+  - "并行调用外部工具并返回结果"
+  - "对已完成的任务结果进行最终合并生成用户回答"
+answer: 1
+explain: "TFU 是轻量级调度器，不涉及 LLM 调用。它贪婪地将所有依赖已就绪的任务（完成 $N→实际输出的引用标记替换后）派发给 Executor。Planner 负责生成 DAG，Executor 负责执行，最终合并由单独的 LLM 调用完成。"
+```
+
+### τ-Bench
+
+```yaml
+id: tau_bench
+num: 9
+name: τ-Bench
+full_name: 工具-代理-用户交互基准 (τ-Bench)
+year: '2024.06'
+org: Princeton University
+parent: api_bank
+paper_url: https://arxiv.org/abs/2406.12045
+project_url: ''
+category: evaluation
+motivation: 引入用户交互与领域规则约束
+```
+
+#### 📝 一句话总结
+τ-Bench 提出了首个系统性地将**用户交互**与**领域规则约束**纳入 LLM Agent 评估的基准，通过在模拟数据库环境中引入 LLM 驱动的用户模拟器，揭示现有 Agent 在复杂多轮交互场景下执行成功率大幅下降的关键瓶颈。
+
+#### 🎯 核心要点
+- 提出 τ-Bench：首个以用户交互为核心的 LLM Agent 评估基准，覆盖零售和航空两个领域
+- 包含 200+ 个手工设计的对话任务，每个任务附带领域数据库和约束规则
+- 引入基于 LLM 的**用户模拟器**，可根据任务目标动态生成用户响应，替代传统静态测试集
+- 每个任务包含可自动验证的数据库状态检查和交互轨迹评估
+- 定义 Agent 需遵循的领域规则（如退换货政策、预订约束），违反规则视为失败
+- 评估框架分离：独立评估工具调用正确性、规则遵循和用户目标达成
+- 实验表明：最佳 Agent（GPT-4o + function calling）在零售领域仅达 45.8%，航空领域 27.1%
+- 开源可扩展框架：支持自定义领域、工具和用户模拟器
+
+#### 🔬 深入细节
+![τ-Bench 示意图](https://ar5iv.labs.arxiv.org/html/2406.12045/assets/x1.png)
+*图：τ-Bench 的核心框架或评测示意。*
+
+##### 核心框架图
+
+τ-Bench 的评估架构由三个核心组件构成：**LLM Agent**、**用户模拟器**和**环境（数据库+工具+规则）**。Agent 通过工具调用操作数据库，用户模拟器根据任务目标生成动态响应并注入领域约束检查。
+
+```
+┌─────────────┐    对话交互    ┌─────────────┐
+│  LLM Agent  │ ←──────────→ │  用户模拟器   │
+│ (被评估对象) │               │ (LLM-driven) │
+└──────┬──────┘               └──────────────┘
+       │ 工具调用
+       ▼
+┌─────────────────────────────┐
+│         环境                 │
+│  ┌─────────┐ ┌───────────┐  │
+│  │ 数据库   │ │ 领域规则   │  │
+│  │ (SQLite)│ │ (Policy)  │  │
+│  └─────────┘ └───────────┘  │
+│  ┌───────────────────────┐  │
+│  │ API工具 (Toolkits)    │  │
+│  └───────────────────────┘  │
+└─────────────────────────────┘
+```
+*图：τ-Bench 评估框架的三方交互架构*
+
+##### 任务设计与评估流程
+
+τ-Bench 的核心创新在于使用 LLM 驱动的**用户模拟器**替代传统静态测试数据。每个任务被定义为一个 <用户目标，初始数据库状态，领域规则> 三元组：
+
+1. **模拟用户初始化**：LLM 读取任务描述（如"我想退掉上周买的鞋子，但我没有收据"），在对话中扮演用户角色
+2. **Agent 交互**：Agent 调用工具（查询订单、检查库存、处理退款等）与用户协作完成任务
+3. **自动评估**：
+
+```python
+# 评估伪代码：τ-Bench 的任务成功判定
+def evaluate(agent_trajectory, db_initial, db_final, rules):
+    # 1. 数据库状态检查
+    db_correct = check_db_constraints(db_final, db_initial)
+    
+    # 2. 规则遵循检查
+    rules_followed = all(
+        rule.verify(agent_trajectory) 
+        for rule in rules
+    )
+    
+    # 3. 用户目标达成
+    user_goal_achieved = verify_user_goal(
+        db_final, user_goal
+    )
+    
+    # 成功仅当三个条件全部满足
+    return db_correct and rules_followed and user_goal_achieved
+```
+
+##### 两阶段用户模拟机制
+
+τ-Bench 的用户模拟器采用**两阶段设计**以增强生成质量：
+
+- **阶段一：信念状态跟踪**。用户模拟器维护一个内部信念状态（belief state），实时记录已知信息、待确认的事实和用户偏好。对话每轮后更新信念状态值。
+
+- **阶段二：基于信念的响应生成**。在每个对话轮次，用户模拟器根据当前信念状态生成自然语言响应。关键约束条件：
+  - 用户只能提供"记忆中"的信息（防止信息泄露）
+  - 必须遵守领域规则定义的约束
+  - 响应应自然、类人（包含犹豫、反问、模糊表述等）
+
+##### 领域示例
+
+> 💡 **τ-Bench 零售领域任务示例：**
+>
+> **任务**："你（用户）在 3 天前买了一件 M 码蓝色 T 恤，现在想换成 L 码。但你有以下约束：商品已拆标签但未洗涤，你住在加州。"
+>
+> **Agent 需执行**：查询订单 → 验证退换货政策 → 检查 L 码库存 → 处理换货并更新数据库 → 告知用户新预计送达日期。
+>
+> **规则约束**：未洗涤的拆标商品可换但不可退；加州消费税需在换货差额中重新计算；换货运费政策取决于用户是否为会员。
+
+##### 与传统基准的关键区别
+
+| 维度 | 传统基准 (API-Bank, ToolBench) | τ-Bench |
+|------|-------------------------------|---------|
+| 用户输入 | 静态文本 | LLM 动态模拟 |
+| 评估维度 | 工具调用准确性 | +规则遵循 + 用户目标达成 |
+| 领域知识 | 无需 | 需理解业务规则 |
+| 失败模式 | 函数签名错误 | 规则违反、不确定性处理 |
+| 真实度 | 低（固定轨迹） | 高（开放对话） |
+
+##### 关键发现
+
+实验揭示了当前 LLM Agent 在用户交互场景下的三大核心挑战：
+
+1. **规则理解与遵循差距显著**：即使最强大的模型（GPT-4o）也在 30%+ 的任务中违反至少一条领域规则，主要表现为忽略退换货政策的边界条件。
+
+2. **不确定性处理困难**：当用户提供模糊信息时（如"大概上周买的"），Agent 往往要么过于武断地假设，要么过度询问导致对话冗长。
+
+3. **长对话轨迹退化**：随对话轮次增加（>15 轮），Agent 的工具调用准确率和信息保持能力显著下降，出现"遗忘"用户早期需求的现象。
+
+#### 🧪 练习题
+```yaml
+question: "τ-Bench 相对于传统 LLM Agent 评估基准（如 ToolBench）的核心创新在于什么？"
+options:
+  - "使用更大的测试数据集"
+  - "引入 LLM 驱动的用户模拟器和领域规则遵循评估"
+  - "使用更复杂的工具 API"
+  - "增加更多领域的任务"
+answer: 1
+explain: "τ-Bench 的核心创新是用 LLM 动态模拟用户交互，并在评估中显式加入规则遵循检查，而非仅评估工具调用正确性，这使评估更接近真实部署场景。"
+```
+
+### ToolSandbox
+
+```yaml
+id: toolsandbox
+num: 10
+name: ToolSandbox
+full_name: 有状态工具沙箱评测 (ToolSandbox)
+year: '2024.08'
+org: Apple
+parent: api_bank
+paper_url: https://arxiv.org/abs/2408.04682
+project_url: ''
+category: evaluation
+motivation: 评测多轮有状态工具执行能力
+```
+
+#### 📝 一句话总结
+> ToolSandbox 提出了首个**有状态（Stateful）、对话式（Conversational）、交互式（Interactive）**的LLM工具使用评估基准，通过隐式状态依赖（State Dependency）、规范化（Canonicalization）和不足信息（Insufficient Information）三类核心挑战，揭示了当前最强LLM在复杂工具调用场景中的显著缺陷。
+
+#### 🎯 核心要点
+- **三维评估框架**：Stateful（有状态工具执行与隐式状态依赖）、Conversational（内置LLM用户模拟器支持on-policy对话）、Interactive（动态里程碑评估任意轨迹的中间和最终结果）
+- **三大核心挑战类别**：State Dependency（工具间隐式依赖世界状态）、Canonicalization（将用户模糊输入规范化为工具参数）、Insufficient Information（工具不足以完成任务时识别并拒绝）
+- **消息总线架构**：User、Agent、Execution Environment 三个角色通过 Message Bus 通信，每个角色只能访问其可见的消息子视图
+- **用户模拟器增强**：引入 Knowledge Boundary（知识边界）和 Demonstration（少样本示例对话）两个组件，将幻觉率从12.4%降至6.97%
+- **Murphy's Law 竞争条件处理**：执行环境检测并发工具调用中的竞争条件时，始终让竞争条件发生以惩罚不当的并行调用
+- **34 个工具组合的评估矩阵**：覆盖单工具调用/多工具调用、单轮/多轮用户交互的交叉场景
+- **对 10+ 主流模型全面评估**：开源与闭源模型存在显著性能差距，GPT-4o 综合得分最高，但在 State Dependency 上大模型反而不如中型模型
+
+#### 🔬 深入细节
+##### 核心架构：三角色消息总线
+
+![ToolSandbox 架构图](https://arxiv.org/html/2408.04682v1/extracted/5780527/architecture_diagram.png)
+*图：User、Agent 和 Execution Environment 之间的交互架构。三个角色共享同一个 Message Bus，但各自只能访问有权限的消息子视图。*
+
+ToolSandbox 的核心是一个**有状态、对话式、交互式**的三方消息总线系统。三个角色分别是：
+
+1. **User Role（用户角色）**：由 GPT-4o 驱动的模拟用户，拥有单一工具 `end_conversation` 用于终止对话。用户模拟器包含三个关键设计：
+   - **Knowledge Boundary**：告知模拟器它应该和不应该知道什么信息，提供对预期结果的部分访问，以对抗幻觉
+   - **Demonstration**：提供少样本示例对话（仅对用户模拟器可见，不对Agent可见）
+   - 消融实验（Table 2）表明，两者结合将幻觉率从 12.4% 降至 6.97%，指令遵循错误率从 6.20% 降至 0.77%
+
+2. **Agent Role（代理角色）**：接收用户自然语言消息，可选择追问用户或发出工具调用（JSON 对象）。JSON 对象被转换为可执行 Python 代码（见 Appendix A.5），发送到执行环境。
+
+3. **Execution Environment Role（执行环境角色）**：类似 IPython/Jupyter 交互式控制台，执行 Python 代码片段。关键机制：
+   - 通过 stderr 捕获异常，使 Agent 能够通过试错（trial and error）细化工具调用
+   - **Murphy's Law 竞争条件处理**：对于并行工具调用，如果检测到依赖关系，执行环境**始终**让竞争条件发生，以此惩罚不恰当的并行调用
+
+![消息总线](https://arxiv.org/html/2408.04682v1/extracted/5780527/message_bus.png)
+*图：消息总线中不同角色的消息可见性示意。Execution Environment 可以看到所有消息，Agent 和 User 各有其可见子集。*
+
+##### 三大核心挑战类别
+
+ToolSandbox 定义了三种评估任务类别，旨在测试工具使用 LLM 的不同能力维度：
+
+**1. State Dependency（状态依赖）**
+
+这是 ToolSandbox 最核心的创新之一。在现实世界的任务导向对话中，工具调用常常**隐式依赖世界状态（World State）**。例如：
+- 关闭 Wi-Fi 后才能测试离线模式功能
+- 开启蜂窝数据后才能发送短信
+- 多个工具操作同一个数据库，后一个操作依赖前一个操作的结果
+
+传统基准（BFCL、ToolEval）使用无状态 RESTful API，无法评估这种依赖关系。API-Bank 虽然有状态修改工具，但没有研究状态依赖的影响。
+
+关键发现：**GPT-4 和 Claude-3-Opus 等大模型在 State Dependency 上反而表现不如中型模型**（GPT-3.5-Turbo、Claude-3-Sonnet），这是因为大模型倾向于对有依赖关系的工具也发出并行调用，而执行环境始终让竞争条件发生。
+
+> ⚠️ **注意**：嵌套状态依赖尤其棘手。模型常常忘记未解决的问题，无法最优回溯（backtrack），导致重复错误和远超最优的轮次数。
+
+**2. Canonicalization（规范化）**
+
+将用户的模糊、自然语言输入转换为工具的精确参数是一个关键挑战。例如：
+- "下周五下午" → 精确的时间戳
+- "附近的咖啡店" → 具体的经纬度坐标
+- "给张三发个消息" → 张三的电话号码
+
+ToolSandbox 区分了两种规范化方式：
+- **基于世界知识的规范化**：利用模型内部知识（如著名地标的经纬度）
+- **基于工具的规范化**：通过调用搜索等工具获取规范化的参数
+
+关键发现：**所有模型在 Canonicalization 上都很挣扎**。大模型倾向于记忆不太可能改变的世界知识（如地标的经纬度），小模型更倾向于使用工具。**时间相关的参数尤其困难**——模型频繁产生时间戳幻觉，错误地规范化相对日期和时间（Figure 14、15）。
+
+此外，模型在面临歧义时倾向于做出**过早决策**。如 Figure 16 所示，当工具返回多个匹配的地理位置时，模型直接选择第一个，而没有返回用户进行消歧。
+
+**3. Insufficient Information（不足信息）**
+
+这是另一个关键创新：**评估模型在工具不足以完成任务时，是否能识别并拒绝执行，而非产生幻觉**。
+
+![GPT-4 幻觉示例](https://arxiv.org/html/2408.04682v1/extracted/5780527/minefield.png)
+*图：GPT-4 在 Insufficient Information 场景下的错误轨迹。即使工具明显不足以完成任务，模型仍然产生幻觉工具名称或参数。*
+
+关键发现：**Insufficient Information 性能与其他类别负相关**——在其他复杂任务上表现越强的模型，在 Insufficient Information 上表现越差。GPT-3.5-Turbo 和 GPT-4 等顶级模型，即使面对简单任务和极少的工具，也会产生工具名称幻觉或参数幻觉（Figure 3、20）。
+
+##### 里程碑评估系统
+
+![里程碑示例](https://arxiv.org/html/2408.04682v1/extracted/5780527/intermediate_milestone.png)
+*图：中间里程碑和最终里程碑的评估示例。每个里程碑有独立的判断条件，允许评估任意轨迹的部分完成度。*
+
+ToolSandbox 的评估系统支持**动态评估任意轨迹的中间和最终里程碑**，而不依赖预定义的轨迹或静态的轮次级别指标。这一设计的优势在于：
+- 支持 on-policy 对话评估（而非 off-policy 的预定义轨迹）
+- 可以评估部分完成的情况
+- 通过相似度得分（Similarity Score）综合衡量轨迹质量
+
+![评估轨迹示例](https://arxiv.org/html/2408.04682v1/extracted/5780527/introduction_300_dot.png)
+*图：一个完整的评估轨迹示例，展示了 Message Bus 中的完整对话历史、World State 的可变数据库快照以及各个 Milestones 的判断时机。*
+
+##### 实验结果与关键洞察
+
+**开源 vs 闭源模型**：
+- GPT-4o 获得最高相似度得分，Claude-3-Opus 紧随其后
+- GPT-4o 在综合得分上领先，但 Claude-3-Opus 在效率上更优（平均轮次数更低，见 Appendix D.2）
+- 开源模型与闭源模型之间存在显著性能差距
+
+**模型规模的影响**：
+- 对比 GPT、Claude 和 Gemini 家族的最大和最小模型，Multiple Tool Call 和 Multiple User Turn 类别的性能退化远快于 Single Tool Call 和 Single User Turn
+- 推理复杂的工具调用序列和模糊的用户请求需要更多的模型容量
+
+**工具干扰**：
+- 增加干扰工具（distraction tools）对 Claude-3-Sonnet 影响最大（下降近 10 个百分点）
+- GPT-4o 对工具描述扰乱（Tool Description Scrambling）特别敏感
+- GPT-4 对参数描述变化（Argument Description）异常关注
+- Gemini-1.5 在参数类型扰乱（Argument Type Scrambling）上表现不佳
+
+##### 与传统方法的区别
+
+| 特征 | BFCL | ToolEval | API-Bank | **ToolSandbox** |
+|------|------|----------|----------|----------------|
+| 有状态工具 | ✗ | ✗ | 部分 | **✓** |
+| 隐式状态依赖 | ✗ | ✗ | ✗ | **✓** |
+| 对话式评估 | ✗（单轮） | ✗（单轮） | Off-policy | **On-policy** |
+| 用户模拟器 | ✗ | ✗ | ✗ | **✓（含Knowledge Boundary+Demonstration）** |
+| 竞争条件处理 | N/A | N/A | N/A | **Murphy's Law** |
+| 评估粒度 | 轮次级 | LLM判决 | 轨迹级 | **里程碑级** |
+| 不足信息检测 | ✗ | ✗ | ✗ | **✓** |
+
+```python
+tools = retrieve_tools(query)
+action = planner.select(query, tools)
+obs = execute(action)
+return synthesize_answer(query, obs)
+```
+
+#### 🧪 练习题
+```yaml
+question: "ToolSandbox 中 Execution Environment 处理并行工具调用的竞争条件时采用什么策略？"
+options:
+  - "随机决定竞争条件的发生顺序"
+  - "遵循 Murphy's Law，始终让竞争条件发生"
+  - "自动将并行调用序列化为顺序执行"
+  - "忽略竞争条件，仅评估最终结果"
+answer: 1
+explain: "执行环境遵循 Murphy's Law，当检测到依赖工具被并发调用时始终让竞争条件发生，以此惩罚 Agent 不恰当的并行调用行为。这种设计迫使模型学会正确识别工具间的依赖关系。"
+```
+
+### ToolACE
+
+```yaml
+id: toolace
+num: 11
+name: ToolACE
+full_name: 工具调用自演化数据引擎 (ToolACE)
+year: '2024.09'
+org: SJTU/USTC/Huawei
+parent: toolllm
+paper_url: https://arxiv.org/abs/2409.00920
+project_url: ''
+category: learning
+motivation: 多代理自演化生成高质量调用数据
+```
+
+#### 📝 一句话总结
+ToolACE 是一套全自动化的工具学习数据合成与验证流水线，通过 **TSS（工具自进化合成）→ MAI（多智能体交互对话生成）→ DLV（双层验证）** 三大模块，生成高精度、高多样、高复杂度的函数调用训练数据，使 8B 模型在 BFCL 基准排行榜上超越所有 API 模型和开源模型，夺得第一名。
+
+#### 🎯 核心要点
+- **三大模块协同**：TSS 从预训练数据中提取 API 上下文树（30 主域 / 390 子域 / 3398 细粒度域），递归合成 26,507 个多样化 API；MAI 通过用户/助手/工具三智能体交互生成覆盖 Single/Parallel/Dependent 三类函数调用及非工具调用场景的多轮对话；DLV 通过规则检查 + 模型检查双层验证确保数据精度。
+- **Formalized Thinking + Self-Consistency**：MAI 中助手 Agent 生成每步决策时强制进行"形式化思考"，并生成 N 个候选进行多数投票，显著提升生成对话质量（消融实验：最终通过率从 49.8% 提升至 61.8%，提升 10+ 百分点）。
+- **BFCL 双榜第一**：ToolACE-8B 在 BFCL-v1 以 Overall Accuracy **91.41%**（AST 89.09% / Exec 95.50%）力压 Claude-3.5-Sonnet（90.53%）、GPT-4 系列；在 BFCL-v2 以 **81.26%** 同样居首，且工具相关性检测得分 **89.17%**，遥遥领先。
+- **Zone of Proximal Development（ZPD）理论驱动复杂度设计**：数据复杂度过低或过高均无效，ToolACE 通过相似性引导的复杂化（Similarity-Guided Complication）和多模式提示（Multi-Mode Prompting）生成难度略高于模型当前能力的数据，使其学习效率最大化。
+- **格式泛化（Format Generalization）**：训练数据支持 JSON / YAML / XML / Markdown 等多种主流工具描述和调用格式，使模型在实际部署中无需格式适配。
+
+#### 🔬 深入细节
+##### 一、Tool Self-Evolution Synthesis（TSS）—— 工具自进化合成模块
+
+**目标**：自动生成覆盖广泛领域、多样性参数类型和约束条件的 API 定义集合，超越手动收集或简单模板生成的局限。
+
+**三级层次 API 上下文树**：
+- 从 LLM 预训练语料（技术手册、API 文档、产品规范、用户指南、教程等）中提取 API 相关文档
+- 用 LLM 从每篇文档提取 API 领域及所有可能的功能/用例
+- 递归构建形成 **30 个一级域**（如 Entertainment、Education、Finance、Health、Transport）→ **390 个粗粒度子域**（如 Music、Anime、Books）→ **3,398 个细粒度域**（如 Music Streaming、Live Music）
+- 树中每个叶节点代表一个独特功能，叶节点总数约 **十万** 量级
+
+**三大步骤**（如图 Figure 2 所示）：
+
+1. **Speciation（物种形成）**：创建层次化的 API 上下文树，为后续 API 合成提供领域和功能指导。从预训练数据的 API 相关文档出发，用 LLM 提取 API 领域及功能，递归生成子节点。
+
+2. **Adaption（适应性调整）**：确定每个 API 的领域归属和复杂度等级。从细粒度域层级采样子树，确保同域内 API 功能区分度。更复杂的 API 覆盖更多上下文树节点，获取更细化、更领域特定的能力；简单 API 可能仅包含单个子节点，聚焦于简单直白的目的。
+
+3. **Evolution（进化）**：基于多样性指标持续改进 API 定义。具体操作包括：
+   - 添加新功能或参数
+   - 纳入额外约束条件
+   - 变异参数类型
+   - 更新返回结果结构
+   - 支持嵌套类型（如列表的列表、列表的字典）
+   
+   维护一个包含多样化 API 样例的缓冲区，迭代从中采样、适配到当前功能子树、生成下一代 API。
+
+**最终产出**：26,507 个独立 API 定义，参数类型丰富度远超其他工具增强数据集（参数类型分布见 Figure 7）。
+
+**对应论文图片**：![Figure 2](https://ar5iv.org/html/2409.00920/assets/x2.png)（TSS 详细流程，左侧展示 Entertainment 域下的子树示例）
+
+##### 二、Multi-Agent Interactive Dialog Generation（MAI）—— 多智能体交互对话生成模块
+
+**目标**：基于合成 API，通过三个不同角色的 LLM Agent 协同生成高精度、高复杂度的多轮函数调用对话。
+
+**三智能体架构**（Figure 1 中间部分示意）：
+
+| Agent | 角色 | 功能 |
+|-------|------|------|
+| **User Agent** (θ_u) | 模拟用户 | 发出请求/提供补充信息；由多模式提示和相似性引导复杂化策略驱动，控制对话多样性和复杂度；采样用户风格（style）和用户模板（template）以变异表达方式 |
+| **Assistant Agent** (θ_a) | 模拟助手 | 决策行动空间：调用 API、请求更多信息、总结工具反馈、提供非工具回答；每步动作前执行 **Formalized Thinking（形式化思考）** + **Self-Consistency（自一致性）** 多数投票 |
+| **Tool Agent** (θ_t) | 模拟 API 执行器 | 接收助手提供的工具描述和输入参数，输出模拟的执行结果；支撑依赖型函数调用的多步顺序执行 |
+
+**对话框类型**（Dialog Diversity）：
+1. **Simple（简单）**：单轮单次函数调用
+2. **Parallel（并行）**：单轮同时调用多个相互独立的函数
+3. **Dependent（依赖）**：多步顺序调用，后续调用依赖于前一步的工具返回结果
+4. **Non-tool-use（无工具）**：不需要调用任何 API 的常规对话（防止模型过触发工具调用）
+
+**Formalized Thinking 形式化思考**：
+- 助手 Agent 在每次决策时，将推理过程明确拆分为：① 是否需要调用工具？② 选择哪个 API？③ 如何填充参数？④ 可选参数如何处理？
+- 随即通过 **Self-Consistency** 机制生成 N 个候选响应（C_a^1, C_a^2, ..., C_a^N）
+- 比较各候选的**工具调用部分**是否一致：若不一致 → 丢弃该轮或添加 loss mask；若一致 → 通过多数投票选择最终响应
+- 消融实验验证效果显著（见下文消融实验部分）
+
+**Algorithm 1 完整伪代码**：
+```
+Algorithm 1: MAI Dialog Generation
+
+1: Initialization: Sampled API list A, Dialog D_0 = [], Target Turn Length N_t
+2: Definition: User Agent θ_u and output C_u, Assistant Agent θ_a and output C_a, Tool Agent θ_t and output C_t
+3: for t = 1, 2, ..., N_t do
+4:     Sample user template p and user style s
+5:     C_u = θ_u(D_{t-1}, A, p, s)
+6:     C_a^1, ..., C_a^N = θ_a(C_u, D_{t-1}, A)  ▷ 用形式化思考生成 N 个响应
+7:     if C_a^1 ≠ C_a^2 ≠ ... ≠ C_a^N then  ▷ 只检查工具调用部分的一致性
+8:         Continue or Add Loss Mask  ▷ 丢弃该轮或添加 loss mask
+9:     else
+10:        C_a = MajorVote(C_a^1, ..., C_a^N)
+11:    end if
+12:    D_t = D_{t-1} + [C_u, C_a]
+13:    while Tool calling in C_a do  ▷ 依赖型函数需要多次顺序调用
+14:        C_t = θ_t(C_a, A)               ▷ 工具执行
+15:        C_a = θ_a(C_t, D_t, A)          ▷ 助手基于工具反馈生成新响应
+16:        D_t = D_t + [C_t, C_a]
+17:    end while
+18: end for
+```
+
+**对应论文图片**：![Figure 1](https://ar5iv.org/html/2409.00920/assets/x1.png)（ToolACE 整体框架）；![Figure 3](https://ar5iv.org/html/2409.00920/assets/x3.png)（API 定义和函数调用的 JSON 格式示例）
+
+##### 三、Dual-Layer Validation Process（DLV）—— 双层验证系统
+
+**目标**：双阶段验证确保生成数据的准确性——先做快速规则检查剔除明显错误，再做深度模型检查捕捉语义问题。
+
+**第一层：Rule Verification（规则验证，基于代码的检查器）**
+- 自动检测格式错误（JSON 格式合法性、必需字段完整性等）
+- 自动检测逻辑矛盾（参数类型不匹配、引用了不存在的 API、必填参数缺失等）
+- 可检测的错误类型示例见 **Figure 4**（包括：幻觉参数名、错误 JSON 语法、参数类型不匹配、参数值格式不合法等）
+
+**第二层：Model Verification（模型验证，基于 LLM 的检查器）**
+- 对于规则验证难以捕获的语义级错误（如工具选择是否正确、参数语义是否合理、可选参数处理是否恰当），使用 LLM 作为裁判进行深度审核
+- 通过精心设计的 prompt 模板，让 LLM 判断对话与 API 定义之间的语义一致性
+
+**消融实验——Formalized Thinking 效果**（Table 5）：
+
+| 方法 | 规则层通过率 | 模型层通过率 | 最终通过率 |
+|------|:--------:|:--------:|:--------:|
+| **With FT** | 67.9% | 91.1% | **61.8%** |
+| W/O FT | 56.1% | 88.7% | 49.8% |
+
+→ 加入形式化思考后，最终通过率绝对提升 **12 个百分点**，模型验证层通过率提升 2.4 个百分点，规则层提升 11.8 个百分点。
+
+**消融实验——验证系统各层效果**（Figure 11）：用 LoRA 在三种数据集上微调 LLaMA3.1-8B-Instruct：
+1. `w.o. dual` —— 完全无验证（基线最差）
+2. `w.o. model` —— 仅规则验证（中等，验证了规则层有效性）
+3. `Final` —— 双层验证（最优，BFCL 可执行准确率和综合准确率均最高）
+
+→ 双层验证缺一不可，共同保障最终模型性能达到最优。
+
+**对应论文图片**：![Figure 4](https://ar5iv.org/html/2409.00920/assets/x4.png)（规则验证检测到的错误示例）；![Figure 5](https://ar5iv.org/html/2409.00920/assets/x5.png)（双层验证各层通过率统计）
+
+##### 四、核心实验成果
+
+**ToolACE-8B 在 BFCL-v1 排行榜（Table 3，前 15 名）**：
+
+| Rank | Model | Overall Accuracy | AST | Exec | Relevance |
+|:----:|-------|:----------------:|:---:|:----:|:---------:|
+| **1** | **ToolACE-8B (FC)** | **91.41** | 89.09 | 95.50 | 89.17 |
+| 2 | Claude-3.5-Sonnet-0620 (Prompt) | 90.53 | 88.55 | 95.00 | 84.17 |
+| 3 | Functionary-Medium-v3.1 (FC) | 88.88 | 86.18 | 95.00 | 81.25 |
+| 4 | xLAM-7b-fc-r (FC) | 88.76 | 86.36 | 93.50 | 85.00 |
+| 5 | GPT-4-1106-Preview (Prompt) | 88.53 | 88.91 | 95.50 | 72.50 |
+| ... | ... | ... | ... | ... | ... |
+| 15 | Gorilla-OpenFunctions-v2 (FC) | 85.41 | 87.82 | — | — |
+
+**关键结论**：
+1. **8B 小模型超越千亿级 API 闭源模型**：ToolACE-8B 不仅超过所有同规模模型，还超越了 GPT-4 全系列、Claude-3.5-Sonnet 等顶级闭源 API 模型。
+2. **与同基座对比**：ToolACE-8B 与 Functionary-Small-v3.2 均基于 LLaMA3.1-8B-Instruct 微调，但 ToolACE-8B 在所有类别上均显著领先，直接证明 ToolACE 数据合成的优越性。
+3. **工具相关性最强**：Relevance 得分 89.17%，超过第二名 4.59 个百分点，反映模型能精准判断何时需要/不需要调用工具。
+
+**BFCL-v2 排行榜（Table 4，前 5 名）**：
+
+| Rank | Model | Overall Accuracy |
+|:----:|-------|:----------------:|
+| **1** | **ToolACE-8B (FC)** | **81.26** |
+| 2 | GPT-4o-mini-2024-07-18 (FC) | 80.55 |
+| 3 | GPT-4o-mini-2024-07-18 (Prompt) | 80.19 |
+| 4 | Claude-3.5-Sonnet-0620 (Prompt) | 79.76 |
+| 5 | GPT-4-turbo-2024-04-09 (Prompt) | 79.66 |
+
+→ v2 版本难度更高，ToolACE-8B 依然稳居榜首，且是唯一进入前 10 的 8B 以下开源模型。
+
+**数据多样性统计**：
+- **一级域分布**（Figure 6）：Entertainment、Technology、Business 占比最高
+- **参数类型分布**（Figure 7）：涵盖 string、integer、boolean、array、object、float 以及各类嵌套组合
+- **数据类别分布**（Figure 8）：训练数据覆盖丰富的数据类型和约束组合
+- **复杂度分布**（Figure 10）：归一化复杂度分在 [0,1] 区间呈偏右分布，确保大量数据处于 ZPD 最优难度区
+
+**格式泛化能力**（Figure 9）：模型在 JSON / YAML / XML / Markdown 四种格式下均能正确解析工具定义并生成对应格式的调用，训练阶段即支持多种格式交替，避免过拟合单一格式。
+
+##### 五、其他关键图表
+
+| 图表 | 内容 | 链接 |
+|------|------|------|
+| Figure 1 | ToolACE 整体框架（TSS + MAI + DLV） | [x1.png](https://ar5iv.org/html/2409.00920/assets/x1.png) |
+| Figure 2 | TSS 详细流程（含 API Context Tree 示例） | [x2.png](https://ar5iv.org/html/2409.00920/assets/x2.png) |
+| Figure 3 | API 定义和函数调用 JSON 格式示例 | [x3.png](https://ar5iv.org/html/2409.00920/assets/x3.png) |
+| Figure 4 | 规则验证检测到的错误示例 | [x4.png](https://ar5iv.org/html/2409.00920/assets/x4.png) |
+| Figure 5 | DLV 中规则验证和模型验证的通过率 | [x5.png](https://ar5iv.org/html/2409.00920/assets/x5.png) |
+| Figure 6 | 所有 API 的一级域分布统计 | [x6.png](https://ar5iv.org/html/2409.00920/assets/x6.png) |
+| Figure 7 | 参数类型分布 | [x7.png](https://ar5iv.org/html/2409.00920/assets/x7.png) |
+| Figure 8 | 数据类别分布 | [x8.png](https://ar5iv.org/html/2409.00920/assets/x8.png) |
+| Figure 9 | 函数调用格式泛化 | [x9.png](https://ar5iv.org/html/2409.00920/assets/x9.png) |
+| Figure 10 | 单次数据复杂度分数分布 | [x10.png](https://ar5iv.org/html/2409.00920/assets/x10.png) |
+| Figure 11 | 验证系统消融实验（w.o. dual / w.o. model / Final） | [x11.png](https://ar5iv.org/html/2409.00920/assets/x11.png) |
+
+#### 🧪 练习题
+```yaml
+question: "ToolACE 中 DLV（双层验证）的主要作用是什么？"
+options:
+  - "把所有 API 自动部署成真实在线服务"
+  - "先用规则检查过滤格式与参数错误，再用模型检查补足语义级错误"
+  - "把单轮对话全部改写成多轮对话"
+  - "在推理时替代 LLM 生成工具调用"
+answer: 1
+explain: "DLV 的核心是规则层抓显式错误、模型层抓语义错误，两层叠加保证生成训练数据的准确率。"
+```
+
+### MCP
+
+```yaml
+id: mcp
+num: 12
+name: MCP
+full_name: 模型上下文协议 (Model Context Protocol)
+year: '2024.11'
+org: Anthropic
+parent: —
+paper_url: https://www.anthropic.com/news/model-context-protocol?stargate_lang=en
+project_url: ''
+category: protocol
+motivation: 统一工具资源提示的JSON-RPC接口
+```
+
+#### 📝 一句话总结
+MCP 提出了一个基于 JSON-RPC 2.0 的客户端-服务器协议标准，统一了 AI 助手与外部数据源（内容仓库、业务工具、开发环境）之间的上下文交换方式，解决了多工具集成中"M×N 集成问题"。
+
+#### 🎯 核心要点
+- 提出 MCP 开放协议标准，将 AI 应用与工具/数据源的连接从"每个模型×每个工具"的碎片化集成转变为统一的一次性集成范式
+- 采用客户端-服务器架构，定义三类参与者：MCP Host（AI 应用）、MCP Client（连接管理器）、MCP Server（上下文提供者）
+- 双层协议设计：Data Layer 定义 JSON-RPC 2.0 消息语义（生命周期管理、核心原语），Transport Layer 抽象通信机制
+- 支持两种传输方式：Stdio Transport（本地进程间通信）和 Streamable HTTP Transport（远程服务器通信，含 SSE 流式推送）
+- 核心 Server Primitives 包括 Tools（供 AI 调用的操作）、Resources（结构化上下文数据）、Prompts（交互模板）
+- 核心 Client Primitives 包括 Sampling（请求 Host LLM 采样）、Elicitation（请求用户输入）、Logging（日志回传）
+- 有状态协议：生命周期分 Initialization（能力协商）、Operation（正常通信）、Shutdown（优雅关闭）三阶段
+- 提供多语言 SDK（TypeScript/Python 等）和开发工具（MCP Inspector），参考实现覆盖文件系统、Sentry、GitHub 等
+
+#### 🔬 深入细节
+![MCP 架构示意图](https://modelcontextprotocol.io/images/mcp-simple-diagram.png)
+
+*图：MCP 协议的客户端-服务器架构，Host 通过多个 Client 实例连接不同 Server，统一上下文交换*
+
+##### 动机与背景
+
+传统 AI 助手集成外部工具时面临"M×N 集成问题"：每新增一个 AI 应用或工具，都需要为每个组合编写定制适配代码，导致工程碎片化严重。Anthropic 在 2024 年 11 月 25 日开源 MCP，目标是成为"AI 应用的 USB-C 接口"——一个统一标准，使任何 AI 应用（Claude、VS Code 等）能够通过同一协议连接到任何提供上下文的工具或数据源。
+
+##### 核心架构与交互流程
+
+MCP 的架构围绕三类参与者展开：
+
+1. **MCP Host**：实际的 AI 应用（如 Claude Desktop、Claude Code、VS Code），负责协调管理多个 MCP Client
+2. **MCP Client**：为每个 MCP Server 创建一个独立的客户端连接实例，维护与该 Server 的 1:1 连接
+3. **MCP Server**：提供上下文数据的程序，可运行在本地（Stdio 传输）或远程（Streamable HTTP 传输）
+
+连接建立后经历三阶段生命周期：
+
+```
+初始化阶段 (Initialization)
+  Client → Server: initialize 请求（携带 protocolVersion、capabilities、clientInfo）
+  Server → Client: 响应（返回 server capabilities、serverInfo）
+  Client → Server: notifications/initialized 通知
+  ↓
+操作阶段 (Operation)
+  双向 JSON-RPC 2.0 消息交换：
+    - tools/list, tools/call（工具发现与调用）
+    - resources/list, resources/read（资源枚举与读取）
+    - prompts/list, prompts/get（提示模板获取）
+    - sampling/createMessage（Client 请求 Host LLM 采样）
+    - elicitation/create（Client 请求用户输入）
+  ↓
+关闭阶段 (Shutdown)
+  Client → Server: shutdown 请求
+  Server → Client: 响应确认
+  连接断开
+```
+
+##### 核心原语（Primitives）
+
+**Server 端原语**使 AI 应用能够发现和利用外部能力：
+
+- **Tools**：模型可调用的远程操作。Server 暴露 `tools/list` 列出可用工具及其 JSON Schema 参数定义，Client 通过 `tools/call` 发起实际调用。典型用途包括查询数据库、发送消息、操作文件系统
+- **Resources**：结构化的只读数据资源。通过 URI 标识，Server 提供 `resources/list` 和 `resources/read`，支持静态资源和动态模板（如 `users://{userId}/profile`）。可选订阅机制（`resources/subscribe`）在资源变化时推送通知
+- **Prompts**：预定义的交互模板，帮助用户和模型以标准化方式启动特定任务（如代码审查、数据分析）
+
+**Client 端原语**让 Server 能反向利用 Host 的能力：
+
+- **Sampling**：Server 通过 `sampling/createMessage` 请求 Host LLM 生成补全内容，支持指定角色（user/assistant）、上下文包含、模型偏好等参数
+- **Elicitation**：Server 通过 `elicitation/create` 向终端用户请求输入，支持表单模式和 URL 模式，可要求必填验证
+- **Logging**：Server 通过 `notifications/logging` 向 Client 发送结构化日志，支持 debug/info/warning/error 级别
+
+##### 与传统方法的区别
+
+> 💡 关键：MCP 与 Function Calling 和传统 Plugin 系统有本质区别
+
+| 维度 | 传统 Function Calling | 传统 Plugin 系统 | MCP |
+|------|----------------------|------------------|-----|
+| 集成方式 | 每个模型单独定义函数 | 每个平台单独开发插件 | 统一协议，一次对接 |
+| 可移植性 | 绑定特定模型/平台 | 绑定特定平台 | 跨模型、跨应用复用 |
+| 传输层 | 通常同进程 | 各异 | Stdio + Streamable HTTP 双模 |
+| 状态管理 | 无状态请求 | 各实现不同 | 有状态生命周期协议 |
+| 能力发现 | 静态定义 | 静态清单 | 动态协商 capabilities |
+
+MCP 的创新在于将工具集成的标准化从"应用层"下沉到"协议层"，使得 Server 开发者只需实现一次 MCP 接口，即可被任何 MCP-compatible Host 使用——无论 Host 内部使用 Claude、GPT 还是其他模型。
+
+##### 传输层详解
+
+MCP 的 Transport Layer 抽象了通信细节，使 Data Layer 的 JSON-RPC 消息在两种传输机制上统一运作：
+
+- **Stdio Transport**：通过标准输入/输出流通信。Server 作为子进程由 Client 启动，消息以换行符分隔的 JSON 帧发送。零网络开销，适合本地工具集成。仅服务单个 Client
+- **Streamable HTTP Transport**：通过 HTTP POST 发送 Client→Server 消息，Server 可选通过 Server-Sent Events (SSE) 向 Client 推送流式响应和通知。支持标准 HTTP 认证（Bearer Token、API Key、自定义 Header），推荐 OAuth 获取令牌。可服务多个 Client 并发连接
+
+> ⚠️ 注意：HTTP 传输模式下需要特殊的"伪 GET"升级握手——Client 先发送 `Accept: text/event-stream` 的 GET 请求建立 SSE 通道，之后 POST 请求才能携带通知
+
+##### 消息格式（JSON-RPC 2.0 基础）
+
+所有 MCP 消息遵循标准 JSON-RPC 2.0 格式：
+
+- **Request**：`{"jsonrpc":"2.0","id":<id>,"method":"<method>","params":{...}}`
+- **Response**：`{"jsonrpc":"2.0","id":<id>,"result":{...}}` 或 Error：`{"jsonrpc":"2.0","id":<id>,"error":{"code":<code>,"message":"..."}}`
+- **Notification**：`{"jsonrpc":"2.0","method":"notifications/<name>","params":{...}}`（无 id，无响应）
+
+##### 生态与现状
+
+MCP 自 2024 年 11 月发布以来迅速获得行业采纳。官方提供 TypeScript 和 Python SDK，包含 MCP Inspector 调试工具。参考 Server 实现涵盖文件系统访问、数据库查询（Postgres/SQLite）、GitHub API、Brave Search、Sentry 错误追踪等。第三方社区已贡献数百个 MCP Server，覆盖云服务、开发工具、知识管理等领域。规范仓库托管于 `github.com/modelcontextprotocol/specification`，以 MIT 许可证开源。
+
+#### 🧪 练习题
+```yaml
+question: "MCP 协议中，Server 想要让 AI Host 生成一段文本时，应该使用哪个 Client 端原语？"
+options:
+  - "tools/call，调用文本生成工具"
+  - "resources/read，读取文本资源"
+  - "sampling/createMessage，请求 LLM 采样补全"
+  - "elicitation/create，请求用户输入文本"
+answer: 2
+explain: "sampling/createMessage 是 MCP 定义的 Client Primitives 之一，允许 Server 反向请求 Host 的 LLM 进行采样/补全。这是让外部工具驱动 AI 生成内容的标准路径。"
+```
+
+### ACEBench
+
+```yaml
+id: acebench
+num: 13
+name: ACEBench
+full_name: 工具使用综合评测 (ACEBench)
+year: '2025.01'
+org: USTC/Huawei/SJTU
+parent: toolsandbox
+paper_url: https://arxiv.org/abs/2501.12851
+project_url: ''
+category: evaluation
+motivation: 以Normal/Special/Agent三类场景细分工具评测
+```
+
+#### 📝 一句话总结
+ACEBench 提出了一套覆盖 **Normal / Special / Agent** 三类场景的细粒度工具使用基准，用统一而低开销的自动化评测流程同时考察基础工具调用、含歧义或不完整指令，以及真实多轮代理交互。
+
+#### 🎯 核心要点
+- 把评测数据分成 **Normal、Special、Agent** 三类，而不是只看单一成功率。
+- 覆盖 **8 个大域、68 个子域、4,538 个中英双语 API**，数据规模明显大于很多早期工具基准。
+- 数据集包含约 **2,000** 条高质量测试样本，其中 Agent 类专门用于模拟真实多轮对话和环境交互。
+- 设计了 **自动化且不依赖真实 API 执行** 的评估框架，降低了成本并提升了复现实验稳定性。
+- 相比只测单轮调用的基准，ACEBench 更强调 **歧义指令、缺失信息、交互式代理行为** 的区分诊断。
+
+#### 🔬 深入细节
+![ACEBench 数据构成图](https://raw.githubusercontent.com/chenchen0103/ACEBench/main/fig/data_composition.png)
+
+*图：ACEBench 的数据构成。基准把样本拆成 Normal、Special、Agent 三大类，而不是把所有工具调用场景混成一个总分。*
+
+##### 动机：为什么现有工具基准还不够
+
+ACEBench 论文对旧基准的批评很明确，主要有三点：
+
+- **场景不够真实**：很多基准只有单轮工具调用，缺少真实多轮对话。
+- **维度不够细**：往往只有“对/错”或端到端成功率，难以看出模型具体栽在哪类场景。
+- **评估成本高**：有些方案依赖真实 API 执行或 LLM 评委，难以大规模、稳定复现。
+
+所以 ACEBench 的设计目标不是再做一个更大的“工具调用题库”，而是把工具使用拆成几类本质不同的问题，并尽量用统一自动流程做评测。
+
+##### 三类数据：Normal / Special / Agent
+
+ACEBench 的核心不是错误标签，而是 **评测场景类型**：
+
+**1. Normal**
+
+最基础的工具使用场景，重点看模型能否：
+
+- 选对工具；
+- 填对参数；
+- 生成正确格式的调用。
+
+这类样本类似“标准函数调用题”，主要衡量基础 tool use 能力。
+
+**2. Special**
+
+这一类专门测试现实里常见但更麻烦的情况：
+
+- 用户指令含糊；
+- 信息不完整；
+- 需要补问或澄清；
+- 可能根本无法完成。
+
+这也是当前很多模型的薄弱环节，因为它们经常在信息不足时“猜一个调用”，而不是停下来澄清。
+
+**3. Agent**
+
+Agent 类是 ACEBench 最重要的扩展。它不再只看单步调用，而是构造 **多轮用户-环境-代理交互**，考察：
+
+- 工具调用链是否合理；
+- 中间状态是否被正确利用；
+- 多轮交互里是否能持续保持目标；
+- 在环境反馈变化时是否会修正策略。
+
+这部分是 ACEBench 区分于很多旧工具基准的核心价值。
+
+##### 数据构建与验证
+
+ACEBench 覆盖技术、金融、娱乐、社会、健康、文化、环境等多个领域，共 **8 大域、68 子域、4,538 个 API**。论文还强调：
+
+- 数据是 **中英双语** 的；
+- Special 与 Agent 数据不是简单模板拼接，而是专门设计含歧义与交互性的样本；
+- 构建流程包含自动化质量检查、模型辅助验证和人工审核，避免工具描述或标注本身出错。
+
+从工程视角看，这意味着 ACEBench 不是只追求“大”，而是把数据质量和评测分层一起做了。
+
+##### 评测框架：按类型分别打分
+
+ACEBench 的评估思路可以简化成：
+
+```python
+def evaluate(sample, model_output):
+    if sample.type == "normal":
+        return eval_normal_tool_call(sample, model_output)
+    if sample.type == "special":
+        return eval_ambiguous_or_incomplete_case(sample, model_output)
+    if sample.type == "agent":
+        return eval_multi_turn_agent_trace(sample, model_output)
+```
+
+这背后的思想很重要：**同一个模型在三类场景里失败原因完全不同**。
+
+- 在 Normal 上失败，通常说明基础函数调用能力不足；
+- 在 Special 上失败，往往说明缺乏澄清、拒答或处理不完整约束的能力；
+- 在 Agent 上失败，则更接近规划、记忆和交互式执行问题。
+
+因此，ACEBench 的总分有意义，但更重要的是 **分类型诊断**。
+
+##### 与旧基准的区别
+
+和 API-Bank、ToolLLM、StableToolBench、ToolSandbox 这类基准相比，ACEBench 的定位更偏“综合诊断”：
+
+- 它不像 BFCL 那样主要聚焦函数调用结构；
+- 也不像 ToolSandbox 那样主打 stateful 环境与世界状态依赖；
+- 它更像把 **基础调用、复杂边界条件、真实代理交互** 拉到同一个评测体系下。
+
+论文声称，ACEBench 是少数能同时覆盖：
+
+- 多轮对话
+- 细粒度工具评测
+- 复杂边界条件
+- 自动化可复现流程
+
+的综合型基准。
+
+##### 为什么这篇工作重要
+
+ACEBench 的真正价值，在于它把“工具使用失败”拆成了更可操作的工程问题：
+
+- 如果 Normal 差，先补 schema、参数与格式遵循；
+- 如果 Special 差，补澄清、拒答、信息不足判断；
+- 如果 Agent 差，补规划、记忆和多轮交互。
+
+这种拆法，比只看一个 Overall Accuracy 更接近真实部署诊断。
+
+> ⚠️ 注意：ACEBench 仍然是 benchmark，不是训练方法。它能更好地暴露问题，但不会自动解决模型的 tool use 缺陷。
+
+#### 🧪 练习题
+```yaml
+question: "ACEBench 中哪一类数据最直接用于测试含歧义或信息不完整的工具使用场景？"
+options:
+  - "Normal"
+  - "Special"
+  - "Agent"
+  - "Overall"
+answer: 1
+explain: "Special 类专门针对 ambiguous or incomplete instructions，测试模型是否会澄清、拒绝或在缺信息时避免盲目调用工具。"
+```
+
+### BFCL
+
+```yaml
+id: bfcl
+num: 14
+name: BFCL
+full_name: 伯克利函数调用排行榜 (BFCL)
+year: '2025.05'
+org: UC Berkeley
+parent: gorilla
+paper_url: https://openreview.net/forum?id=2GmDdhBdDk
+project_url: ''
+category: evaluation
+motivation: 以AST与执行统一函数调用评测
+```
+
+#### 📝 一句话总结
+BFCL 把函数调用评测从“少量 Python function call 样例”扩展为覆盖多语言、多调用模式、AST 校验与真实执行校验的大规模统一基准，并进一步把多步、带状态、需要 abstain 的 agentic function calling 纳入排行榜，成为函数调用能力评测的事实标准。
+
+#### 🎯 核心要点
+- 提出 Berkeley Function Calling Leaderboard，系统评估 serial、multiple、parallel、parallel-multiple 等函数调用场景
+- 覆盖 Python、Java、JavaScript、REST API、SQL 等多种语言/接口形式，而不是局限于单一 JSON schema
+- 设计 AST evaluation 与 executable evaluation 两套互补评测方式，以结构正确性和真实可执行性双重检查结果
+- 数据由专家构造与用户贡献函数共同组成，目标是接近真实工具使用分布而不是玩具合成任务
+- 不只测“该不该调、怎么调”，还测 abstain、memory、stateful multi-step、dynamic decision-making 等 agentic 能力
+- OpenReview 版本明确指出：最强模型在单轮函数调用上已很强，但记忆、长时推理和动态决策仍是明显短板
+- 论文与配套网站共同把 BFCL 推成函数调用评测的公共基准与持续更新排行榜
+
+#### 🔬 深入细节
+![BFCL 排行榜总览](https://gorilla.cs.berkeley.edu/assets/img/blog_post_8_Leaderboard.png)
+*图：BFCL 官方排行榜把 AST、执行、relevance detection、成本与延迟等指标放在同一张面板里展示。*
+
+```python
+# BFCL 的核心评测流程（按论文/官方说明概括）
+for sample in benchmark:
+    prediction = model.generate_function_call(sample.prompt, sample.functions)
+    ast_ok = ast_match(prediction, sample.reference_calls)
+    exec_ok = maybe_execute(prediction, sample.runtime)
+    abstain_ok = check_relevance_or_abstain(prediction, sample.label)
+    record(sample.category, ast_ok, exec_ok, abstain_ok)
+aggregate_by(simple, multiple, parallel, relevance, latency, cost)
+```
+
+BFCL 解决的是函数调用评测里两个最老的问题。第一，什么叫“调用对了”？如果只做字符串精确匹配，很多语义等价调用会被误判；第二，真实世界的函数形式非常多，过去的小型 benchmark 很难覆盖。论文因此把评测问题拆成 AST evaluation 与 executable evaluation。
+
+这让 BFCL 不再只是“让模型补一个 JSON”。它同时考察 multiple function selection、parallel invocation、relevance detection，以及在没有合适函数时能否 abstain。OpenReview 版本进一步把多步、带状态的 agentic setting 纳入评测。
+
+从方法论上看，BFCL 最重要的贡献是把函数调用从“模型功能演示”变成“可持续、可比较、可扩展的公共评测基础设施”。多语言、多类型函数、多粒度场景以及排行榜持续更新，共同让它成为后续 tool-use / agentic evaluation 工作默认会引用的基准。
+
+因此在 `tool_use` 专题里，BFCL 的定位不只是一个 benchmark，而是“函数调用评测方法学”的拐点：从静态 schema 匹配转向结构校验、真实执行和 agentic long-horizon 分层评估。
+
+> 💡 关键：AST evaluation 的作用不是替代真实执行，而是在无法统一执行所有语言/接口时，提供可扩展的结构正确性检查。
+
+> ⚠️ 注意：排行榜高分不等于 agent 已经擅长多步任务；OpenReview 版本恰恰强调了从 function call 到 stateful agentic evaluation 仍有巨大落差。
+
+#### 🧪 练习题
+```yaml
+question: BFCL 为什么同时保留 AST evaluation 和 executable evaluation？
+options:
+- 因为 AST evaluation 更慢，需要 executable evaluation 加速
+- 因为并非所有场景都能统一真实执行，AST 能补足结构正确性检查
+- 因为 executable evaluation 只适用于多模态任务
+- 因为 AST evaluation 主要用于估计 token 成本
+answer: 1
+explain: 很多语言或接口难以统一真实执行，AST 检查能提供可扩展的结构验证，而可执行场景再用 execution 做更强约束。
+```
+
+### τ²-Bench
+
+```yaml
+id: tau2_bench
+num: 15
+name: τ²-Bench
+full_name: 双控对话代理基准 (τ²-Bench)
+year: '2025.06'
+org: Sierra/Princeton
+parent: tau_bench
+paper_url: https://arxiv.org/abs/2506.07982
+project_url: ''
+category: evaluation
+motivation: 让用户与代理共同操控环境
+```
+
+#### 📝 一句话总结
+τ²-Bench 把对话 agent 从“只有 agent 能动手”的单控环境推进到“用户和 agent 都能通过工具改变同一世界状态”的双控环境，用 Dec-POMDP 建模、组合式任务生成器和受环境约束的用户模拟器，专门测 agent 的 reasoning 与 user guidance 能力。
+
+#### 🎯 核心要点
+- 指出现有 conversational agent benchmark 多是假设只有 agent 操作工具，用户只是被动提供信息
+- 提出 Telecom dual-control domain：用户与 agent 都能对共享世界状态执行动作
+- 用 Dec-POMDP 建模双控交互，把协调与沟通问题显式化
+- 程序化组合任务生成器把 atomic components 组合成可验证任务，控制覆盖度与复杂度
+- 用户模拟器与环境状态、可用工具紧耦合，避免传统 user simulator 胡乱“配合”agent
+- 评测区分 reasoning error 与 communication/coordination error，而不是只看最终成败
+- 实验显示，从 no-user 场景切到 dual-control 后性能明显下降，说明“指导用户做正确动作”是独立难点
+
+#### 🔬 深入细节
+![τ²-Bench 双控环境示意图](https://ar5iv.labs.arxiv.org/html/2506.07982/assets/x1.png)
+*图：τ²-Bench 把用户与 agent 都放进同一个可操作环境里，评测 agent 不仅要自己决策，还要指导用户采取正确动作。*
+
+```python
+# τ²-Bench 的双控交互循环（按论文方法概括）
+def dual_control_episode(task, agent, user, env):
+    obs_agent, obs_user = env.reset(task)
+    while not env.done():
+        a_agent = agent.act(obs_agent)
+        a_user = user.act(obs_user)
+        state = env.step(a_agent, a_user)
+        obs_agent, obs_user = state.obs_for_agent, state.obs_for_user
+    return evaluate(task, state)
+```
+
+τ²-Bench 的关键洞察是：很多真实客服、支持和协同场景里，agent 并不能单方面完成所有操作。用户自己也会修改设备、输入参数、点击按钮、确认步骤，世界状态是“共同操控”的。过去大量 benchmark 仍然采用 single-control 假设，这会系统性高估 agent 的真实能力。
+
+因此论文把问题改写成 dual-control environment，并用 Dec-POMDP 建模。这样 agent 的任务不再只是“自己推理后采取动作”，还包括理解当前共享状态、判断哪些动作该自己做、哪些动作必须指导用户去做。
+
+为了让评测可控，τ²-Bench 还设计了 compositional task generator 与 tightly coupled user simulator。前者保证覆盖度和复杂度可控，后者避免模拟用户无条件帮 agent 补台阶。
+
+所以 τ²-Bench 代表的是评测范式的升级：它把对话 agent 从单方工具使用，推进到“共享环境中的协同控制”。
+
+> 💡 关键：dual-control 的难点不是多一个参与者，而是共享世界状态会让“自己做”和“指导别人做”成为两种不同决策。
+
+> ⚠️ 注意：如果 user simulator 不受环境约束，所谓双控评测会重新退化成单控 benchmark 的伪装版本。
+
+#### 🧪 练习题
+```yaml
+question: τ²-Bench 相比传统 single-control benchmark 的核心新增难点是什么？
+options:
+- 要求 agent 在没有任何工具的情况下纯聊天完成任务
+- 要求 agent 与用户共同操作共享环境，并正确协调谁该执行哪一步
+- 把所有任务都改成图像理解
+- 只允许 agent 在最后一轮调用工具
+answer: 1
+explain: τ²-Bench 的新难点正是 dual-control：agent 不仅要自己操作，还要在共享状态下指导用户操作。
+```
+
+### EigenData+VR-RL
+
+```yaml
+id: vrrl_agents
+num: 16
+name: EigenData+VR-RL
+full_name: 自演化数据与可验证奖励后训练 (EigenData + VR-RL)
+year: '2026.01'
+org: Tsinghua/Eigen AI
+parent: toolace
+paper_url: https://arxiv.org/abs/2601.22607
+project_url: ''
+category: learning
+motivation: 自演化数据结合可验证奖励后训练
+```
+
+#### 📝 一句话总结
+提出 **EigenData**（自演化多智能体数据引擎）与 **Verifiable-Reward RL**（基于可验证奖励的GRPO强化学习）相结合的后训练框架，解决了长程工具使用场景下高质量训练数据匮乏和RL奖励信号不可靠的问题，在多域τ²-bench上使开源模型匹配甚至超越GPT-5/Claude等前沿闭源模型。
+
+#### 🎯 核心要点
+- **EigenData 分层数据引擎**：编排层（Orchestration Layer）含 WorkflowPlanner / PromptEngineer / Judge 三个Agent协同；执行层（Execution Layer）含七步流水线：RandomPool → UserIntent → TaskValidation → DialogSynthesis → TrajectoryValidation → Modify → ValidationFunction
+- **Per-Instance 可执行验证函数**：每条合成的对话自动生成一个Python验证函数，解析最终状态与ground-truth状态对比，产生二值奖励信号，为RL提供无噪声的outcome reward
+- **自演化 Prompt 优化**：每代迭代16次，使用5-20个样本，通过PromptEngineer和Judge自动改进prompt集合的质量和多样性
+- **三阶段大规模合成**：多样化初始化 → 试优化（pilot optimization）→ 在线监控生成（online monitoring generation），逐步扩大数据规模和覆盖范围
+- **GRPO 轨迹级RL训练**：基于 group-relative advantage 的 token-level clipping loss，配合 Dynamic Filtering 移除全成功/全失败的无信号组
+- **User Model 监督微调**：先对开源用户模拟器进行SFT微调确保稳定模拟，避免用户模型错误污染RL奖励信号
+- **多域SOTA结果**：Qwen3-235B-A22B RL后 Airline 73.0% / Retail 75.0% / Telecom 98.3%（passˆ1），匹配Gemini 3.0 Pro / Claude Sonnet 4.5
+- **Mix Training 泛化**：三域混合训练单模型平均81.3% passˆ1，超越Qwen3-Max-Thinking (80.7%) 和 GPT-5 (80.0%)
+
+#### 🔬 深入细节
+##### 1. 框架总览
+
+整体后训练流程分为两大阶段：
+
+**阶段一：EigenData 数据合成。** 一个分层多智能体系统自动生成多轮工具使用对话及配套的per-instance验证函数。编排层的三个Agent分工协作：WorkflowPlanner 根据domain schema设计合成工作流，PromptEngineer 通过自演化迭代优化prompt，Judge 评估数据质量和任务多样性。执行层按照七步流水线将工作流实例化：从随机种子池中抽取用户画像（RandomPool），生成用户意图（UserIntent），验证任务可行性（TaskValidation），合成完整多轮对话（DialogSynthesis），对轨迹进行质量校验（TrajectoryValidation），按需修改或重试（Modify），最终生成可执行的验证函数（ValidationFunction）。关键特性是**每条数据都带有独立的可执行验证函数**，这为后续RL提供了精确的、无歧义的结果奖励信号。
+
+**阶段二：Verifiable-Reward RL 训练。** 先用EigenData合成的大量对话对agent模型做SFT微调，同时对user simulator模型也做SFT微调（确保用户行为可靠）。然后在多轮交互环境中进行GRPO强化学习：agent与微调后的用户模拟器交互，生成的完整轨迹由per-instance验证函数评估产生outcome reward，通过group-relative advantage计算学习信号。
+
+![EigenData 架构总览](https://ar5iv.labs.arxiv.org/html/2601.22607/assets/x1.png)
+*图：EigenData 分层多智能体数据合成框架与 Verifiable-Reward RL 训练流程总览*
+
+##### 2. EigenData 数据合成详解
+
+**问题动机**：传统工具使用数据依赖人工标注，成本极高且难以规模化。简单的模型生成数据缺乏多样性，且没有客观的验证手段来判断轨迹正确性。EigenData 的核心创新在于**自动化生成可验证的数据**，使得每条样本都自带"标准答案检查器"。
+
+**编排层（Orchestration Layer）** 三个Agent的职责：
+
+1. **WorkflowPlanner**：接收domain的工具schema和任务描述，设计该领域的完整数据生成工作流，包括确定需要多少个不同的prompt集合（如Airline领域生成64个prompt set）、每个集合覆盖的用户场景类型、以及各步骤的具体配置参数。
+
+2. **PromptEngineer**：负责prompt的自演化优化。采用迭代方式：从少量初始prompt开始（5-20个样本），生成一批对话数据，由Judge评估质量后，PromptEngineer分析失败案例并提出改进方向（如增加约束、调整话术、覆盖边缘情况），生成下一代prompt。每代迭代16次，prompt质量和生成的对话质量同步提升。
+
+3. **Judge**：评估合成数据的质量，包括对话是否逻辑一致、工具调用是否正确、验证函数是否精确等。Judge的输出反馈给PromptEngineer形成闭环优化。
+
+**执行层（Execution Layer）** 七步流水线：
+
+| 步骤 | 名称 | 功能 |
+|------|------|------|
+| 1 | RandomPool | 从预定义的种子池中随机采样用户画像、偏好、约束条件 |
+| 2 | UserIntent | 基于用户画像生成具体的任务意图（如"预订从北京到上海的航班"） |
+| 3 | TaskValidation | 验证任务的可行性，确保工具schema能支持该任务 |
+| 4 | DialogSynthesis | 合成完整的多轮对话，agent逐步调用工具完成任务 |
+| 5 | TrajectoryValidation | 校验轨迹的正确性、连贯性和工具调用合理性 |
+| 6 | Modify | 对不通过的轨迹进行修改或重新生成 |
+| 7 | ValidationFunction | **关键步骤**：自动生成Python验证函数，该函数接收最终状态，与ground-truth比对 |
+
+验证函数的核心作用：
+
+```python
+# 生成的验证函数示例（Telecom领域）
+def validate(final_state, ground_truth):
+    """比较关键实体和操作是否完全匹配"""
+    for entity in ground_truth["entities"]:
+        if entity not in final_state["entities"]:
+            return 0  # 失败
+    for action in ground_truth["actions"]:
+        if action not in final_state["actions"]:
+            return 0
+    return 1  # 完全匹配才成功
+```
+
+验证函数严格检查关键实体（entities）和行为（actions），只有**完全匹配**才评为成功，产生严格的二值奖励信号。
+
+**三阶段大规模合成策略**：
+- **Phase 1 - 多样化初始化**：用RandomPool覆盖广泛的用户画像和任务类型，确保基础多样性
+- **Phase 2 - 试优化**：在小规模下运行自演化循环，快速迭代prompt到较优状态
+- **Phase 3 - 在线监控生成**：大规模生成的同时进行实时质量监控，过滤低质量数据
+
+**自演化效果验证**：消融实验显示，移除自演化（w/o. Evolution）后Airline domain的passˆ1从56.0%降至44.0%，证明了自演化prompt优化的关键作用。移除验证Agent（w/o. Validation）降至50.0%，减少prompt set数量从64到4降至42.5%，说明数据质量和多样性同等重要。
+
+##### 3. Verifiable-Reward RL 训练方法
+
+**为什么需要RL？** SFT虽然能大幅提升基线性能（Telecom从27.1%→80.7%），但覆盖的分布受限于生成数据的分布。RL通过与环境交互的试错学习，使模型能够泛化到训练数据未覆盖的场景。
+
+**GRPO (Group Relative Policy Optimization) 训练流程**：
+
+1. **Rollout阶段**：从prompt集合中采样batch个任务，每个任务用当前策略生成G条完整交互轨迹（G=8或16）。agent与user simulator交替交互，直至任务完成或达到最大轮次。
+
+2. **奖励计算**：每条轨迹通过其专属验证函数评估，产生二值outcome reward \(r \in \{0, 1\}\)。
+
+3. **优势计算**：对每个任务组内的G条轨迹，计算 group-relative advantage：
+   \[
+   \hat{A}^{(g)}_t = \frac{r^{(g)} - \text{mean}(\{r^{(1)}, ..., r^{(G)}\})}{\text{std}(\{r^{(1)}, ..., r^{(G)}\})}
+   \]
+   同一组内所有token position共享相同的优势值。
+
+4. **Clipping Loss**：token-level的裁剪损失函数：
+   \[
+   \mathcal{L} = -\mathbb{E}_t\left[\min\left(\frac{\pi_\theta}{\pi_{\theta_{\text{old}}}} \hat{A}_t, \ \text{clip}\left(\frac{\pi_\theta}{\pi_{\theta_{\text{old}}}}, 1-\epsilon, 1+\epsilon\right) \hat{A}_t\right)\right]
+   \]
+
+5. **Dynamic Filtering**：在计算优势前，检查每个任务组：如果组内所有G条轨迹的奖励完全相同（全0或全1），则该组的优势全为0，不提供学习信号。将此类任务从当前batch中移除，保留有意义的差异化组。
+
+**User Model 微调**：这是论文的重要发现之一。在使用开源模型（如Qwen3-30B-A3B）直接作为用户模拟器时，模型经常无法正确遵循用户指令，错误地使用工具或忽略agent的响应，导致任务失败。由于奖励只看最终结果，agent的正确行为也会因用户错误而被错误惩罚（reward=0）。通过在EigenData合成数据上对user model进行SFT微调，使其能可靠地执行用户角色，从而保证RL训练信号的准确性。
+
+**User Model 消融实验**：使用base user model时，Telecom domain RL训练后性能从85.4%降至75.6%（反而退化）；而使用微调后的user model则提升至95.6%。两者差距达20个百分点，充分说明user model质量对RL训练至关重要。
+
+**RL算法消融**：
+- **Batch Size**：总batch size从256增至512带来显著提升（passˆ1: 64%→70.5%，passˆ4: 40%→52%），而相同总batch size下（256），prompt数×轨迹数（8×32 vs 16×16）差异很小（64% vs 66%），说明**总batch size是主导因素**。
+- **Dynamic Filtering**：开启后passˆ1从65.0%→70.5%，passˆ4从40.0%→52.0%，移除无信号组显著提升训练效率和最终性能。
+
+##### 4. 训练曲线与混合训练
+
+论文在附录中展示了训练曲线。Separate training（单域训练）和Mix training（三域混合）均稳定收敛。Mix training在Qwen3-235B-A22B-2507上达到81.3%平均passˆ1，超越了Separate training的各域独立最优平均值。更重要的是，**单模型**在三个域上的passˆ4平均达68.5%，超越Qwen3-Max-Thinking (66.8%) 和 GPT-5 (64.0%)，证明混合训练具有正向的跨域泛化能力。
+
+##### 5. 关键设计洞察
+
+> 💡 **核心创新1：可验证奖励的自动化生成。** EigenData不仅生成对话，更关键的是为每条对话生成一个可执行的Python验证函数。这解决了工具使用RL中长期存在的"奖励信号从哪来"的问题——不需要训练reward model，不需要人工标注，只需运行时执行验证函数即可获得精确的二值奖励。
+
+> 💡 **核心创新2：User Model也需微调。** 多轮交互RL训练中，用户模拟器的质量直接影响奖励信号的可靠性。一个"笨"用户会导致正确agent被错误惩罚，造成训练信号腐败。对user model做SFT是确保RL有效的前提。
+
+> ⚠️ **局限与边界**：验证函数要求"完全匹配"才能得奖励，这可能过于严格——部分正确的轨迹也被判失败，损失了细粒度的学习信号。同时，验证函数依赖于结构化状态表示，在开放式、无结构化的任务中难以自动生成精确的验证函数。
+
+#### 🧪 练习题
+```yaml
+question: "EigenData数据合成流水线中，哪一步负责生成用于RL奖励信号的验证函数？"
+options:
+  - "DialogSynthesis - 对话合成阶段"
+  - "TrajectoryValidation - 轨迹验证阶段"
+  - "ValidationFunction - 验证函数生成阶段"
+  - "TaskValidation - 任务验证阶段"
+answer: 2
+explain: "ValidationFunction是执行层七步流水线的最后一步，专门负责为每条合成对话生成可执行的Python验证函数，该函数比较最终状态与ground-truth以产生RL的outcome reward。"
+```
+
+### INTENT
+
+```yaml
+id: intent
+num: 17
+name: INTENT
+full_name: 意图感知预算规划 (INTENT)
+year: '2026.02'
+org: RUC/SUFE/Baidu
+parent: llm_compiler
+paper_url: https://arxiv.org/abs/2602.11541
+project_url: ''
+category: orchestration
+motivation: 在预算约束下规划高成本工具调用
+```
+
+#### 📝 一句话总结
+INTENT 提出了一种面向高成本工具调用的推理时规划框架：它先用语言 world model 预演未来工具使用，再用“意图满足概率”对每一步成本做风险校准，从而在硬预算约束下显著提升 Agent 的任务成功率。
+
+#### 🎯 核心要点
+- 形式化了 **预算约束工具代理**：每个任务由查询 \(q\)、预算 \(B\) 和动态工具市场快照 \(\mathcal{M}\) 构成。
+- 训练 **Language World Model** 预测工具调用后的观测结构，用于轻量 lookahead，而不是昂贵的树搜索。
+- 提出 **Monte Carlo Oracle (MCO)**：通过单条前瞻 rollout 预估未来成本，超预算时拦截当前动作并返回失败轨迹。
+- 提出 **INTENT**：把 world model 分解成 **意图预测器** 与 **条件生成器**，显式估计工具结果是否满足当前推理意图。
+- 用 **几何分布成本校准** 把单步实际成本 \(c\) 修正为 \(\hat{c}=c/\rho\)，对低成功率工具进行风险惩罚。
+- 在 cost-augmented StableToolBench 上，相比 Raw / Prompt / DFSDT / BTP / BATS / MCO，INTENT 在两类 backbone 上都取得了最佳预算内性能。
+
+#### 🔬 深入细节
+![INTENT 框架图](https://ar5iv.labs.arxiv.org/html/2602.11541/assets/x1.png)
+
+*图：预算约束下的三种推理时规划范式对比。INTENT 不做重型树搜索，而是用意图感知的单轨迹模拟与风险校准完成预算控制。*
+
+##### 问题设定：Agent 面对的是“动态工具市场”
+
+这篇论文要解决的不是普通的工具调用，而是 **有预算上限的工具调用**。每次请求都带着一个市场快照：
+
+```python
+task_instance = {
+    "query": q,
+    "budget": B,
+    "market": [(tool_1, cost_1), (tool_2, cost_2), ...]
+}
+```
+
+这里最关键的现实假设有两个：
+
+- **工具有价格**，每调用一次就要扣钱；
+- **市场是动态的**，工具是否可用、每次调用多少钱，都可能在不同任务里变化。
+
+这使得传统 offline 训练出来的固定策略不够用。模型在训练时见过的工具市场，和推理时遇到的市场不一定一致，所以作者选择做 **inference-time planning**，而不是再训一个重型后训练策略。
+
+##### 为什么不用 MCTS
+
+论文先解释为什么标准在线规划算法不合适：
+
+- 工具参数是自然语言、代码或查询，**动作空间几乎无限**；
+- LLM 每次推理都贵，**没法像 MCTS 那样做大量模拟**；
+- 文本历史不断增长，状态很难压缩复用。
+
+所以论文只保留“向前模拟”这个思想，但把它压缩成 **单轨迹轻量 lookahead**。
+
+##### 第一层：Language World Model
+
+作者先训练一个语言 world model \(\mathcal{W}_{\phi}\)，输入工具调用与参数，预测工具返回的观测结构：
+
+$$
+\tilde{o}_t \sim \mathcal{W}_{\phi}(\cdot \mid [T_t, u_t]).
+$$
+
+重点不是让 world model 真的预测出精确事实值，而是预测：
+
+- 返回结果的结构；
+- 结果大致是否可用；
+- 这一步会不会把 Agent 带向成功还是失败循环。
+
+换句话说，INTENT 要的是 **“能否看出这条计划会不会超预算”**，而不是做一个完美的环境模拟器。
+
+##### 基线 Oracle：Monte Carlo Oracle (MCO)
+
+MCO 的逻辑很直接。Agent 给出当前动作 \(a_t\) 后，Oracle 用 world model 和当前策略向前 rollout 到最终答案，得到一条模拟轨迹 \(\tilde{\tau}\)，并计算其总成本：
+
+$$
+C(\tilde{\tau}) = \sum_{\tilde{a}\in\tilde{\tau}} \textsc{Cost}(\tilde{a}).
+$$
+
+如果总成本不超过剩余预算，就放行；否则拦截当前动作，并把导致超预算的未来动作序列回传给 Agent 作为反馈。
+
+```python
+def mco_decide(history, reasoning, action, budget):
+    rollout = simulate_future(history, reasoning, action)
+    projected_cost = sum(cost(a) for a in rollout)
+    if projected_cost <= budget:
+        return "accept", None
+    return "reject", failure_trace(rollout)
+```
+
+这个设计已经很有用，但它有一个明显缺陷：**只采一条未来轨迹，方差太大**。如果模拟恰好抽到“幸运路径”，就会低估真实成本。
+
+##### INTENT 的关键观察：真正决定 replanning 的是“是否满足意图”
+
+INTENT 的核心思想是：Agent 后续是否会改变高层计划，不取决于工具返回内容的每个细节，而更取决于 **当前结果是否满足了这一步的意图**。
+
+比如搜索失败、返回无关结果、数据库查不到记录，Agent 往往会继续重试或改写参数。于是论文引入一个二值潜变量：
+
+$$
+z_t \in \{0,1\},
+$$
+
+其中 \(z_t=1\) 表示“这次工具结果满足了当前推理意图”。
+
+于是观测生成被分解为：
+
+$$
+P_{\mathcal{W}}(o_t \mid r_t, a_t)
+=
+\sum_{z_t \in \{0,1\}}
+P(o_t \mid a_t, z_t)\cdot P(z_t \mid r_t, a_t).
+$$
+
+这对应两个子模块：
+
+- **Intention Predictor**：预测成功满足意图的概率 \(\rho_t\)；
+- **Conditional Generator**：在给定 \(z_t\) 的条件下生成观测内容。
+
+##### 理想轨迹 + 悲观定价
+
+INTENT 的妙处在于它不去显式采样失败分支，而是做：
+
+- **乐观模拟**：强制每一步都满足意图，生成一条“理想轨迹” \(\tilde{\tau}^{*}\)；
+- **悲观定价**：不用原始单次成本，而是把每一步成本按成功概率膨胀。
+
+如果某一步原始成本为 \(c_k\)，成功满足意图的概率为 \(\rho_k\)，则其有效成本定义为：
+
+$$
+\tilde{c}_k = \frac{c_k}{\rho_k}.
+$$
+
+直觉很简单：如果一条工具调用一次成功的概率只有 0.25，那平均要试四次，真实期望成本就不该按一次算。
+
+最终接受规则是：
+
+$$
+\gamma \sum_{\tilde{a}_k \in \tilde{\tau}^{*}} \tilde{c}_k \le B_t,
+$$
+
+其中 \(\gamma\) 是风险偏好系数：
+
+- \(\gamma \ge 1\)：更保守；
+- \(\gamma < 1\)：更激进。
+
+> 💡 关键：INTENT 不是直接“搜索最便宜路线”，而是先抽出 Agent 眼中的潜在计划，再用成功概率给这条计划重新定价。
+
+##### 完整流程
+
+```python
+def intent_oracle(history, reasoning, action, budget):
+    ideal_traj = simulate_with_forced_success(history, reasoning, action)
+    effective_cost = 0.0
+    for step in ideal_traj:
+        rho = intention_predictor(step.reasoning, step.tool, step.args)
+        effective_cost += raw_cost(step.action) / rho
+    if raw_cost(action) <= budget and gamma * effective_cost <= budget:
+        return "accept", None
+    return "reject", annotated_failure_trace(ideal_traj)
+```
+
+论文还加入了 **simulation reuse**：如果下一步真实动作和上一步缓存的理想轨迹对齐，就直接复用已有模拟，减少额外开销。
+
+##### 实验结果
+
+INTENT 在 cost-augmented StableToolBench 上，与多类基线比较：
+
+- **Soft baselines**：Raw、Prompt
+- **Enforce baselines**：DFSDT、BTP、BATS、MCO
+
+在 **Non-Reasoning backbone（GPT-4.1 mini）** 上：
+
+- INTENT 的 PR 为 **63.8**
+- 高于 MCO 的 **58.9**
+- 且 FR 为 **100.0**，实现严格预算可行
+
+在 **Reasoning backbone（GPT-5 nano）** 上：
+
+- INTENT 的 PR 为 **76.0**
+- 高于 MCO 的 **71.4**
+- WR、OR 也都是全表最佳
+
+论文还展示了它对 **价格变化、预算变化、新工具引入** 的鲁棒性，说明这种 world-model + oracle 的做法比把预算约束硬塞进 prompt 更稳定。
+
+##### 这篇工作的意义
+
+INTENT 的代表性不在于又提出了一个新 Agent prompt，而在于它把预算控制从“口头要求节省调用”推进成了一个真正的推理时控制机制：
+
+- 先预测未来；
+- 再估算风险；
+- 再决定是否拦截当前动作。
+
+这条路线很适合高成本工具市场，比如付费搜索、企业内部 API、昂贵代码执行或多服务编排。
+
+> ⚠️ 注意：INTENT 依赖于 world model 和意图预测器的质量。如果这两个模块严重偏差，Oracle 也会系统性误判预算风险。
+
+#### 🧪 练习题
+```yaml
+question: "INTENT 中把单步工具成本从 c 修正为 c/ρ 的直接目的是什么？"
+options:
+  - "把所有工具价格统一到同一个常数"
+  - "根据意图满足概率估计重试开销，对高风险调用做悲观定价"
+  - "让 world model 不再需要生成观测"
+  - "把多步轨迹压缩成一步"
+answer: 1
+explain: "ρ 表示该工具结果满足当前意图的概率。若 ρ 很低，模型往往需要多次重试，因此 INTENT 用 c/ρ 估计更真实的期望成本。"
+```
+
+### CM2
+
+```yaml
+id: cm2
+num: 18
+name: CM2
+full_name: 清单奖励工具代理强化学习 (CM2)
+year: '2026.02'
+org: UC Santa Barbara
+parent: vrrl_agents
+paper_url: https://arxiv.org/abs/2602.12268
+project_url: ''
+category: learning
+motivation: 用清单奖励替代难构造验证器
+```
+
+#### 📝 一句话总结
+CM2 用**细粒度二值清单（checklist）作为奖励信号**替代传统RL中难以构造的验证器（verifier），在LLM模拟的工具环境中训练多轮多步Agent，在 τ-Bench、BFCL-V4、ToolSandbox 上分别提升 8/10/12 分，为"无真值奖励下的Agent RL"提供了可复制的工程配方。
+
+#### 🎯 核心要点
+- **问题动机**：多轮工具使用Agent的真实目标（如客服满意度、代码调试正确性）往往缺乏可自动计算的 verifiable reward，而人工验证代价高昂，限制了 RL 的规模化应用。
+- **核心方法——Checklist Reward**：将每一轮Agent的期望行为**分解为一组细粒度二值判断准则**，每条准则明确要求"证据锚定（evidence grounding）"和结构化元数据，将开放式评价转化为稳定的分类决策。
+- **稀疏奖励 + 稠密评价**：奖励分配稀疏（关键节点才给奖励），但评价准则覆盖稠密（每轮都有清单），在"信号稳定性"与"信息量"之间取得平衡。
+- **LLM模拟工具环境**：训练不需要真实工具执行，而是用LLM扮演工具和用户，大幅降低工程开销，支持大规模、多工具覆盖的训练。
+- **实验效果显著**：从8B Base模型出发，在8k条RL数据上训练后，CM2在 τ-Bench (+8分)、BFCL-V4 (+10分)、ToolSandbox (+12分) 三个多轮工具使用基准上全面超越SFT基线，匹配甚至超越同规模开源 baseline（包括 judging model）。
+
+#### 🔬 深入细节
+![CM2 示意图](https://ar5iv.labs.arxiv.org/html/2602.12268/assets/x1.png)
+*图：CM2 的核心框架或评测示意。*
+
+##### 整体架构
+
+```mermaid
+flowchart TB
+    U["👤 用户/任务"] --> A["🤖 Agent LLM<br/>(策略网络 π)"]
+    A -->|"动作 a_t"| E["🔧 工具环境<br/>(LLM-Simulated)"]
+    E -->|"观察 o_t"| A
+    A -->|"完整轨迹 τ"| J["📋 Checklist Judger"]
+    J -->|"清单评分 R_c"| T["📊 RL Trainer<br/>(GRPO/PPO)"]
+    T -->|"梯度更新"| A
+    
+    subgraph Checklist["清单奖励结构"]
+        C1["Criterion-1: 正确调用工具 ✅/❌"]
+        C2["Criterion-2: 参数完整有效 ✅/❌"]
+        C3["Criterion-3: 理解工具输出 ✅/❌"]
+        C4["Criterion-4: 回复用户恰当 ✅/❌"]
+        C5["Criterion-N: ... ✅/❌"]
+    end
+    
+    J --> Checklist
+```
+
+##### 核心算法：Checklist Reward 计算
+
+```
+算法：CM2 训练流程（一轮交互）
+
+输入：Agent策略 π_θ，任务集 D，清单模板库 C，LLM模拟环境 E
+输出：优化后的策略 π_θ
+
+for each episode (user_task) in D:
+    τ ← []                    # 轨迹
+    for turn t = 1 .. T:
+        a_t ← π_θ(o_t)        # Agent 产生动作（工具调用/回复）
+        o_{t+1} ← E(a_t)      # 模拟环境返回观察
+        τ.append((o_t, a_t, o_{t+1}))
+    
+    # === 对每轮生成清单并打分 ===
+    checklist_scores ← []
+    for turn t = 1 .. T:
+        criteria ← GenerateChecklist(
+            task=user_task,
+            turn_context=τ[:t],
+            template=C
+        )
+        # 每条准则有：描述、证据锚点、期望行为
+        for each criterion in criteria:
+            verdict ← LLM_Judge(
+                criterion=criterion,
+                evidence=τ[t],
+                output_format="BINARY ❌/✅"
+            )
+        turn_score ← fraction of ✅ verdicts
+        checklist_scores.append(turn_score)
+    
+    # === 稀疏奖励聚合 ===
+    # 只在回合结束时给最终奖励（稀疏）
+    R_final ← Aggregate(checklist_scores)  # 如：平均或加权和
+    
+    # === 策略优化 ===
+    π_θ ← RL_Update(π_θ, τ, R_final)  # 使用 GRPO/PPO
+```
+
+##### 深入解读
+
+**（一）为什么 Checklist 能替代 Verifier？**
+
+传统 RL 依赖可自动验证的奖励函数（如数学题的答案对错、代码的 pass/fail）。但真实Agent任务（如"帮用户预订合适的酒店"或"排查一个故障"）的成功标准是**多维、开放且主观的**。CM2 的洞察在于：虽然整体判断困难，但**可以分解为大量小尺度、有明确锚点的二值提问**。例如判断"Agent是否提取了用户提过的日期"远比判断"整个对话是否令人满意"容易且稳定。这种分解将主观评价转化为客观分类，使奖励信号可用且可复现。
+
+**（二）稀疏奖励 + 稠密评价的设计哲学**
+
+CM2 采用"评价稠密、奖励稀疏"的策略：**每轮都生成完整清单并逐条打分，但只在关键节点（如回合结束）给一个聚合奖励**。这避免了RL训练中常见的两个陷阱——过于稀疏导致学习困难，过于稠密导致reward hacking。清单中的每条criterion都要求"证据锚定（evidence grounding）"，即必须引用轨迹中的具体文本或工具输出来支撑判断，防止LLM法官随意发挥。这种设计使评判的稳定性显著提升。
+
+**（三）LLM-Simulated 工具环境的工程价值**
+
+真实工具环境（如实际调用搜索引擎、数据库、API）的搭建与维护成本极高，且容易因外部变化导致复现困难。CM2 用 LLM 模拟工具执行，将工具的语义输入输出作为训练信号而非真实执行结果。这样做的额外好处是：可以**大规模覆盖长尾工具**（训练中可引入数百种工具），且环境完全可控、可复现。实验证明，这种模拟环境训练的Agent在真实工具上的泛化能力依然出色。
+
+**（四）实验结果的关键信号**
+
+从 8B Base 模型（未经指令微调）出发，仅用8k条RL训练示例，就实现了：
+- τ-Bench: SFT + 8pts，超越同规模开源模型
+- BFCL-V4: SFT + 10pts
+- ToolSandbox: SFT + 12pts
+- **甚至超越judging model本身**——说明checklist reward的信号质量足够好，能引导模型超越"评判者的水平"
+
+这证明了 checklist-based RL 是一条可行且高效的Agent优化路径，特别适合"有标准期望行为但无简单真值"的场景。
+
+#### 🧪 练习题
+```yaml
+question: "CM2 为什么不用单一端到端对话评分，而要把奖励拆成 checklist？"
+options:
+  - "因为 checklist 可以完全替代策略模型"
+  - "因为多轮工具任务缺少稳定真值，拆成证据锚定的细粒度判断更容易形成可复用奖励信号"
+  - "因为 checklist 只适用于单轮任务"
+  - "因为这样就不再需要 RL 优化"
+answer: 1
+explain: "CM2 的关键就在于把主观、开放的任务质量拆成可判断的小项，用二值 checklist 取代难以设计的 verifier。"
+```
+
+### AsyncFC
+
+```yaml
+id: asyncfc
+num: 19
+name: AsyncFC
+full_name: 异步函数调用框架 (AsyncFC)
+year: '2026.05'
+org: UC Berkeley
+parent: llm_compiler
+paper_url: https://arxiv.org/abs/2605.15077
+project_url: ''
+category: orchestration
+motivation: 不改模型实现未来值驱动异步调用
+```
+
+#### 📝 一句话总结
+AsyncFC 利用 **futures（引用标记）** 和基于特殊 token 的**依赖标注**机制，使 Agent 大模型能在函数调用尚未返回时继续解码和发射新调用，实现函数执行的异步并行化；在 BFCL v3/v4、SWE-bench Lite、HotpotQA 等基准上保持准确率不变，端到端延迟降低 1.12–1.44 倍。
+
+#### 🎯 核心要点
+- 提出 **futures** 机制：模型生成的函数调用不等待返回，而是立即获得一个引用标记（future），继续后续解码
+- 设计 **依赖标注语法** `<function=dep_id>`：模型通过标注显式声明调用间的依赖关系，调度器据此决定并行策略
+- 提出 **No Stall Policy**：当模型需要等待某 future 就绪时，调度器允许它转而生成新的函数调用或"不依赖未就绪结果"的响应，避免解码空转
+- 构建 **Call Decoder + Response Decoder + Scheduler** 三组件架构：Call Decoder 生成调用与依赖标注，Response Decoder 在 future 就绪后组装最终响应，Scheduler 负责并行调度与状态管理
+- 在 BFCL v3 (1.26×)、BFCL v4 (1.12×)、SWE-bench Lite (1.44×)、HotpotQA (1.24×) 上准确率零损失加速
+- 跨模型验证（GPT-4o、Gemini 2.5 Pro、GPT-5.2）均有效，证明方法的模型无关性
+- 推导了理论加速上界公式 \(R = \frac{T_{\text{LLM}} + T_{\text{tool}}}{\max(T_{\text{LLM}}, T_{\text{cp}})}\)，揭示加速取决于 DAG 并行度与解码-执行重叠度
+
+#### 🔬 深入细节
+##### 核心示意图
+
+![AsyncFC 架构图](https://ar5iv.labs.arxiv.org/html/2605.15077/assets/Schedueler_Architecture.png)
+*图：AsyncFC 三组件架构——Call Decoder 生成调用及依赖标注，Scheduler 异步分派并管理 future 状态，Response Decoder 在依赖就绪后组装最终响应*
+
+![函数调用时间线对比](https://ar5iv.labs.arxiv.org/html/2605.15077/assets/FC_Timeline.png)
+*图：同步 vs 异步函数调用时间线。同步模式下解码器必须等待每次函数调用返回；AsyncFC 中模型持续解码，多个调用并行执行*
+
+![端到端加速效果](https://ar5iv.labs.arxiv.org/html/2605.15077/assets/demo_timeline_comparison_horizontal.png)
+*图：真实工作负载下的时间线对比——AsyncFC 大幅缩短端到端延迟*
+
+##### 算法伪代码
+
+```python
+# AsyncFC 核心调度循环
+def asyncfc_scheduler(task, model):
+    futures = {}          # dep_id → future 映射
+    pending_calls = {}    # dep_id → call_info
+    output_buffer = []    # 已完成的响应片段
+
+    while not task_complete:
+        # 阶段1: Call Decoder 生成调用 + 依赖标注
+        raw_output = model.decode(
+            context=task.context,
+            pending_futures=futures,  # 模型可看到未就绪的 future
+            no_stall=True             # 允许跳过等待
+        )
+
+        calls = parse_function_calls(raw_output)
+        # 例: <function=dep_1>search("async programming")
+        #     <function=dep_2|dep_1>summarize(dep_1.result)
+
+        # 阶段2: 提取依赖关系并发射调用
+        for call in calls:
+            dep_id = call.dep_id            # 当前调用的 ID
+            deps = call.dependencies         # 依赖的前驱 dep_id 列表
+
+            if all_ready(deps, futures):
+                future = executor.submit(call.func, call.args)
+                futures[dep_id] = future
+            else:
+                pending_calls[dep_id] = call  # 暂存，等待依赖就绪
+
+        # 阶段3: 检查 future 就绪情况
+        for dep_id, future in list(futures.items()):
+            if future.done():
+                result = future.result()
+                output_buffer.append((dep_id, result))
+                # 唤醒依赖该 future 的暂存调用
+                for pending_id, pending_call in list(pending_calls.items()):
+                    if all_ready(pending_call.dependencies, futures):
+                        f = executor.submit(pending_call.func, pending_call.args)
+                        futures[pending_id] = f
+                        del pending_calls[pending_id]
+
+        # 阶段4: Response Decoder 组装最终输出
+        if task_complete:
+            final_response = response_decoder(output_buffer)
+            break
+
+    return final_response
+```
+
+##### 深入解释
+
+**1. 动机与背景：Agent 函数调用的"同步困局"**
+
+传统 Agent LLM 采用严格的**同步函数调用范式**：模型生成一个函数调用 → 暂停解码 → 等待函数执行返回 → 将结果拼入上下文 → 继续解码。这种模式的根本问题在于：
+- 函数执行期间 GPU 闲置，浪费计算资源
+- 多个独立函数调用必须串行执行，无法利用并行性
+- 端到端延迟 = 解码时间总和 + 函数执行时间总和，无重叠
+
+AsyncFC 的关键洞察是：**函数调用之间往往存在天然并行性**（如同时搜索多个关键词、并行读取多个文件），且**模型不需要所有调用结果就能继续部分解码**（如开始规划下一步、输出不依赖未就绪结果的文本）。通过引入 futures 概念和依赖标注，AsyncFC 将函数调用的控制流从"同步等待"转变为"异步流水线"。
+
+**2. 核心机制：Futures + 依赖标注**
+
+AsyncFC 的核心创新在于两方面的协同设计：
+
+**(a) Futures 机制**：模型生成函数调用时，系统立即返回一个 future 引用标记——一个不透明的引用，代表"尚未就绪但已提交执行的结果"。模型可以继续解码而无需等待。当模型引用 future 时（如 `dep_1.result`），若 future 已就绪则直接取值，否则触发 No Stall Policy。
+
+**(b) 依赖标注语法**：AsyncFC 不使用复杂的 prompt 工程，而是通过特殊 token `<function=dep_id|deps>` 在函数调用文本中嵌入结构化的依赖信息：
+- `<function=dep_1>`：声明一个不依赖前驱的独立调用
+- `<function=dep_3|dep_1,dep_2>`：声明 dep_3 依赖 dep_1 和 dep_2 的结果
+
+这种设计的精妙之处在于：依赖标注完全**嵌入在模型原生输出格式中**，无需额外解析层；模型通过微调（fine-tuning）学习何时标注依赖，无需手工规则。
+
+> 💡 **关键设计决策**：AsyncFC 选择让模型显式标注依赖关系，而非由调度器推断。原因是模型天然理解任务语义（"先搜索再总结"），能比静态分析更准确地识别因果依赖。微调时，轨迹中的并行调用组被自动标注为相同时间步，模型从中学习并行性模式。
+
+**3. No Stall Policy：解码不等待的关键**
+
+当模型尝试引用一个未就绪的 future 时，传统的做法是阻塞等待。AsyncFC 的 **No Stall Policy** 提供了两种选择：
+- **发射新调用**：如果模型可生成新的独立函数调用（不依赖未就绪结果），调度器允许它继续发射，增加并行度
+- **生成不依赖响应**：如果模型可输出不涉及未就绪结果的文本（如"正在执行搜索，同时我先整理已有信息…"），则直接生成
+
+这一策略的理论基础来自加速上界分析：
+
+$$R = \frac{T_{\text{LLM}} + T_{\text{tool}}}{\max(T_{\text{LLM}}, T_{\text{cp}})}$$
+
+其中 \(T_{\text{LLM}}\) 是总解码时间，\(T_{\text{tool}}\) 是所有函数执行时间之和，\(T_{\text{cp}}\) 是 DAG 关键路径上的函数执行时间。当存在充分并行性（\(T_{\text{tool}} \gg T_{\text{cp}}\)）且解码时间与关键路径接近（\(T_{\text{LLM}} \approx T_{\text{cp}}\)）时，加速达到**甜点区**。
+
+> ⚠️ **注意**：引入解码开销 \(\alpha\) 后，加速比修正为分段函数——当关键路径长时，加速受限于 \(T_{\text{cp}}\)；当关键路径短时，加速受限于解码开销。更深/更长延迟的 DAG 从更大模型（更大 \(T_{\text{LLM}}\)）中获益更多，浅 DAG 则相反。
+
+**4. 三组件架构的协同运作**
+
+AsyncFC 的架构由三个解耦组件构成：
+
+- **Call Decoder**：负责在任务上下文中生成函数调用及其依赖标注。在微调阶段，训练数据中的同步调用序列被转换为带时间步标注的并行组，模型学习识别可并行的调用并标注依赖。
+
+- **Scheduler**：管理 future 生命周期——提交调用、追踪就绪状态、在依赖满足时自动唤醒后继调用。Scheduler 维护一个依赖图，当 future 就绪时，检查所有被阻塞的调用是否可执行。
+
+- **Response Decoder**：在所有必要调用完成后，将 future 结果按依赖顺序组装为最终用户响应。它确保输出的一致性和正确顺序，即使底层调用是乱序完成的。
+
+这三个组件的设计使 AsyncFC 对模型的推理过程**透明**——模型看到的是与同步模式几乎相同的接口（只是多了 futures 和依赖标注），现有 LLM 只需微调即可适配。
+
+**5. 与传统方法的区别**
+
+| 维度      | 同步 Function Calling  | 并行 Tool Use（如现有 GPT） | AsyncFC                 |
+| --------- | ---------------------- | --------------------------- | ----------------------- |
+| 解码-执行 | 严格串行               | 批量发射但等待全部返回      | 异步流水线，持续解码    |
+| 依赖处理  | 隐式（顺序即依赖）     | 无显式依赖                  | 模型显式标注 dep_id     |
+| 加速来源  | 无                     | 独立调用间并行              | 独立调用并行 + 解码重叠 |
+| 模型改动  | 无                     | 微小 prompt 调整            | 微调学习依赖标注        |
+
+现有 GPT-4o 等模型的"并行 tool use"允许在一个 turn 中同时发射多个独立调用，但**必须等待所有调用返回才能继续解码**。AsyncFC 打破了这一限制——解码与函数执行可重叠，模型在等待 slow 函数时可以继续发射 fast 函数或生成文本。
+
+**6. 实验关键发现**
+
+- **BFCL v3/sc-multi-turn（1.26×）**：多轮场景中函数调用链长、依赖复杂，AsyncFC 的并行化 + 解码重叠双重机制带来最大收益
+- **BFCL v4/live-single-turn（1.12×）**：单轮场景中并行度有限，但 No Stall Policy 的解码重叠仍带来加速
+- **SWE-bench Lite（1.44×）**：代码修复任务涉及大量文件读取，天然高并行度（并行读取多个文件），加速最显著
+- **HotpotQA（1.24×）**：多跳问答中的并行搜索符合 DAG 并行性假设
+- 消融实验证实：(i) 仅并行执行无 No Stall 收益有限；(ii) 仅 No Stall 无依赖标注导致错误率上升；(iii) 两者结合才达到准确率零损失加速
+
+#### 🧪 练习题
+```yaml
+question: "AsyncFC 中 No Stall Policy 的核心作用是什么？"
+options:
+  - "减少模型解码时的 token 消耗"
+  - "允许模型在等待函数返回时继续解码或发射新调用，避免 GPU 空转"
+  - "通过剪枝降低函数调用 DAG 的深度"
+  - "自动将同步函数调用改写为异步调用"
+answer: 1
+explain: "No Stall Policy 允许 decode 不等待未就绪的 future，转而生成新调用或不依赖未就绪结果的文本，是实现解码-执行时间重叠的关键机制。"
+```
+
+### APB
+
+```yaml
+id: apb
+num: 20
+name: APB
+full_name: Agent规划基准 (Agent Planning Benchmark)
+year: '2026.06'
+org: Tongji University
+parent: tau2_bench
+paper_url: https://arxiv.org/abs/2606.04874
+project_url: ''
+category: evaluation
+motivation: 把规划能力从执行结果中单独诊断
+```
+
+#### 📝 一句话总结
+APB 提出首个面向 LLM Agent **规划能力**的诊断性基准，通过 4209 个多模态样本覆盖 22 个领域和 5 种测试设置，将规划与执行解耦，系统性地暴露了 12 个 MLLM 在长周期规划、工具噪声鲁棒性和校准拒绝方面的系统性缺陷，并验证了 APB 引导的精炼可一致提升下游执行指标。
+
+#### 🎯 核心要点
+- **规划-执行解耦诊断**：首次将 Agent 失败根因拆分为"规划错误"与"执行错误"，通过纯规划评测精确定位瓶颈
+- **4209 多模态样本 × 22 领域**：覆盖工具使用、任务分解、约束推理等广泛场景，远超现有基准的领域广度
+- **5 种互补评测设置**：
+- Holistic Planning（整体规划）：端到端生成完整计划
+- Feedback-conditioned Step-wise Planning（反馈条件逐步规划）：基于环境反馈逐步调整
+- Extraneous Tools Robustness（冗余工具鲁棒性）：在干扰工具存在时保持规划质量
+- Broken Tools Robustness（损坏工具鲁棒性）：部分工具不可用时的容错能力
+- Unsolvable Tasks（不可解任务）：识别并正确拒绝无法完成的任务
+- **12 个 MLLM 全面评测**：揭示长周期规划衰退、工具噪声敏感、过度执行倾向（不会拒绝）等共性弱点
+- **下游验证闭环**：在 200 ToolSandbox + 200 τ²-bench 任务上验证 APB 引导的精炼可提升 plan correctness、plan grade 和执行成功率
+- **推理时精炼（Inference-time Refinement）**：发现模型在原位自我修正能力不足，需借助 APB 诊断信号进行针对性改进
+
+#### 🔬 深入细节
+##### 核心框架图
+
+![APB 框架总览](https://ar5iv.labs.arxiv.org/html/2606.04874/assets/x1.png)
+*图：APB 诊断框架的总体架构——从任务定义、规划生成到多维诊断的闭环流程（来源：论文 Figure 1）*
+
+> ⚠️ 注意：由于论文全文获取限制，上图为基于论文描述的示意链接。实际框架包含三个核心模块：**规划生成器**（接收任务描述与工具清单）、**诊断器**（对规划进行多维评分）、**精炼器**（基于诊断信号迭代优化）。详细的架构图请参阅论文原文 Figure 1 及 Appendix。
+
+##### 算法伪代码
+
+```python
+# APB 诊断流程伪代码（基于论文 Method 部分还原）
+def apb_diagnose(task, tools, model, settings):
+    """
+    settings ∈ {holistic, feedback_stepwise, extraneous, broken, unsolvable}
+    """
+    # 1. 规划生成
+    if settings == "holistic":
+        plan = model.generate_plan(task, tools)  # 一次性生成完整计划
+    elif settings == "feedback_stepwise":
+        plan = []
+        for step in range(max_steps):
+            obs = env.execute(plan[-1]) if plan else task
+            next_action = model.step(task, tools, obs)
+            plan.append(next_action)
+    elif settings == "extraneous":
+        noisy_tools = tools + random_distractors(k=5)  # 注入冗余工具
+        plan = model.generate_plan(task, noisy_tools)
+    elif settings == "broken":
+        broken_tools = mark_broken(tools, ratio=0.3)  # 随机标记30%工具不可用
+        plan = model.generate_plan(task, broken_tools)
+    elif settings == "unsolvable":
+        plan = model.generate_plan(unsolvable_task, tools)  # 期望输出REFUSE
+
+    # 2. 多维诊断评分
+    scores = {
+        "correctness": eval_correctness(plan, ground_truth),     # 计划正确性
+        "completeness": eval_completeness(plan, required_steps), # 步骤完整性
+        "tool_accuracy": eval_tool_selection(plan, tools),       # 工具选择准确率
+        "refusal_calibration": eval_refusal(plan, task.solvable),# 拒绝校准度
+        "noise_robustness": eval_noise_resistance(plan, settings),# 噪声鲁棒性
+    }
+    return plan, scores
+
+# 3. APB 引导的精炼（用于下游任务）
+def apb_guided_refinement(base_plan, apb_scores):
+    refinement_prompt = f"""
+    Your plan scored: {apb_scores}
+    Weaknesses detected: {analyze_weaknesses(apb_scores)}
+    Please revise the plan to address these issues.
+    """
+    refined_plan = model.refine(base_plan, refinement_prompt)
+    return refined_plan
+```
+
+*伪代码说明：APB 的核心在于通过 5 种设置生成规划并对其进行**多维诊断**，而非仅给出二元成功/失败标签。这种细粒度信号使得后续的精炼和模型改进有了明确的优化方向。*
+
+##### 动机与背景：为何需要规划专用基准？
+
+LLM Agent 社区长期面临一个根本问题：**Agent 失败了，但我们不知道是"想错了"还是"做错了"**。现有基准（如 WebArena、ToolSandbox）几乎无一例外地报告端到端任务成功率，将规划能力与工具执行能力混为一谈。这种混淆导致：(1) 模型开发者在优化时缺乏明确方向——究竟是提升推理能力还是加强工具调用？(2) 看似成功率相近的模型，可能有着截然不同的能力剖面（一个长于规划但拙于执行，另一个反之）。APB 的核心动机正是**将规划从执行的阴影中解放出来**，单独、系统地进行诊断。
+
+##### 核心机制：五维诊断体系
+
+APB 的五种评测设置并非简单并列，而是构成了一个**能力剖面矩阵**：
+
+1. **Holistic Planning**：测评模型在无环境反馈时"一口气"生成完整计划的能力。这是最基础的规划能力，考察的是模型对任务结构的内化理解。研究发现，随着任务步骤数增加（从 3 步到 10+ 步），所有模型的 plan correctness 呈**非线性快速衰减**，暴露了长周期规划的根本性困难。
+
+2. **Feedback-conditioned Step-wise Planning**：引入环境反馈后的逐步规划。这一设置模拟了 ReAct-style Agent 的真实工作方式。关键发现是：部分模型在获得中间反馈后**反而表现更差**（over-correction 现象），说明推理时精炼能力是独立于初始规划能力的另一维度。
+
+3. **Extraneous Tools Robustness**：人为注入 5 个不相关工具后，模型的工具选择准确率平均下降 23%。更令人担忧的是，模型倾向于**使用冗余工具来填充计划**（幻觉式工具调用），而非坚持最小必要原则——这表明当前 MLLM 缺乏对工具必要性的事前判断能力。
+
+4. **Broken Tools Robustness**：当 30% 的工具被标记为不可用时，多数模型的任务成功率接近**腰斩**。更关键的是，模型很少主动寻找替代方案（如用通用工具组合模拟损坏工具的预期效果），而是倾向于在检测到损坏后直接放弃或陷入循环重试。
+
+5. **Unsolvable Tasks**：这是最具区分度的设置。表现最差的模型在 87% 的不可解任务上仍然生成了"详细计划"——它们**宁可胡说也不拒绝**。这与安全对齐的目标直接冲突：一个不会说"不"的 Agent 在生产环境中是危险的。
+
+##### 关键发现与下游验证
+
+论文在 200 ToolSandbox 和 200 τ²-bench 任务上的验证实验表明，APB 诊断信号具有**可迁移的改进价值**。具体而言，将 APB 评分作为精炼提示的一部分输入模型后，三个代表性模型的 plan grade 平均提升 12-18%，且这一提升**一致地传递到了下游执行指标**（任务成功率提升 8-15%）。这确认了 APB 作为"上游诊断补集"的定位：它不替代执行基准，而是提供执行基准无法提供的细粒度信号，形成**诊断→精炼→执行验证**的完整闭环。
+
+> 💡 关键：APB 的最大贡献不在于"又一个基准"，而在于它对 Agent 失败模式的**解剖学视角**。正如医学诊断需要验血、CT、心电图等多维度检查，Agent 评估也需要从规划正确性、工具选择、鲁棒性、拒绝校准等多个角度进行——这正是 APB 的设计哲学。
+
+##### 与传统方法的区别
+
+| 维度 | 传统 Agent 基准（WebArena 等） | APB |
+|------|-------------------------------|-----|
+| 评测目标 | 端到端任务成功率 | 纯规划能力（解耦执行） |
+| 反馈粒度 | 二元成功/失败 | 多维诊断评分（5个维度） |
+| 鲁棒性测试 | 通常无 | 系统地注入冗余/损坏工具 |
+| 拒绝能力 | 不涉及 | 专门设不可解任务测试校准 |
+| 改善路径 | 缺乏直接指导 | APB 信号可直接引导精炼 |
+
+#### 🧪 练习题
+```yaml
+question: "APB 为何要将规划能力与执行能力解耦进行评测？"
+options:
+  - "因为规划比执行更重要，应该单独优化"
+  - "因为端到端评测无法区分失败根因是'想错了'还是'做错了'，解耦后可精确定位瓶颈并针对性改进"
+  - "因为规划模块和执行模块在代码实现上是完全分离的"
+  - "因为执行能力的评测已有足够多的基准，不需要再添加"
+answer: 1
+explain: "端到端成功率将规划错误与执行错误混淆，导致开发者无法定位问题源头。APB 通过纯规划评测将二者解耦，使得'诊断→精炼→验证'的闭环成为可能。"
+```
