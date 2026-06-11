@@ -1,5 +1,5 @@
 /**
- * model_compression-data.js — 由 pipeline/build.py 于 2026-06-11 12:39:18 自动生成。
+ * model_compression-data.js — 由 pipeline/build.py 于 2026-06-11 14:19:41 自动生成。
  * 源文件：content/infra/model_compression.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */

@@ -1,5 +1,5 @@
 /**
- * agent_paradigm-data.js — 由 pipeline/build.py 于 2026-06-11 12:39:11 自动生成。
+ * agent_paradigm-data.js — 由 pipeline/build.py 于 2026-06-11 14:19:34 自动生成。
  * 源文件：content/agent/agent_paradigm.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */

@@ -1,5 +1,5 @@
 /**
- * music_generation-data.js — 由 pipeline/build.py 于 2026-06-11 12:39:13 自动生成。
+ * music_generation-data.js — 由 pipeline/build.py 于 2026-06-11 14:19:37 自动生成。
  * 源文件：content/aigc/music_generation.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
