@@ -1,5 +1,5 @@
 /**
- * mm_video-data.js — 由 pipeline/build.py 于 2026-06-11 14:19:43 自动生成。
+ * mm_video-data.js — 由 pipeline/build.py 于 2026-06-11 15:11:31 自动生成。
  * 源文件：content/mm/mm_video.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */

@@ -89,12 +89,12 @@ DOMAIN_CATALOG = {
         "icon": "🧭",
         "desc": "聚焦 Agent 的范式、记忆、工具使用、多智能体协作、强化学习与评测编排等核心问题。",
         "topics": [
-            {"name": "范式",        "desc": "从 ReAct 到规划-执行闭环，梳理 Agent 系统的基本范式。"},
-            {"name": "Memory",     "desc": "短期记忆、长期记忆、检索式记忆与状态管理机制。"},
-            {"name": "Tool Use",   "desc": "函数调用、API 选择、工具链编排与外部环境交互。"},
-            {"name": "Multi-Agent","desc": "多智能体协作、角色分工、通信协议与群体决策。"},
-            {"name": "Agentic RL", "desc": "面向 Agent 的强化学习、奖励设计、在线反馈与自我改进。"},
-            {"name": "Harness",    "desc": "Agent 的评测 harness、任务环境、基准与自动回归框架。"},
+            {"name": "范式",        "desc": "从 ReAct 到规划-执行闭环，梳理 Agent 系统的基本范式。", "match": "agent_paradigm"},
+            {"name": "Memory",     "desc": "短期记忆、长期记忆、检索式记忆与状态管理机制。", "match": "memory"},
+            {"name": "Tool Use",   "desc": "函数调用、API 选择、工具链编排与外部环境交互。", "match": "tool_use"},
+            {"name": "Multi-Agent","desc": "多智能体协作、角色分工、通信协议与群体决策。", "match": "multi_agent"},
+            {"name": "Agentic RL", "desc": "面向 Agent 的强化学习、奖励设计、在线反馈与自我改进。", "match": "agentic_rl"},
+            {"name": "Harness",    "desc": "Agent 的评测 harness、任务环境、基准与自动回归框架。", "match": "harness"},
         ],
     },
     "multimodal": {

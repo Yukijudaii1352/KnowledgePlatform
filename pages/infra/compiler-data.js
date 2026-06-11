@@ -1,5 +1,5 @@
 /**
- * compiler-data.js — 由 pipeline/build.py 于 2026-06-11 14:19:40 自动生成。
+ * compiler-data.js — 由 pipeline/build.py 于 2026-06-11 15:11:28 自动生成。
  * 源文件：content/infra/compiler.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
