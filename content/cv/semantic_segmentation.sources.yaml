@@ -1,0 +1,4 @@
+overview:
+  include_raw: temp/content_survey_bulk_20260614_174337/researcher_output/cv/semantic_segmentation/overview/zhihu__语义分割模型架构__efa08518/article.md
+latest_overview:
+  include_raw: temp/content_survey_bulk_20260614_174337/researcher_output/cv/semantic_segmentation/latest/zhihu__ICML_2026｜不用训练、不靠_SAM，VIP_让开放词汇分割再涨_8.4_mIoU__c0b018ec/article.md

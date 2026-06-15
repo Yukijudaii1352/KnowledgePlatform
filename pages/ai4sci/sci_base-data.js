@@ -1,5 +1,5 @@
 /**
- * sci_base-data.js — 由 pipeline/build.py 于 2026-06-15 09:55:49 自动生成。
+ * sci_base-data.js — 由 pipeline/build.py 于 2026-06-15 17:41:26 自动生成。
  * 源文件：content/ai4sci/sci_base.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -766,7 +766,7 @@ window.PAGE_CONFIG = {
         "核心动机：MoE架构科学大模型多领域专家",
         "代表机构：复旦大学"
       ],
-      "detail": "<p>MoE架构科学大模型多领域专家</p>"
+      "detail": "<h3>1. 整体架构</h3>\n<p>SciDFM 基于 Transformer 解码器架构，融合了 LLaMA 的改进（RMSNorm、RoPE、SwiGLU），并将前馈网络（FFN）替换为 <strong>Mixture-of-Experts 层</strong>。</p>\n<p><strong>架构示意图：</strong></p>\n<p><img alt=\"SciDFM Architecture\" src=\"https://ar5iv.labs.arxiv.org/html/2409.18412/assets/x1.png\" /></p>\n<blockquote>\n<p><em>图：SciDFM 的 MoE 架构示意。每个 Transformer 层中的 FFN 被替换为包含 8 个专家的 MoE 层，通过 top-2 门控路由选择 2 个专家进行计算。</em></p>\n</blockquote>\n<p><strong>核心架构参数：</strong></p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>参数</th>\n<th>值</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>总参数量</td>\n<td>18.2B</td>\n</tr>\n<tr>\n<td>激活参数量</td>\n<td>5.6B</td>\n</tr>\n<tr>\n<td>隐藏维度</td>\n<td>3200</td>\n</tr>\n<tr>\n<td>层数</td>\n<td>26</td>\n</tr>\n<tr>\n<td>注意力头数</td>\n<td>25</td>\n</tr>\n<tr>\n<td>专家数量</td>\n<td>8</td>\n</tr>\n<tr>\n<td>激活专家数 (top-k)</td>\n<td>2</td>\n</tr>\n<tr>\n<td>上下文长度</td>\n<td>8192</td>\n</tr>\n<tr>\n<td>词表大小</td>\n<td>32000 + 特殊科学 token</td>\n</tr>\n</tbody>\n</table></div>\n<h3>2. 专用分词器设计</h3>\n<p>SciDFM 基于 OpenLLaMa-3B 的 BPE 分词器，额外添加了<strong>化学原子</strong>和<strong>氨基酸字符</strong>作为独立 token，并用特殊标识符包裹：</p>\n<p>```</p>"
     },
     {
       "id": "unimap",

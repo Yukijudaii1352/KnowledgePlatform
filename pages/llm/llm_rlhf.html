@@ -12,6 +12,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LLM人类偏好对齐技术演进图谱 · AI Knowledge Hub</title>
+<script>
+(function(){try{var theme=localStorage.getItem('kp_theme_v1')||'dark';document.documentElement.dataset.theme=theme==='light'?'light':'dark';document.documentElement.style.colorScheme=document.documentElement.dataset.theme;}catch(e){document.documentElement.dataset.theme='dark';}})();
+</script>
 <link rel="stylesheet" href="../../assets/css/common.css">
 <link rel="stylesheet" href="../../assets/css/page.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
@@ -20,7 +23,8 @@
 <script defer src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 </head>
-<body>
+<body class="tech-page topic-page">
+<canvas class="tech-dotfield" aria-hidden="true"></canvas>
 
 <header class="topbar">
   <div class="shell">
@@ -61,6 +65,12 @@
 <!-- ============== Hero ============== -->
 <div class="shell-narrow">
   <div class="page-hero">
+    <div class="topic-console">
+      <span class="topic-console-dot" aria-hidden="true"></span>
+      <span>TOPIC NODE</span>
+      <span>大语言模型 (LLM)</span>
+      <span class="topic-clock">UTC+8 00:00:00</span>
+    </div>
     <h1>🎯 LLM人类偏好对齐技术演进图谱 <span class="page-hero-sub">2026-05-12 版</span></h1>
     <p class="page-hero-desc">涵盖RLHF、DPO、Constitutional AI等对齐方法的原理与实践，以及2026年最新研究进展</p>
     <div class="meta-row" id="hero-meta-row"><!-- populated by logic --></div>
@@ -217,6 +227,7 @@
 </footer>
 
 <script src="llm_rlhf-data.js"></script>
+<script src="../../assets/js/tech-effects.js" defer></script>
 <script src="llm_rlhf-logic.js"></script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 /**
- * body_vision-data.js — 由 pipeline/build.py 于 2026-06-15 09:55:52 自动生成。
+ * body_vision-data.js — 由 pipeline/build.py 于 2026-06-15 17:41:28 自动生成。
  * 源文件：content/cv/body_vision.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -930,7 +930,7 @@ window.PAGE_CONFIG = {
         "核心动机：基于顶点的线性模型解耦形状与姿态参数",
         "代表机构：MPI"
       ],
-      "detail": "<p>基于顶点的线性模型解耦形状与姿态参数</p>"
+      "detail": "<h5>模型视觉参考</h5>\n<p><img alt=\"SMPL 官方视频缩略图\" src=\"https://img.youtube.com/vi/kuBlUyHeV5U/0.jpg\" />\n<em>图：SMPL 官方展示视频缩略图。原论文 PDF 中的模型图展示了从模板、形状 blend shape、姿态 blend shape 到蒙皮后网格的生成过程；官方页面和 PDF 可见于 https://smpl.is.tue.mpg.de/ 与 https://files.is.tue.mpg.de/black/papers/SMPL2015.pdf。</em></p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "smplify",
@@ -1064,7 +1064,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 smpl",
         "代表机构：MPI"
       ],
-      "detail": "<p>统一建模身体手部面部提供更丰富表达力</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"SMPL-X 表达式人体捕捉示意图\" src=\"https://raw.githubusercontent.com/vchoutas/smplify-x/master/images/teaser_fig.png\" />\n<em>图：SMPL-X 从单张 RGB 图像恢复身体、手和面部表情。相比只含身体骨架或 SMPL 身体模型，SMPL-X 能表达手势和面部细节。</em></p>\n<h5>算法伪代码</h5>\n<p>```text\nAlgorithm: SMPLify-X single-image full-body fitting</p>"
     },
     {
       "id": "pear",
@@ -1084,7 +1084,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 smplx",
         "代表机构：arXiv"
       ],
-      "detail": "<p>像素级监督实现100+FPS的SMPL-X回归</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"PEAR 方法总览\" src=\"https://arxiv.org/html/2601.22693v2/x4.png\" />\n<em>图：PEAR 采用统一 ViT backbone 回归 SMPL-X 身体参数与 FLAME-consistent 头部参数，并引入头部尺度参数处理不同年龄和头身比例。</em></p>\n<h5>算法伪代码</h5>\n<p>```text\nAlgorithm: PEAR training and real-time expressive mesh recovery</p>"
     },
     {
       "id": "hsmr",
@@ -1104,7 +1104,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 vibe",
         "代表机构：arXiv"
       ],
-      "detail": "<p>集成生物力学骨骼模型杜绝解剖学错误</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"HSMR 方法总览\" src=\"https://arxiv.org/html/2503.21751v1/x1.png\" />\n<em>图：HSMR 以单张图像为输入，使用 Transformer 回归 SKEL 姿态、形状和相机，并通过 SKELify 生成和迭代细化伪标签。</em></p>\n<h5>算法伪代码</h5>\n<p>```text\nAlgorithm: HSMR biomechanical skeleton and mesh recovery</p>"
     },
     {
       "id": "sam3dbody",
@@ -1195,7 +1195,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 pear",
         "代表机构：arXiv"
       ],
-      "detail": "<p>尺度无关稠密地标预测统一处理穿衣人体</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"OmniFit 稠密地标预测器\" src=\"https://zcai0612.github.io/OmniFit/static/images/landmark_predictor.png\" />\n<em>图：OmniFit 的核心 landmark predictor 将观测表面点映射到稠密人体地标，再用这些地标驱动 SMPL-X 拟合。</em></p>\n<h5>算法伪代码</h5>\n<p>```text\nAlgorithm: OmniFit dense landmark prediction and SMPL-X fitting</p>"
     },
     {
       "id": "motionvae",
@@ -1214,7 +1214,7 @@ window.PAGE_CONFIG = {
         "核心动机：递归VAE学习运动潜在空间支持多模态生成",
         "代表机构：爱丁堡大学"
       ],
-      "detail": "<p>递归VAE学习运动潜在空间支持多模态生成</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"Motion VAE-LSTM 架构图（论文 PDF 第 4 页 Figure 1）\" src=\"https://www.bmva-archive.org.uk/bmvc/2017/papers/paper119/paper119.pdf#page=4\" />\n<em>图：原论文没有提供独立图片文件，公开 PDF 第 4 页 Figure 1 展示 VAE-LSTM 架构：控制信号和动作序列经卷积编码，潜变量送入自回归 LSTM 解码器生成 motion canvas，再上采样为完整动作。</em></p>\n<h5>算法伪代码</h5>\n<p>```text\nAlgorithm: recurrent variational autoencoder for motion synthesis</p>"
     },
     {
       "id": "action2motion",
@@ -1234,7 +1234,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 motionvae",
         "代表机构：中科院"
       ],
-      "detail": "<p>基于动作类别引入Lie代数表示生成3D运动</p>"
+      "detail": "<p><img alt=\"Action2Motion framework\" src=\"https://ar5iv.labs.arxiv.org/html/2007.15240/assets/x2.png\" /></p>\n<p>Action2Motion 的关键假设是：动作类别 $c$ 决定运动的大体语义，而随机潜变量 $z$ 捕获同一类别下的风格、速度、幅度和个体差异。模型因此不直接学习一个确定性映射 $c \\to x_{1:T}$，而是学习条件分布 $p(x_{1:T}\\mid c)$，这使它能从同一个 “walk” 或 “jump” 标签采样出多条不同轨迹。</p>\n<p>在运动表示上，论文使用 Lie 代数来描述关节运动。对一个刚体变换，可写成 $\\xi=[\\omega, v]\\in\\mathfrak{se}(3)$，并通过指数映射得到 $T=\\exp(\\hat{\\xi})\\in SE(3)$。这样做的好处是网络输出位于向量空间，训练时更容易做回归；而在前向运动学中又能恢复为合法的旋转/刚体变换。</p>\n<p>模型本质上是一个条件变分自编码器。给定训练序列 $x_{1:T}$ 与动作类别 $c$，编码器估计后验：\n<div class=\"kb-math kb-math-display\">q_\\phi(z\\mid x_{1:T}, c)=\\mathcal{N}(\\mu_\\phi(x,c), \\sigma_\\phi^2(x,c)I)</div>\n先验网络估计类别条件先验：\n<div class=\"kb-math kb-math-display\">p_\\theta(z\\mid c)=\\mathcal{N}(\\mu_\\theta(c), \\sigma_\\theta^2(c)I)</div>\n解码器再生成 $\\hat{x}<em>{1:T}=G</em>\\psi(z,c,T)$。训练目标可概括为：\n<div class=\"kb-math kb-math-display\">\\mathcal{L}=\\mathcal{L}_{rec}(x,\\hat{x})+\\beta D_{KL}\\left(q_\\phi(z\\mid x,c)\\,\\|\\,p_\\theta(z\\mid c)\\right)</div>\n其中 $\\mathcal{L}_{rec}$ 通常在关节旋转、关节位置或序列特征上计算。</p>\n<p>与普通自回归 RNN 不同，Action2Motion 更强调“序列整体的条件潜变量”：$z$ 控制整段动作的全局变化，而每个时间步还会接收时间编码或递归状态来保证时序连续。这种设计让模型在短动作类别数据上比较有效，但当动作语义需要长程组合或语言描述时，类别标签会成为瓶颈。</p>\n<pre><code class=\"language-text\">Algorithm: Action2Motion training and sampling\nInput: motion sequence x[1:T], action class c\nTraining:\n  1. Encode x[1:T] and c with recognition network to get mu_q, sigma_q\n  2. Sample z = mu_q + sigma_q * epsilon, epsilon ~ N(0, I)\n  3. Predict class prior mu_p, sigma_p from c\n  4. Decode z, c and temporal states into motion x_hat[1:T]\n  5. Minimize reconstruction loss plus KL(q(z|x,c) || p(z|c))\nSampling:\n  1. Given action class c, sample z from p(z|c)\n  2. Decode z and c for the desired length T\n  3. Convert Lie algebra parameters to joint transforms by exponential map\nOutput: generated 3D human motion\n</code></pre>"
     },
     {
       "id": "actor",
@@ -1254,7 +1254,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 action2motion",
         "代表机构：INRIA"
       ],
-      "detail": "<p>Transformer与VAE结合处理变长序列生成</p>"
+      "detail": "<p><img alt=\"ACTOR pipeline\" src=\"https://ar5iv.labs.arxiv.org/html/2104.05670/assets/fig/pipeline.png\" /></p>\n<p>ACTOR 的核心思想是把“动作序列”当作 Transformer 可以整体编码和整体解码的对象，而不是让 RNN 从第一帧递归到最后一帧。编码端接收姿态序列、动作类别和用于估计分布的特殊 token，输出潜变量分布参数 $\\mu,\\sigma$；训练时通过重参数化采样 $z$，推理时从标准正态或类别条件空间采样。</p>\n<p>解码端的设计是 ACTOR 区别于自回归模型的重点。它不输入前一帧姿态，而是输入一组时间查询 token，查询中包含帧位置编码和动作类别信息；Transformer decoder 将这些查询与潜变量表示交互后，一次性输出 $T$ 帧姿态。因此，生成长度不是由循环展开次数被动决定，而是由输入的时间查询数量主动控制。</p>\n<p>从概率建模角度看，ACTOR 仍然是条件 VAE：\n<div class=\"kb-math kb-math-display\">q_\\phi(z\\mid x_{1:T},c)=\\mathcal{N}(\\mu_\\phi,\\sigma_\\phi^2 I),\\quad\np(z)=\\mathcal{N}(0,I)</div>\n<div class=\"kb-math kb-math-display\">\\hat{x}_{1:T}=D_\\theta(z,c,T),\\quad\n\\mathcal{L}=\\lVert x_{1:T}-\\hat{x}_{1:T}\\rVert+\\beta D_{KL}(q_\\phi(z\\mid x,c)\\|p(z))</div>\n其中 $D_\\theta$ 是 Transformer 解码器。若把第 $t$ 帧查询写成 $r_t=\\text{PE}(t)+e_c$，则可抽象为：\n<div class=\"kb-math kb-math-display\">h_t=\\text{TransformerDecoder}(r_t, z),\\quad \\hat{x}_t=W h_t</div></p>\n<p>这种非自回归生成带来两个好处：一是训练和推理可以并行处理所有帧；二是模型看到整段时间位置后，能更好地保持全局节奏。但它也意味着局部动力学不是通过“上一帧约束下一帧”显式保证的，脚接触、速度连续等物理细节仍需数据分布和损失间接约束，后来的 MDM 才进一步把几何损失和扩散采样引入这个问题。</p>\n<pre><code class=\"language-text\">Algorithm: ACTOR motion generation\nInput: action class c, target length T\nTraining:\n  1. Embed each pose frame and add positional encoding\n  2. Feed motion tokens, class token and distribution tokens to Transformer encoder\n  3. Read mu and sigma, then sample z with reparameterization\n  4. Build T temporal query tokens conditioned on class c\n  5. Decode all T frames in parallel using Transformer decoder and latent z\n  6. Optimize reconstruction loss plus KL regularization\nInference:\n  1. Sample z ~ N(0, I)\n  2. Choose class c and length T\n  3. Decode temporal queries into a complete motion sequence\nOutput: action-conditioned 3D motion\n</code></pre>"
     },
     {
       "id": "mdm",
@@ -1274,7 +1274,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 actor",
         "代表机构：特拉维夫大学"
       ],
-      "detail": "<p>首个将扩散模型应用于动作生成的框架</p>"
+      "detail": "<p><img alt=\"MDM architecture\" src=\"https://guytevet.github.io/mdm-page/static/figures/mdm_arch.png\" /></p>\n<p>MDM 的前向扩散过程与 DDPM 一致：从真实动作序列 $x_0$ 逐步加入高斯噪声得到 $x_t$。如果 $\\bar{\\alpha}_t$ 是累计噪声日程，则：\n<div class=\"kb-math kb-math-display\">q(x_t\\mid x_0)=\\mathcal{N}\\left(\\sqrt{\\bar{\\alpha}_t}x_0,\\,(1-\\bar{\\alpha}_t)I\\right)</div>\n模型学习反向去噪，但输出不是噪声，而是对干净动作的估计：\n<div class=\"kb-math kb-math-display\">\\hat{x}_0=f_\\theta(x_t,t,c)</div></p>\n<p>直接预测 $x_0$ 是 MDM 最重要的工程选择。动作不是图像像素，姿态序列有显式骨架结构、关节速度和接触状态；如果模型只预测噪声，几何损失很难自然作用到最终动作上。预测 $\\hat{x}_0$ 后，可以把它送入前向运动学，计算关节位置、速度和脚接触约束：\n<div class=\"kb-math kb-math-display\">\\mathcal{L}=\\lVert x_0-\\hat{x}_0\\rVert_2^2+\\lambda_{pos}\\mathcal{L}_{pos}+\\lambda_{vel}\\mathcal{L}_{vel}+\\lambda_{fc}\\mathcal{L}_{foot}</div></p>\n<p>条件控制采用 classifier-free guidance。训练时以一定概率把条件置空，让同一个网络同时学习 $f_\\theta(x_t,t,c)$ 和 $f_\\theta(x_t,t,\\varnothing)$；采样时用指导强度 $s$ 调整条件影响：\n<div class=\"kb-math kb-math-display\">\\tilde{f}=f_\\theta(x_t,t,\\varnothing)+s\\left(f_\\theta(x_t,t,c)-f_\\theta(x_t,t,\\varnothing)\\right)</div>\n这使 MDM 能在“更贴合文本/类别”和“更多样自然”之间调节。</p>\n<p>MDM 的另一个价值是任务统一。文本到动作时 $c$ 是 CLIP 文本嵌入；动作类别到动作时 $c$ 是类别嵌入；补全和编辑时则把已知帧或已知身体部位作为扩散 inpainting 的约束。相比 ACTOR 的单步 VAE 采样，扩散的多步去噪更慢，但它提供了更强的分布建模能力和更灵活的条件插入方式。</p>\n<pre><code class=\"language-text\">Algorithm: MDM sampling with classifier-free guidance\nInput: condition c, number of frames T, diffusion steps K\n1. Initialize x_K ~ N(0, I) with shape [T, joints, features]\n2. For k = K down to 1:\n     a. Predict x0_cond = f_theta(x_k, k, c)\n     b. Predict x0_uncond = f_theta(x_k, k, empty)\n     c. Combine x0_hat = x0_uncond + s * (x0_cond - x0_uncond)\n     d. Use diffusion posterior p(x_{k-1} | x_k, x0_hat) to sample x_{k-1}\n     e. If doing editing or in-betweening, re-impose known motion constraints\n3. Return x_0 as the generated motion\nOutput: text/action-conditioned human motion\n</code></pre>"
     },
     {
       "id": "motiondiffuse",
@@ -1294,7 +1294,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 actor",
         "代表机构：商汤科技"
       ],
-      "detail": "<p>首个基于扩散模型的文本驱动动作生成</p>"
+      "detail": "<p><img alt=\"MotionDiffuse pipeline\" src=\"https://ar5iv.labs.arxiv.org/html/2208.15001/assets/x2.png\" /></p>\n<p>MotionDiffuse 的基本设定是：输入一句文本 $y$，输出一段 3D 运动 $x_0$。正向扩散把 $x_0$ 加噪为 $x_t$：\n<div class=\"kb-math kb-math-display\">q(x_t\\mid x_0)=\\mathcal{N}\\left(\\sqrt{\\bar{\\alpha}_t}x_0,\\,(1-\\bar{\\alpha}_t)I\\right)</div>\n反向网络接收 $x_t$、扩散步 $t$ 和文本嵌入 $e_y$，学习预测噪声或去噪方向：\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{simple}=\\mathbb{E}_{x_0,t,\\epsilon}\\left[\\lVert \\epsilon-\\epsilon_\\theta(x_t,t,e_y)\\rVert_2^2\\right]</div></p>\n<p>文本条件不是简单拼接到全局向量后丢给网络，而是通过跨模态 Transformer 注入到每个动作时间步。动作序列有明显的长程依赖，如果使用标准二次复杂度注意力，长动作会很贵；因此论文采用线性注意力近似，将注意力写成：\n<div class=\"kb-math kb-math-display\">\\text{Attn}(Q,K,V)=\\frac{\\phi(Q)(\\phi(K)^\\top V)}{\\phi(Q)(\\phi(K)^\\top \\mathbf{1})}</div>\n其中 $\\phi(\\cdot)$ 是核特征映射。这样可以在文本 token 和动作 token 之间做高效交互。</p>\n<p>MotionDiffuse 的一个亮点是利用扩散采样过程做控制。由于每一步都有带噪动作表示，用户可以固定某些身体部位、对不同噪声进行插值，或在不同时间段给出不同文本条件，从而得到部位编辑、动作过渡和语义组合效果。这些能力在 VAE 一次性采样框架中通常需要额外设计。</p>\n<p>与 MDM 相比，MotionDiffuse 更早明确聚焦“文本驱动”动作生成，并强调跨模态条件融合；MDM 则更强调统一任务、classifier-free guidance 和直接预测 $x_0$ 带来的几何损失。两者共同推动了 2022 年后文本到动作生成从 VAE/Transformer 迁移到扩散范式。</p>\n<pre><code class=\"language-text\">Algorithm: MotionDiffuse text-to-motion generation\nInput: text prompt y, motion length T, diffusion steps K\nTraining:\n  1. Encode text y into token embeddings e_y\n  2. Sample clean motion x_0 and diffusion step t\n  3. Add noise epsilon to obtain x_t\n  4. Fuse x_t, t and e_y with Cross-Modality Linear Transformer\n  5. Predict epsilon_hat and minimize ||epsilon - epsilon_hat||^2\nSampling:\n  1. Initialize x_K ~ N(0, I)\n  2. For k = K down to 1, predict denoising direction conditioned on y\n  3. Sample x_{k-1} using the DDPM reverse transition\n  4. Optionally impose body-part or time-varying prompt constraints\nOutput: text-conditioned 3D human motion\n</code></pre>"
     },
     {
       "id": "t2mgpt",
@@ -1314,7 +1314,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 mdm",
         "代表机构：腾讯"
       ],
-      "detail": "<p>结合VQ-VAE与GPT离散化Token自回归生成</p>"
+      "detail": "<p><img alt=\"T2M-GPT Motion VQ-VAE\" src=\"https://ar5iv.labs.arxiv.org/html/2301.06052/assets/Figure/VQ.png\" />\n<img alt=\"T2M-GPT transformer\" src=\"https://ar5iv.labs.arxiv.org/html/2301.06052/assets/Figure/Transformer.png\" /></p>\n<p>T2M-GPT 的第一阶段是 Motion VQ-VAE。编码器把连续动作 $x_{1:T}$ 压缩成潜特征 $z_e$，然后为每个潜特征选择最近的码本向量 $e_k$，得到离散索引序列 $s_{1:N}$。解码器再从这些码本向量重建动作。典型 VQ 目标可写成：\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{VQ}=\\lVert x-\\hat{x}\\rVert_1+\\lVert \\text{sg}[z_e]-e_k\\rVert_2^2+\\beta\\lVert z_e-\\text{sg}[e_k]\\rVert_2^2</div>\n其中 $\\text{sg}[\\cdot]$ 表示 stop-gradient。</p>\n<p>第二阶段是文本条件 GPT。给定文本描述 $y$，模型先得到文本嵌入 $e_y$，再按自回归方式预测动作 token：\n<div class=\"kb-math kb-math-display\">p(s_{1:N}\\mid y)=\\prod_{i=1}^{N}p(s_i\\mid s_{&lt;i}, e_y)</div>\n采样出的 token 序列通过第一阶段训练好的 VQ-VAE decoder 还原为连续运动。这个设计让文本到动作问题变成“根据文本生成离散动作词表序列”，与语言模型范式高度一致。</p>\n<p>为了让 GPT 在推理时更稳定，论文还引入训练策略来缓解 teacher forcing 与自回归采样之间的差异，例如对输入 token 做扰动或使用终止 token 建模长度。与此同时，VQ-VAE 的码本更新需要避免少数 code 被过度使用；如果码本坍缩，GPT 即使预测准确，也只能组合有限的动作片段。</p>\n<p>与扩散模型相比，T2M-GPT 的优势是采样过程更直接，不需要几十到上千步去噪；生成结果的动作片段也有较强的离散组合结构。代价是 token 化会带来量化误差，并且自回归模型对早期错误敏感。实际系统中，VQ 码本大小、下采样率、GPT 上下文长度和文本编码器质量共同决定最终动作的自然度与文本一致性。</p>\n<pre><code class=\"language-text\">Algorithm: T2M-GPT training and inference\nStage 1: Train Motion VQ-VAE\n  1. Encode motion x[1:T] into latent sequence z_e\n  2. Quantize each latent vector to nearest codebook entry e_k\n  3. Decode quantized vectors into reconstructed motion x_hat\n  4. Optimize reconstruction, codebook and commitment losses\nStage 2: Train text-conditioned GPT\n  1. Convert each training motion into discrete token sequence s[1:N]\n  2. Encode paired text y\n  3. Train GPT to predict s_i from text and previous tokens s_&lt;i\nInference:\n  1. Encode text prompt y\n  2. Autoregressively sample motion tokens until End token\n  3. Decode tokens with VQ-VAE decoder into continuous motion\nOutput: text-conditioned 3D human motion\n</code></pre>"
     },
     {
       "id": "cmdm",
@@ -1618,7 +1618,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 unils",
         "代表机构：arXiv"
       ],
-      "detail": "<p>建模用户与化身间因果交互实现实时反应</p>"
+      "detail": "<p><img alt=\"Avatar Forcing 总体架构\" src=\"https://ar5iv.labs.arxiv.org/html/2601.00664/assets/x2.png\" />\n<em>图：用户运动/音频和 avatar audio 经过 Dual Motion Encoder，Causal DFoT 生成 avatar motion latent，再解码为视频。</em></p>\n<p><img alt=\"Avatar Forcing 因果结构对比\" src=\"https://ar5iv.labs.arxiv.org/html/2601.00664/assets/x4.png\" />\n<em>图：相比需要完整上下文的双向 DiT，Avatar Forcing 的 blockwise causal DiT 可复用 KV cache 并预测下一块。</em></p>\n<p>```python</p>"
     },
     {
       "id": "geneava",

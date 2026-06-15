@@ -1,5 +1,5 @@
 /**
- * llm_safety-data.js — 由 pipeline/build.py 于 2026-06-15 09:55:58 自动生成。
+ * llm_safety-data.js — 由 pipeline/build.py 于 2026-06-15 17:41:33 自动生成。
  * 源文件：content/llm/llm_safety.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -901,7 +901,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 llama_guard",
         "代表机构：Meta"
       ],
-      "detail": "<p>多模态安全过滤分类</p>"
+      "detail": "<p><img alt=\"Llama Guard 3 Vision 框架图\" src=\"https://arxiv.org/html/2411.10414v1/extracted/6003144/figures/llama_guard_3_11B_vision_figure.png\" /></p>\n<p>图源：Meta 的 Llama Guard 3 Vision 公开论文页面。manifest 中的 <code>paper_url</code> 指向 Llama Guard 系列早期论文；多模态 Llama Guard 3 Vision 的公开页面用于补足图示和方法细节。</p>\n<pre><code class=\"language-text\">Algorithm: Llama Guard 3 style multimodal safety classification\nInput:\n  taxonomy T, safety policy P\n  conversation C = [(role_i, text_i, optional image_i)]\n  mode in {prompt_classification, response_classification}\nOutput:\n  label in {safe, unsafe}, violated_categories\n\n1. Serialize P and T as natural-language safety instructions.\n2. Select the target span:\n   - prompt mode: user multimodal message\n   - response mode: assistant response under the same context\n3. Render text turns and image tokens into the vision-language model input.\n4. Generate a compact classification answer:\n   first token: safe or unsafe\n   following tokens: category ids when unsafe\n5. Optionally calibrate with token probabilities or deployment threshold.\n6. If unsafe, block, route to review, or ask the application model to refuse.\n</code></pre>\n<p>Llama Guard 3 的核心不是给每个风险类别单独训练一个传统分类器，而是把安全规范写进模型输入，让模型按“阅读政策后判案”的方式输出标签。这样做的好处是策略文本可以较自然地表达复杂边界，例如同样出现武器、医学或自残词汇时，教育、新闻、紧急求助和明确执行伤害之间需要不同判定。</p>\n<p>多模态版本把图像也纳入判别。prompt classification 关注用户是否正在用图片和文字组合提出危险请求；response classification 则关注助手最终回复是否真的泄露了危险步骤、隐私或其他受限内容。论文的一个重要经验是，输入端过滤对对抗扰动更敏感，因为攻击者只要让守卫误判请求为安全即可；输出端过滤要看到模型实际说了什么，通常更贴近最终风险。</p>\n<p>训练数据采用人工与合成混合构建。公开论文描述了 prompt-image 对和 prompt-response-image 样本两条数据线，并用统一 taxonomy 标注安全类别。监督微调让模型学习生成 <code>safe</code>、<code>unsafe</code> 与类别编号，而不是输出长篇解释，这降低了部署解析成本，也便于与网关、日志和审计系统集成。</p>\n<p>从系统设计看，Llama Guard 3 更适合作为“安全网关中的一个判别节点”，而不是唯一防线。实际部署通常还需要上游策略路由、下游人工复核、敏感场景白名单以及异常日志分析。尤其在多语言、多图、视频或领域专有内容中，需要重新评估阈值和错误类型。</p>"
     },
     {
       "id": "perspective",
@@ -920,7 +920,7 @@ window.PAGE_CONFIG = {
         "核心动机：机器学习毒性评分",
         "代表机构：Google"
       ],
-      "detail": "<p>机器学习毒性评分</p>"
+      "detail": "<p><img alt=\"Perspective 模型卡评估图\" src=\"https://raw.githubusercontent.com/conversationai/perspectiveapi/main/model-cards/auc_wipd.png\" /></p>\n<p>图源：Perspective API 官方 GitHub model cards，用于展示模型评估和公平性相关分析。</p>\n<pre><code class=\"language-text\">Algorithm: Perspective style moderation scoring\nInput:\n  text comment x\n  requested attributes A = {TOXICITY, INSULT, THREAT, ...}\n  moderation policy thresholds tau_a\nOutput:\n  scores s_a and product action\n\n1. Normalize and tokenize x according to the deployed text model.\n2. For each attribute a in A:\n     compute score s_a = model_a(x), where s_a is in [0, 1].\n3. Return API response with summaryScore for each attribute.\n4. Product layer applies rules:\n     if s_THREAT &gt; tau_THREAT: send to urgent review\n     else if s_TOXICITY &gt; tau_hide: collapse or queue\n     else if s_TOXICITY &gt; tau_warn: show author warning\n     else: publish normally\n5. Store feedback and moderation outcomes for later calibration.\n</code></pre>\n<p>Perspective 的方法可以理解为“属性化内容评分”。它不直接回答“这条评论是否应该删除”，而是回答“这条评论像不像某类不良内容”。这种拆分让同一个模型服务能够支持不同社区：新闻评论区可能选择更高的删除阈值，游戏聊天可能更重视实时限流，教育产品则可能把高分内容优先送人工复核。</p>\n<p>模型训练依赖大量带有人类标注的评论样本。对于每个属性，标注者判断文本是否包含攻击、侮辱、威胁或其他模式，分类模型学习从文本特征到属性分数的映射。生产系统通常还会提供反馈接口，让平台把误报、漏报和人工处置结果回流到评估和后续模型迭代中。</p>\n<p>阈值是 Perspective 落地的关键。较低阈值能捕获更多问题评论，但会增加误伤，尤其是身份词、引用脏话、讨论歧视议题或受害者自述时；较高阈值更保守，但可能放过隐晦攻击。成熟部署会分属性设置阈值，并把“隐藏”“折叠”“提示作者修改”“人工审核”拆成不同动作。</p>\n<p>从 LLM 安全角度看，Perspective 代表了早期但仍实用的“外部文本风险评分器”范式。它不能理解完整多轮对话意图，也不适合判断复杂越狱链条；但在日志清洗、用户生成内容预筛、开放评论风险热度监控等环节，仍是很典型的轻量安全组件。</p>"
     },
     {
       "id": "hmns",
@@ -940,7 +940,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 pair",
         "代表机构：ICLR"
       ],
-      "detail": "<p>掩蔽安全头电路高成功率越狱</p>"
+      "detail": "<p><img alt=\"HMNS 方法总览\" src=\"https://arxiv.org/html/2604.10326v1/2604.10326v1/HMNS_image.jpg\" /></p>\n<p>图源：<code>Jailbreaking the Matrix: Nullspace Steering for Controlled Model Subversion</code> 公开论文页面。</p>\n<pre><code class=\"language-text\">Algorithm: Head-Masked Nullspace Steering\nInput:\n  aligned model M with L layers and H attention heads\n  calibration prompts D_safe, D_refusal\n  intervention budget K, attempts T\nOutput:\n  controlled generation trace for safety evaluation\n\n1. For each layer l and head h:\n     ablate or mask head h on calibration prompts.\n     measure output distribution shift, e.g. KL(p_base || p_ablated).\n2. Select top-K heads S_l that most affect refusal/default behavior.\n3. For each affected layer l:\n     build head write matrix M_l = [W^O_{l,h}: h in S_l].\n     compute a unit vector u_l in the nullspace of M_l^T.\n4. For attempt t = 1..T:\n     set alpha_t = lambda * (1 + 0.1 * (t - 1)).\n     during generation, add delta_l = alpha_t * RMS(a_l) * u_l.\n     decode with fixed sampling policy.\n     if the safety evaluator marks the run successful, stop.\n5. Record heads, perturbation norms, and generation outcome.\n</code></pre>\n<p>HMNS 的核心数学约束是让干预方向落在被屏蔽安全头写入子空间的正交补中。若 <code>M_l</code> 表示若干安全头的输出投影矩阵，方法寻找 <code>u_l</code> 使 <code>M_l^T u_l ≈ 0</code>，再把 <code>δ_l = α RMS(a_l) u_l</code> 加到残差流。这样做的直觉是：不直接沿着已经被安全头控制的方向硬推，而是在这些方向“看不见”的空间里改变后续计算。</p>\n<p>定位安全头时，论文使用类似因果追踪的思路：比较原模型和消融某个 head 后的输出分布，KL 变化越大，说明该 head 对当前安全行为越关键。与纯梯度后缀攻击不同，这一步依赖模型内部结构，因而攻击能力更强但威胁模型也更苛刻，需要白盒访问权。</p>\n<p>闭环部分让 HMNS 不只是一次性向量注入。若某轮仍出现拒答，算法会继续尝试并调节扰动强度，有时还会重估相关电路。这个设计说明机制级安全并非静态开关：同一模型在不同 prompt、不同层、不同采样设置下，拒答电路可能有变化。</p>\n<p>从防御角度，HMNS 的价值在于暴露“安全行为局部化”的风险。如果安全对齐主要由少量头或少量方向承担，攻击者一旦获得权重和推理控制，就可能绕开这些局部机制。更稳健的方案应让安全约束分布到更多层、更多头和训练目标中，并对推理时激活篡改做完整性检查。</p>"
     },
     {
       "id": "neurostrike",
@@ -960,7 +960,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 gcg",
         "代表机构：NDSS"
       ],
-      "detail": "<p>剪枝安全神经元绕过对齐</p>"
+      "detail": "<p><img alt=\"NeuroStrike 框架图\" src=\"https://arxiv.org/html/2509.11864v1/x1.png\" /></p>\n<p>图源：NeuroStrike 公开论文页面；manifest 中的 NDSS 页面作为正式论文入口。</p>\n<pre><code class=\"language-text\">Algorithm: NeuroStrike-style safety neuron analysis\nInput:\n  aligned model M\n  benign set B, safety-sensitive set S\n  neuron score threshold z\nOutput:\n  ranked safety neuron set N_safe and evaluation report\n\n1. Run M on B and S, collecting MLP neuron activations by layer.\n2. For each neuron n:\n     compute mean activation on S and B.\n     compute normalized difference score, e.g. z-score(n).\n3. Select N_safe = {n | z-score(n) &gt; z}.\n4. White-box evaluation:\n     apply an inference-time mask to selected neurons.\n     measure refusal rate, harmful compliance rate, and utility.\n5. Transfer study:\n     compare selected neuron patterns across related models.\n     train or evaluate prompt generators against surrogate models.\n6. Report attack success and utility degradation under controlled benchmarks.\n</code></pre>\n<p>NeuroStrike 的技术重点是把“安全对齐”落到神经元粒度观察。对齐训练会让模型学会在某些输入上拒答、规避或改写回答，这些行为可以在 MLP 激活中留下统计差异。通过比较安全敏感样本和普通样本的激活均值，研究者能够给每个神经元打分，找出对拒答行为贡献突出的候选集合。</p>\n<p>白盒版本的攻击在推理阶段屏蔽这些候选神经元，相当于做局部功能剪枝。论文报告这类干预可以只影响很小比例的神经元，却显著改变安全行为，这说明至少在某些模型和训练设置中，安全特征存在可定位的稀疏载体。对防御者而言，这既是可解释性线索，也是完整性风险。</p>\n<p>黑盒版本更强调迁移性。攻击者无法直接改闭源模型权重时，可以在开源同族或相近模型上找安全神经元规律，再利用这些规律训练提示生成器或选择攻击策略。它不是证明闭源权重被直接剪枝，而是证明“安全机制的可迁移弱点”可能通过替代模型被利用。</p>\n<p>防御上，最直接的结论是不要让安全能力只依赖少数可剪枝单元。可以通过多任务安全训练、跨层正则、随机化冗余安全表征、推理时激活范围检测、模型文件签名和可信执行环境来降低风险。评测也不应只看正常推理，还应包含结构扰动和局部屏蔽压力测试。</p>"
     },
     {
       "id": "proact",
@@ -980,7 +980,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 pair",
         "代表机构：ICLR"
       ],
-      "detail": "<p>伪造响应误导攻击智能体</p>"
+      "detail": "<p><img alt=\"ProAct 公开论文页面\" src=\"https://openreview.net/pdf?id=AUZIYQGAoAb\" /></p>\n<p>图源：OpenReview 公开论文 PDF。该链接用于定位论文中的框架图和方法说明。</p>\n<pre><code class=\"language-text\">Algorithm: ProAct-style defense against iterative jailbreak agents\nInput:\n  target model M\n  incoming prompt p_t\n  attack detector D\n  proactive response generator G\n  normal safety policy P\nOutput:\n  response r_t to the client or attacking loop\n\n1. Receive p_t and recent interaction history H.\n2. Estimate whether H belongs to an automated jailbreak optimization loop:\n     attack_score = D(H, p_t).\n3. If attack_score is below threshold:\n     return M(p_t) under normal safety policy P.\n4. Otherwise:\n     infer which feedback signal the attacker is optimizing.\n     construct r_decoy = G(H, p_t), a response that distorts the reward signal.\n5. Return r_decoy to the attack loop.\n6. Continue monitoring whether the attacker drifts, stops, or escalates.\n</code></pre>\n<p>PAIR 类攻击的基本结构是闭环优化：攻击模型提出一个候选 prompt，目标模型给出回复，评估器判断是否成功，攻击模型再根据评估结果改写下一轮 prompt。ProAct 的切入点是第三步以前的反馈链路。只要能让攻击器相信错误的候选方向有效或无效，它的搜索轨迹就会偏离真正的漏洞区域。</p>\n<p>这种思路和传统内容过滤不同。传统过滤器通常在目标模型输出后判断是否违规；ProAct 则把“攻击者也在学习”当作威胁模型的一部分，主动改变攻击者看到的数据分布。对自动化智能体来说，反馈就是训练信号；反馈被污染后，后续 prompt 生成也会被污染。</p>\n<p>ProAct 的实现需要两个模块：攻击循环识别器和诱饵响应生成器。识别器可以利用多轮相似度、显式评分话术、攻击模板痕迹、异常重试频率等信号；生成器则要保证诱饵内容本身不泄露受限信息，同时足以影响攻击器或 judge 的判断。这使它更像“主动欺骗式防御”，而不是普通拒答。</p>\n<p>安全边界也很清楚：ProAct 不能替代底层安全对齐。若攻击者不依赖自动 judge，或者把每轮结果交给真人分析，伪造反馈的收益会变小。实际部署时，它更适合与 Llama Guard、输出过滤、速率限制、账号风控和异常会话聚类共同使用。</p>"
     },
     {
       "id": "aligntree",
@@ -1000,7 +1000,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 llama_guard3",
         "代表机构：AAAI"
       ],
-      "detail": "<p>随机森林实时激活拦截</p>"
+      "detail": "<p><img alt=\"AlignTree 框架图\" src=\"https://arxiv.org/html/2511.12217v1/x1.png\" /></p>\n<p>图源：AlignTree 公开论文页面；manifest 中 DOI 页面作为条目元信息保留。</p>\n<pre><code class=\"language-text\">Algorithm: AlignTree inference-time defense\nInput:\n  aligned model M\n  training prompts D_safe, D_unsafe\n  layers L*, token positions I*\n  risk threshold tau\nOutput:\n  generation with online safety intervention\n\nTraining:\n1. Run M on D_safe and D_unsafe, collect hidden states x_i^(l).\n2. Compute a refusal or safety direction r* from class-conditional means.\n3. For selected layers and positions:\n     compute linear score s_linear = &lt;x_i^(l), r*&gt; / ||r*||.\n     train RBF-SVM to capture nonlinear harmful features.\n4. Train a Random Forest on concatenated linear and SVM scores.\n\nInference:\n5. During generation, collect current hidden states.\n6. Build the same feature vector.\n7. risk = RandomForest.predict_proba(features).\n8. If risk &gt; tau, interrupt or redirect generation; otherwise continue.\n</code></pre>\n<p>AlignTree 的第一类信号来自“拒答方向”。这类方法假设安全拒答和不安全顺从在隐藏空间中存在可分方向，可以用两类样本均值差近似。对某层激活 <code>x_i^(l)</code>，投影分数 <code>s = &lt;x_i^(l), r*&gt; / ||r*||</code> 表示当前生成状态更接近拒答侧还是顺从侧。</p>\n<p>第二类信号由 SVM 捕获。线性方向对简单分界有效，但越狱行为可能表现为非线性组合，例如某些层的特征单独看不异常，组合起来才危险。RBF-SVM 为每层或关键 token 位置提供一个非线性风险分数，补足单一方向投影的表达能力。</p>\n<p>最终随机森林把多个浅层信号合成一个稳定判别器。随机森林适合这里的原因是训练快、推理便宜、对特征尺度不太敏感，并能提供特征重要性。相比再部署一个大模型 guard，它的运行成本低得多，适合在每个生成步骤附近做在线判断。</p>\n<p>从产品角度，AlignTree 的防御动作可以比“封禁整条请求”更细。系统可以在风险升高时提前终止当前生成，改写为安全拒答，或者将会话转入更严格的 guard pipeline。这种内部激活防御也有局限：它需要白盒访问目标模型，且对模型版本、层结构和微调方式比较敏感。</p>"
     },
     {
       "id": "jbfuzz",
@@ -1019,7 +1019,7 @@ window.PAGE_CONFIG = {
         "核心动机：模糊测试自动化越狱框架",
         "代表机构：RedTeams"
       ],
-      "detail": "<p>模糊测试自动化越狱框架</p>"
+      "detail": "<p><img alt=\"JBFuzz 框架图\" src=\"https://arxiv.org/html/2503.08990v1/x1.png\" /></p>\n<p>图源：JBFuzz 公开论文页面；manifest 中博客链接是对应公开介绍入口。</p>\n<pre><code class=\"language-text\">Algorithm: JBFuzz-style LLM fuzzing loop\nInput:\n  target model API M\n  seed prompt templates S\n  mutation operator Mutate\n  lightweight evaluator Eval\n  selection policy Select\n  query budget B\nOutput:\n  successful test cases and coverage statistics\n\n1. Initialize corpus C = S with weights or scores.\n2. For step = 1..B:\n     seed = Select(C)\n     candidate = Mutate(seed)\n     response = M(candidate)\n     score = Eval(candidate, response)\n     if score indicates policy violation:\n         save candidate and response as a finding.\n         add candidate to C with higher priority.\n     else if candidate explores a novel region:\n         add candidate to C with neutral or low priority.\n     update selection weights from observed outcomes.\n3. Deduplicate findings and report ASR, queries, time, and examples for review.\n</code></pre>\n<p>JBFuzz 的关键抽象来自传统 fuzzing：不试图一次构造完美攻击，而是持续变异输入并用反馈保留有价值样本。对 LLM 来说，输入空间是自然语言，变异不能像二进制 fuzzing 那样随意翻 bit，因此论文使用更语义保持的同义替换和模板扰动，让候选仍然可被模型理解。</p>\n<p>选择策略决定测试预算花在哪里。随机选择简单但浪费；加权随机、UCB 或 EXP3 会把更多查询分配给历史上更容易产生发现的模板，同时仍保留探索新模板的概率。这个设计让 JBFuzz 不只是批量 prompt 列表，而是一个带反馈的搜索系统。</p>\n<p>轻量评估器是效率核心。若每个候选都调用 GPT-4 级 judge，成本和延迟会限制 fuzzing 规模。JBFuzz 使用 embedding 加分类器的方式近似判断回复是否违规，再把高风险发现交给更严格复核。这样可以把大量低价值候选快速筛掉。</p>\n<p>在防御工作流里，JBFuzz 更适合作为“持续压力测试工具”。它产生的发现应进入人工归因、策略修订和模型回归测试，而不是直接当作真实用户攻击统计。为了避免扩散风险，报告中应脱敏或抽象化具体攻击文本，只保留可复现的内部测试编号和安全标签。</p>"
     },
     {
       "id": "jbf",
@@ -1039,7 +1039,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 jbfuzz",
         "代表机构：arXiv"
       ],
-      "detail": "<p>论文自动转化攻击模块</p>"
+      "detail": "<p><img alt=\"Jailbreak Foundry 架构图\" src=\"https://raw.githubusercontent.com/OpenSQZ/Jailbreak-Foundry/main/images/jbf_architecture.jpg\" /></p>\n<p>图源：Jailbreak Foundry 官方 GitHub 仓库。manifest 中 arXiv URL 保持为输入元信息；公开仓库和论文用于补足方法细节。</p>\n<pre><code class=\"language-text\">Algorithm: Jailbreak Foundry paper-to-module workflow\nInput:\n  paper P, optional official code R\n  JBF attack interface contract C\n  benchmark suite E\nOutput:\n  runnable attack module A and reproducibility report\n\n1. Planner reads P and extracts:\n     threat model, prompt construction, optimization loop,\n     hyperparameters, stopping criteria, and judge assumptions.\n2. If R exists, map official implementation to JBF abstractions.\n3. Coder implements A with standard methods:\n     initialize(), generate_attack(), query_target(), update(), finalize().\n4. Auditor checks that A matches P and C:\n     required parameters, deterministic seeds, logging, and failure handling.\n5. Run A on E with fixed victim models and safety evaluator.\n6. Report ASR, query cost, runtime, reproduced gaps, and deviations from paper.\n</code></pre>\n<p>JBF 的核心问题是 jailbreak 研究的可复现性。许多论文都有自己的 prompt 格式、目标模型版本、过滤器、成功判据和后处理逻辑，导致 ASR 不能直接横向比较。JBF-LIB 通过统一攻击生命周期接口，把这些差异压到模块内部，让外部评测器以一致方式调度。</p>\n<p>JBF-FORGE 关注从论文到代码的转化。规划器先把自然语言方法拆成结构化计划，例如是否需要优化循环、是否依赖 judge、是否有种子库、是否需要多轮目标模型调用。编码器再把计划落到框架接口中，审计器检查遗漏和不一致。这降低了安全团队复现新论文的手工成本。</p>\n<p>JBF-EVAL 解决评测口径问题。它固定数据集、victim model、judge、预算和日志格式，使“某攻击在某模型上成功”变成可追踪实验记录。对于防御者，统一基准比单篇论文数字更有价值，因为它能揭示哪些攻击只在原设定有效，哪些攻击跨模型稳定。</p>\n<p>需要注意，JBF 不是鼓励公开扩散攻击细节的产品工具，而是面向受控红队和研究复现的框架。实际组织内部使用时，应对攻击模块、日志样本和成功 prompt 做访问控制，并把复现结果接入修复流程，而不是仅仅追求更高 ASR。</p>"
     },
     {
       "id": "probe",
@@ -1059,7 +1059,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 selfcheckgpt",
         "代表机构：EACL"
       ],
-      "detail": "<p>过程化分解幻觉检测步骤</p>"
+      "detail": "<p><img alt=\"PROBE 公开论文页面\" src=\"https://openreview.net/pdf?id=GleVekx5ut\" /></p>\n<p>图源：OpenReview 公开论文 PDF。若 PDF 中包含框架图，可从该页面定位原始图示。</p>\n<pre><code class=\"language-text\">Algorithm: PROBE-style process-based hallucination detection\nInput:\n  question q\n  model answer y\n  evidence corpus C\n  process labels or evaluators E\nOutput:\n  final hallucination score and per-step diagnosis\n\n1. Decompose y into atomic factual claims c_1..c_n.\n2. For each claim c_i:\n     retrieve candidate evidence passages e_i from C.\n     classify relation r_i in {supported, contradicted, not_enough_info}.\n     record confidence and evidence provenance.\n3. Aggregate claim-level labels:\n     hallucination_score = weighted fraction of contradicted or unsupported claims.\n4. Evaluate intermediate steps separately:\n     claim segmentation quality,\n     retrieval recall,\n     entailment accuracy,\n     final aggregation accuracy.\n5. Return final label and an error trace for model or pipeline debugging.\n</code></pre>\n<p>PROBE 的基本动机是：一个幻觉检测系统由多个子问题组成。如果最终判断错了，可能是没有把答案拆成正确的事实单元，可能是证据没找全，也可能是 NLI 判定器误把相关证据当成支持。只给最终 accuracy 会掩盖这些错误来源，导致研究者难以改进系统。</p>\n<p>过程化分解使 benchmark 更像调试器。对每个 atomic claim，系统需要给出证据和支持关系；这样就可以分别计算 claim extraction、retrieval 和 verification 的指标。一个检测器即使最终 F1 高，也可能依赖脆弱捷径；PROBE 的分步标签能揭示这种情况。</p>\n<p>与 SelfCheckGPT 相比，PROBE 不只看同一模型多次采样之间是否自相矛盾。自一致性适合无外部知识时的弱监督信号，但它无法判断模型一致地编造事实的情况。PROBE 引入证据和过程标签后，更适合知识密集型问答和 RAG 场景。</p>\n<p>在工程部署中，PROBE 式评测能指导组件优先级。例如如果错误主要来自 retrieval recall，应该改索引、切分和召回；如果错误主要来自 entailment，应该换 judge 或加入领域规则；如果错误来自 aggregation，则需要更细的 claim 权重和不确定性处理。</p>"
     },
     {
       "id": "kghalubench",
@@ -1079,7 +1079,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 factscore",
         "代表机构：EACL"
       ],
-      "detail": "<p>知识图谱自动化验证</p>"
+      "detail": "<p><img alt=\"KGHaluBench 框架图\" src=\"https://arxiv.org/html/2602.19643v1/Figures/KGHaluBench_Framework6.png\" /></p>\n<p>图源：KGHaluBench 公开论文页面；manifest 中 ACL 页面作为条目元信息保留。</p>\n<pre><code class=\"language-text\">Algorithm: KGHaluBench question generation and verification\nInput:\n  knowledge graph G = (E, R, F)\n  entity sampling policy pi\n  target LLM M\n  verifier V\nOutput:\n  weighted accuracy and hallucination metrics\n\n1. Sample entity e and relations or attributes from G.\n2. Estimate difficulty from entity popularity and graph statistics.\n3. Generate a natural-language question q whose answer is grounded in G.\n4. Query target model: y = M(q).\n5. If y is an abstention:\n     score as abstained, not hallucinated.\n6. Run entity-level verification:\n     check whether required entities appear or are semantically matched.\n7. Run fact-level verification:\n     decompose y into facts and test support against KG-derived evidence.\n8. Aggregate results with difficulty weights:\n     report weighted accuracy, hallucination rate, and abstention behavior.\n</code></pre>\n<p>KGHaluBench 的生成侧依赖知识图谱的结构化优势。图谱中实体、关系和属性天然给出可验证事实，因此可以系统性地产生问题，而不是手工收集零散问答。通过控制实体流行度、关系数量和问题组合，benchmark 能覆盖热门知识与长尾知识。</p>\n<p>验证侧分两层。实体级过滤先判断回答是否提到了正确实体，避免后续事实验证被明显错位的对象污染；事实级验证再判断具体断言是否被图谱或图谱派生证据支持。公开论文还描述了用 NLI 模型、小型 LLM 和少量专家判定组合的流水线，以平衡速度与可靠性。</p>\n<p>难度加权是 KGHaluBench 区别于普通事实问答基准的重要点。热门实体更容易被模型记住，简单平均会高估模型真实知识覆盖。将实体流行度和图谱统计纳入权重后，长尾问题对指标的贡献更合理，能更好反映模型在知识广度和深度上的可靠性。</p>\n<p>它与 FactScore 的关系在于都强调事实单元级评估，但 KGHaluBench 更依赖知识图谱自动构造问题和证据。FactScore 常用于长文本生成事实分解，KGHaluBench 则更像一个受控知识压力测试平台，可以系统追踪哪些实体族、关系类型和难度区间最容易触发幻觉。</p>"
     },
     {
       "id": "abse",
@@ -1099,7 +1099,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 rag",
         "代表机构：AAAI"
       ],
-      "detail": "<p>自适应语义熵平衡精度效率</p>"
+      "detail": "<p><img alt=\"ABSE 方法示意图\" src=\"https://arxiv.org/html/2603.22812v1/2603.22812v1/figures/teaser-1.png\" /></p>\n<p>图源：<code>Efficient Hallucination Detection: Adaptive Bayesian Estimation of Semantic Entropy with Guided Semantic Exploration</code> 公开论文页面。</p>\n<pre><code class=\"language-text\">Algorithm: Adaptive Bayesian Semantic Entropy\nInput:\n  prompt x, generator M\n  semantic equivalence classifier C\n  variance threshold tau\n  max sample budget B\nOutput:\n  estimated semantic entropy H and hallucination decision\n\n1. Initialize a Dirichlet-style posterior over semantic clusters.\n2. For n = 1..B:\n     sample answer y_n from M(x), or guided variant y'_n.\n     assign y_n to semantic cluster c_n using C.\n     update posterior counts, with importance weight if guided.\n     estimate cluster probabilities p(c | x).\n     compute semantic entropy H = - sum_c p(c | x) log p(c | x).\n     compute posterior variance Var(H).\n     if Var(H) &lt; tau:\n         break.\n3. Return H and flag hallucination if H exceeds deployment threshold.\n</code></pre>\n<p>语义熵的直觉是：如果模型真正知道答案，多次采样虽然措辞不同，但语义应集中在少数等价类；如果模型不确定，采样会分散到多个互相矛盾的答案簇。ABSE 继承这个思想，但不再固定采样次数，而是估计“当前 entropy 估计有多可靠”。</p>\n<p>贝叶斯部分把每个语义簇的概率当作后验分布，而不是只用频数点估计。每新增一个样本，后验均值会更新，后验方差会下降。当方差已经低于阈值时，继续采样带来的收益很小，算法提前停止；当答案簇仍不稳定时，算法继续投入预算。</p>\n<p>Guided Semantic Exploration 解决另一个问题：普通采样可能长时间重复高概率答案，错过低概率但语义不同的候选。方法在生成过程中选择关键 token 位置，替换为 top-k 替代 token 并继续生成，再用重要性权重校正由引导分布带来的偏差。这样可以更快发现隐藏的语义分歧。</p>\n<p>在 RAG 系统里，ABSE 可以作为“回答置信度后验估计器”。对证据充分、答案稳定的问题，它很快停止；对证据冲突或模型知识不足的问题，它会看到更高语义熵并触发检索增强、拒答或人工复核。实际落地要校准两个阈值：后验方差停止阈值和语义熵风险阈值。</p>"
     },
     {
       "id": "halp",
@@ -1154,7 +1154,7 @@ window.PAGE_CONFIG = {
         "核心动机：语法树确定性代码验证",
         "代表机构：WWW"
       ],
-      "detail": "<p>语法树确定性代码验证</p>"
+      "detail": "<p><img alt=\"AST-Detect 框架图\" src=\"https://arxiv.org/html/2601.19106v1/x1.png\" /></p>\n<p>图源：<code>Detecting and Correcting Hallucinations in LLM-Generated Code via Deterministic AST Analysis</code> 公开论文页面。manifest 中 <code>paper_url</code> 保持输入元信息。</p>\n<pre><code class=\"language-text\">Algorithm: AST-based code hallucination detection\nInput:\n  generated Python code c\n  library knowledge base KB from introspection\nOutput:\n  diagnostics and corrected code c'\n\n1. Parse c into AST T.\n2. Traverse T to collect:\n     imports and aliases,\n     defined variables and functions,\n     call sites,\n     attribute accesses,\n     keyword arguments.\n3. For each call node:\n     resolve module or object from imports and aliases.\n     check whether function or method exists in KB.\n     check whether keyword arguments match the true signature.\n4. For identifiers:\n     check whether each name is defined, imported, or built-in.\n5. Emit deterministic diagnostics with AST node locations.\n6. Apply local fixes when unambiguous:\n     add missing import, correct API name, remove invalid keyword.\n7. Re-parse c' and rerun checks.\n</code></pre>\n<p>AST-Detect 的关键是把代码幻觉看作可静态验证的结构冲突。LLM 生成的代码常常语法正确，却引用了不存在的 API 或参数。这类错误不一定需要运行程序才能发现，只要知道目标库真实暴露了哪些符号、签名和参数，就能在 AST 层定位。</p>\n<p>相较字符串匹配，AST 提供了作用域和语法角色。比如同样的 token 可能是变量名、函数名、属性名或字符串内容；AST 能区分这些位置，降低误报。它还可以处理别名导入，例如 <code>import pandas as pd</code> 后把 <code>pd.DataFrame(...)</code> 解析回 pandas 的真实 API。</p>\n<p>知识库由库 introspection 动态生成，避免手写规则快速过期。对 Python 生态而言，可以读取模块成员、函数签名、类方法和默认参数，再把它们组织成可查询表。检测时只需解析代码和查表，因此速度远低于执行测试或调用大模型复审。</p>\n<p>修复阶段采取保守策略。若错误有单一明确修复，例如缺失标准导入或参数名拼写近似，可以自动改写 AST；若存在多个可能意图，则应报告诊断而不是猜测。这个设计保持了高 precision，也符合生产环境对代码自动修改的审慎要求。</p>"
     },
     {
       "id": "safedpo",
@@ -1208,7 +1208,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 safe_rlhf",
         "代表机构：AAAI"
       ],
-      "detail": "<p>推理模型安全对齐数据集</p>"
+      "detail": "<p><img alt=\"STAR-1 teaser\" src=\"https://raw.githubusercontent.com/UCSC-VLAA/STAR-1/main/assets/SART1_teaser_final.jpg\" /></p>\n<p>图源：STAR-1 官方 GitHub 仓库。manifest 中 arXiv URL 保持输入元信息；公开仓库和论文页面用于补足方法细节。</p>\n<pre><code class=\"language-text\">Algorithm: STAR-1 data construction and alignment\nInput:\n  raw safety dataset D_raw\n  safety policy P\n  reasoning teacher T\n  quality scorer Q\n  reasoning model M\nOutput:\n  safer reasoning model M'\n\n1. Decontaminate and deduplicate D_raw.\n2. Classify samples into safety categories for diversity control.\n3. For each candidate prompt:\n     use T to generate policy-grounded deliberative reasoning\n     and a final safe response.\n4. Score each sample with Q on:\n     policy correctness, reasoning quality, answer helpfulness,\n     refusal appropriateness, and formatting.\n5. Select a diverse high-quality subset D_star of about 1K samples.\n6. Supervised fine-tune M on D_star with thought and answer format.\n7. Evaluate M' on safety benchmarks and reasoning benchmarks.\n8. Optionally mix benign data to reduce over-refusal.\n</code></pre>\n<p>STAR-1 针对的是 reasoning LLM 的特殊安全问题。推理模型会显式展开思考过程，安全策略不仅要体现在最终答案中，也要体现在中间推理里。若思考过程已经朝危险方向展开，最后一句拒答并不一定足够；因此数据需要教会模型如何在推理阶段识别风险、引用政策边界并转向安全帮助。</p>\n<p>论文的“1K 数据”并不是随机小数据，而是经过强过滤的高密度数据。流程先从更大的安全样本池中去重和分类，保证风险类别多样；再用强模型生成带有 deliberative reasoning 的候选回答；最后用评分器筛掉政策错误、推理薄弱、过度拒绝或格式不合格样本。这体现的是质量优先的数据工程路线。</p>\n<p>训练目标是监督微调，而不是复杂的在线 RL。对推理模型来说，SFT 高质量轨迹可以直接改变回答风格：模型学会先判断请求意图和安全边界，再提供拒答、替代安全信息或正常帮助。公开结果显示，在多个安全 benchmark 上提升明显，而推理能力下降较小，说明安全轨迹和通用推理并不必然冲突。</p>\n<p>STAR-1 也提醒我们，非推理 LLM 和 reasoning LLM 的最佳安全数据格式可能不同。带 <code>&lt;think&gt;</code> 风格的推理轨迹对 reasoning model 很重要，但对普通 instruction model 可能造成格式和行为错配。实际落地应按模型家族分别评估是否保留思考轨迹、是否只训练最终答案，以及是否混入 benign helpfulness 数据降低过拒。</p>"
     },
     {
       "id": "rmo",
@@ -1228,7 +1228,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 safe_rlhf",
         "代表机构：AAAI"
       ],
-      "detail": "<p>重塑奖励边际提升扩展性</p>"
+      "detail": "<h5>示意图/图源</h5>\n<p><img alt=\"RMO 论文 Figure 1/2 图源：高方差与低方差 reward margin batch 对训练曲线和胜率的影响\" src=\"https://ojs.aaai.org/index.php/AAAI/article/view/40565/44526\" />\n<em>图源：AAAI 官方 PDF 中 Figure 1/2 展示了同一数据集在不同 batch margin 方差划分下的 loss 和 win-rate 差异。Manifest 中 DOI 不可直接对应到公开页面，正文采用同题 AAAI 官方页面与 PDF 补足：<code>https://ojs.aaai.org/index.php/AAAI/article/view/40565</code>。</em></p>\n<h5>算法/流程伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "lasa",
@@ -1323,7 +1323,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 toxigen",
         "代表机构：EACL"
       ],
-      "detail": "<p>LLM引导毒性数据增强</p>"
+      "detail": "<h5>示意图/图源</h5>\n<p><img alt=\"ToxiGAN 总体框架\" src=\"https://arxiv.org/html/2601.03121v1/x1.png\" />\n<em>图：ToxiGAN 包含多个类别条件 toxic generators、一个 LLM neutral text provider 和一个 multi-class discriminator。</em></p>\n<p><img alt=\"ToxiGAN 两步方向学习\" src=\"https://arxiv.org/html/2601.03121v1/x2.png\" />\n<em>图：生成器在 embedding space 中交替朝“远离中性语义”和“靠近真实毒性分布”两个方向更新。</em></p>\n<h5>算法/流程伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "bielik_guard",
@@ -1343,7 +1343,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 perspective",
         "代表机构：arXiv"
       ],
-      "detail": "<p>多语种优化安全分类器</p>"
+      "detail": "<h5>示意图/图源</h5>\n<p><img alt=\"Bielik Guard 官方项目图源\" src=\"https://guard.bielik.ai/images/preview.png\" />\n<em>图源：Bielik Guard/Sójka 官方项目页。模型页包括 <code>https://huggingface.co/speakleash/Bielik-Guard-0.1B-v1.1</code> 和 <code>https://huggingface.co/speakleash/Bielik-Guard-0.5B-v1.1</code>。</em></p>\n<h5>算法/流程伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "attriguard",
@@ -1363,7 +1363,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 llama_guard3",
         "代表机构：arXiv"
       ],
-      "detail": "<p>因果归因防御提示注入</p>"
+      "detail": "<h5>示意图/图源</h5>\n<p><img alt=\"AttriGuard pipeline 图源：arXiv PDF 中 Figure 1 展示 injected vs benign observations 下的 original run 与 shadow run\" src=\"https://arxiv.org/pdf/2603.10749\" />\n<em>图源：arXiv PDF。源文件中对应 <code>pdfs/attriguard_pipeline.pdf</code>，说明左侧 IPI 场景下恶意 call 在 shadow replay 中不存活，右侧 benign 场景下 save-to-pad call 正常存活。</em></p>\n<h5>算法/流程伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "toolhijacker",

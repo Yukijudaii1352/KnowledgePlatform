@@ -27,13 +27,11 @@ image_base: ../../content/llm/llm_evaluation/assets/
 
 ## 领域综述
 
-### 待补充：阶段性领域总结
-请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/llm/llm_evaluation/overview/zhihu__综述：对_283_个_LLM_评测基准的系统盘点__30b147b9/article.md
 
 ## 最新进展综述
 
-### 待补充：最近一个月最新动向
-请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/llm/llm_evaluation/latest/zhihu__开源大模型榜单,10个主流Benchmark一次讲清，附排名__b824c287/article.md
 
 ## 算法演化关系
 

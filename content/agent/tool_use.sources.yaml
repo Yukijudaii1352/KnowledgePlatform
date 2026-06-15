@@ -1,0 +1,4 @@
+overview:
+  include_raw: temp/content_survey_bulk_20260614_174337/researcher_output/agent/tool_use/overview/zhihu__智能体架构汇总（二）——工具调用(Tool_Call)__d7dac5fb/article.md
+latest_overview:
+  include_raw: temp/content_survey_bulk_20260614_174337/researcher_output/agent/tool_use/latest/zhihu__智能体只会机械调工具？ICLR_2026五种方案让Agent学会灵活规划与自我进化__e2fd3acc/article.md

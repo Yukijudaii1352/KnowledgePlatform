@@ -1,148 +1,115 @@
-### DFM-VLA：离散流匹配视觉语言动作模型详解
+### DFM-VLA：离散流匹配 VLA
 
----
+```yaml
 id: dfm_vla
 name: DFM-VLA
-full_name: 离散流匹配VLA (Discrete Flow Matching Vision-Language-Action Model)
-year: 2026.03
+full_name: 离散流匹配VLA (DFM-VLA)
+year: "2026.03"
 org: arXiv
 paper_url: https://arxiv.org/abs/2603.26320
 category: diffusion_flow
 parent: pi0
 motivation: 迭代细化动作Token解决轨迹不稳定
----
+```
 
-#### 📋 基础信息速览
+#### 📝 一句话总结
 
-| 属性 | 内容 |
-|------|------|
-| paper_url | https://arxiv.org/abs/2603.26320 |
-| year | 2026.03 |
-| org | arXiv |
-| parent | pi0 |
-| category | diffusion_flow |
-| motivation | 迭代细化动作Token解决轨迹不稳定 |
-| backbone | Emu3 tokenizer + MoVQ visual tokenizer + FAST action tokenizer |
-| benchmarks | CALVIN (4.44 Avg. Len), LIBERO (95.7%), Real-World (70.8%) |
-| key technique | token-level velocity field + two-stage decoding + adaptive KV caching |
+DFM-VLA 将离散流匹配引入 VLA 动作 token 生成，用 token 级概率速度场反复修正整段动作序列，解决自回归和离散扩散 VLA 中早期错误 token 难以回退的问题。它在统一离散视觉-语言-动作表示上结合 embedding-guided velocity、velocity head 与两阶段解码，在 CALVIN、LIBERO 和真实双臂任务上提升动作稳定性。
 
 #### 🎯 核心要点
 
-- **Token级速度场建模**：将离散流匹配（DFM）引入VLA的动作生成，不是一次性生成动作token，而是从纯噪声开始，通过预测token间的"速度场"（velocity field）迭代细化完整动作序列，从根本上解决自回归解码的"不可逆承诺"（irreversible commitment）问题。
-- **两种速度场构建方案**：CE损失方案通过交叉熵训练→测速场转换；额外Head方案直接预测替换速度，保留 EditFlow 的 replacement 操作，两种方案均可收敛且精度媲美。
-- **两阶段解码策略**：前期用连续时间Markov链（CTMC）的Euler步进行速度场引导的精炼，后期切换为argmax模式快速收敛到确定性的高置信度动作token，兼顾质量与速度。
-- **自适应KV缓存加速**：利用DFM迭代去噪过程中多token仅有微小KV状态变化的特性，自适应复用视觉/指令侧的KV cache，动作侧按余弦相似度动态更新，相比自回归解码获得2.4倍延迟加速。
-- **低数据场景显著优势**：在CALVIN上仅用10%训练数据即达到Avg. Len 3.21，大幅超越自回归（1.71）和离散扩散（2.84），证明迭代细化缓解了小数据下的过拟合和错误累积。
-- **真实机器人验证**：在bimanual AgileX平台上三项任务均取得最高成功率（70.8%），显著超越π0-FAST（AR）、Dream-VLA（扩散）和RDT（连续扩散）等主流VLA方案。
+- 提出 irreversible commitment 问题：自回归 VLA 逐 token 固化，离散扩散 VLA 往往只更新 mask/低置信位置，早期错误会传播到整段动作。
+- 统一离散 token 化：文本使用 Emu3 tokenizer，第三视角和腕部图像用 VQ tokenizer，每张图像压缩为 \(25 \times 25\) tokens，动作使用 FAST 加 BPE，动作词表大小为 1024。
+- 只对动作模态加噪和预测：语言、图像和 proprioception 作为上下文，noised action tokens \(x_t\) 作为待精炼状态。
+- token 级概率速度场：把动作生成建模为连续时间马尔可夫链（CTMC）上的离散状态迁移，而非一次性输出最终动作。
+- 两种速度场构造：auxiliary velocity head 直接预测 replacement rates；action-embedding-guided formulation 用动作 token embedding 距离定义概率路径和 kinetic-optimal velocities。
+- 两阶段解码：先用 CTMC Euler 步做 stochastic iterative refinement，再用 deterministic validation/argmax 稳定收敛。
+- 实验结果：DFM-VLA+Embed 在 CALVIN 上达到 4.44 average success length，在 LIBERO 上达到 95.7% 平均成功率，真实 AgileX 双臂任务平均 70.8%。
 
 #### 🔬 深入细节
 
-##### 整体架构
+![DFM-VLA 总体架构](https://chris1220313648.github.io/DFM-VLA/assets/figure/model.png)
+*图：DFM-VLA 在语言、图像和 noised action tokens 条件下预测 clean action tokens，并通过交叉熵或 velocity head 学习速度场。*
 
-![DFM-VLA Overall Architecture](https://ar5iv.labs.arxiv.org/html/2603.26320/assets/x3.png)
+离散 VLA 的吸引力在于它能把机器人动作接入大语言/视觉语言模型的 token 训练范式，但解码方式会带来新的控制风险。自回归模型按左到右生成动作 token，前面的错 token 一旦输出，后续 token 只能在错误上下文上继续生成；离散扩散模型虽然并行，但很多实现依赖 mask 或置信度释放，已经确定的位置也很难被重新审视。机器人控制要求整段动作轨迹协调一致，所以这种 irreversible commitment 会表现为轨迹抖动、长时任务失败和低数据场景下的错误放大。
 
-*Figure 3：DFM-VLA整体架构。在语言-视觉上下文+噪声动作token \(x_t\) 条件下，模型预测干净动作 \(x_1\)，并通过 \(\mathcal{L}_{\text{ce}}\) 或 \(\mathcal{L}_{\text{head}}\) 学习速度场。*
+DFM-VLA 的核心改写是：动作序列不是一步从噪声变成答案，而是沿着离散概率路径逐步流向真实动作分布。对离散变量 \(x=(x^1,\dots,x^D)\)，DFM 定义从源分布到目标数据分布的时间路径 \(p_t(x)\)。一个常见混合路径可以写成：
 
-##### 核心算法伪代码
+$$
+p_t(x^i \mid x_1^i)
+= (1-\kappa_t)\,p(x^i) + \kappa_t\,\delta_{x_1^i}(x^i),
+\quad \kappa_0=0,\ \kappa_1=1
+$$
 
-```
-**Algorithm 1: Two-Stage Decoding of DFM-VLA**
+这里 \(x_1\) 是 clean action token sequence，\(x_t\) 是中间噪声状态。模型要学习的不是单个 next token，而是从 \(x_t\) 到 \(x_1\) 的迁移方向。CTMC 视角下，每个 token 的下一状态由速度场 \(u_t\) 决定：
 
-Input: predictor p_θ, context l, steps T_fine, T_val, action vocabulary V
+$$
+x_{t+h}^i \sim \delta_{x_t^i}(\cdot) + h\,u_t^i(\cdot \mid x_t^i, x_1^i)
+$$
 
-1: Sample x_0 ~ Uniform(V); set T = T_fine + T_val
-2: for k = 1 to T do
-3:     t = (k-1)/T, h = 1/T
-4:     x̂_1 ~ p_θ(· | x_t, l)
-5:     if k ≤ T_fine then
-6:         Compute velocity u_t from x̂_1 (Eq. 7 or Eq. 3)
-7:         Update x_{t+h} by a CTMC Euler step
-8:     else
-9:         Update x_{t+h} ← arg max p_θ(· | x_t, l)
-10:    end if
-11: end for
-Output: action sequence x_1
-```
+```python
+# DFM-VLA 两阶段推理伪代码
+def dfm_vla_decode(context, steps_fine=14, steps_val=2):
+    x_t = sample_uniform_action_tokens()
+    total = steps_fine + steps_val
 
-```
-**Algorithm 2: Action-Modality DFM Training**
+    for k in range(total):
+        t = k / total
+        logits = transformer(context, noised_action_tokens=x_t)
+        x1_pred = sample_or_argmax_clean_actions(logits)
 
-Input: Predictor p_θ, learning rate η
+        if k < steps_fine:
+            velocity = build_velocity_field(x_t, x1_pred, mode="embedding_guided")
+            x_t = ctmc_euler_update(x_t, velocity, step_size=1 / total)
+        else:
+            x_t = argmax_clean_actions(logits)
 
-1: repeat
-2:     Sample (l, x_1) ~ p_data
-3:     Sample t ~ U(0, 1)
-4:     Sample x_t ~ p_t(· | x_1)
-5:     Choose L_train ∈ {L_ce, L_head}
-6:     Compute L_train from (x_t, l) and x_1
-7:     θ ← θ - η ∇_θ L_train
-8: until converged
-Output: trained predictor p_θ
+    return decode_fast_bpe_actions(x_t)
 ```
 
-##### 方法深度解析
+第一种速度场构造是 velocity head。backbone 先从上下文和 noised action tokens 产生隐藏状态，再由额外 head 输出 replacement velocity：
 
-DFM-VLA将机器人动作生成重新定义为一种离散流匹配过程，核心思想源于离散流匹配（Discrete Flow Matching, DFM）理论。在该框架下，一个已知的源分布（如均匀噪声）被逐步变换为动作序列的真实分布，中间的过程由一个概率路径（probability path）\(\{p_t(x)\}_{t\in[0,1]}\) 描述，而驱动这一变换的正是**速度场**（velocity field）\(u_t(x' \mid x)\) ——它定义了离散状态之间跳转的速率。
+$$
+h_t=f_\theta(x_t,l),\quad
+u_t^\theta(\cdot \mid x_t)=u^{\mathrm{head}}_t(h_t)
+$$
 
-> 💡 **关键洞察**：自回归VLA逐个生成动作token，已生成的错误token如同覆水难收；而DFM-VLA在每个去噪步骤同时审视并修正整条动作序列，通过速度场精炼每一步的token，实现对"不可逆承诺"问题的根本性规避。
+它的优点是显式预测跳转速率，和 EditFlow 中的编辑操作思想接近；DFM-VLA 因为动作块长度固定，只保留 replacement，而不需要 insertion/deletion。损失只在当前 token 与目标 token 不一致的位置施加更新压力，直觉上就是“哪里还没变对，就在那里学习往哪里跳”。
 
-训练过程中，DFM-VLA学习预测干净动作 \(x_1\) 并据此推导速度场。论文提出了两种损失函数：
+第二种是论文主推的 action-embedding-guided velocity。它不让一个额外 head 从零学所有速率，而是利用动作 token embedding 空间的距离 \(d(\cdot,\cdot)\) 定义概率路径：
 
-**方案一：CE损失 + 测速场（Denoising-Conditional Velocity）**
+$$
+p_t(x^i \mid x_1^i)
+= \mathrm{softmax}\left(-\beta_t d(x^i,x_1^i)\right),
+\quad
+\beta_t = c\left(\frac{t}{1-t}\right)^\alpha
+$$
 
-直接从预测分布 \(p_\theta(x_1 \mid x_t, l)\) 构造条件速度场：
+当 \(t\) 接近 0 时，分布较平；当 \(t\) 接近 1 时，概率质量集中到目标 token 附近。论文进一步用 kinetic-optimal velocity 让概率质量只朝更接近目标 token 的方向流动，因此它比单纯类别交叉熵更强调动作 token 的几何邻近关系。训练时模型预测 clean action tokens，并最小化：
 
-\[
-u_t^\theta(x \mid x_t) = \sum_{x_1} u_t(x \mid x_t, x_1) \, p_\theta(x_1 \mid x_t, l)
-\]
+$$
+\mathcal{L}_{\mathrm{ce}}
+= \mathbb{E}_{t,x_1,x_t}\left[-\log p^\theta_{1\mid t}(x_1 \mid x_t,l)\right]
+$$
 
-其中条件速度 \(u_t(x \mid x_t, x_1)\) 具有闭式解，由概率路径 \(p_{t\mid 1}(x_t \mid x_1)\) 决定。训练时最小化预测 \(x_1\) 与真实 \(x_1^*\) 的交叉熵：
+![DFM-VLA 单步精炼过程](https://chris1220313648.github.io/DFM-VLA/assets/figure/inference_one_step.png)
+*图：单个去噪步中，模型先预测最终动作，再由速度场决定哪些 token 跳转到下一状态。*
 
-\[
-\mathcal{L}_{\text{ce}} = -\mathbb{E}_{t, x_1, x_t} \left[ \sum_{i=1}^N \log p_\theta(x_1^i \mid x_t^i, l) \right]
-\]
+两阶段解码解决的是“探索与锁定”的平衡。若全程随机 CTMC refine，最后可能仍有局部波动；若过早 argmax，又会回到不可逆承诺。论文在固定 16 个总步数下发现 \(T_{\mathrm{fine}}=14, T_{\mathrm{val}}=2\) 最优：大部分预算用于反复修正全序列，最后少量步数把高置信动作确定下来。
 
-**方案二：额外Head直接预测速度（Velocity Head Loss）**
+DFM-VLA 的效率也来自离散统一表示。视觉、语言、proprioception 和动作 token 同处一个双向 Transformer，上下文 token 在去噪迭代中基本不变，因此可以缓存其 KV；动作 token 的缓存按变化程度自适应更新。论文报告 adaptive KV caching 将 DFM 推理速度从约 60.2 提升到 121.0，同时 CALVIN 平均长度基本保持（4.42 到 4.40），说明迭代 refine 并不必然意味着高延迟。
 
-受EditFlow启发，在backbone之上附加轻量速度头，直接从隐状态映射到替换速度：
-
-\[
-h_t = f_\theta(x_t, l), \quad u_t^{\text{head}}(x \mid x_t) = \text{softmax}(W \, h_t)
-\]
-
-损失函数显式回归速度场：
-
-\[
-\mathcal{L}_{\text{head}} = \mathbb{E}_{t,x_1,x_t}\left[ \sum_{x \neq x_t} u_t^\theta(x \mid x_t) - \sum_{i=1}^N \mathbf{1}_{[x_t^i \neq x_1^i]} \log u_t^\theta(x^i \mid x_t^i) \, p_{1\mid t}(x_1^i \mid x_t^i, l) \right]
-\]
-
-> ⚠️ **注意**：两种方案在实验中均有效，且性能差异不大。CE方案实现简单，适合快速实验；Head方案解耦了预测与速度推导，推理时开销更低。
-
-**两阶段解码策略**是DFM-VLA的另一个核心贡献。在\([0, T_{\text{fine}}]\)的精炼阶段，使用CTMC Euler步进行小步长迭代，速度场驱动token逐步靠近高概率区域；在\((T_{\text{fine}}, T]\)的验证阶段，直接用argmax策略将每个token锁定到预测分布的最高概率值，避免无限精度追逐。这种设计在"探索-收敛"之间找到了优雅的平衡。
-
-**自适应KV缓存**（Adaptive KV Caching）进一步加速推理：视觉和指令token在整个去噪过程中产生的KV状态变化极小，可以仅计算一次并固定复用；动作token侧则基于当前cache与新值特征的余弦相似度决定是否更新。这一策略实现了2.4倍延迟加速，同时基本无损任务性能。
-
-##### 实验表现
-
-DFM-VLA在多个机器人操纵基准上验证了其有效性：
-
-| Benchmark | Metric | DFM-VLA | 对比顶级方法 |
-|-----------|--------|---------|--------------|
-| CALVIN ABCD→D | Avg. Len | **4.44** | UniVLA* (4.11) |
-| LIBERO-100 | Success Rate | **95.7%** | RDT (89.1%) |
-| Real-World (3 tasks) | Avg. Success | **70.8%** | RDT (60.0%) |
-
-特别是低数据场景下（10%训练数据），DFM-VLA的CALVIN Avg. Len达到3.21，远超自回归模型的1.71和离散扩散的2.84，充分验证了迭代细化在缓解小数据误差累积中的优势。
+> 💡 关键：DFM-VLA 不是把连续扩散头外挂到 VLM 上，而是在离散 action token 空间里学习“怎样把整段动作一起修正”的速度场；这使它能保留 token 化 VLA 的统一建模优势，同时缓解早期错误不可回退的问题。
 
 #### 🧪 练习题
 
 ```yaml
-question: DFM-VLA的两阶段解码策略中，精细阶段（fine stage）和验证阶段（validation stage）分别用什么策略更新动作token？
+question: "DFM-VLA 两阶段解码中，为什么需要在 iterative refinement 后加入 deterministic validation？"
 options:
-  - "两个阶段都用argmax"
-  - "精细阶段用CTMC Euler步，验证阶段用argmax"
-  - "精细阶段用argmax，验证阶段用CTMC Euler步"
-  - "两个阶段都用CTMC Euler步"
-answer_index: 1
-explanation: 精细阶段（前T_fine步）使用速度场引导的CTMC Euler步进行迭代精炼，验证阶段切换到argmax模式快速收敛到确定性的高置信度动作token。
+  - "为了让视觉 token 重新经过 tokenizer"
+  - "为了在充分修正后用确定性更新稳定最终动作，避免末端随机波动"
+  - "为了把离散动作重新训练成连续扩散动作"
+  - "为了删除语言指令，只保留机器人 proprioception"
+answer: 1
+explain: "前一阶段用 CTMC Euler 步反复修正整段动作，后一阶段用 argmax/确定性验证锁定高置信 token；过早确定会降低修正能力，但完全随机 refine 也会影响收敛稳定性。"
 ```

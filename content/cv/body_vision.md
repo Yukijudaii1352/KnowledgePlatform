@@ -26,13 +26,11 @@ categories:
 
 ## 领域综述
 
-### 待补充：阶段性领域总结
-请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/cv/body_vision/overview/zhihu__CVPR_2025_计算机视觉研究风向标：七大热点主题与_Highlight_论文解析__a1767ca8/article.md
 
 ## 最新进展综述
 
-### 待补充：最近一个月最新动向
-请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/cv/body_vision/latest/zhihu__CVPR_2026终极盘点：这5篇论文、1个演讲、3个展台，藏着计算机视觉下一个十年的答案__1ca97e2e/article.md
 
 ## 算法演化关系
 

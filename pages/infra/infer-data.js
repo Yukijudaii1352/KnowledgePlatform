@@ -1,5 +1,5 @@
 /**
- * infer-data.js — 由 pipeline/build.py 于 2026-06-15 09:55:56 自动生成。
+ * infer-data.js — 由 pipeline/build.py 于 2026-06-15 17:41:32 自动生成。
  * 源文件：content/infra/infer.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -610,7 +610,7 @@ window.PAGE_CONFIG = {
         "核心动机：基于重要性持久化假设压缩缓存",
         "代表机构：Rice Univ"
       ],
-      "detail": "<p>基于重要性持久化假设压缩缓存</p>"
+      "detail": "<p><img alt=\"Scissorhands 核心示意图\" src=\"https://ar5iv.labs.arxiv.org/html/2305.17118/assets/x1.png\" />\n<em>图：Scissorhands 的 cache 剪枝流程，根据注意力重要性保留关键 token。</em></p>\n<pre><code class=\"language-python\">importance = zeros(context_length)\nfor t in decode_steps:\n    logits, attn = model.decode(x_t, kv_cache)\n    importance = decay * importance + aggregate_attention(attn)\n    kv_cache.append(K_t, V_t)\n    protected = recent_positions(window)\n    pivotal = topk_except(importance, budget-len(protected), protected)\n    kv_cache.keep_only(protected | pivotal)\n</code></pre>\n<h5>动机与背景</h5>\n<p>KV cache 剪枝最难的是未来需求未知。Scissorhands 观察到，系统指令、实体、主题词等关键位置一旦被关注，往往会在后续持续被使用，因此历史注意力可以作为未来重要性的代理。</p>\n<h5>核心机制</h5>\n<p>算法为每个 token 维护重要性分数，分数由历史注意力聚合并可加入衰减。超过预算时，保留高分 pivotal tokens 和最近窗口，删除其余位置的 K/V。</p>\n<h5>训练/推理流程</h5>\n<p>推理中每一步先用当前 cache 生成 token，再从 attention 中更新重要性，最后执行剪枝。剪枝后模型仍做标准 causal attention，只是可见历史集合变小。</p>\n<h5>与传统方法的区别</h5>\n<p>相比滑动窗口，Scissorhands 可保留远距离关键 token；相比 H2O，它更强调重要性持久化假设；相比 KV 量化，它节省的是序列维度，风险是误删造成不可逆信息丢失。</p>"
     },
     {
       "id": "streamingllm",
@@ -629,7 +629,7 @@ window.PAGE_CONFIG = {
         "核心动机：利用注意力汇实现无限长度流式推理",
         "代表机构：MIT"
       ],
-      "detail": "<p>利用注意力汇实现无限长度流式推理</p>"
+      "detail": "<p><img alt=\"StreamingLLM 核心示意图\" src=\"https://ar5iv.labs.arxiv.org/html/2309.17453/assets/x1.png\" />\n<em>图：StreamingLLM 展示的 attention sink 现象和保留 sink+窗口的推理策略。</em></p>\n<pre><code class=\"language-python\">sink_kv = prefill(first_k_tokens)\nwindow = KVWindow(maxlen=recent_size)\nfor token in stream:\n    kv = concat(sink_kv, window.kv)\n    logits, new_kv = model.decode(token, kv_cache=kv)\n    window.append(new_kv)\n</code></pre>\n<h5>动机与背景</h5>\n<p>普通滑窗会在窗口移动后丢失序列开头，导致注意力分布与训练时差异变大，长流式推理困惑度突然恶化。StreamingLLM 发现问题不只是语义信息缺失，还包括注意力归一化缺少稳定锚点。</p>\n<h5>核心机制</h5>\n<p>attention sink 是初始少量 token 对后续所有位置可见后形成的稳定注意力落点。即便其语义不重要，它们也帮助 softmax 分配多余注意力质量。保留 sink 后，模型在滑窗下仍维持类似训练时的注意力结构。</p>\n<h5>训练/推理流程</h5>\n<p>预填充保留最开始 <span class=\"kb-math kb-math-inline\">k</span> 个 token 的 KV；之后每步只维护这些 sink KV 和最近 <span class=\"kb-math kb-math-inline\">w</span> 个 token 的 KV。普通旧 token 会被丢弃，sink 永不滑出窗口。</p>\n<h5>与传统方法的区别</h5>\n<p>与 H2O/Scissorhands 的动态重要性打分不同，StreamingLLM 是固定规则：<span class=\"kb-math kb-math-inline\">C_t=\\{1..k\\}\\cup\\{t-w+1..t\\}</span>。它牺牲远距离普通语义记忆，但换来稳定、简单和常数 cache。</p>"
     },
     {
       "id": "kivi",
@@ -667,7 +667,7 @@ window.PAGE_CONFIG = {
         "核心动机：结合量化与误差补偿的高倍率压缩",
         "代表机构：Georgia Tech"
       ],
-      "detail": "<p>结合量化与误差补偿的高倍率压缩</p>"
+      "detail": "<p><img alt=\"GEAR 核心示意图\" src=\"https://ar5iv.labs.arxiv.org/html/2403.05527/assets/x1.png\" />\n<em>图：GEAR 的量化、低秩补偿与稀疏补偿组合框架。</em></p>\n<pre><code class=\"language-python\">for block in kv_blocks:\n    Q, scale = quantize(block, bits=b)\n    residual = block - dequant(Q, scale)\n    U, V = low_rank(residual, rank=r)\n    S = keep_top_abs(residual - U @ V, nnz=s)\n    store(Q, scale, U, V, S)\n\nblock_hat = dequant(Q, scale) + U @ V + S\nout = attention(query, block_hat.K, block_hat.V)\n</code></pre>\n<h5>动机与背景</h5>\n<p>极低比特 KV 量化不仅有均匀噪声，还有结构化残差和少量异常大误差。裸量化要么精度不足，要么必须提高 bit 数牺牲压缩率。GEAR 把误差拆开处理。</p>\n<h5>核心机制</h5>\n<p>主体张量用低比特量化保存；残差矩阵中可共享的模式用低秩因子表示；剩余最大幅度误差用稀疏矩阵保存。近似形式是 <span class=\"kb-math kb-math-inline\">X\\approx DeQuant(Q)+UV^T+S</span>。</p>\n<h5>训练/推理流程</h5>\n<p>KV block 生成后被压缩成量化码、scale、低秩因子和稀疏补偿。attention kernel 读取时按块恢复近似 K/V，随后执行标准注意力。压缩率由 bit 数、rank 和稀疏预算共同控制。</p>\n<h5>与传统方法的区别</h5>\n<p>KIVI 强调 K/V 不同量化粒度，GEAR 强调误差补偿。它比单纯 outlier 保存更全面，因为低秩项能修复广泛但有结构的偏差；比完整 FP16 cache 更省显存。</p>"
     },
     {
       "id": "cachegen",
@@ -764,7 +764,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 h2o",
         "代表机构：X Liu等"
       ],
-      "detail": "<p>保留Token间语义关系的KV压缩</p>"
+      "detail": "<p><img alt=\"ChunkKV 核心示意图\" src=\"https://ar5iv.labs.arxiv.org/html/2603.20397/assets/x1.png\" />\n<em>图：ChunkKV 的语义分块缓存压缩示意，展示 chunk 级保留比 token 级保留更完整。</em></p>\n<pre><code class=\"language-python\">chunks = semantic_chunk(tokens)\nfor chunk in chunks:\n    chunk.score = aggregate_token_importance(chunk.tokens, attention, recency)\nselected = knapsack_or_topk(chunks, budget_tokens)\nkv_cache.keep_tokens(flatten([c.tokens for c in selected]) + recent_tokens)\n</code></pre>\n<h5>动机与背景</h5>\n<p>token 级 KV 剪枝可能保留主语却删除谓语，或保留实体名却删除限定关系，导致剩余上下文语义碎片化。长文档任务往往依赖连续短语和句子结构，因此压缩单位需要对语义边界更友好。</p>\n<h5>核心机制</h5>\n<p>ChunkKV 先把输入切成语义 chunk，再基于注意力、位置或语义信号评估 chunk 重要性。选择时整块保留或丢弃，确保被保留的信息仍是完整语言片段，而不是散点 token。</p>\n<h5>训练/推理流程</h5>\n<p>prefill 后记录 token 到 chunk 的映射；decode 中更新 chunk-level 重要性；当超出预算时，优先保留高分 chunk 和最近窗口。attention 仍在保留 token 的 KV 上计算，但选择动作发生在 chunk 层。</p>\n<h5>与传统方法的区别</h5>\n<p>H2O/Scissorhands 关注单 token 重要性，ChunkKV 关注 token 间关系。它可能牺牲少量细粒度预算最优性，但换来更强语义连贯性，特别适合自然语言长上下文。</p>"
     },
     {
       "id": "spec_leviathan",
@@ -783,7 +783,7 @@ window.PAGE_CONFIG = {
         "核心动机：草稿-验证范式实现无损推理加速",
         "代表机构：Google"
       ],
-      "detail": "<p>草稿-验证范式实现无损推理加速</p>"
+      "detail": "<p><img alt=\"Speculative Decoding 核心示意图\" src=\"https://ar5iv.labs.arxiv.org/html/2211.17192/assets/figure1.png\" />\n<em>图：Leviathan 等提出的 speculative decoding 流程，小模型提出草稿，大模型并行验证。</em></p>\n<pre><code class=\"language-python\">while not finished:\n    draft = []\n    for i in range(gamma):\n        x = sample(q_model(. | prefix + draft))\n        draft.append(x)\n    p = target_model.distributions(prefix, draft)  # one parallel forward\n    for i, x in enumerate(draft):\n        accept_prob = min(1.0, p[i][x] / q[i][x])\n        if random() &lt; accept_prob:\n            prefix.append(x)\n        else:\n            prefix.append(sample(normalize(p[i] - q[i].clamp(max=p[i]))))\n            break\n    if all_accepted:\n        prefix.append(sample(p[gamma]))\n</code></pre>\n<h5>动机与背景</h5>\n<p>自回归解码每生成一个 token 都要跑一次大模型，延迟由串行前向次数决定。即使 GPU 能并行处理多个位置，标准采样也不能提前知道后续 token，因此无法直接批量生成。</p>\n<h5>核心机制</h5>\n<p>投机解码引入较快的近似分布 <span class=\"kb-math kb-math-inline\">q</span> 作为提案分布，目标模型分布 <span class=\"kb-math kb-math-inline\">p</span> 作为校验分布。若 draft token 在 <span class=\"kb-math kb-math-inline\">p</span> 下也足够可能，则接受；若不接受，则从校正后的剩余分布采样，保证边际分布仍等于 <span class=\"kb-math kb-math-inline\">p</span>。</p>\n<h5>训练/推理流程</h5>\n<p>每轮先让 draft model 连续生成 <span class=\"kb-math kb-math-inline\">\\gamma</span> 个 token；然后 target model 对 prefix+draft 做一次并行前向，得到每个位置的 <span class=\"kb-math kb-math-inline\">p_i</span>。验证从左到右进行，直到第一次拒绝或全部接受。接受越多，单次 target 前向产出的 token 越多。</p>\n<h5>与传统方法的区别</h5>\n<p>它与贪心近似、多 token head 不同，是严格 lossless 的采样加速。加速上限取决于 draft model 速度和接受率；draft 越接近 target，接受长度越长，但 draft 成本也可能上升。</p>"
     },
     {
       "id": "spec_chen",
@@ -802,7 +802,7 @@ window.PAGE_CONFIG = {
         "核心动机：严谨数学证明的拒绝采样加速方案",
         "代表机构：DeepMind"
       ],
-      "detail": "<p>严谨数学证明的拒绝采样加速方案</p>"
+      "detail": "<p><img alt=\"Speculative Sampling 核心示意图\" src=\"https://ar5iv.labs.arxiv.org/html/2302.01318/assets/x1.png\" />\n<em>图：Speculative Sampling 论文中的算法流程，展示 draft proposal 与 target verification。</em></p>\n<pre><code class=\"language-python\">for round in decoding:\n    y = draft_model.sample_k(prefix, k)\n    p = target_model(prefix + y).next_token_distributions()\n    for i in range(k):\n        if uniform() &lt;= min(1, p[i][y[i]] / q[i][y[i]]):\n            prefix.append(y[i])\n        else:\n            r = relu(p[i] - q[i])\n            prefix.append(sample(r / r.sum()))\n            break\n    if accepted_all:\n        prefix.append(sample(p[k]))\n</code></pre>\n<h5>动机与背景</h5>\n<p>工程上早已有用小模型猜 token 的直觉，但若只是猜对就用、猜错再回退，会改变非贪心采样的概率分布。Chen 等工作的重点是把该过程变成数学上精确的采样算法。</p>\n<h5>核心机制</h5>\n<p>draft 分布 <span class=\"kb-math kb-math-inline\">q</span> 负责提出候选，target 分布 <span class=\"kb-math kb-math-inline\">p</span> 负责定义正确采样。候选 token <span class=\"kb-math kb-math-inline\">x</span> 以 <span class=\"kb-math kb-math-inline\">\\min(1,p(x)/q(x))</span> 接受；拒绝时从 <span class=\"kb-math kb-math-inline\">(p-q)_+</span> 归一化后的分布采样，补上被 draft 过度提案的概率质量。</p>\n<h5>训练/推理流程</h5>\n<p>每轮 draft 自回归生成多个 token；target 并行计算每个候选位置的 logits；验证从前到后进行。一旦某个 token 被拒绝，后续 draft 被丢弃，因为其条件前缀已经不成立。</p>\n<h5>与传统方法的区别</h5>\n<p>与 Leviathan 版本高度相近，但该论文突出数学证明和 speculative sampling 形式化。它不是近似加速，只要实现接受/拒绝与校正采样，输出分布就与逐 token target sampling 一致。</p>"
     },
     {
       "id": "medusa",
@@ -862,7 +862,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 eagle",
         "代表机构：PKU"
       ],
-      "detail": "<p>引入动态草稿树根据置信度调整路径</p>"
+      "detail": "<p><img alt=\"EAGLE-2 核心示意图\" src=\"https://ar5iv.labs.arxiv.org/html/2406.16858/assets/x1.png\" />\n<em>图：EAGLE-2 的动态草稿树，根据节点置信度选择扩展路径。</em></p>\n<pre><code class=\"language-python\">root = current_prefix\nfrontier = [root]\nwhile draft_budget_remaining:\n    node = pop_highest_confidence(frontier)\n    children = eagle_draft(node).topk()\n    for child in children:\n        child.accept_prob = estimate_from_confidence(child)\n        if child.accept_prob &gt; threshold:\n            frontier.push(child)\n    tree.add(children)\nverified = target_model.verify_tree(prefix, tree)\nprefix.extend(accepted_prefix(verified))\n</code></pre>\n<h5>动机与背景</h5>\n<p>EAGLE 使用固定草稿树时，默认同一深度/位置的候选接受率相近。但实际语言上下文差异很大：有些前缀下模型非常确定，有些前缀下分布多峰。固定树会把预算浪费在低置信路径上。</p>\n<h5>核心机制</h5>\n<p>EAGLE-2 使用 draft model 的 confidence 作为接受率近似，动态选择哪些节点继续扩展。高置信节点获得更深或更多子节点，低置信节点少扩展甚至停止。这样同样的验证预算覆盖更可能被接受的路径。</p>\n<h5>训练/推理流程</h5>\n<p>推理时先逐步构造动态 draft tree，而不是使用预设形状；然后 target model 一次验证该树。接受规则仍与投机解码一致，因此改变的是候选集合，不改变最终采样分布。</p>\n<h5>与传统方法的区别</h5>\n<p>EAGLE-1 的树结构静态，EAGLE-2 的树结构随上下文变化。它的核心收益来自更好的草稿预算分配，而不是更大的模型或近似接受。</p>"
     },
     {
       "id": "lookahead",
@@ -881,7 +881,7 @@ window.PAGE_CONFIG = {
         "核心动机：基于Jacobi迭代的并行解码无需微调",
         "代表机构：Stanford"
       ],
-      "detail": "<p>基于Jacobi迭代的并行解码无需微调</p>"
+      "detail": "<p><img alt=\"Lookahead Decoding 核心示意图\" src=\"https://ar5iv.labs.arxiv.org/html/2402.02057/assets/x1.png\" />\n<em>图：Lookahead Decoding 的并行生成与验证窗口示意。</em></p>\n<pre><code class=\"language-python\">while not finished:\n    # lookahead branch: parallel propose future tokens\n    guesses = jacobi_parallel_update(prefix, window_size, ngram_size)\n    ngrams = collect_candidate_ngrams(guesses)\n\n    # verification branch: target model verifies candidates\n    accepted = verify_longest_ngram(prefix, ngrams, target_model)\n    if accepted:\n        prefix.extend(accepted)\n    else:\n        prefix.append(target_model.greedy_next(prefix))\n</code></pre>\n<h5>动机与背景</h5>\n<p>投机解码通常需要草稿模型或额外 heads。许多部署场景无法训练或维护这些组件，但仍希望利用 GPU 对多个位置并行计算的能力。Lookahead 从迭代求解角度重写解码过程。</p>\n<h5>核心机制</h5>\n<p>Jacobi 迭代允许在当前近似序列上并行更新多个未来位置。Lookahead 分支持续产生候选 n-gram；验证分支用目标模型检查这些 n-gram 是否与标准解码一致。一旦匹配，就一次提交多个 token。</p>\n<h5>训练/推理流程</h5>\n<p>算法维护一个二维窗口：行表示并行 lookahead 步，列表示不同位置。每轮从窗口中提取可能 n-gram，目标模型对候选进行验证；成功则前缀前进多个 token，失败则退回常规一步。</p>\n<h5>与传统方法的区别</h5>\n<p>与 classic speculative decoding 相比，Lookahead 没有独立 draft model，部署简单；但它主要服务确定性/贪心一致性验证，采样分布处理不像拒绝采样式投机解码那样通用。</p>"
     },
     {
       "id": "eagle_v3",
@@ -941,7 +941,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 spec_leviathan",
         "代表机构：Stanford/Together AI"
       ],
-      "detail": "<p>异步草稿验证+几何扇出策略</p>"
+      "detail": "<p><img alt=\"SSD 核心示意图\" src=\"https://ar5iv.labs.arxiv.org/html/2603.03251/assets/x1.png\" />\n<em>图：SSD/Saguaro 的异步草稿与验证重叠框架。</em></p>\n<pre><code class=\"language-python\">while decoding:\n    current_spec = get_ready_speculation(prefix)\n    verify_future = target_model.verify_async(prefix, current_spec)\n\n    # while verification is running, draft possible continuations\n    outcomes = predict_verification_outcomes(current_spec)\n    for outcome in fanout(outcomes, strategy='geometric'):\n        cache[outcome] = draft_model.speculate(prefix_after(outcome))\n\n    result = verify_future.wait()\n    prefix.extend(result.accepted)\n    if result in cache:\n        next_spec = cache[result]\n</code></pre>\n<h5>动机与背景</h5>\n<p>普通投机解码每轮需要先 draft，再 target verify，再根据验证结果开始下一轮 draft。即使 target 验证本身并行，轮与轮之间仍存在串行控制依赖，尤其 draft 成本不可忽略时会限制加速。</p>\n<h5>核心机制</h5>\n<p>SSD 让 draft model 在 target 验证期间猜测验证会产生哪些结果，例如接受几个 token，并提前为这些可能前缀生成下一轮草稿。若真实验证结果落在预测集合中，就能直接使用已准备好的 speculation。</p>\n<h5>训练/推理流程</h5>\n<p>系统维护 speculation cache。当前候选送入 target 异步验证后，draft model 根据可能结果做 fanout。fanout 可以均匀分配，也可以按几何策略偏向更可能接受长度。验证返回后，命中则无缝继续，未命中则退回普通 draft。</p>\n<h5>与传统方法的区别</h5>\n<p>SSD 不是替代 speculative decoding，而是在其外层再做一次投机，目标是重叠 draft 与 verify 的控制间隙。正确性仍依赖最终 target 验证，预测错只损失额外 draft 计算。</p>"
     },
     {
       "id": "flashattn",
@@ -1238,7 +1238,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 pagedattn",
         "代表机构：UC Berkeley"
       ],
-      "detail": "<p>集成PagedAttention的高吞吐引擎</p>"
+      "detail": "<p><img alt=\"vLLM 核心示意图\" src=\"https://ar5iv.labs.arxiv.org/html/2309.06180/assets/x2.png\" />\n<em>图：vLLM 论文中的 PagedAttention block 管理图，解释 vLLM 高吞吐的内存基础。</em></p>\n<pre><code class=\"language-python\">engine = VLLMEngine(model, paged_kv_allocator)\nwhile True:\n    new_reqs = receive_requests()\n    scheduler.add(new_reqs)\n    batch = scheduler.build_continuous_batch(kv_budget)\n    outputs = model.forward(batch, paged_kv_cache)\n    scheduler.update(outputs)\n</code></pre>\n<h5>动机与背景</h5>\n<p>LLM serving 的瓶颈不仅是算力，还包括 KV cache 显存碎片、不同请求长度造成的调度浪费，以及多候选采样中的前缀复制。简单 batching 不能充分利用 GPU。</p>\n<h5>核心机制</h5>\n<p>vLLM 用 PagedAttention 让 KV cache 以块为单位按需分配；调度器按 iteration 进行 continuous batching；共享前缀通过 copy-on-write 避免重复 KV。系统接口封装为易用服务。</p>\n<h5>训练/推理流程</h5>\n<p>请求到达后先 prefill，写入 paged KV；decode 阶段调度器每轮选择一批可运行请求，模型读取 block table 执行 attention，输出 token 后更新请求状态和 KV blocks。</p>\n<h5>与传统方法的区别</h5>\n<p>PagedAttention 是核心算法，vLLM 是完整系统。它把内存管理、调度、模型执行和 API 服务结合起来，使算法收益变成实际吞吐提升。</p>"
     },
     {
       "id": "trt_llm",
@@ -1568,7 +1568,7 @@ window.PAGE_CONFIG = {
         "核心动机：选择性状态空间模型线性时间扩展",
         "代表机构：CMU/Princeton"
       ],
-      "detail": "<p>选择性状态空间模型线性时间扩展</p>"
+      "detail": "<h3>架构示意图</h3>\n<blockquote>\n<p><strong>Mamba Block 架构</strong>（对应论文 Figure 3）</p>\n<p>将 H3 block（SSM 架构基础）与 MLP block 合并为单一 Mamba block，同质堆叠：</p>\n</blockquote>\n<pre><code>Input x\n  │\n  ├──→ Linear Projection (expand D→ED) ──→ Conv1D ──→ SiLU ──→ Selective SSM ──→ ⊗\n  │                                                                                │\n  └──→ Linear Projection (expand D→ED) ──→ SiLU ─────────────────────────────────→ ⊗\n                                                                                   │\n                                                                          Linear Projection (ED→D)\n                                                                                   │\n                                                                              + Residual\n                                                                                   │\n                                                                              LayerNorm\n                                                                                   ↓\n                                                                               Output y\n</code></pre>\n<blockquote>\n<p><strong>选择性 SSM 核心机制</strong>（对应论文 Figure 1）</p>\n<p>S4（LTI）→ S6（Selective）的关键变化：参数从固定变为输入依赖</p>\n</blockquote>\n<pre><code>┌─────────────────────────────────────────────────────────────┐\n│  S4 (LTI):  A, B, C, Δ 均为固定参数                          │\n│  → 可用卷积加速，但无法做内容感知推理                            │\n│                                                               │\n│  S6 (Selective):  B(x), C(x), Δ(x) 依赖输入                  │\n│  → 必须用递推(scan)计算，但能选择性记忆/遗忘                     │\n│  → 通过硬件感知算法(SRAM scan + kernel fusion)保持高效          │\n└─────────────────────────────────────────────────────────────┘\n</code></pre>\n<h3>伪代码</h3>\n<p><strong>Algorithm 1: S4（传统 LTI SSM）</strong></p>\n<p>```python</p>"
     }
   ],
   "categories": {

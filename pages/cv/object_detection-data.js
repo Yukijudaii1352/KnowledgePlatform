@@ -1,5 +1,5 @@
 /**
- * object_detection-data.js — 由 pipeline/build.py 于 2026-06-15 09:55:53 自动生成。
+ * object_detection-data.js — 由 pipeline/build.py 于 2026-06-15 17:41:29 自动生成。
  * 源文件：content/cv/object_detection.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -623,7 +623,7 @@ window.PAGE_CONFIG = {
         "核心动机：利用角点对检测目标",
         "代表机构：UT Austin"
       ],
-      "detail": "<p>利用角点对检测目标</p>"
+      "detail": "<p>CornerNet 的基础观察是：目标框本身可以由两个对角点唯一确定，因此检测器不一定要先枚举候选框。给定输入图像，主干网络生成低分辨率特征图，在该特征图上分别预测 top-left corner heatmap 和 bottom-right corner heatmap。每个类别都有独立热力图通道，热力图局部峰值表示对应类别角点可能出现的位置。</p>\n<p>由于特征图通常相对原图有下采样，角点坐标会发生量化误差。CornerNet 为每个预测角点额外回归 offset，用来把网格点坐标修正回更精确的连续坐标。这个设计使模型可以保留高效的密集预测形式，同时避免低分辨率特征图直接带来的定位偏差。</p>\n<p>最困难的问题是角点配对：一张图里可能有多个同类目标，仅凭左上角和右下角热力图无法知道哪两个角点属于同一个目标。CornerNet 为每个角点预测一个 embedding，同一目标的两个角点 embedding 被 pull loss 拉近，不同目标的 embedding 被 push loss 分开。推理时取高分角点，两两组合并依据类别一致性、几何合法性和 embedding 距离过滤候选框。</p>\n<p>Corner pooling 是论文的结构性贡献。左上角角点需要看到右侧边界和下方边界的信息，右下角角点需要看到左侧和上方的信息。普通卷积的局部感受野不一定能有效聚合这种边界证据，因此 CornerNet 沿特定方向做最大池化，把长条方向上的强响应传递到角点位置，帮助模型在没有 anchor 的情况下判断角点是否真实存在。</p>\n<p>CornerNet 的代表性主干是 Hourglass-104，这让它在精度上有竞争力，但计算成本也偏高。它证明了 anchor-free 的可行性，不过角点组合天然存在候选对爆炸和错误配对风险；后续 CenterNet 引入中心点，FCOS 引入 center-ness，本质上都在缓解 CornerNet 的配对歧义或框质量判断问题。</p>\n<pre><code class=\"language-text\">CornerNet 推理流程\nInput: image I\nOutput: detection boxes D\n\n1. F = HourglassBackbone(I)\n2. Predict:\n   - top-left heatmaps H_tl\n   - bottom-right heatmaps H_br\n   - offsets O_tl, O_br\n   - embeddings E_tl, E_br\n3. Select top-K peaks from H_tl and H_br for each class\n4. For every valid same-class pair (tl, br):\n   - require tl.x &lt; br.x and tl.y &lt; br.y\n   - compute score = average(score_tl, score_br)\n   - reject if |E_tl - E_br| is too large\n   - refine coordinates with offsets\n5. Apply score thresholding and NMS to obtain D\n</code></pre>"
     },
     {
       "id": "centernet",
@@ -643,7 +643,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 cornernet",
         "代表机构：UT Austin"
       ],
-      "detail": "<p>将目标建模为中心点</p>"
+      "detail": "<p>CenterNet 的核心设计是 objects as points：目标不再由 anchor、候选区域或角点对表示，而是由边界框中心点表示。对于每个类别，模型预测一张热力图，热力图上的峰值表示该类别目标中心。相比 CornerNet 的两个角点，中心点没有配对歧义，一个峰值就对应一个候选目标。</p>\n<p>训练时，CenterNet 会把真实框中心映射到输出特征图坐标，并围绕该位置绘制 Gaussian bump。目标越大，允许的中心偏差通常可以更大，因此 Gaussian 半径会依据目标尺寸确定。这样模型不是只在一个像素上获得正反馈，而是在中心邻域形成平滑监督，有利于训练稳定。</p>\n<p>中心点位置只解决了目标在哪里的问题，边界框大小由 size 分支预测。具体来说，模型在中心点位置回归目标宽度和高度；同时通过 offset 分支补偿下采样造成的中心点量化误差。推理时，若中心点坐标为 <code>(x, y)</code>，预测宽高为 <code>(w, h)</code>，则框可直接写成 <code>(x - w/2, y - h/2, x + w/2, y + h/2)</code>，再加上 offset 做精确修正。</p>\n<p>CenterNet 的后处理比 CornerNet 更简单。模型先对热力图做局部极大值筛选，再取 top-K 中心点生成检测框。因为每个中心点已经携带类别、位置和尺寸信息，推理不需要枚举角点组合，也不需要 anchor-based 检测器中的大规模候选框匹配。</p>\n<p>不过，中心点建模也有自身限制。当多个目标中心非常接近，尤其是拥挤场景或小目标密集区域，热力图峰值可能互相干扰；目标尺寸回归也高度依赖中心点特征是否包含完整目标上下文。因此 CenterNet 的效果很大程度上取决于高分辨率特征、主干网络和热力图峰值质量。</p>\n<pre><code class=\"language-text\">CenterNet 训练与推理\nTraining:\n1. Map each ground-truth box b = (x1, y1, x2, y2) to center c = ((x1+x2)/2, (y1+y2)/2)\n2. Draw class-specific Gaussian heatmap around c\n3. Train network heads:\n   - heatmap: focal-style keypoint loss\n   - size: L1 loss on (width, height)\n   - offset: L1 loss for downsampling quantization\n\nInference:\n1. Predict heatmap, size and offset\n2. Extract top-K local maxima from heatmap\n3. For each center peak:\n   - refine center with offset\n   - decode box using predicted width and height\n4. Return high-score detections\n</code></pre>"
     },
     {
       "id": "fcos",
@@ -663,7 +663,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 centernet",
         "代表机构：阿德莱德大学"
       ],
-      "detail": "<p>逐像素预测与Center-ness分支</p>"
+      "detail": "<p>FCOS 的基本单位不是 anchor，而是特征图上的空间位置。把一个位置映射回原图后，如果它位于某个真实框内部，则该位置可以作为正样本，并学习到框四条边的距离：左边距 <code>l</code>、上边距 <code>t</code>、右边距 <code>r</code>、下边距 <code>b</code>。这样，检测头只需输出类别概率和四个非负距离值，就能恢复完整边界框。</p>\n<p>这个表示让检测器保持全卷积结构。分类分支预测每个位置属于各类别的概率，回归分支预测 <code>(l,t,r,b)</code>。训练时分类通常使用 focal loss 来处理前景背景不平衡，回归使用 IoU loss 等框质量相关损失。与 anchor-based 方法相比，FCOS 不再需要设置 anchor 数量、尺度、长宽比，也不需要计算每个 anchor 与真实框的匹配。</p>\n<p>密集位置预测会遇到两个主要歧义。第一，同一个位置可能落在多个真实框内部；第二，离目标边缘很近的位置也能回归出一个框，但这类框往往定位质量较差。FCOS 用 FPN 的多层尺度范围处理第一个问题：小目标分配给高分辨率层，大目标分配给低分辨率层，若仍冲突则通常选择面积更小的目标。</p>\n<p>第二个问题由 center-ness 分支缓解。center-ness 根据回归距离的左右、上下平衡程度定义，位置越接近框中心，左右距离和上下距离越均衡，center-ness 越接近 1；越靠近边缘则越接近 0。推理时分类分数会乘以 center-ness，因此远离中心的低质量框即使类别分数较高，也会在排序中被压低。</p>\n<p>FCOS 与 CenterNet 都是 anchor-free，但建模粒度不同。CenterNet 只让目标中心点承担主要预测责任，而 FCOS 允许目标框内部的许多位置参与训练，再用 center-ness 调节质量。这使 FCOS 更贴近 RetinaNet 这类 dense detector 的工程形态，易于复用 FPN、卷积检测头和 NMS 流程。</p>\n<pre><code class=\"language-text\">FCOS 前向与解码\nInput: image I\nOutput: detections D\n\n1. Extract FPN features P3 ... P7\n2. For every location p on each FPN level:\n   - predict class scores cls[p]\n   - predict box distances d[p] = (l, t, r, b)\n   - predict center-ness ctr[p]\n3. During training:\n   - mark p positive if it lies inside a ground-truth box\n   - constrain positives by FPN level regression range\n   - optimize focal loss, IoU loss and center-ness loss\n4. During inference:\n   - score[p] = cls[p] * ctr[p]\n   - decode box = (x-l, y-t, x+r, y+b)\n   - threshold and apply NMS\n</code></pre>"
     },
     {
       "id": "detr",
@@ -682,7 +682,7 @@ window.PAGE_CONFIG = {
         "核心动机：Transformer实现端到端检测",
         "代表机构：FAIR"
       ],
-      "detail": "<p>Transformer实现端到端检测</p>"
+      "detail": "<p><img alt=\"DETR 端到端检测流程\" src=\"https://ar5iv.labs.arxiv.org/html/2005.12872/assets/x1.png\" />\n<em>图：DETR 将 CNN 特征送入 Transformer，并通过二分匹配把预测槽位唯一分配给真值目标。</em></p>\n<h5>1. 动机与背景</h5>\n<p>传统检测器通常把检测拆成多阶段工程流水线：预设 anchor 或 proposal、密集分类与回归、再用 NMS 去掉重复框。这个设计有效但包含大量先验和超参数，例如 anchor 尺寸、IoU 阈值、NMS 阈值等；同一个图像中的多个候选框还会竞争同一个目标，训练目标和最终输出并不完全一致。</p>\n<p>DETR 的核心转变是把检测看成“集合到集合”的预测：图像中真实目标是一个无序集合，模型输出也应是一个无序集合。只要训练时能建立预测和真值之间的一对一分配，重复预测就可以直接作为损失惩罚，而不需要在推理后再用 NMS 清理。</p>\n<h5>2. 模型结构</h5>\n<p><img alt=\"DETR 架构图\" src=\"https://ar5iv.labs.arxiv.org/html/2005.12872/assets/x2.png\" />\n<em>图：CNN backbone、位置编码、Transformer encoder-decoder、共享 FFN 检测头构成 DETR。</em></p>\n<p>输入图像先经过 ResNet 等 CNN backbone 得到特征图 <span class=\"kb-math kb-math-inline\">f \\in \\mathbb{R}^{C \\times H \\times W}</span>，再通过 <span class=\"kb-math kb-math-inline\">1 \\times 1</span> 卷积映射到 Transformer 隐空间维度。特征图被展平为 <span class=\"kb-math kb-math-inline\">HW</span> 个 token，并加入二维位置编码：</p>\n<div class=\"kb-math kb-math-display\">z_0 = \\text{flatten}(\\text{Conv}_{1\\times1}(f)) + p</div>\n<p>Transformer encoder 在所有空间位置之间做全局自注意力，使每个位置都能感知整幅图像中的其他区域。Decoder 接收 <span class=\"kb-math kb-math-inline\">N</span> 个可学习 object queries，每个 query 通过 cross-attention 从 encoder memory 中读取与自身相关的图像证据，最后由共享 FFN 输出类别分布和归一化边界框：</p>\n<div class=\"kb-math kb-math-display\">\\hat{y}_i = (\\hat{p}_i, \\hat{b}_i), \\quad i=1,\\dots,N</div>\n<h5>3. 集合损失与匈牙利匹配</h5>\n<p>DETR 最关键的训练机制是先找一个最优排列 <span class=\"kb-math kb-math-inline\">\\hat{\\sigma}</span>，将真值目标 <span class=\"kb-math kb-math-inline\">y_i</span> 唯一匹配到预测 <span class=\"kb-math kb-math-inline\">\\hat{y}_{\\sigma(i)}</span>：</p>\n<div class=\"kb-math kb-math-display\">\\hat{\\sigma} = \\arg\\min_{\\sigma \\in \\mathfrak{S}_N} \\sum_i \\mathcal{L}_{match}(y_i, \\hat{y}_{\\sigma(i)})</div>\n<p>匹配代价由分类代价和框代价组成，框代价通常结合 <span class=\"kb-math kb-math-inline\">L_1</span> 和 GIoU：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{box}(b_i, \\hat{b}_{\\sigma(i)}) =\n\\lambda_{L1}\\|b_i-\\hat{b}_{\\sigma(i)}\\|_1 +\n\\lambda_{giou}\\mathcal{L}_{giou}(b_i,\\hat{b}_{\\sigma(i)})</div>\n<p>完成匹配后，只有被匹配到的预测负责对应目标；未匹配预测都被监督为 <span class=\"kb-math kb-math-inline\">\\varnothing</span> 类。这样一来，如果两个 query 预测同一个物体，只有其中一个能被匹配，另一个会受到“非目标”或错误定位惩罚，这就是 DETR 不需要 NMS 的根本原因。</p>\n<h5>4. 训练与推理流程</h5>\n<p>```python</p>"
     },
     {
       "id": "deformable_detr",
@@ -702,7 +702,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 detr",
         "代表机构：商汤科技"
       ],
-      "detail": "<p>多尺度可变形注意力加速收敛</p>"
+      "detail": "<p><img alt=\"Deformable DETR 整体架构\" src=\"https://ar5iv.labs.arxiv.org/html/2010.04159/assets/x1.png\" />\n<em>图：Deformable DETR 使用多尺度特征和可变形注意力构建端到端检测器。</em></p>\n<h5>1. 动机与背景</h5>\n<p>原始 DETR 的瓶颈来自 Transformer 注意力直接作用在图像特征图上。图像 token 数量远大于自然语言序列，而且目标通常只与局部区域强相关；如果让每个 query 都和所有空间位置交互，计算量大、优化难，并且低分辨率特征会损害小目标定位。</p>\n<p>Deformable DETR 的核心观察是：检测 query 不需要在每一层都看完整幅图，它更需要围绕一个参考位置，从多个尺度中采样少量关键点。这个思想继承了 deformable convolution 的局部自适应采样，但被放进 Transformer 注意力框架中。</p>\n<h5>2. 可变形注意力模块</h5>\n<p><img alt=\"Deformable Attention 模块\" src=\"https://ar5iv.labs.arxiv.org/html/2010.04159/assets/x2.png\" />\n<em>图：每个 query 围绕参考点预测多个采样偏移，并对采样特征加权求和。</em></p>\n<p>标准 cross-attention 对所有 key 做加权：</p>\n<div class=\"kb-math kb-math-display\">\\text{Attn}(q) = \\sum_k A_{qk} W_v x_k</div>\n<p>Deformable attention 将这个全局求和改为少量采样点求和。对 query <span class=\"kb-math kb-math-inline\">q</span>，第 <span class=\"kb-math kb-math-inline\">m</span> 个注意力头、第 <span class=\"kb-math kb-math-inline\">k</span> 个采样点会预测偏移 <span class=\"kb-math kb-math-inline\">\\Delta p_{mqk}</span> 和权重 <span class=\"kb-math kb-math-inline\">A_{mqk}</span>，输出为：</p>\n<div class=\"kb-math kb-math-display\">\\text{DeformAttn}(z_q, p_q, x) =\n\\sum_{m=1}^{M} W_m\n\\left[\n\\sum_{k=1}^{K} A_{mqk} \\cdot W&#x27;_m x(p_q + \\Delta p_{mqk})\n\\right]</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">p_q</span> 是参考点，<span class=\"kb-math kb-math-inline\">K</span> 通常很小，例如 4。由于 <span class=\"kb-math kb-math-inline\">p_q+\\Delta p</span> 不一定落在整数像素位置，特征读取使用双线性插值。这样每个 query 的复杂度从与 <span class=\"kb-math kb-math-inline\">HW</span> 成正比，降为与 <span class=\"kb-math kb-math-inline\">K</span> 成正比。</p>\n<h5>3. 多尺度扩展</h5>\n<p>检测天然需要多尺度特征：高层语义强但分辨率低，低层定位细但语义弱。Deformable DETR 在 <span class=\"kb-math kb-math-inline\">L</span> 个尺度上采样：</p>\n<div class=\"kb-math kb-math-display\">\\text{MSDeformAttn}(z_q, \\hat{p}_q, \\{x^l\\}_{l=1}^{L}) =\n\\sum_{m=1}^{M} W_m\n\\left[\n\\sum_{l=1}^{L}\\sum_{k=1}^{K}\nA_{mlqk} \\cdot W&#x27;_m x^l(\\phi_l(\\hat{p}_q)+\\Delta p_{mlqk})\n\\right]</div>\n<p><span class=\"kb-math kb-math-inline\">\\hat{p}_q</span> 是归一化参考点，<span class=\"kb-math kb-math-inline\">\\phi_l</span> 将它映射到第 <span class=\"kb-math kb-math-inline\">l</span> 个特征层坐标。注意力权重在所有尺度和采样点上归一化，因此模型可以自动决定当前 query 应该从高分辨率小目标特征还是低分辨率语义特征中读取信息。</p>\n<h5>4. 训练与推理流程</h5>\n<p>```python</p>"
     },
     {
       "id": "dino",
@@ -722,7 +722,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 deformable_detr",
         "代表机构：IDEA"
       ],
-      "detail": "<p>对比去噪训练提升性能</p>"
+      "detail": "<p><img alt=\"DINO 框架图\" src=\"https://ar5iv.labs.arxiv.org/html/2203.03605/assets/x2.png\" />\n<em>图：DINO 在 Transformer encoder-decoder 中加入 contrastive denoising、mixed query selection 和改进的框更新。</em></p>\n<h5>1. 动机与背景</h5>\n<p>DETR 的慢收敛很大程度上来自二分匹配不稳定：训练早期预测框和类别都很差，一个真值目标在不同 epoch 可能匹配到不同 query，监督信号抖动。DN-DETR 通过把带噪声的真值框和标签送入 decoder，并要求模型重建原始真值，缓解了匹配不稳定。</p>\n<p>DINO 进一步指出，单纯重建带噪声正样本还不够。检测器不仅要把接近目标的 query 拉回目标，还要学会拒绝那些“看起来也接近但不该匹配”的负 query，尤其是在多个 anchor 靠近同一个物体时避免重复预测。</p>\n<h5>2. 对比去噪训练</h5>\n<p>CDN 为每个真值框构造两类 denoising queries：正样本是轻微扰动后的 GT label/box，负样本是更大扰动或类别干扰后的样本。模型需要把正样本恢复为对应目标，同时把负样本分类为背景或远离该目标。</p>\n<p>```python</p>"
     },
     {
       "id": "rt_detr",
@@ -779,7 +779,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 rt_detr",
         "代表机构：Roboflow"
       ],
-      "detail": "<p>NAS优化首破60mAP大关</p>"
+      "detail": "<p><img alt=\"RF-DETR 架构图\" src=\"https://arxiv.org/html/2511.09554v2/x5.png\" />\n<em>图：RF-DETR 使用预训练 ViT backbone、多尺度 projector、deformable decoder 和轻量分割头。</em></p>\n<h5>1. 动机与背景</h5>\n<p>开词汇检测器和大型 VLM 在通用语义上很强，但微调到具体工业或长尾数据集时往往太重、延迟高。另一方面，YOLO、RT-DETR、LW-DETR 等专用检测器速度快，但固定手工结构未必适合每个目标数据集、类别规模、目标尺寸分布和硬件延迟约束。</p>\n<p>RF-DETR 的问题定义更偏部署：给定一个目标数据集和一个延迟范围，能否用一次训练得到大量不同结构的候选模型，并从中选择精度-延迟 Pareto 最优点？这就是它引入权重共享 NAS 的原因。</p>\n<h5>2. 基础架构</h5>\n<p>RF-DETR 以预训练 DINOv2 ViT 作为 backbone。相比从头训练或只用 CNN，DINOv2 提供更强的互联网规模视觉先验，尤其有助于小数据集和跨域检测。由于 ViT token 原生不是 FPN 格式，模型通过多尺度 projector 组织出 decoder 可用的空间特征。</p>\n<p>Decoder 继承 DETR 系列的端到端集合预测思想，使用 deformable cross-attention 在多尺度特征上读少量采样点。输出仍通过匈牙利匹配训练，因此检测分支不依赖 anchor 后处理或 NMS。</p>\n<h5>3. 权重共享 NAS 搜索空间</h5>\n<p><img alt=\"RF-DETR NAS 搜索空间\" src=\"https://arxiv.org/html/2511.09554v2/x6.png\" />\n<em>图：RF-DETR 同时搜索 patch size、decoder 层数、query 数、输入分辨率和窗口注意力配置。</em></p>\n<p>RF-DETR 的 NAS 不是为每个候选结构单独训练模型，而是训练一个 supernet。每次迭代随机采样一组结构旋钮，并只激活对应子网完成前向和反向：</p>\n<p>```python</p>"
     }
   ],
   "categories": {

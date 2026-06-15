@@ -46,17 +46,29 @@ html[data-image-size="full"] {
   display: grid;
   grid-template-columns: 270px minmax(0, 1fr);
   gap: 28px;
-  align-items: start;
+  align-items: stretch;
 }
-.page-sidebar { min-width: 0; }
+.page-sidebar {
+  min-width: 0;
+  align-self: stretch;
+  position: relative;
+}
 .page-sidebar-sticky {
   position: sticky;
   top: 88px;
+  z-index: 5;
   display: flex;
   flex-direction: column;
   gap: 14px;
   max-height: calc(100vh - 104px);
   overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+@supports (height: 100dvh) {
+  .page-sidebar-sticky {
+    max-height: calc(100dvh - 104px);
+  }
 }
 .page-sidebar-card {
   background: var(--bg-card);
@@ -256,8 +268,23 @@ html[data-image-size="full"] {
 .graph-node circle { stroke-width: 2.5; transition: all 0.2s; }
 .graph-node:hover circle { filter: drop-shadow(0 0 8px rgba(91,99,211,0.4)); stroke-width: 3.5; }
 .graph-node.dragging circle { filter: drop-shadow(0 10px 20px rgba(91,99,211,0.26)); stroke-width: 3.5; }
-.graph-node text { font-family: -apple-system, "SF Pro Display", "Inter", sans-serif; font-weight: 700; fill: var(--text); pointer-events: none; }
-.graph-node .node-sub { font-size: 10px; font-weight: 400; fill: var(--text-muted); }
+.graph-node text {
+  font-family: -apple-system, "SF Pro Display", "Inter", sans-serif;
+  font-weight: 700;
+  fill: #111827;
+  paint-order: stroke;
+  stroke: rgba(255, 255, 255, 0.72);
+  stroke-width: 2px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.graph-node .node-sub {
+  font-size: 10px;
+  font-weight: 500;
+  fill: #475569;
+  stroke: rgba(255, 255, 255, 0.78);
+  stroke-width: 1.6px;
+}
 .graph-link { stroke: rgba(123, 134, 162, 0.75); stroke-width: 1.8; fill: none; marker-end: url(#arrowhead); }
 .graph-link-label {
   font-size: 10px; fill: var(--text-dim);
@@ -657,6 +684,10 @@ html[data-image-size="full"] {
 
 /* ---- View panel（两个视图） ---- */
 .view-panel { display: none; padding-bottom: 48px; }
+.topic-page .view-panel .reveal-ready {
+  opacity: 1;
+  transform: none;
+}
 .view-back-bar {
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
   padding: 20px 0 12px; margin-bottom: 8px;
@@ -680,10 +711,14 @@ html[data-image-size="full"] {
 @media (max-width: 768px) {
   .page-shell { padding-top: 20px; }
   .page-layout { grid-template-columns: 1fr; gap: 18px; }
+  .page-sidebar {
+    align-self: auto;
+  }
   .page-sidebar-sticky {
     position: static;
     max-height: none;
     overflow: visible;
+    scrollbar-gutter: auto;
   }
   .page-sidebar-card { padding: 16px 16px 14px; }
   .page-outline {
@@ -722,4 +757,314 @@ html[data-image-size="full"] {
   .view-picker-grid { grid-template-columns: 1fr; }
   .view-back-bar { flex-wrap: wrap; }
   .view-panel-hint { margin-left: 0; }
+}
+
+/* ---- Tech topic page skin ---- */
+body.tech-page.topic-page {
+  --bg-code: rgba(8, 15, 28, 0.88);
+}
+.topic-page .breadcrumb,
+.topic-page .page-hero,
+.topic-page .page-shell,
+.topic-page footer {
+  position: relative;
+  z-index: 1;
+}
+.topic-page .page-hero {
+  position: relative;
+  margin-top: 18px;
+  padding: 34px 0 30px;
+  border-bottom: 1px solid rgba(125, 211, 252, 0.13);
+}
+.topic-page .page-hero::before {
+  content: '';
+  position: absolute;
+  inset: 8px -24px 0;
+  z-index: -1;
+  border: 1px solid rgba(125, 211, 252, 0.12);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 16% 18%, rgba(34, 211, 238, 0.15), transparent 34%),
+    radial-gradient(circle at 82% 14%, rgba(37, 99, 235, 0.13), transparent 30%),
+    linear-gradient(180deg, rgba(15, 26, 44, 0.58), rgba(15, 26, 44, 0.2));
+  box-shadow: inset 0 0 42px rgba(56, 189, 248, 0.04);
+}
+.topic-console {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 8px 13px;
+  border: 1px solid rgba(125, 211, 252, 0.2);
+  border-radius: 9px;
+  background: rgba(15, 26, 44, 0.72);
+  color: #7dd3fc;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+}
+.topic-console-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22d3ee;
+  box-shadow: 0 0 12px #22d3ee;
+  animation: consolePulse 1.7s ease-in-out infinite;
+}
+.topic-page .page-hero h1 {
+  max-width: 980px;
+  color: var(--text);
+  font-size: clamp(2rem, 4.2vw, 3.9rem);
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+}
+.topic-page .page-hero-sub {
+  display: inline-block;
+  margin-left: 8px;
+  color: #8bdff6;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.34em;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
+.topic-page .page-hero-desc {
+  max-width: 960px;
+  color: var(--text-secondary);
+  line-height: 1.86;
+}
+.topic-page .pill {
+  background: rgba(56, 189, 248, 0.11);
+  border-color: rgba(125, 211, 252, 0.23);
+  color: #9be8ff;
+}
+.topic-page .pill strong {
+  color: #eafdff;
+}
+.topic-page .page-sidebar-card,
+.topic-page .field-overview,
+.topic-page #graph-container,
+.topic-page .route-filter-bar,
+.topic-page .algo-block,
+.topic-page .tl-card,
+.topic-page .view-card,
+.topic-page .quiz-box,
+.topic-page .pair-card,
+.topic-page .pair-diff,
+.topic-page .appendix,
+.topic-page .kb-chat-panel {
+  background:
+    radial-gradient(circle at var(--mx, 50%) var(--my, 0%), rgba(56, 189, 248, 0.12), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.012)),
+    var(--bg-card);
+  border-color: rgba(125, 211, 252, 0.17);
+  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+}
+.topic-page .view-card,
+.topic-page .page-sidebar-card {
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transform-style: preserve-3d;
+}
+.topic-page .view-card:hover,
+.topic-page .page-sidebar-card:hover {
+  border-color: rgba(125, 211, 252, 0.34);
+  box-shadow: 0 26px 74px rgba(0, 0, 0, 0.32);
+}
+.topic-page .page-sidebar-kicker,
+.topic-page .view-card-cta,
+.topic-page .field-overview-section h3,
+.topic-page .quiz-box h5,
+.topic-page .pair-card h4,
+.topic-page .pair-diff h4 {
+  color: #7dd3fc;
+}
+.topic-page .outline-link:hover,
+.topic-page .outline-link.active,
+.topic-page .view-back-btn:hover,
+.topic-page .page-image-size-btn:hover,
+.topic-page .graph-btn:hover,
+.topic-page .graph-btn.active,
+.topic-page .route-chip:hover {
+  background: rgba(56, 189, 248, 0.11);
+  border-color: rgba(125, 211, 252, 0.28);
+  color: #9be8ff;
+}
+.topic-page .outline-link.active::before,
+.topic-page .tl-dot {
+  background: #22d3ee;
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.26), 0 0 14px rgba(34, 211, 238, 0.38);
+}
+.topic-page .view-card::before,
+.topic-page .topic-card.ready::before {
+  background: linear-gradient(90deg, #2563eb, #22d3ee, #8b5cf6);
+}
+.topic-page .view-card-tags span,
+.topic-page .topic-meta span,
+.topic-page .algo-meta-row > *,
+.topic-page .tl-inherit,
+.topic-page .tl-paper-link,
+.topic-page .img-action-btn,
+.topic-page .img-action-link,
+.topic-page .graph-hint,
+.topic-page .graph-btn,
+.topic-page .route-chip,
+.topic-page .page-image-size-btn,
+.topic-page .view-back-btn {
+  background: rgba(15, 26, 44, 0.7);
+  border-color: rgba(125, 211, 252, 0.15);
+  color: var(--text-muted);
+}
+.topic-page .route-chip.active,
+.topic-page .mode-btn.active,
+.topic-page .page-image-size-btn.active {
+  background: linear-gradient(135deg, #0f5ad6, #0891d1);
+  border-color: rgba(125, 211, 252, 0.38);
+  color: #ffffff;
+}
+.topic-page .algo-header:hover,
+.topic-page .algo-header.expanded {
+  background: rgba(56, 189, 248, 0.07);
+}
+.topic-page .algo-num {
+  background: rgba(56, 189, 248, 0.12);
+  color: #9be8ff;
+  box-shadow: inset 0 0 18px rgba(56, 189, 248, 0.1);
+}
+.topic-page .algo-body .formula-box,
+.topic-page .algo-body .key-point,
+.topic-page .kb-chat-config,
+.topic-page .kb-chat-status,
+.topic-page .kb-chat-input-row {
+  background: rgba(15, 26, 44, 0.72);
+  border-color: rgba(125, 211, 252, 0.15);
+}
+.topic-page .algo-body table {
+  background: rgba(15, 26, 44, 0.9);
+  border-color: rgba(125, 211, 252, 0.28);
+}
+.topic-page .algo-body thead {
+  background: linear-gradient(180deg, rgba(30, 54, 88, 0.98), rgba(15, 26, 44, 0.96));
+}
+.topic-page .algo-body th,
+.topic-page .algo-body td {
+  border-color: rgba(125, 211, 252, 0.18);
+}
+.topic-page .algo-body td,
+.topic-page .algo-body tbody tr:nth-child(even) td {
+  background: rgba(9, 16, 30, 0.72);
+}
+.topic-page .algo-body tbody tr:hover td {
+  background: rgba(56, 189, 248, 0.08);
+}
+.topic-page .graph-link-label {
+  fill: #cbd5e1;
+  stroke: rgba(7, 12, 24, 0.94);
+}
+.topic-page .graph-legend {
+  background: rgba(15, 26, 44, 0.82);
+  border-color: rgba(125, 211, 252, 0.18);
+}
+.topic-page .tab-nav {
+  background: rgba(7, 12, 24, 0.78);
+  border-bottom-color: rgba(125, 211, 252, 0.14);
+}
+.topic-page .kb-chat-fab {
+  background: linear-gradient(135deg, #0f5ad6, #0891d1);
+  box-shadow: 0 0 22px rgba(56, 189, 248, 0.34);
+}
+.topic-page .kb-chat-field input,
+.topic-page .kb-chat-input-row textarea {
+  background: rgba(8, 15, 28, 0.86);
+  border-color: rgba(125, 211, 252, 0.18);
+  color: var(--text);
+}
+
+html[data-theme="light"] body.topic-page {
+  --bg-code: #f4f8ff;
+}
+html[data-theme="light"] .topic-page .page-hero::before {
+  background:
+    radial-gradient(circle at 16% 18%, rgba(14, 165, 233, 0.14), transparent 34%),
+    radial-gradient(circle at 82% 14%, rgba(37, 99, 235, 0.1), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(241, 248, 255, 0.42));
+}
+html[data-theme="light"] .topic-page .topic-console,
+html[data-theme="light"] .topic-page .view-card-tags span,
+html[data-theme="light"] .topic-page .topic-meta span,
+html[data-theme="light"] .topic-page .algo-meta-row > *,
+html[data-theme="light"] .topic-page .img-action-btn,
+html[data-theme="light"] .topic-page .img-action-link,
+html[data-theme="light"] .topic-page .graph-hint,
+html[data-theme="light"] .topic-page .graph-btn,
+html[data-theme="light"] .topic-page .route-chip,
+html[data-theme="light"] .topic-page .page-image-size-btn,
+html[data-theme="light"] .topic-page .view-back-btn {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(14, 116, 180, 0.16);
+  color: var(--text-secondary);
+}
+html[data-theme="light"] .topic-page .page-sidebar-card,
+html[data-theme="light"] .topic-page .field-overview,
+html[data-theme="light"] .topic-page #graph-container,
+html[data-theme="light"] .topic-page .route-filter-bar,
+html[data-theme="light"] .topic-page .algo-block,
+html[data-theme="light"] .topic-page .tl-card,
+html[data-theme="light"] .topic-page .view-card,
+html[data-theme="light"] .topic-page .quiz-box,
+html[data-theme="light"] .topic-page .pair-card,
+html[data-theme="light"] .topic-page .pair-diff,
+html[data-theme="light"] .topic-page .appendix,
+html[data-theme="light"] .topic-page .kb-chat-panel {
+  box-shadow: 0 16px 42px rgba(26, 54, 93, 0.09);
+}
+html[data-theme="light"] .topic-page .pill {
+  background: rgba(14, 165, 233, 0.1);
+  border-color: rgba(14, 116, 180, 0.2);
+  color: #075985;
+}
+html[data-theme="light"] .topic-page .pill strong,
+html[data-theme="light"] .topic-page .page-hero-sub,
+html[data-theme="light"] .topic-page .page-sidebar-kicker,
+html[data-theme="light"] .topic-page .view-card-cta,
+html[data-theme="light"] .topic-page .field-overview-section h3 {
+  color: #0969da;
+}
+html[data-theme="light"] .topic-page .algo-body .formula-box,
+html[data-theme="light"] .topic-page .algo-body .key-point,
+html[data-theme="light"] .topic-page .kb-chat-config,
+html[data-theme="light"] .topic-page .kb-chat-status,
+html[data-theme="light"] .topic-page .kb-chat-input-row {
+  background: rgba(244, 248, 255, 0.82);
+}
+html[data-theme="light"] .topic-page .algo-body table,
+html[data-theme="light"] .topic-page .algo-body td,
+html[data-theme="light"] .topic-page .algo-body tbody tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.94);
+}
+html[data-theme="light"] .topic-page .algo-body thead {
+  background: linear-gradient(180deg, #f7fbff, #eaf4ff);
+}
+html[data-theme="light"] .topic-page .graph-link-label {
+  fill: #536174;
+  stroke: rgba(255, 255, 255, 0.94);
+}
+html[data-theme="light"] .topic-page .graph-legend {
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(14, 116, 180, 0.16);
+}
+
+@media (max-width: 768px) {
+  .topic-page .page-hero::before {
+    left: -12px;
+    right: -12px;
+  }
+  .topic-console {
+    max-width: 100%;
+    letter-spacing: 0.04em;
+  }
+  .topic-page .page-hero h1 {
+    font-size: clamp(1.9rem, 10vw, 3.1rem);
+  }
 }

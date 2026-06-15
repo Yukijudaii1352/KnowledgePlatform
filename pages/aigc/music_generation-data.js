@@ -1,5 +1,5 @@
 /**
- * music_generation-data.js — 由 pipeline/build.py 于 2026-06-15 09:55:50 自动生成。
+ * music_generation-data.js — 由 pipeline/build.py 于 2026-06-15 17:41:27 自动生成。
  * 源文件：content/aigc/music_generation.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -516,7 +516,7 @@ window.PAGE_CONFIG = {
         "核心动机：扩张因果卷积实现原始音频波形的自回归生成",
         "代表机构：Google DeepMind"
       ],
-      "detail": "<p>扩张因果卷积实现原始音频波形的自回归生成</p>"
+      "detail": "<h5>核心示意图/框架图</h5>\n<p><img alt=\"WaveNet 残差块与整体架构\" src=\"https://ar5iv.labs.arxiv.org/html/1609.03499/assets/x3.png\" />\n<em>图：WaveNet 的残差块和整体网络。输入波形经过多层扩张因果卷积，每层产生 residual 和 skip 输出，最后用 softmax 预测下一个音频采样值。</em></p>\n<p><img alt=\"WaveNet 扩张因果卷积\" src=\"https://ar5iv.labs.arxiv.org/html/1609.03499/assets/x2.png\" />\n<em>图：dilation 逐层增大后，模型能用较少层数覆盖长时间感受野。</em></p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "samplernn",

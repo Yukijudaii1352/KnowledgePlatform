@@ -1,5 +1,5 @@
 /**
- * world_model-data.js — 由 pipeline/build.py 于 2026-06-15 09:55:55 自动生成。
+ * world_model-data.js — 由 pipeline/build.py 于 2026-06-15 17:41:31 自动生成。
  * 源文件：content/embodied/world_model.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -552,7 +552,7 @@ window.PAGE_CONFIG = {
         "核心动机：首次展示智能体可在自身生成的梦境中学习策略",
         "代表机构：Google Brain"
       ],
-      "detail": "<p>首次展示智能体可在自身生成的梦境中学习策略</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"World Models 的 V-M-C 架构\" src=\"https://ar5iv.labs.arxiv.org/html/1803.10122/assets/x1.png\" />\n<em>图：智能体由 Vision、Memory、Controller 三部分构成；复杂感知和预测能力放在世界模型中，控制器保持尽量简单。</em></p>\n<h5>动机与背景</h5>\n<p>传统深度强化学习常把感知、记忆和控制都塞进一个端到端策略网络里，导致奖励稀疏、信用分配困难和样本效率低。World Models 的切入点是：环境中大量结构可以不依赖奖励而通过观察学习到，策略优化只需要在一个更小、更抽象的空间中做决策。</p>\n<p>论文把“世界模型”具体化为两个可微生成模型。视觉模型 <span class=\"kb-math kb-math-inline\">V</span> 学会把 <span class=\"kb-math kb-math-inline\">64\\times64</span> RGB 图像压缩为低维潜变量 <span class=\"kb-math kb-math-inline\">z_t</span>，记忆模型 <span class=\"kb-math kb-math-inline\">M</span> 学会根据过去潜变量、动作和 RNN 隐状态预测未来潜变量分布。控制器不直接看像素，而是读出当前压缩状态 <span class=\"kb-math kb-math-inline\">z_t</span> 和记忆状态 <span class=\"kb-math kb-math-inline\">h_t</span>，因此动作选择可以写成一个简单线性映射：</p>\n<div class=\"kb-math kb-math-display\">a_t = W_c [z_t, h_t] + b_c</div>\n<p>这种分工的关键价值在于把高维表征学习从强化学习目标中剥离出来。<span class=\"kb-math kb-math-inline\">V</span> 和 <span class=\"kb-math kb-math-inline\">M</span> 可以用标准反向传播快速训练，而 <span class=\"kb-math kb-math-inline\">C</span> 参数很少，可以用 CMA-ES 在真实环境或模型环境中搜索。</p>\n<h5>算法流程</h5>\n<p>```python</p>"
     },
     {
       "id": "planet",
@@ -572,7 +572,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 world_models",
         "代表机构：Google DeepMind"
       ],
-      "detail": "<p>引入RSSM循环状态空间模型实现像素级规划</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"PlaNet RSSM 架构\" src=\"https://planetrl.github.io/assets/fig/rssm.png\" />\n<em>图：PlaNet 的 RSSM 同时包含确定性路径和随机路径；确定性路径负责记忆，随机状态负责表达不确定性和多种可能未来。</em></p>\n<h5>动机与背景</h5>\n<p>从像素规划的难点不只是图像维度高，还包括部分可观测、接触动力学、稀疏奖励和多步误差累积。早期基于模型方法通常要么在低维真实状态上规划，要么在像素空间做昂贵的视频预测。PlaNet 的关键问题是：能否学到一个足够紧凑、足够可预测的潜在状态，使规划可以直接在这个空间完成？</p>\n<p>PlaNet 的答案是 RSSM。纯 RNN 状态容易给出确定性未来，难以表达多个可能结果；纯随机状态空间模型又难以长期记忆。RSSM 把二者结合：</p>\n<div class=\"kb-math kb-math-display\">h_t = f_\\theta(h_{t-1}, s_{t-1}, a_{t-1}), \\qquad\ns_t \\sim p_\\theta(s_t \\mid h_t)</div>\n<p>训练时还用 encoder 近似后验：</p>\n<div class=\"kb-math kb-math-display\">s_t \\sim q_\\theta(s_t \\mid h_t, o_t)</div>\n<p>因此模型在看到图像时可以校正信念，在想象未来时可以只用 prior <span class=\"kb-math kb-math-inline\">p_\\theta(s_t\\mid h_t)</span> 向前滚动。</p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "dreamerv1",
@@ -592,7 +592,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 planet",
         "代表机构：Google DeepMind"
       ],
-      "detail": "<p>通过潜在想象进行行为学习的Actor-Critic框架</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"DreamerV1 潜在想象训练\" src=\"https://ar5iv.labs.arxiv.org/html/1912.01603/assets/x1.png\" />\n<em>图：Dreamer 从经验数据学习潜在动力学，再在该潜在空间中学习价值和动作模型，最后把动作模型部署到真实环境采集新经验。</em></p>\n<h5>动机与背景</h5>\n<p>PlaNet 已经证明从像素学习 RSSM 并在潜在空间中规划是可行的，但每个动作都要运行 CEM，推理成本高；同时固定 planning horizon 容易短视，尤其在稀疏奖励或长程任务中。DreamerV1 的核心改动是把“在线搜索动作序列”替换为“离线训练一个 actor”，并用 value model 承接 horizon 之外的回报。</p>\n<p>Dreamer 的世界模型仍然包含 representation model、transition model 和 reward model：</p>\n<div class=\"kb-math kb-math-display\">\\begin{aligned}\n\\text{posterior: } &amp; q_\\theta(s_t \\mid s_{t-1}, a_{t-1}, o_t) \\\\\n\\text{prior: } &amp; p_\\theta(s_t \\mid s_{t-1}, a_{t-1}) \\\\\n\\text{reward: } &amp; p_\\theta(r_t \\mid s_t)\n\\end{aligned}</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">s_t</span> 代表紧凑 model state，可包含 RSSM 的确定性与随机部分。posterior 用于从真实序列中推断状态，prior 用于想象未来。</p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "dreamerv2",
@@ -612,7 +612,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 dreamerv1",
         "代表机构：Google DeepMind"
       ],
-      "detail": "<p>引入离散潜在变量首次在Atari达到人类水平</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"DreamerV2 离散世界模型\" src=\"https://ar5iv.labs.arxiv.org/html/2010.02193/assets/x2.png\" />\n<em>图：DreamerV2 的世界模型用 CNN 编码图像，用 RSSM 维护确定性状态 <span class=\"kb-math kb-math-inline\">h_t</span> 与离散随机状态 <span class=\"kb-math kb-math-inline\">z_t</span>，posterior 看当前图像，prior 只根据历史和动作预测。</em></p>\n<h5>动机与背景</h5>\n<p>DreamerV1 在连续控制视觉任务上表现强，但 Atari 长期被认为更考验模型式方法：游戏包含离散事件、对象出现/消失、得分突变、终止条件和高随机性。过去 Atari 世界模型常能生成看似合理的画面，却不足以让策略在模型里学到人类水平行为。</p>\n<p>DreamerV2 的核心假设是：对于 Atari 这类离散环境，连续高斯潜变量并不是最自然的表示。论文将随机潜变量设计为 <span class=\"kb-math kb-math-inline\">32</span> 个 categorical，每个 categorical 有 <span class=\"kb-math kb-math-inline\">32</span> 个类别，组合后形成高容量但离散的 latent code。模型状态仍由确定性 GRU 状态与随机状态拼接：</p>\n<div class=\"kb-math kb-math-display\">s_t = (h_t, z_t), \\qquad z_t \\in \\{0,1\\}^{32\\times 32}</div>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "dreamerv3",
@@ -632,7 +632,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 dreamerv2",
         "代表机构：Google DeepMind"
       ],
-      "detail": "<p>固定超参数实现跨领域通用性首次在MC收集钻石</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"DreamerV3 世界模型学习\" src=\"https://ar5iv.labs.arxiv.org/html/2301.04104/assets/x3.png\" />\n<em>图：DreamerV3 的世界模型把输入编码为离散表示，RSSM 根据动作预测未来表示，并通过重建、奖励和 continuation 预测获得学习信号。</em></p>\n<p><img alt=\"DreamerV3 actor-critic 想象学习\" src=\"https://ar5iv.labs.arxiv.org/html/2301.04104/assets/x4.png\" />\n<em>图：actor 和 critic 在世界模型预测出的抽象状态轨迹中学习，二者的梯度不反向更新世界模型。</em></p>\n<h5>动机与背景</h5>\n<p>DreamerV2 已经在 Atari 上展示了离散世界模型的能力，但强化学习算法常常需要为不同领域重新调奖励尺度、KL 权重、entropy 权重和网络规模。DreamerV3 的目标不是只刷新某个 benchmark，而是让世界模型 RL 成为“拿来就能用”的通用算法。</p>\n<p>跨领域困难集中在信号尺度。Minecraft 稀疏奖励和长 horizon 与 Control Suite 稠密奖励差异极大，像素输入和低维输入的 reconstruction loss 规模也不同。如果直接用 MSE 回归大值，梯度容易爆炸；如果做运行归一化，又会引入非平稳目标。DreamerV3 用 symlog 统一处理：</p>\n<div class=\"kb-math kb-math-display\">\\mathrm{symlog}(x)=\\mathrm{sign}(x)\\log(|x|+1),\n\\qquad\n\\mathrm{symexp}(x)=\\mathrm{sign}(x)(\\exp(|x|)-1)</div>\n<p>它压缩大正值和大负值，但在零附近近似恒等，因而不会破坏小尺度任务。</p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "dreamer4",
@@ -652,7 +652,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 dreamerv3",
         "代表机构：Google DeepMind"
       ],
-      "detail": "<p>扩展模型规模增强长时程记忆与复杂任务想象</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"Dreamer 4 离线 Minecraft 结果\" src=\"https://danijar.com/asset/dreamer4/benchmark.png\" />\n<em>图：Dreamer 4 项目页展示的离线 Minecraft 里程碑结果；论文 Figure 2 的架构图描述了 causal tokenizer 与 interactive dynamics 两个模块。</em></p>\n<div class=\"warn-box\">⚠️ 注意：YAML 中的 arXiv 论文可下载，但当前 ar5iv/html 转换不可用；本文依据 arXiv PDF、摘要和作者项目页公开资料整理，并使用项目页可访问图片作为示意图。</div>\n<h5>动机与背景</h5>\n<p>DreamerV3 的 RSSM 世界模型在多领域 RL 中非常稳健，但它仍主要面向相对窄的交互分布。Dreamer 4 面对的是更接近通用视频世界模型的问题：Minecraft 有复杂物体交互、长时间记忆、UI 操作、工具使用和超过 20,000 个鼠标键盘动作的任务链。模型不仅要预测画面，还要让策略能在其中训练。</p>\n<p>论文指出，通用视频模型虽然规模大，但通常生成慢、交互动作条件弱，难以作为训练智能体的神经仿真器。Dreamer 4 因此采用高容量 Transformer 世界模型，同时针对交互式 rollout 做速度和稳定性设计。</p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "jepa",
@@ -671,7 +671,7 @@ window.PAGE_CONFIG = {
         "核心动机：预测潜在表征而非像素避免建模噪声",
         "代表机构：Meta AI"
       ],
-      "detail": "<p>预测潜在表征而非像素避免建模噪声</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"JEPA 通用架构\" src=\"https://ar5iv.labs.arxiv.org/html/2404.08471/assets/x2.png\" />\n<em>图：JEPA 从一个输入的表征预测另一个输入的表征，额外变量提供两者之间的变换、遮挡或时间关系信息。该图来自 V-JEPA 论文中的通用 JEPA 示意。</em></p>\n<div class=\"warn-box\">⚠️ 注意：YAML 中的 OpenReview 链接 <code>BZ5a_v_S_s</code> 当前无法直接访问；公开 OpenReview PDF 对应 Yann LeCun 的 2022 年路线论文《A Path Towards Autonomous Machine Intelligence》，本文据该论文和后续 I-JEPA/V-JEPA 公开资料整理。</div>\n<h5>动机与背景</h5>\n<p>LeCun 的 JEPA 观点针对两个问题。第一，智能体需要学习世界模型来预测未来、补全缺失信息和规划动作，但真实世界未来通常是多模态的，不适合要求模型生成唯一像素结果。第二，像素级生成模型会花费大量容量预测树叶纹理、阴影、噪声等对行为无关且不可精确预测的细节。</p>\n<p>JEPA 的核心想法是：把预测目标从数据空间移到表征空间。给定观测部分 <span class=\"kb-math kb-math-inline\">x</span> 和目标部分 <span class=\"kb-math kb-math-inline\">y</span>，编码器产生：</p>\n<div class=\"kb-math kb-math-display\">s_x = E_x(x), \\qquad s_y = E_y(y)</div>\n<p>predictor 根据 <span class=\"kb-math kb-math-inline\">s_x</span> 和可选 latent <span class=\"kb-math kb-math-inline\">z</span> 预测目标表征：</p>\n<div class=\"kb-math kb-math-display\">\\hat{s}_y = P(s_x, z)</div>\n<p>能量或损失为：</p>\n<div class=\"kb-math kb-math-display\">E(x,y,z)=D(s_y,\\hat{s}_y)</div>\n<p>如果 <span class=\"kb-math kb-math-inline\">z</span> 未知，可通过最小化能量推断：</p>\n<div class=\"kb-math kb-math-display\">F(x,y)=\\min_z D(E_y(y), P(E_x(x), z))</div>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "ijepa",
@@ -691,7 +691,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 jepa",
         "代表机构：Meta AI"
       ],
-      "detail": "<p>通过掩码块预测学习强语义特征训练效率高</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"I-JEPA 架构\" src=\"https://ar5iv.labs.arxiv.org/html/2301.08243/assets/x5.png\" />\n<em>图：I-JEPA 用 context encoder 处理可见上下文块，predictor 结合目标位置 mask tokens 预测目标块表征，target encoder 提供 stop-gradient 目标。</em></p>\n<h5>动机与背景</h5>\n<p>图像自监督学习主流有两类：对比/不变性方法依赖手工增强构造正样本视图，生成式方法通过 MAE 等方式重建缺失像素。前者的增强不一定适合所有任务，后者会把容量花在低层纹理和颜色细节上。I-JEPA 的目标是学习“无需手工增强、无需像素解码”的图像语义表征。</p>\n<p>给定图像 <span class=\"kb-math kb-math-inline\">x</span>，I-JEPA 先把它切成 patch token。target encoder <span class=\"kb-math kb-math-inline\">E_{\\bar\\theta}</span> 编码完整图像，得到每个 patch 的目标表征；context encoder <span class=\"kb-math kb-math-inline\">E_\\theta</span> 只处理 context block 中未被遮挡的 patch；predictor <span class=\"kb-math kb-math-inline\">P_\\phi</span> 接收 context 表征和目标位置 mask tokens，预测多个 target block 的 patch-level 表征。</p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "vjepa",
@@ -711,7 +711,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 ijepa",
         "代表机构：Meta AI"
       ],
-      "detail": "<p>扩展至视频域学习时空特征理解物理运动</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"V-JEPA 训练流程\" src=\"https://ar5iv.labs.arxiv.org/html/2404.08471/assets/x3.png\" />\n<em>图：V-JEPA 丢弃视频中的可见 token 输入 context encoder，再用 predictor 和 mask tokens 预测被遮挡时空位置的 target encoder 表征。</em></p>\n<h5>动机与背景</h5>\n<p>视频理解需要同时捕获外观、运动、物体交互和时间因果。像素级视频重建方法容易把容量花在颜色、纹理、压缩噪声等低层细节上；对比学习则常依赖负样本或强增强。V-JEPA 的问题是：单独的 latent feature prediction 是否足以让视频模型学到通用表征？</p>\n<p>V-JEPA 的答案是肯定的。它沿用 JEPA 的非生成式思想，把目标定义为“预测另一个视频区域的表征”。给定视频 clip <span class=\"kb-math kb-math-inline\">x</span>，采样上下文区域 <span class=\"kb-math kb-math-inline\">x_c</span> 和目标区域 <span class=\"kb-math kb-math-inline\">x_t</span>，模型优化：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}\n=\n\\left\\|\nP_\\phi(E_\\theta(x_c), m_t)\n-\n\\mathrm{sg}(E_{\\bar\\theta}(x)_{m_t})\n\\right\\|_1</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">m_t</span> 是目标时空位置的 mask token/positional embedding，<span class=\"kb-math kb-math-inline\">E_{\\bar\\theta}</span> 是 EMA target encoder。</p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "vjepa2",
@@ -731,7 +731,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 vjepa",
         "代表机构：Meta AI"
       ],
-      "detail": "<p>增强时空推理应用于机器人规划任务</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"V-JEPA 2 总览\" src=\"https://arxiv.org/html/2506.09985v1/x1.png\" />\n<em>图：V-JEPA 2 先从大规模视频学习视觉世界表征，再把冻结表征用于 action-conditioned world model 和机器人规划。</em></p>\n<h5>动机与背景</h5>\n<p>V-JEPA 的核心主张是“预测表征而不是预测像素”：如果模型只需要预测抽象 latent feature，它可以忽略像素级纹理噪声，集中学习物体、运动和可预测的物理结构。V-JEPA 2 的问题设置更进一步：仅从观察式视频学习到的模型，能否迁移到机器人控制，并在没有目标环境示范的情况下进行规划。</p>\n<p>V-JEPA 2 的第一阶段沿用 JEPA 风格的 masked feature prediction。给定视频 <span class=\"kb-math kb-math-inline\">v</span>，context view <span class=\"kb-math kb-math-inline\">x</span> 删除一组时空 patch，target view <span class=\"kb-math kb-math-inline\">y</span> 保留对应 patch。在线 encoder <span class=\"kb-math kb-math-inline\">E_\\theta</span> 编码 context，predictor <span class=\"kb-math kb-math-inline\">P_\\phi</span> 根据 mask 位置预测 target encoder <span class=\"kb-math kb-math-inline\">\\bar E_\\theta</span> 的表示：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{\\text{V-JEPA}} =\n\\sum_{m \\in \\mathcal{M}}\n\\left\\|\nP_\\phi(E_\\theta(x), m) - \\text{sg}(\\bar E_\\theta(y_m))\n\\right\\|_1</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">\\bar E_\\theta</span> 通常由 <span class=\"kb-math kb-math-inline\">E_\\theta</span> 的 EMA 更新得到，<span class=\"kb-math kb-math-inline\">\\text{sg}</span> 表示 stop-gradient。这个目标避免了生成模型必须还原每个像素的负担，使预训练更像学习“什么会发生”的语义和动力学表征。</p>\n<p>V-JEPA 2-AC 的第二阶段把冻结的视觉 encoder 变成机器人 latent dynamics 的状态抽取器。给定当前图像和动作 <span class=\"kb-math kb-math-inline\">a_t</span>，action-conditioned predictor 预测下一步或多步 latent state。论文同时使用 teacher forcing loss 和 rollout loss：前者稳定单步预测，后者让模型在把自身预测再喂回去时仍能维持多步一致性。</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{\\text{AC}} =\n\\sum_t \\|\\hat z_{t+1} - \\text{sg}(z_{t+1})\\|_1\n+ \\lambda\n\\sum_{k=1}^{H} \\|\\hat z_{t+k}^{\\text{rollout}} - \\text{sg}(z_{t+k})\\|_1</div>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "vjepa21",
@@ -751,7 +751,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 vjepa2",
         "代表机构：Meta AI"
       ],
-      "detail": "<p>扩展至20亿参数实现80%零样本抓取成功率</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"V-JEPA 2.1 架构\" src=\"https://arxiv.org/html/2603.14482v2/diagrams/architecture_vjepa2_1.jpg\" />\n<em>图：V-JEPA 2.1 使用图像/视频 tokenizers、3D RoPE、multi-level encoder features 和 predictor，对 masked 与 context tokens 同时做自监督预测。</em></p>\n<h5>动机与背景</h5>\n<p>V-JEPA 2 擅长 motion understanding、action anticipation 和机器人目标规划，但其 feature map 对 dense prediction 不够友好。直观地说，原始 JEPA 目标主要监督 masked patch，visible context token 可以退化成全局信息汇聚器，导致局部边界、物体部件和深度结构在最后层表示中不够清晰。</p>\n<p>V-JEPA 2.1 的关键改动是把“预测被遮挡部分”扩展为“让所有 token 都承担局部表征责任”。设 <span class=\"kb-math kb-math-inline\">M</span> 是 masked token 集合，<span class=\"kb-math kb-math-inline\">C</span> 是 context token 集合，原始预测损失可写作：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{\\text{pred}} =\n\\frac{1}{|M|}\n\\sum_{i \\in M}\nd(\\hat y_i, \\text{sg}(y_i))</div>\n<p>V-JEPA 2.1 额外引入 context loss：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{\\text{ctx}} =\n\\frac{1}{|C|}\n\\sum_{i \\in C}\n\\lambda_i d(\\hat y_i, \\text{sg}(y_i))</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">d(\\cdot,\\cdot)</span> 是特征距离，<span class=\"kb-math kb-math-inline\">\\lambda_i</span> 与 context token 到最近 mask token 的距离有关。靠近缺失区域的 context token 更需要携带精确局部信息，因此被更强监督。总损失不只作用在最终层，还作用在多个中间层：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{\\text{V-JEPA 2.1}} =\n\\sum_{\\ell \\in \\mathcal{S}}\n\\left(\n\\mathcal{L}_{\\text{pred}}^{(\\ell)}\n+ \\mathcal{L}_{\\text{ctx}}^{(\\ell)}\n\\right)</div>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "videogpt",
@@ -770,7 +770,7 @@ window.PAGE_CONFIG = {
         "核心动机：利用VQ-VAE和Transformer自回归生成视频",
         "代表机构：UC Berkeley"
       ],
-      "detail": "<p>利用VQ-VAE和Transformer自回归生成视频</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"VideoGPT 训练流程\" src=\"https://raw.githubusercontent.com/wilson1yan/VideoGPT/master/VideoGPT.png\" />\n<em>图：VideoGPT 先把视频编码为离散 latent codes，再用 Transformer 预测 latent 序列，最后由 VQ-VAE decoder 还原为视频。</em></p>\n<h5>动机与背景</h5>\n<p>视频生成比图像生成难，核心原因是输入维度同时沿空间和时间膨胀。若直接用自回归模型预测每个像素，序列长度巨大，训练和采样都很慢。VideoGPT 的选择是保留 likelihood-based autoregressive model 的稳定训练优势，但把建模对象从像素换成 VQ-VAE 的离散 latent token。</p>\n<p>第一阶段训练 VQ-VAE。encoder <span class=\"kb-math kb-math-inline\">E</span> 把视频 <span class=\"kb-math kb-math-inline\">x</span> 映射到连续 latent，再通过 codebook <span class=\"kb-math kb-math-inline\">e_k</span> 做最近邻量化，decoder <span class=\"kb-math kb-math-inline\">G</span> 重建视频。典型目标为：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{\\text{VQ}} =\n\\|x - G(z_q)\\|_2^2\n+ \\|\\text{sg}(E(x)) - z_q\\|_2^2\n+ \\beta \\|E(x) - \\text{sg}(z_q)\\|_2^2</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">z_q</span> 是量化后的 codebook embedding，第二项训练 codebook，第三项是 commitment loss。VideoGPT 的 VQ-VAE 在 encoder/decoder 中使用 3D 卷积处理视频时空结构，并在 residual block 中用 axial attention 增强长程依赖。</p>\n<p>第二阶段训练 GPT prior。将离散 code <span class=\"kb-math kb-math-inline\">z_{1:N}</span> 展平成序列后，Transformer 学习：</p>\n<div class=\"kb-math kb-math-display\">p_\\theta(z_{1:N}) =\n\\prod_{i=1}^{N} p_\\theta(z_i \\mid z_{&lt;i})</div>\n<p>条件生成时，可以把单帧或前缀帧编码成条件表示，通过 cross-attention 输入 prior；动作或类别则可以通过 conditional normalization 调制 Transformer 层。</p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "teco",
@@ -790,7 +790,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 videogpt",
         "代表机构：Google Research"
       ],
-      "detail": "<p>弱瓶颈潜在表示解决长视频时空一致性</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"TECO 架构\" src=\"https://raw.githubusercontent.com/wilson1yan/teco/master/TECO.png\" />\n<em>图：TECO 将视频 token 压缩到更短的时间表征，在 temporal transformer 中建模长程依赖，再通过 spatial MaskGIT 还原每帧 token。</em></p>\n<h5>动机与背景</h5>\n<p>VideoGPT 证明了“VQ tokenizer + Transformer prior”可以用于视频生成，但长视频里有一个硬问题：如果直接对所有时空 token 做 Transformer，注意力复杂度随 token 数平方增长；如果用滑动窗口分段生成，模型只能看到短历史，物体、地图和场景布局很容易在长程 rollout 中漂移。</p>\n<p>TECO 的核心假设是，长程一致性并不要求 temporal transformer 处理每个空间位置的所有细节。模型可以先把一帧的 VQ token 压成较少的 latent embeddings，让 temporal module 负责“场景状态和动态记忆”，再让 spatial generator 负责把该时间步展开成清晰图像。</p>\n<p>设输入视频为 <span class=\"kb-math kb-math-inline\">x_{1:T}</span>，VQ tokenizer 得到离散 token <span class=\"kb-math kb-math-inline\">z_{1:T}</span>。TECO 学习压缩表征 <span class=\"kb-math kb-math-inline\">h_t</span>，并在时间上自回归建模：</p>\n<div class=\"kb-math kb-math-display\">h_t = C_\\psi(z_t), \\quad\np_\\theta(h_{1:T}) =\n\\prod_{t=1}^{T} p_\\theta(h_t \\mid h_{&lt;t}, a_{&lt;t})</div>\n<p>随后 spatial MaskGIT 根据 <span class=\"kb-math kb-math-inline\">h_t</span> 和可见/已生成 token 预测该帧的空间 token：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{\\text{mask}} =\n-\\mathbb{E}_{z,m}\n\\left[\n\\log p_\\omega(z \\mid z \\odot m, h_t)\n\\right]</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">m</span> 是随机 mask。MaskGIT 在推理时可以多轮并行填充 token，而不是像 VideoGPT 那样完全逐 token 自回归，因此采样速度更好。</p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "gaia1",
@@ -810,7 +810,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 videogpt",
         "代表机构：Wayve"
       ],
-      "detail": "<p>9B参数模型预测驾驶场景理解交通规则</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"GAIA-1 模型架构\" src=\"https://wayve.ai/wp-content/uploads/2023/09/gaia_schematic_animated_v2.gif\" />\n<em>图：GAIA-1 将视频、文本和动作编码到共享 token 序列，经 autoregressive transformer 预测未来 token，再用视频 diffusion decoder 还原为驾驶视频。</em></p>\n<h5>动机与背景</h5>\n<p>自动驾驶系统需要理解未来可能发生什么，尤其是 ego vehicle 的动作会如何改变周围交通参与者和道路状态。真实世界采集覆盖不了所有危险组合，传统仿真又常缺少视觉真实感和行为多样性。GAIA-1 的目标是做一个神经世界模型，让模型从真实驾驶数据中学习“场景如何随动作和语义条件演化”。</p>\n<p>GAIA-1 把世界建模转成类似语言模型的 next-token prediction。给定历史视频 token <span class=\"kb-math kb-math-inline\">v_{\\le t}</span>、文本 token <span class=\"kb-math kb-math-inline\">c</span> 和动作 token <span class=\"kb-math kb-math-inline\">a_{t:t+H}</span>，world model 学习未来视觉 token 分布：</p>\n<div class=\"kb-math kb-math-display\">p_\\theta(v_{t+1:t+H} \\mid v_{\\le t}, c, a_{t:t+H})\n=\n\\prod_{i=t+1}^{t+H}\np_\\theta(v_i \\mid v_{&lt;i}, c, a_{t:i})</div>\n<p>视频 tokenizer/encoder 负责把视觉输入离散化，文本 encoder 负责将提示词变成条件 token，动作 encoder 则把速度、曲率等连续控制量投影到同一个时间轴上。所有条件在时间上对齐后输入 Transformer。</p>\n<p>生成出的并不是最终像素，而是未来图像 token。GAIA-1 再用视频 diffusion decoder 将 token 转换为像素空间视频。这个设计结合了 autoregressive token model 的可控序列建模能力和 diffusion decoder 的高保真视觉生成能力。</p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "genie",
@@ -830,7 +830,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 videogpt",
         "代表机构：Google DeepMind"
       ],
-      "detail": "<p>从无标注视频学习生成式交互环境</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"Genie 模型训练\" src=\"https://arxiv.org/html/2402.15391v1/figures/genie_architecture.png\" />\n<em>图：Genie 将视频帧 token 化，latent action model 从相邻帧推断动作，dynamics model 根据历史 token 和 latent action 预测后续帧。</em></p>\n<h5>动机与背景</h5>\n<p>传统世界模型常需要动作标签：游戏环境有按键，机器人数据有关节或末端执行器动作。但互联网视频绝大多数没有动作标注。Genie 的核心问题是：能否仅从视频帧变化中反推出“可控动作空间”，并把这个动作空间用于生成可交互环境。</p>\n<p>Genie 的 video tokenizer 将视频帧 <span class=\"kb-math kb-math-inline\">x_{1:T}</span> 压缩成离散 token：</p>\n<div class=\"kb-math kb-math-display\">z_{1:T} = \\text{Tokenizer}(x_{1:T})</div>\n<p>latent action model 观察相邻帧，推断中间动作：</p>\n<div class=\"kb-math kb-math-display\">a_t = \\text{LAM}(x_t, x_{t+1})</div>\n<p>dynamics model 则学习在历史 token 和 latent actions 条件下预测下一帧 token：</p>\n<div class=\"kb-math kb-math-display\">p_\\theta(z_t \\mid z_{&lt;t}, a_{&lt;t})</div>\n<p>这个分解让 Genie 可以在推理时接受用户选择的 latent action。虽然用户最初不知道每个 latent action 的含义，但论文观察到动作含义在不同 prompt 中相对一致，类似学习一个新游戏手柄的按键映射。</p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "sora",
@@ -850,7 +850,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 videogpt",
         "代表机构：OpenAI"
       ],
-      "detail": "<p>展现对重力碰撞等物理规律的直觉理解</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"Sora spacetime patches\" src=\"https://images.ctfassets.net/kftzwdyauwt9/1d2955dd-9d05-4f33-13073dc9301d/8dc0bae8cb98054d083ab3cc3ade6859/figure-patches.png?fm=webp&amp;q=90&amp;w=3840\" />\n<em>图：Sora 将视频压缩为 latent 表示，再切成 spacetime patches，让 Transformer 能在不同尺寸和时长的视频上训练。</em></p>\n<h5>动机与背景</h5>\n<p>许多早期视频生成方法只训练固定尺寸、固定长度的短片段，例如把所有视频裁剪成 4 秒、256x256。这样做简化了训练，但丢失了真实视频的构图、纵横比、镜头时长和运动分布。Sora 的技术报告把问题改成：如何像语言模型处理任意文本 token 一样，用统一 token 表示处理多样化视觉数据。</p>\n<p>Sora 首先训练 video compression network，将原始视频压缩到低维 latent space：</p>\n<div class=\"kb-math kb-math-display\">z = E_{\\text{video}}(x), \\quad \\hat x = D_{\\text{video}}(z)</div>\n<p>然后把 <span class=\"kb-math kb-math-inline\">z</span> 切成 spacetime patches。图像可以看作只有一帧的视频，因此同一 patch 表示同时适用于图片和视频。推理时，通过布置不同形状的随机噪声 patch 网格，就能控制输出视频的分辨率、宽高比和时长。</p>\n<p>扩散训练目标可以抽象为：给定带噪 latent patches <span class=\"kb-math kb-math-inline\">z_t</span>、扩散时间 <span class=\"kb-math kb-math-inline\">t</span> 和文本条件 <span class=\"kb-math kb-math-inline\">c</span>，模型预测原始干净 patches 或噪声：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{\\text{diff}} =\n\\mathbb{E}_{z_0,t,\\epsilon,c}\n\\left[\n\\left\\|\n\\epsilon - \\epsilon_\\theta(z_t, t, c)\n\\right\\|_2^2\n\\right]</div>\n<p>报告强调 Sora 是 diffusion transformer。Transformer 的作用是让所有 spacetime patches 在统一序列中通信，扩散过程负责从噪声逐步去噪到高保真视频。</p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "genie2",
@@ -870,7 +870,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 genie",
         "代表机构：Google DeepMind"
       ],
-      "detail": "<p>11B参数支持实时3D环境生成与交互</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"Genie 2 推理流程\" src=\"https://lh3.googleusercontent.com/NWpfbDUhaC1ivgNDaRc7d3kmDjVh5vGPPOJV34yN6trHaFIPmBVasa7URKn-UQo0-l3PegAOOGUa78Bu4eSi2uht2zGm3KeIGCcVfw2a0FjyZGim7w%3Dw1440\" />\n<em>图：Genie 2 从图像提示编码 latent world state，并在每一步接收键盘/鼠标动作，自回归生成下一帧。</em></p>\n<h5>动机与背景</h5>\n<p>Genie 1 证明了从无标注视频中学习 2D 交互环境是可行的，但未来 embodied agents 需要更丰富的训练和评估环境：3D 视角、复杂物体交互、长期记忆、NPC 行为以及多样化任务。真实游戏和模拟器制作成本高，Genie 2 的目标是把“生成环境”本身变成一个基础模型能力。</p>\n<p>官方描述中，Genie 2 是 autoregressive latent diffusion model。给定图像提示 <span class=\"kb-math kb-math-inline\">x_0</span>，autoencoder 得到 latent frame <span class=\"kb-math kb-math-inline\">z_0</span>。随后在每个时间步接收动作 <span class=\"kb-math kb-math-inline\">a_t</span>，causal transformer dynamics model 预测下一 latent：</p>\n<div class=\"kb-math kb-math-display\">p_\\theta(z_{t+1} \\mid z_{\\le t}, a_{\\le t}, c)</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">c</span> 是 prompt 或场景条件。由于 latent transition 使用 diffusion 生成，可将单步采样写成去噪过程：</p>\n<div class=\"kb-math kb-math-display\">z_{t+1}^{(k-1)} =\n\\text{Denoise}_\\theta(z_{t+1}^{(k)}, k, z_{\\le t}, a_{\\le t}, c)</div>\n<p>生成后的 latent 再由 decoder 转回图像帧。和 Genie 1 相比，Genie 2 不只学习抽象 latent actions，而是面向通用键盘/鼠标控制和 3D playable worlds。</p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "gaia3",
@@ -890,7 +890,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 gaia1",
         "代表机构：Wayve"
       ],
-      "detail": "<p>生成极端长尾场景助力伦敦L4级测试</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"GAIA-3 embodiment transfer\" src=\"https://wayve.ai/wp-content/uploads/2025/11/EmbodimentGraph-1920x737.jpg\" />\n<em>图：GAIA-3 支持把同一驾驶场景迁移到不同车辆和相机 rig，用于跨 embodiment 的评估复用。</em></p>\n<h5>动机与背景</h5>\n<p>真实道路测试是自动驾驶安全验证的必要环节，但效率很低：模型越强，真实道路上可观察错误越少，想得到统计显著的安全结论就需要更多里程。传统仿真可控但不够真实，3D 重建仿真更真实但难处理遮挡和动态交通参与者。GAIA-3 试图把真实数据的视觉/行为真实性与仿真的可控性结合起来。</p>\n<p>GAIA-3 的核心任务可以抽象成条件化世界重生成。给定真实种子序列 <span class=\"kb-math kb-math-inline\">x_{1:T}^{\\text{seed}}</span>、ego 轨迹或动作条件 <span class=\"kb-math kb-math-inline\">u_{1:T}^{\\text{ego}}</span>、外观条件 <span class=\"kb-math kb-math-inline\">c</span> 和相机 embodiment <span class=\"kb-math kb-math-inline\">e</span>，模型生成一个结构一致但可控变化的视频：</p>\n<div class=\"kb-math kb-math-display\">x&#x27;_{1:T} \\sim\np_\\theta(\nx_{1:T}\n\\mid x_{1:T}^{\\text{seed}},\nu_{1:T}^{\\text{ego}},\nc,\ne\n)</div>\n<p>作为 latent diffusion model，它在压缩 latent 空间中完成去噪生成：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{\\text{diff}} =\n\\mathbb{E}_{z_0,t,\\epsilon}\n\\left[\n\\|\\epsilon - \\epsilon_\\theta(z_t, t, \\text{conditions})\\|_2^2\n\\right]</div>\n<p>条件不仅包括动作，还包括光照、天气、语义外观、相机 rig 和 seed scene structure。这样 GAIA-3 可以只改变被指定的因素，其他因素保持一致，用于可归因的评估。</p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "deltaworld",
@@ -1123,7 +1123,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 gns",
         "代表机构：NVIDIA"
       ],
-      "detail": "<p>开源物理引擎实现精确刚体流体动力学</p>"
+      "detail": "<h5>资料来源说明</h5>\n<div class=\"warn-box\">⚠️ 注意：清单中的 <code>paper_url</code> 指向 NVIDIA 新闻/博客页，而不是同行评审论文。以下内容基于 NVIDIA 官方 Newton 技术博客、Newton Developer 页面和开源仓库 README 中公开的架构与接口说明整理；因此这里更接近“系统/算法精读”，而不是传统论文复现。</div>\n<p><img alt=\"Newton 架构图\" src=\"https://developer-blogs.nvidia.com/wp-content/uploads/2026/03/newton-architecture.webp\" />\n<em>图：Newton 以 OpenUSD 连接 Isaac、MuJoCo、Warp 和内部多求解器；核心模块包含 collision、contact、sensor、control 与多种 solver。</em></p>\n<h5>核心仿真循环</h5>\n<p>```python</p>"
     },
     {
       "id": "mbpo",

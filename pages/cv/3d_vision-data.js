@@ -1,5 +1,5 @@
 /**
- * 3d_vision-data.js — 由 pipeline/build.py 于 2026-06-15 09:55:52 自动生成。
+ * 3d_vision-data.js — 由 pipeline/build.py 于 2026-06-15 17:41:28 自动生成。
  * 源文件：content/cv/3d_vision.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -1015,7 +1015,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 3dgs",
         "代表机构：arXiv"
       ],
-      "detail": "<p>正则化技术优化稀疏视角下的重建质量</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"3DGS 基底流程图\" src=\"https://ar5iv.labs.arxiv.org/html/2308.04079/assets/x1.png\" />\n<em>图：3D Gaussian Splatting 原始方法的公开示意图。USGS 的论文链接目前是占位符，公开全文图不可稳定访问；这里用 3DGS 基底流程说明其插入位置：USGS 仍优化显式高斯集合，但在训练视图之外加入未见视角正则。</em></p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "colmap",

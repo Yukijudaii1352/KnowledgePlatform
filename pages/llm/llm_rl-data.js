@@ -1,5 +1,5 @@
 /**
- * llm_rl-data.js — 由 pipeline/build.py 于 2026-06-15 09:55:58 自动生成。
+ * llm_rl-data.js — 由 pipeline/build.py 于 2026-06-15 17:41:33 自动生成。
  * 源文件：content/llm/llm_rl.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -780,7 +780,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 grpo",
         "代表机构：ByteDance / Tsinghua"
       ],
-      "detail": "<p>长度自适应GAE解决奖励稀疏</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"VAPO AIME 2024 训练曲线\" src=\"https://arxiv.org/html/2504.05118v3/extracted/6352862/fig/score.png\" />\n<em>图：论文 Figure 1。VAPO 在 Qwen 32B base 上的 AIME 2024 分数随训练步数上升，论文报告 5,000 步内达到约 60.4，超过同设置下的 DAPO 与 DeepSeek-R1-Zero-Qwen-32B 报告结果。</em></p>\n<p><img alt=\"VAPO 训练动态曲线\" src=\"https://arxiv.org/html/2504.05118v3/extracted/6352862/fig/length.png\" />\n<em>图：论文 Figure 2(a) 的图源之一，展示训练中的平均响应长度。论文还提供 reward 与 entropy 曲线：<code>https://arxiv.org/html/2504.05118v3/extracted/6352862/fig/reward.png</code>、<code>https://arxiv.org/html/2504.05118v3/extracted/6352862/fig/entropy.png</code>。</em></p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "dr_grpo",

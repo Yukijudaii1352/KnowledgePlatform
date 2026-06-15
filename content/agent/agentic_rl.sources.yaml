@@ -1,0 +1,4 @@
+overview:
+  include_raw: temp/content_survey_bulk_20260614_174337/researcher_output/agent/agentic_rl/overview/zhihu__面向LLM_Agent强化学习（Agentic_RL）综述__f14be2f1/article.md
+latest_overview:
+  include_raw: temp/content_survey_bulk_20260614_174337/researcher_output/agent/agentic_rl/latest/zhihu__Agent训练不稳定、奖励太稀疏还缺数据？ICLR_2026六种RL方案让智能体越训越强__52097435/article.md

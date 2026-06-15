@@ -280,6 +280,68 @@ ALGO_SECTION_TITLES = {
     "quiz":      r"^####\s+🧪\s*练习题\s*$",
 }
 
+DETAIL_FALLBACK_MIN_CHARS = 120
+
+
+def _markdown_plain_len(md: str) -> int:
+    text = re.sub(r"```.*?```", "", md or "", flags=re.DOTALL)
+    text = re.sub(r"`([^`]*)`", r"\1", text)
+    text = re.sub(r"!\[[^\]]*\]\([^)]+\)", "", text)
+    text = re.sub(r"\[[^\]]*\]\(([^)]+)\)", "", text)
+    text = re.sub(r"^[#>\-\*\d\.\s]+", "", text, flags=re.MULTILINE)
+    text = re.sub(r"[*_~|]", "", text)
+    return len(re.sub(r"\s+", "", text))
+
+
+def _strip_optional_front_matter(md: str) -> str:
+    m = FRONT_MATTER_RE.match(md)
+    return md[m.end():].strip() if m else md.strip()
+
+
+def _extract_detail_markdown(md: str) -> str:
+    md = _strip_optional_front_matter(md)
+    lines = md.splitlines()
+    start_idx = None
+    start_level = None
+    for idx, line in enumerate(lines):
+        m = re.match(r"^(#{2,6})\s+🔬\s*深入细节\s*$", line.strip())
+        if not m:
+            continue
+        start_idx = idx + 1
+        start_level = len(m.group(1))
+        break
+    if start_idx is None:
+        return md
+
+    out = []
+    for line in lines[start_idx:]:
+        m = re.match(r"^(#{1,6})\s+", line)
+        if m and len(m.group(1)) <= start_level:
+            break
+        out.append(line)
+    extracted = "\n".join(out).strip()
+    return extracted or md
+
+
+def _candidate_detail_paths(src: Path, algo_id: str) -> list[Path]:
+    detail_dir = src.parent / src.stem
+    return [
+        detail_dir / f"{algo_id}_detail.md",
+        detail_dir / f"{algo_id}.md",
+    ]
+
+
+def _load_detail_fallback(src: Path | None, algo_id: str) -> tuple[str, Path] | tuple[None, None]:
+    if src is None:
+        return None, None
+    for path in _candidate_detail_paths(src, algo_id):
+        if not path.is_file():
+            continue
+        md = _extract_detail_markdown(path.read_text(encoding="utf-8"))
+        if _markdown_plain_len(md) >= DETAIL_FALLBACK_MIN_CHARS:
+            return md, path
+    return None, None
+
 
 def _normalize_quiz_answer(value) -> int:
     if isinstance(value, int):
@@ -293,7 +355,7 @@ def _normalize_quiz_answer(value) -> int:
         return 0
 
 
-def parse_algorithms(md_body: str, image_base: str, categories_keys):
+def parse_algorithms(md_body: str, image_base: str, categories_keys, src: Path | None = None):
     algo_chunks = []
     current_header, buf = None, []
     in_fence = False
@@ -315,11 +377,11 @@ def parse_algorithms(md_body: str, image_base: str, categories_keys):
     if not algo_chunks:
         err("`## 核心算法` 下没有任何 `### 算法` 条目")
 
-    return [parse_single_algo(h, c, image_base, categories_keys)
+    return [parse_single_algo(h, c, image_base, categories_keys, src)
             for h, c in algo_chunks]
 
 
-def parse_single_algo(header: str, body: str, image_base: str, categories_keys):
+def parse_single_algo(header: str, body: str, image_base: str, categories_keys, src: Path | None = None):
     meta = extract_first_yaml_block(body, f"### {header}")
     body_after = YAML_CODE_RE.sub("", body, count=1)
 
@@ -377,8 +439,16 @@ def parse_single_algo(header: str, body: str, image_base: str, categories_keys):
                 if l.strip().startswith("- ") or l.strip().startswith("* ")]
     algo["keyPoints"] = kp_lines
 
-    if "detail" in subs:
-        algo["detail"] = md_to_html(subs["detail"], image_base=image_base)
+    detail_md = subs.get("detail", "").strip()
+    fallback_path = None
+    if _markdown_plain_len(detail_md) < DETAIL_FALLBACK_MIN_CHARS:
+        fallback_md, fallback_path = _load_detail_fallback(src, algo["id"])
+        if fallback_md:
+            detail_md = fallback_md
+    if detail_md:
+        algo["detail"] = md_to_html(detail_md, image_base=image_base)
+        if fallback_path:
+            info(f"算法 {algo['id']} 使用独立 detail 文件：{fallback_path.relative_to(ROOT)}")
 
     if "quiz" in subs:
         q_yaml_match = YAML_CODE_RE.search(subs["quiz"])
@@ -648,7 +718,7 @@ def compile_doc(src: Path, copy_images: bool = False, dry_run: bool = False):
     graph = parse_graph(secs["算法演化关系"])
 
     image_base = fm.get("image_base", "")
-    algos = parse_algorithms(secs["核心算法"], image_base, categories_keys)
+    algos = parse_algorithms(secs["核心算法"], image_base, categories_keys, src)
 
     algo_ids = {a["id"] for a in algos}
     missing_nodes = [n["id"] for n in graph["nodes"] if n["id"] not in algo_ids]

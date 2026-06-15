@@ -1,5 +1,5 @@
 /**
- * simulation-data.js — 由 pipeline/build.py 于 2026-06-15 09:55:55 自动生成。
+ * simulation-data.js — 由 pipeline/build.py 于 2026-06-15 17:41:30 自动生成。
  * 源文件：content/embodied/simulation.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -529,7 +529,7 @@ window.PAGE_CONFIG = {
         "核心动机：以物体为中心的仿真，支持大规模家务任务",
         "代表机构：Stanford"
       ],
-      "detail": "<p>以物体为中心的仿真，支持大规模家务任务</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"iGibson object-centric simulation\" src=\"https://ar5iv.labs.arxiv.org/html/2108.03272/assets/x1.png\" /></p>\n<p><em>图示展示 iGibson 2.0 如何把真实家居场景、可交互物体、扩展物体状态和 VR 人类示教连接起来，用于复杂日常活动仿真。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\">def build_igibson_task(scene, symbolic_goal):\n    objects = populate_scene_with_interactive_assets(scene)\n    states = initialize_physical_states(objects)\n\n    for predicate in symbolic_goal.preconditions:\n        # generative function maps symbolic predicates to valid physical states\n        states = sample_state_conditioned_on_predicate(states, predicate)\n\n    env = load_physics_scene(scene, objects, states)\n    while not env.done():\n        obs = env.render_multimodal_observation()\n        action = policy(obs, symbolic_goal)\n        env.step(action)\n        logical_state = evaluate_object_predicates(env.object_states)\n        reward = compute_task_reward(logical_state, symbolic_goal)\n    return env.trajectory\n</code></pre>\n<h5>背景与动机</h5>\n<p>iGibson 的关键判断是：家庭机器人任务并不只是“从 A 点走到 B 点”，而是围绕物体及其可变状态展开。一个盘子的位置重要，但盘子是否干净同样重要；一个炉灶可见并不等价于它处于开启状态；毛巾、杯子、食材等对象还会涉及湿度、温度、切分、覆盖、装载等状态。因此，仿真器如果只提供几何、碰撞和图像渲染，就很难表达“把杯子洗干净”“把食物加热”这类任务。</p>\n<p>论文的主要贡献是把物理状态和符号任务定义接起来。若用 <span class=\"kb-math kb-math-inline\">x_o</span> 表示物体 <span class=\"kb-math kb-math-inline\">o</span> 的连续物理状态，用 <span class=\"kb-math kb-math-inline\">p_k</span> 表示某个逻辑谓词，则任务检查可写为：</p>\n<div class=\"kb-math kb-math-display\">p_k(o)=\\mathbb{1}[f_k(x_o)&gt;\\tau_k]</div>\n<p>这里 <span class=\"kb-math kb-math-inline\">f_k</span> 可以是温度、湿度、清洁度或开关状态的检测函数，<span class=\"kb-math kb-math-inline\">\\tau_k</span> 是任务阈值。这样，策略和任务语言可以使用符号条件，底层仿真仍然保留连续物理变量。</p>\n<h5>机制拆解</h5>\n<p>iGibson 2.0 引入了 object states，例如 temperature、wetness、cleanliness、toggled、sliced 等。这些状态一方面参与物理和渲染，另一方面被映射成任务谓词，如 Cooked、Soaked、Clean、On、Sliced。论文还强调 generative functions：当任务要求“水槽里有一个脏杯子”时，系统不仅检查状态，还能采样出满足该谓词的初始物理配置。</p>\n<p>这个设计让任务定义更像一个约束满足问题。给定目标谓词集合 <span class=\"kb-math kb-math-inline\">G=\\{g_1,\\ldots,g_m\\}</span>，初始化和成功判定都可以围绕下面的条件展开：</p>\n<div class=\"kb-math kb-math-display\">\\text{success}(s_t)=\\prod_{g_i\\in G}\\mathbb{1}[g_i(s_t)=\\text{true}]</div>\n<p>因此，研究者可以把任务重点放在“机器人如何改变世界状态”，而不是为每个任务手写大量脆弱的场景检查代码。</p>\n<h5>交互与示教</h5>\n<p>iGibson 还提供 VR 人类示教接口，用于记录人类在同一仿真世界中的操作轨迹。对 imitation learning 或 offline RL 来说，这很重要：示教轨迹不只是关节动作序列，还能与物体状态变化、相机观测、任务谓词同步记录。换言之，它把“人做了什么”和“世界变成了什么状态”对齐到了同一个仿真日志里。</p>\n<p>与传统导航基准相比，iGibson 的难点从空间搜索扩展到对象操作、状态变化和长程任务组合。策略需要理解可见物体、可操作 affordance、动作后果以及目标谓词之间的关系；这也是后来 BEHAVIOR、OmniGibson 等系统继续扩展的方向。</p>"
     },
     {
       "id": "tdw",
@@ -548,7 +548,7 @@ window.PAGE_CONFIG = {
         "核心动机：多模态平台，支持视觉与物理音频同步模拟",
         "代表机构：MIT-IBM"
       ],
-      "detail": "<p>多模态平台，支持视觉与物理音频同步模拟</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"ThreeDWorld multimodal simulation\" src=\"https://ar5iv.labs.arxiv.org/html/2007.04954/assets/figure/teaser.png\" /></p>\n<p><em>图示概括 TDW 的多模态能力：室内外渲染、机器人交互、多智能体场景、VR、布料物理和碰撞音频。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\">def run_tdw_experiment(controller, scene_spec, agent_policy):\n    controller.launch_unity_build()\n    controller.send_commands(create_scene(scene_spec))\n    controller.send_commands(load_assets(scene_spec.objects))\n\n    while not controller.terminated():\n        obs = controller.receive_output_data(\n            modalities=[&quot;rgb&quot;, &quot;depth&quot;, &quot;segmentation&quot;, &quot;audio&quot;, &quot;physics&quot;]\n        )\n        commands = agent_policy(obs)\n        controller.send_commands(commands)\n\n    return controller.collect_logs()\n</code></pre>\n<h5>背景与动机</h5>\n<p>许多 embodied AI 仿真器在设计上偏向单一任务：导航基准强调相机和几何，机器人平台强调接触和关节控制，视觉合成平台强调图像质量。TDW 的出发点是把这些需求统一起来，尤其强调人类感知和认知研究常常需要跨模态同步刺激：看到一个物体掉落，同时听到它撞击桌面的声音，并观察其后续物理运动。</p>\n<p>平台的核心抽象可以理解为：</p>\n<div class=\"kb-math kb-math-display\">o_t = R_{\\theta}(s_t), \\quad s_{t+1}=P(s_t, a_t)</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">s_t</span> 是 Unity 中的世界状态，<span class=\"kb-math kb-math-inline\">P</span> 是物理更新，<span class=\"kb-math kb-math-inline\">R_{\\theta}</span> 则根据相机、麦克风和传感器配置输出 RGB、深度、分割、音频或物理元数据。TDW 的价值在于 <span class=\"kb-math kb-math-inline\">R_{\\theta}</span> 不是一个单一图像渲染器，而是一组同步传感器。</p>\n<h5>系统机制</h5>\n<p>TDW 使用外部 Python Controller 控制 Unity Build。Controller 发送 JSON 风格命令，例如创建场景、加载物体、设置材质、施加力、移动 agent 或调整传感器；Build 执行命令后返回图像、物理状态、音频和对象元数据。这个架构让实验脚本可以像普通 Python 程序一样批量生成数据，同时保留游戏引擎级别的交互能力。</p>\n<p>物理层面，TDW 结合刚体物理、布料、软体、液体和碰撞音频。对 embodied AI 来说，这意味着任务不再局限于“识别静态图像中的物体”，而可以研究动作带来的可观察变化。例如同一个杯子被推倒、碰撞、滚动、发声，会在多个模态中留下同步证据。</p>\n<h5>与机器人仿真的关系</h5>\n<p>TDW 本身不是专门的机械臂基准，但它提供 agent、场景和物体控制能力，适合研究从感知到交互的中间问题。相比 MuJoCo 风格平台，它的优势在于丰富视觉和音频；相比纯视觉合成数据集，它的优势在于场景可以被动作改变。TDW 因而更像一个实验室级“世界生成器”，用于构造可重复、可干预、可多模态观察的 embodied AI 实验。</p>\n<p>如果把一个实验看作命令序列 <span class=\"kb-math kb-math-inline\">C=\\{c_1,\\ldots,c_T\\}</span> 和观测序列 <span class=\"kb-math kb-math-inline\">O=\\{o_1,\\ldots,o_T\\}</span>，TDW 的设计目标就是让研究者能够精确控制 <span class=\"kb-math kb-math-inline\">C</span>，并在每一步获得同步、结构化的 <span class=\"kb-math kb-math-inline\">O</span>。这对分析模型是否真正理解物理因果关系尤其有用。</p>"
     },
     {
       "id": "procthor",
@@ -568,7 +568,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 ai2thor",
         "代表机构：Allen AI"
       ],
-      "detail": "<p>实现一万个室内房屋场景的程序化自动生成</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"ProcTHOR procedurally generated houses\" src=\"https://ar5iv.labs.arxiv.org/html/2206.06994/assets/figures/procthor-cover.jpg\" /></p>\n<p><em>图示展示 ProcTHOR 从程序规则生成多样、可交互、可定制室内房屋的整体目标。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\">def generate_procthor_house(seed):\n    rng = Random(seed)\n    room_spec = sample_room_spec(rng)\n    floorplan = sample_floorplan(room_spec, rng)\n    doors = connect_rooms_with_doors(floorplan, rng)\n\n    house = create_empty_house(floorplan, doors)\n    for room in house.rooms:\n        asset_groups = sample_semantic_asset_groups(room.type, rng)\n        for group in asset_groups:\n            placement = sample_valid_placement(group, room, house)\n            if satisfies_geometry_and_physics(placement):\n                house.add(group.instantiate(placement))\n\n    randomize_materials_lighting_and_small_objects(house, rng)\n    return export_to_ai2thor(house)\n</code></pre>\n<h5>背景与动机</h5>\n<p>Embodied AI 的泛化瓶颈很大程度来自场景规模。真实机器人数据昂贵，手工 3D 场景也昂贵；如果训练只覆盖几十个环境，模型很容易记住纹理、房型和物体共现模式。ProcTHOR 的核心思想是把“制作房屋”转化为程序采样问题，用可控规则生成数量巨大但仍然符合家庭常识的交互场景。</p>\n<p>这个过程可抽象为房屋分布建模：</p>\n<div class=\"kb-math kb-math-display\">p(H)=p(L)\\,p(R\\mid L)\\,p(A\\mid R,L)\\,p(M\\mid A)</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">L</span> 是整体布局，<span class=\"kb-math kb-math-inline\">R</span> 是房间类型和连接关系，<span class=\"kb-math kb-math-inline\">A</span> 是物体/家具资产，<span class=\"kb-math kb-math-inline\">M</span> 是材质、颜色和局部随机化。ProcTHOR 的贡献不在于学习这个分布，而在于把人工知识、资产库和几何约束编码为可扩展的采样器。</p>\n<h5>生成机制</h5>\n<p>ProcTHOR 先采样房屋规格和房间平面图，再生成门、墙和房间连接。随后系统按房间类型放置语义资产组，例如卧室中的床和床头柜、厨房中的橱柜和电器、客厅中的沙发和桌子。每个资产组都要满足几何约束，避免穿墙、重叠或不可达等问题。</p>\n<p>论文的一个重要细节是“资产组”而不是孤立物体。真实家庭中的物体往往成组出现，单独随机撒物体会造成不自然场景。ProcTHOR 用语义组合保留常识结构，再通过材质、位置和实例替换制造多样性。这使生成结果既可变，又不像完全随机布局那样不可用。</p>\n<h5>训练与泛化</h5>\n<p>ProcTHOR-10K 的实验重点是零样本迁移：在程序生成房屋中训练，然后到 AI2-THOR、RoboTHOR、Habitat 等不同环境评估。论文显示，即便使用相对简单的 RGB-only CNN+RNN agent，大规模多样化训练场景也能显著提升泛化。</p>\n<p>从算法角度看，ProcTHOR 改变的是数据分布而不是策略结构。若 agent 优化目标为：</p>\n<div class=\"kb-math kb-math-display\">\\max_{\\pi}\\ \\mathbb{E}_{H\\sim p_{\\text{ProcTHOR}}}\\left[\\sum_{t=0}^{T}\\gamma^t r_t\\right]</div>\n<p>那么关键在于 <span class=\"kb-math kb-math-inline\">p_{\\text{ProcTHOR}}</span> 覆盖足够多的房型、物体组合和视觉变化，使学到的策略更接近环境不变的导航与交互技能，而不是记忆训练房屋。</p>"
     },
     {
       "id": "omnigibson",
@@ -588,7 +588,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 igibson",
         "代表机构：Stanford"
       ],
-      "detail": "<p>结合Omniverse光追渲染，支持千种家务活动</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"OmniGibson and BEHAVIOR-1K overview\" src=\"https://ar5iv.labs.arxiv.org/html/2403.09227/assets/x1.png\" /></p>\n<p><em>图示来自 BEHAVIOR-1K 公开论文，展示人类中心日常活动基准以及 OmniGibson 仿真环境在其中的角色。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\">def run_omnigibson_behavior_task(activity_bddl):\n    scene = sample_scene(activity_bddl.scene_requirements)\n    objects = load_required_objects(activity_bddl.object_scope)\n    state = sample_initial_state(scene, objects, activity_bddl.initial_conditions)\n\n    env = omnigibson.load(scene, objects, state)\n    while not env.done():\n        obs = env.get_observations()\n        action = policy(obs, activity_bddl.goal_conditions)\n        env.step(action)\n        apply_transition_rules(env.object_states)\n        success = all(eval_predicate(g, env.state) for g in activity_bddl.goal_conditions)\n    return success, env.log\n</code></pre>\n<h5>背景与动机</h5>\n<p>OmniGibson 延续 iGibson 的核心问题：家庭任务的难点在于物体状态和长程交互，而不只是导航。BEHAVIOR-1K 进一步把目标扩展到 1000 种来自人类调查的日常活动，覆盖清理、整理、烹饪、搬运、布置等任务类型。为了表达这些任务，仅有物体类别和位姿是不够的，还需要可检查的逻辑谓词。</p>\n<p>一个 BEHAVIOR 风格任务通常由初始条件 <span class=\"kb-math kb-math-inline\">I</span> 和目标条件 <span class=\"kb-math kb-math-inline\">G</span> 定义。执行成功可以写成：</p>\n<div class=\"kb-math kb-math-display\">\\text{success}(s_t)=\\mathbb{1}\\left[\\bigwedge_{g\\in G}g(s_t)\\right]</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">g(s_t)</span> 可能表示“杯子在柜子里”“盘子是干净的”“灶台处于关闭状态”等。OmniGibson 的工作就是让这些谓词能够在仿真状态中被初始化、更新和检测。</p>\n<h5>平台机制</h5>\n<p>OmniGibson 建立在 Omniverse 和 PhysX 之上，因此比早期家居仿真更重视渲染和物理一致性。它支持刚体、关节物体、部分可变形物体、流体相关近似，以及更高质量的材质和光照。对机器人学习而言，这让视觉观测、接触状态和任务谓词之间更紧密。</p>\n<p>复杂家务活动经常包含仿真器难以完全建模的过程，例如“清洗”“加热”“弄湿”“污染”。OmniGibson 使用 object states 和 transition rules 处理这类过程：当物体满足接触、温度、容器、液体等前置条件时，规则更新其高层状态。这不是完全精确的物理化学仿真，而是面向任务学习的可计算抽象。</p>\n<h5>与 iGibson 的关系</h5>\n<p>从谱系上看，iGibson 提供了以物体状态为中心的交互框架，OmniGibson 则把它推向更大规模任务、更丰富资产和更高保真图形物理。若把任务看作谓词图，策略要学习的是动作如何改变图中节点与边：</p>\n<div class=\"kb-math kb-math-display\">P(s_{t+1}\\mid s_t,a_t)=P_{\\text{physics}}(s_{t+1})\\cdot P_{\\text{rules}}(z_{t+1}\\mid z_t,s_{t+1})</div>\n<p>这里 <span class=\"kb-math kb-math-inline\">s_t</span> 是连续物理状态，<span class=\"kb-math kb-math-inline\">z_t</span> 是离散/符号物体状态。OmniGibson 的实用意义在于让二者同时存在：低层控制和视觉由物理世界提供，高层任务由谓词系统提供。</p>\n<h5>局限与使用建议</h5>\n<p>由于清单 paper_url 与 OmniGibson 不匹配，严格论文复现需要以 OmniGibson/BEHAVIOR-1K 官方论文和代码文档为准。使用该平台时应明确区分三类信息：真实物理仿真的结果、规则系统更新的高层状态、以及 BDDL 任务定义中的符号谓词。混淆这三层会导致对模型能力的过度解释。</p>"
     },
     {
       "id": "habitat_3",
@@ -608,7 +608,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 habitat",
         "代表机构：Meta AI"
       ],
-      "detail": "<p>从静态导航演进至社交人机协作</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"Habitat 3.0 human robot collaboration\" src=\"https://ar5iv.labs.arxiv.org/html/2310.13724/assets/x1.png\" /></p>\n<p><em>图示展示 Habitat 3.0 中人类化身与机器人共同处于室内环境，用于社交导航和协作重排任务。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\">def run_habitat3_social_task(scene, human_controller, robot_policy):\n    env = habitat3.load(scene, agents=[&quot;humanoid&quot;, &quot;robot&quot;])\n    env.reset_with_collaborative_goal()\n\n    while not env.episode_over():\n        human_obs = env.observe(&quot;humanoid&quot;)\n        human_action = human_controller(human_obs)\n\n        robot_obs = env.observe(&quot;robot&quot;)\n        robot_action = robot_policy(robot_obs, env.goal)\n\n        env.step({&quot;humanoid&quot;: human_action, &quot;robot&quot;: robot_action})\n        env.update_social_metrics()\n    return env.task_success(), env.metrics\n</code></pre>\n<h5>背景与动机</h5>\n<p>Habitat 1.x/2.x 已经让 embodied agent 在真实扫描或可交互场景中进行导航、重排和操作，但许多家庭场景的关键变量是“人”。机器人如果要进入真实家庭，需要处理人类移动、停留、占用空间、请求协助以及与机器人共享路径的问题。Habitat 3.0 的核心贡献就是把人类作为可模拟、可控制、可评估的动态 agent 纳入环境。</p>\n<p>这改变了任务目标函数。传统导航可近似写为最短路或 SPL 优化；社交导航还要惩罚不舒适距离、碰撞和阻挡：</p>\n<div class=\"kb-math kb-math-display\">R_t = R_{\\text{task}}(s_t,a_t)-\\lambda\\mathbb{1}[\\text{collision}]-\\mu\\,\\max(0,d_{\\text{safe}}-d_{\\text{human}})</div>\n<p>因此，成功不再只是到达目标点，而是以社会可接受的方式到达，并在必要时配合人类动作。</p>\n<h5>Humanoid 与交互</h5>\n<p>Habitat 3.0 的 humanoid 不是简单圆柱障碍物。论文描述了基于人体骨架、网格、线性蒙皮和动作数据的化身系统，使人类可以执行自然的行走、转身和手部动作。平台还支持缓存动作轨迹并把它们适配到不同场景中，从而在大规模训练时保持高吞吐。</p>\n<p>在人机协作任务里，人类既可以由脚本驱动，也可以由真实用户通过键鼠或 VR 控制。这个 human-in-the-loop 设计很重要，因为社交行为很难完全预先脚本化；真实用户的临场决策能暴露机器人策略在让路、跟随、等待和协同方面的缺陷。</p>\n<h5>任务与评估</h5>\n<p>Social Navigation 要求机器人在有移动人类的环境中寻找、跟随或保持合适距离。Social Rearrangement 则进一步要求机器人和人类一起改变物体位置，例如人类移动某些物品，机器人需要理解协作目标并完成剩余工作。二者都迫使策略处理非平稳世界：同一个动作在不同人类运动状态下会产生不同结果。</p>\n<p>Habitat 3.0 的工程亮点是效率。论文报告在加入 humanoid 后仍保持高帧率，这意味着研究者可以训练强化学习策略，而不是只能进行少量离线评估。对 embodied AI 来说，这个平台把社交约束从后处理指标前移到了仿真和训练循环中。</p>"
     },
     {
       "id": "robosuite",
@@ -628,7 +628,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 mujoco",
         "代表机构：Stanford"
       ],
-      "detail": "<p>模块化机器人学习框架，支持多种控制器</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"robosuite procedural robot environments\" src=\"https://ar5iv.labs.arxiv.org/html/2009.12293/assets/gallery.png\" /></p>\n<p><em>图示展示 robosuite 中由机器人、场景、物体和任务组合得到的多种 MuJoCo 操作环境。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\">def create_robosuite_episode(config, policy):\n    robot = RobotModel(config.robot)\n    gripper = GripperModel(config.gripper)\n    arena = Arena(config.arena)\n    objects = [ObjectModel(o) for o in config.objects]\n    task = Task(robot, gripper, arena, objects)\n\n    env = MujocoEnv(task.to_mjcf(), controller=config.controller)\n    obs = env.reset()\n    while not env.done:\n        action = policy(obs)\n        torque = env.controller.convert_action_to_torque(action)\n        obs, reward, done, info = env.step(torque)\n    return env.trajectory\n</code></pre>\n<h5>背景与动机</h5>\n<p>机器人操作研究常常被两个因素限制：一是环境实现重复劳动多，二是不同论文的控制接口不一致。一个策略如果在末端位置控制下有效，不一定能直接与关节力矩控制策略公平比较；同一个拾取任务，如果机器人、夹爪、相机和奖励都不同，实验结论也很难复现。robosuite 的目标就是把这些自由度模块化并标准化。</p>\n<p>控制器可以写成从策略动作 <span class=\"kb-math kb-math-inline\">a_t</span> 到 MuJoCo 力矩 <span class=\"kb-math kb-math-inline\">\\tau_t</span> 的映射：</p>\n<div class=\"kb-math kb-math-display\">\\tau_t = C(q_t,\\dot q_t,a_t;\\theta_C)</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">C</span> 可以是关节位置控制、关节速度控制、末端位姿控制或 Operational Space Control。策略看到的是统一动作空间，底层控制器负责转换到仿真力矩。</p>\n<h5>模块化架构</h5>\n<p>robosuite 的 Modeling API 负责构建 MJCF 世界：机器人模型、夹爪、桌面/场景、物体和任务约束被组合成可加载的 MuJoCo XML。Simulation API 则提供类似 Gym 的 <code>reset</code>、<code>step</code>、观测和奖励接口。这样的拆分让研究者可以只替换一部分组件，例如把 Panda 换成 Sawyer，或把 OSC 控制换成关节速度控制。</p>\n<p>平台包含多种传感器，包括 RGB-D 相机、机器人本体状态、末端位姿、力/接触信息等。它也支持键盘、SpaceMouse 等人类输入设备，便于示教采集和调试。这使 robosuite 既可用于强化学习，也可用于 imitation learning 和控制器研究。</p>\n<h5>Benchmark 意义</h5>\n<p>robosuite 的任务覆盖单臂、双臂和接触丰富场景。Lift 和 Stack 适合基础抓取与堆叠，Door 和 Wipe 考验接触约束，TwoArmLift、TwoArmPegInHole、TwoArmHandoff 则测试协作操作。论文中的基线实验显示，控制器选择会显著影响学习效率；例如在某些任务中 OSC 比更低层的控制接口更容易训练。</p>\n<p>从 benchmark 角度看，robosuite 的重点不是提供最大规模场景，而是提供干净的实验分解。它让研究者能够回答“策略提升来自算法本身，还是来自更合适的控制接口/机器人模型/奖励设计”这类问题。</p>"
     },
     {
       "id": "rlbench",
@@ -648,7 +648,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 vrep",
         "代表机构：Imperial"
       ],
-      "detail": "<p>提供100个手工任务，支持少样本学习测试</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"RLBench task grid\" src=\"https://ar5iv.labs.arxiv.org/html/1909.12271/assets/task_grid.png\" /></p>\n<p><em>图示展示 RLBench 100 个机器人操作任务中的一部分，体现其任务类型和物体交互多样性。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\">def evaluate_rlbench_few_shot(train_tasks, test_task, k, learner):\n    demos = {}\n    for task in train_tasks:\n        demos[task] = generate_waypoint_demos(task, num_episodes=&quot;many&quot;)\n    learner.meta_train(demos)\n\n    support = generate_waypoint_demos(test_task, num_episodes=k)\n    learner.adapt(support)\n\n    scores = []\n    for variation in test_task.heldout_variations:\n        obs = test_task.reset(variation)\n        scores.append(rollout_success(learner.policy, obs))\n    return mean(scores)\n</code></pre>\n<h5>背景与动机</h5>\n<p>机器人学习需要多任务、多变化和可复现演示，但真实机器人上收集 100 个任务的数据几乎不可承受。RLBench 的目标是提供一个任务丰富、演示可自动生成、评估协议清晰的仿真基准。它使用 Franka Panda 机械臂和 CoppeliaSim/V-REP，通过 PyRep 暴露 Python 接口。</p>\n<p>一个任务可以表示为变化分布上的轨迹集合：</p>\n<div class=\"kb-math kb-math-display\">\\tau=\\{(o_t,a_t)\\}_{t=1}^{T}, \\quad v\\sim p_{\\text{variation}}(\\mathcal{T})</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">v</span> 可以改变物体颜色、位置、目标抽屉、按钮或语言描述。RLBench 强调算法不能只记住固定场景，而要从少量示例中理解任务结构。</p>\n<h5>任务与演示</h5>\n<p>RLBench 的每个任务由手工编写的场景、成功条件、变化采样器和 waypoint 组成。系统用运动规划器从 waypoint 生成专家轨迹，并记录图像、深度、分割和机器人状态。这种方法兼顾了任务多样性和演示可扩展性：人工只需设计任务逻辑，不必手动遥操作每一条轨迹。</p>\n<p>任务还配有自然语言描述，同一个任务变化可以对应不同指令。例如“把红色块放进抽屉”与“按下绿色按钮”都需要视觉 grounding 和动作执行。语言在这里不是装饰，而是定义变化条件和目标对象的重要信息。</p>\n<h5>少样本评估</h5>\n<p>RLBench 的少样本挑战把训练任务和测试任务分开，测试时只给新任务的 <span class=\"kb-math kb-math-inline\">K</span> 条演示，常见设置包括 1-shot、5-shot 和 20-shot。理想算法应从支持集 <span class=\"kb-math kb-math-inline\">D_K=\\{\\tau_i\\}_{i=1}^{K}</span> 快速适应，并在新变化上成功执行：</p>\n<div class=\"kb-math kb-math-display\">\\pi_{\\mathcal{T}} = \\text{Adapt}(\\pi_0, D_K)</div>\n<p>这使 RLBench 成为评估 meta-learning、imitation learning 和视觉语言策略的早期重要平台。它的局限是仿真任务仍由人工设计，物理复杂度有限；但其标准化任务数量和自动演示机制对后续机器人基准影响很大。</p>"
     },
     {
       "id": "metaworld",
@@ -668,7 +668,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 mujoco",
         "代表机构：Berkeley"
       ],
-      "detail": "<p>50个操作任务，评估元学习与多任务泛化</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"MetaWorld 50 manipulation tasks\" src=\"https://ar5iv.labs.arxiv.org/html/1910.10897/assets/x1.png\" /></p>\n<p><em>图示展示 MetaWorld 的 50 个操作任务，以及用于训练和测试的任务划分。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\">def evaluate_metaworld(protocol, algorithm):\n    train_tasks, test_tasks = protocol.split_tasks()\n    for iteration in range(protocol.train_steps):\n        task = sample(train_tasks)\n        rollout = collect_rollout(task.env, algorithm.policy(task))\n        algorithm.update(rollout, task_id=task.id if protocol.uses_task_id else None)\n\n    results = {}\n    for task in test_tasks:\n        adapted_policy = algorithm.adapt(task.support_data)\n        results[task.name] = measure_success_rate(task.env, adapted_policy)\n    return aggregate(results)\n</code></pre>\n<h5>背景与动机</h5>\n<p>在 MetaWorld 之前，很多元强化学习基准只在同一任务的参数变化上评估，例如目标点不同、速度不同或物体位置不同。这样的设置可能高估泛化能力，因为算法只需学会在一个窄分布内快速调参。MetaWorld 则把分布扩展到 50 个语义不同的桌面操作任务，如开门、按按钮、推物体、取放、插拔等。</p>\n<p>多任务强化学习目标可写为：</p>\n<div class=\"kb-math kb-math-display\">\\max_{\\pi}\\ \\mathbb{E}_{\\mathcal{T}\\sim p(\\mathcal{T})}\n\\left[\\mathbb{E}_{\\pi}\\sum_{t=0}^{T}\\gamma^t r_{\\mathcal{T}}(s_t,a_t)\\right]</div>\n<p>MetaWorld 的关键是让 <span class=\"kb-math kb-math-inline\">p(\\mathcal{T})</span> 足够宽，使该目标真正考验共享技能、任务识别和快速适应。</p>\n<h5>协议设计</h5>\n<p>MetaWorld 区分多任务学习和元学习。MT10/MT50 要求算法同时学习 10 或 50 个训练任务，通常可使用任务 ID；ML10/ML45 则把一部分任务保留为 meta-test，训练时见到的是任务分布，测试时需要利用少量交互适应新任务。ML1/MT1 则用于分析单个任务内部变化。</p>\n<p>成功指标通常基于末端或物体到目标的距离，例如：</p>\n<div class=\"kb-math kb-math-display\">\\text{success}=\\mathbb{1}[\\lVert o-g\\rVert_2&lt;\\epsilon]</div>\n<p>这种二值指标虽简单，但能跨任务统一比较。奖励函数则常加入 shaped distance reward，帮助 RL 训练。</p>\n<h5>实验启示</h5>\n<p>论文评估了多任务 PPO/TRPO/SAC、带任务嵌入的策略以及 RL^2、MAML、PEARL 等 meta-RL 方法。结果显示，算法在少量任务上可以取得不错表现，但任务数增大后成功率显著下降；meta-test 新任务上的快速适应也远未达到理想水平。</p>\n<p>MetaWorld 的价值在于提供了“难但受控”的测试床。它不像真实家庭环境那样视觉和物理复杂，也不涉及语言，但在任务分布维度上足够系统。对于研究多任务表征、策略条件化、上下文推断和元学习，它仍然是一个常用基准。</p>"
     },
     {
       "id": "calvin",
@@ -687,7 +687,7 @@ window.PAGE_CONFIG = {
         "核心动机：语言条件长程操作，评估零样本指令泛化",
         "代表机构：Freiburg"
       ],
-      "detail": "<p>语言条件长程操作，评估零样本指令泛化</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"CALVIN tabletop environment\" src=\"https://ar5iv.labs.arxiv.org/html/2112.03227/assets/figures/scene.png\" /></p>\n<p><em>图示展示 CALVIN 的桌面操作环境与传感器布局，用于语言条件机器人控制。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\">def evaluate_calvin_sequence(env, policy, instruction_chain):\n    obs = env.reset()\n    completed = 0\n    for instruction in instruction_chain:\n        for t in range(env.max_steps_per_instruction):\n            action = policy(obs, instruction)\n            obs, _, _, info = env.step(action)\n            if env.subtask_success(instruction):\n                completed += 1\n                break\n        else:\n            break\n    return completed\n</code></pre>\n<h5>背景与动机</h5>\n<p>许多语言条件机器人基准关注“给一句话，完成一个动作”。真实家务任务更接近一串开放顺序的子目标：打开抽屉、取出物体、按下按钮、移动积木、再关闭抽屉。CALVIN 的核心贡献是把语言条件控制放到长程组合评估中，检查策略是否能在连续执行中保持状态、处理误差累积并根据新指令切换行为。</p>\n<p>策略可写为：</p>\n<div class=\"kb-math kb-math-display\">a_t \\sim \\pi_{\\theta}(a_t\\mid o_{\\le t}, l_k)</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">o_{\\le t}</span> 是视觉和本体历史，<span class=\"kb-math kb-math-inline\">l_k</span> 是当前语言指令。长程评估中，一条 episode 包含多个 <span class=\"kb-math kb-math-inline\">l_k</span>，策略必须在完成当前指令后切换到下一条，而不是仅优化单个短程成功率。</p>\n<h5>数据与环境</h5>\n<p>CALVIN 使用 Franka Panda 机械臂、平行夹爪和桌面环境，包含抽屉、滑门、按钮、开关、灯光以及不同颜色/形状的积木。观测包括静态相机、腕部相机、深度、本体状态和触觉等。数据来自遥操作 play data，而不是严格分段的任务演示，这使数据更贴近真实交互中的连续探索。</p>\n<p>语言标注把 play data 中的行为片段映射到自然语言指令。这样，模型可以从非结构化操作流中学习动作语义，并在评估时根据新指令组合这些技能。CALVIN 的四个环境 A-D 共享任务语义但布局和外观不同，用于检验视觉和语言 grounding 的环境泛化。</p>\n<h5>长程指标</h5>\n<p>CALVIN 的代表性评估是给定 1000 条长度为 5 的指令链，统计模型连续完成的平均子任务数。若第 <span class=\"kb-math kb-math-inline\">i</span> 个子任务成功记为 <span class=\"kb-math kb-math-inline\">S_i</span>，完成前 <span class=\"kb-math kb-math-inline\">k</span> 个任务的概率可写为：</p>\n<div class=\"kb-math kb-math-display\">P(\\text{complete } k)=\\prod_{i=1}^{k}P(S_i\\mid S_1,\\ldots,S_{i-1})</div>\n<p>这个指标对误差累积非常敏感：单步成功率看似不低的模型，连续 5 步后可能迅速下降。正因如此，CALVIN 对评估机器人 foundation policy、语言条件 imitation learning 和长程规划非常有代表性。</p>"
     },
     {
       "id": "maniskill3",
@@ -707,7 +707,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 sapien",
         "代表机构：UCSD"
       ],
-      "detail": "<p>关节物体引擎支撑大规模并行操作基准</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"ManiSkill3 GPU parallel task suite\" src=\"https://ar5iv.labs.arxiv.org/html/2410.00425/assets/x1.png\" /></p>\n<p><em>图示展示 ManiSkill3 覆盖的多类 GPU 并行机器人操作任务和环境形态。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\">def train_maniskill3_gpu(task_config, policy):\n    envs = make_vectorized_gpu_envs(\n        task=task_config.task,\n        num_envs=task_config.num_envs,\n        heterogeneous_assets=task_config.heterogeneous_assets,\n        observation_mode=task_config.obs_mode,\n    )\n\n    obs = envs.reset()\n    while not converged(policy):\n        actions = policy(obs)\n        next_obs, rewards, dones, infos = envs.step(actions)\n        policy.update(obs, actions, rewards, next_obs, dones)\n        obs = envs.reset_done(next_obs, dones)\n    return policy\n</code></pre>\n<h5>背景与动机</h5>\n<p>机器人操作 RL 的训练成本长期受仿真吞吐限制。CPU 串行环境在状态任务上尚可，但一旦加入 RGB、深度或点云渲染，数据生成速度会成为主要瓶颈。ManiSkill3 的目标是把物理、渲染和环境批处理尽可能搬到 GPU 上，使研究者可以在较短时间内训练和比较复杂策略。</p>\n<p>向量化仿真可表示为：</p>\n<div class=\"kb-math kb-math-display\">S_{t+1}^{1:N}=\\text{SimGPU}(S_t^{1:N},A_t^{1:N})</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">N</span> 是并行环境数。关键不只是批量推进同一个世界，而是支持异构环境：不同副本可以拥有不同物体实例、关节物体、房间或初始状态。这对泛化训练尤其重要。</p>\n<h5>系统机制</h5>\n<p>ManiSkill3 基于 SAPIEN 和 PhysX，提供 GPU parallelized simulation/rendering，并支持 state、RGB、depth、point cloud、voxel 等观测模式。它覆盖单臂、双臂、移动操作、关节物体交互等任务类别，并提供二十余种机器人配置。相比只追求任务数量的基准，ManiSkill3 更强调“高速训练 + 多模态观测 + 可复现实验脚本”的组合。</p>\n<p>论文还提供演示生成和回放流水线。演示可以来自运动规划、RL 或遥操作，并能在 CPU/GPU 路径间回放、转换动作表示。这对 imitation learning 很关键，因为示教格式、控制频率和动作空间不一致常常阻碍算法比较。</p>\n<h5>基线与意义</h5>\n<p>ManiSkill3 把 RL、LfD 和 VLA 放在同一平台中评估。对于 RL，它提供 PPO、SAC、TD-MPC2 等基线；对于模仿学习，提供 BC、Diffusion Policy、ACT、PerACT；对于视觉语言动作模型，还包括 Octo、RT-X、RDT 等评估入口。统一平台降低了“不同任务/不同仿真器/不同观测管线”带来的比较噪声。</p>\n<p>高速并行也改变了实验设计。过去研究者可能因为训练成本只报告少量种子或小规模任务，现在可以更系统地做 ablation、domain randomization 和大规模视觉训练。ManiSkill3 的局限是仿真到真实仍需额外验证，但作为大规模操作算法开发平台，它显著提高了迭代效率。</p>"
     },
     {
       "id": "robocasa",
@@ -746,7 +746,7 @@ window.PAGE_CONFIG = {
         "核心动机：统一评估平台，覆盖30+模型在22个基准",
         "代表机构：Community"
       ],
-      "detail": "<p>统一评估平台，覆盖30+模型在22个基准</p>"
+      "detail": "<p><img alt=\"Embodied Arena 总览\" src=\"https://arxiv.org/html/2509.15273v1/x1.png\" />\n<em>图：Embodied Arena 将多来源模型、多类基准和 LLM 生成数据统一映射到 7 类具身能力与 3 类排行榜。</em></p>\n<div class=\"warn-box\">⚠️ 依据限制：清单中的 <code>paper_url</code> 是项目网站而非论文页面。以下内容基于项目官网和公开论文 arXiv:2509.15273，YAML 元信息保持任务清单原样。</div>\n<p>```python</p>"
     },
     {
       "id": "rbench",
@@ -804,7 +804,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 isaac_gym",
         "代表机构：NVIDIA"
       ],
-      "detail": "<p>从纯并行训练演进至高保真工业仿真</p>"
+      "detail": "<p><img alt=\"ORBIT/Isaac Sim 抽象\" src=\"https://arxiv.org/html/2301.04195v2/x1.png\" />\n<em>图：ORBIT 在 Isaac Sim 上定义 World 与 Agent 抽象，任务可通过对 Agent 计算图的裁剪得到观测、动作和奖励接口。</em></p>\n<div class=\"warn-box\">⚠️ 依据限制：<code>paper_url</code> 是 ORBIT 论文，论文主题是 Isaac Sim 上的机器人学习框架。以下将 Isaac Sim 作为底层高保真仿真平台，结合 ORBIT 的方法细节进行解读。</div>\n<p>```python</p>"
     },
     {
       "id": "mujoco_playground",
@@ -844,7 +844,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 isaac_sim",
         "代表机构：NVIDIA"
       ],
-      "detail": "<p>大幅提升接触密集型任务的仿真稳定性</p>"
+      "detail": "<p><img alt=\"Newton 架构图\" src=\"https://developer-blogs.nvidia.com/wp-content/uploads/2026/03/newton-architecture.webp\" />\n<em>图：Newton 官方技术博客中的架构图，展示其基于 Warp/OpenUSD，并连接 MuJoCo Warp、Kamino、Isaac Sim 和 Isaac Lab。</em></p>\n<div class=\"warn-box\">⚠️ 依据限制：Newton 1.0 当前公开资料主要是新闻稿、官方博客、开发者页、GitHub 和文档，而非论文式方法报告。因此下面按平台设计和公开技术说明进行精读。</div>\n<p>```python</p>"
     },
     {
       "id": "mo_playground",
@@ -883,7 +883,7 @@ window.PAGE_CONFIG = {
         "核心动机：统一物理求解+生成式场景构建，43M FPS",
         "代表机构：CMU/MIT"
       ],
-      "detail": "<p>统一物理求解+生成式场景构建，43M FPS</p>"
+      "detail": "<p><img alt=\"Genesis World 技术栈\" src=\"https://raw.githubusercontent.com/YilingQiao/Genesis/readme-assets/videos/diagram_white_lum.png\" />\n<em>图：Genesis World README 中的技术栈示意，展示接口、物理、渲染和编译四层如何支撑机器人环境与数据生成。</em></p>\n<div class=\"warn-box\">⚠️ 依据限制：<code>paper_url</code> 指向的 arXiv 页面不是 Genesis 论文；公开资料以官方仓库/文档为主，且项目在 2026 年资料中已称为 Genesis World。YAML 元信息按清单原样保留。</div>\n<p>```python</p>"
     },
     {
       "id": "embodied_gen",

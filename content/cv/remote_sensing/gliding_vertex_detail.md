@@ -1,186 +1,98 @@
-# Gliding Vertex on the Horizontal Bounding Box for Multi-Oriented Object Detection
+### Gliding Vertex
 
-## 元信息
+```yaml
+id: gliding_vertex
+name: Gliding Vertex
+full_name: "滑动顶点检测 (Gliding Vertex on Horizontal Bounding Box)"
+year: "2020"
+org: "Various Institutions"
+paper_url: "https://ieeexplore.ieee.org/abstract/document/9001201/"
+category: "object_detection"
+parent: "roi_transformer"
+motivation: "滑动顶点表征避免角度边界问题"
+```
 
-| 字段 | 内容 |
-|------|------|
-| **标题** | Gliding Vertex on the Horizontal Bounding Box for Multi-Oriented Object Detection |
-| **作者** | Yongchao Xu, Mingtao Fu, Qimeng Wang, Yukang Wang, Kai Chen, Gui-Song Xia, Xiang Bai |
-| **机构** | 武汉大学, 华中科技大学 |
-| **发表** | IEEE Transactions on Pattern Analysis and Machine Intelligence (TPAMI), 2020 |
-| **链接** | [arXiv:1911.09358](https://arxiv.org/abs/1911.09358) |
-| **代码** | [maskrcnn-benchmark 实现](https://github.com/facebookresearch/maskrcnn-benchmark) |
+#### 📝 一句话总结
 
----
+Gliding Vertex 用水平框四条边上的滑动比例和一个倾斜度因子来表示任意方向目标，避免旋转框角度边界敏感和四点回归顺序歧义，并能以很小改动接入 Faster R-CNN。
 
-## TL;DR
+#### 🎯 核心要点
 
-本文提出一种简洁高效的多方向目标检测方法：在水平包围框的每条边上滑动一个顶点（用4个长度比率表示偏移）加上一个倾斜度因子（面积比），仅需在 Faster R-CNN 上增加5个回归变量，即可准确检测任意方向目标，避免了旋转框角度回归敏感和四边形顶点顺序混淆的问题。
+- 目标场景：航拍遥感、场景文本、鱼眼行人等任意方向目标检测。
+- 表征方式：水平框 \((x,y,w,h)\) 加四个边上滑动比例 \((\alpha_1,\alpha_2,\alpha_3,\alpha_4)\)。
+- Obliquity factor：用方向目标面积与水平外接框面积比 \(r=|O|/|B_h|\) 衡量倾斜程度。
+- 分治推理：近水平目标输出水平框，明显倾斜目标输出滑动顶点恢复的四边形。
+- 网络改动：在 Faster R-CNN 检测头上额外回归 5 个量，计算开销很小。
+- 损失函数：分类损失 + 水平框回归 + 滑动比例回归 + 倾斜度回归。
+- 实验覆盖 DOTA、HRSC2016、文本检测和鱼眼行人检测，证明该表示不局限于遥感。
 
----
+#### 🔬 深入细节
 
-## 1. 研究背景与动机
+![Gliding Vertex 表征示意](https://ar5iv.labs.arxiv.org/html/1911.09358/assets/x2.png)
+*图：方向目标与水平外接框四条边相交，通过四个滑动顶点比例恢复四边形。*
 
-### 1.1 问题定义
+##### 算法伪代码
 
-多方向目标检测（Multi-Oriented Object Detection）是计算机视觉中的关键任务，广泛应用于遥感航拍图像目标检测、自然场景文字检测和鱼眼相机行人检测等领域。与水平目标不同，多方向目标需要精确描述其方向和形状。
+```python
+def gliding_vertex_inference(image, threshold=0.8):
+    proposals = faster_rcnn_rpn(image)  # 水平候选框
+    outputs = roi_head(proposals)       # cls, hbox_delta, alpha[4], obliquity r
+    detections = []
 
-### 1.2 现有方法的局限
+    for det in outputs:
+        hbox = decode_hbox(det.hbox_delta)
+        alpha = sigmoid(det.alpha)      # 每条边 [0, 1]
+        r = sigmoid(det.obliquity)
 
-现有方法主要采用两种表征方式，但各有缺陷：
+        if r > threshold:
+            box = hbox                  # 近水平目标，避免不稳定的顶点偏移
+        else:
+            box = recover_quad(hbox, alpha)
+        detections.append((box, det.score, det.cls))
 
-![Fig 1: 三种表征方式对比](https://ar5iv.labs.arxiv.org/html/1911.09358/assets/x1.png)
-*图1：(a) 旋转框表征 (x,y,w,h,θ) 对角度预测误差高度敏感，尤其对细长目标，微小角度误差导致IoU急剧下降；(b) 四边形顶点表征 (x₁,y₁,...,x₄,y₄) 存在顶点顺序定义的歧义性，训练时不同顺序定义导致回归目标混淆；(c) 本文提出的滑动顶点表征，通过在水平框每条边上滑动顶点来描述方向目标。*
+    return oriented_nms(detections)
+```
 
-**旋转包围框 (Rotated BBox)**：表示为 $(x, y, w, h, \theta)$，角度 $\theta$ 的回归对细长目标极为敏感。当目标宽高比大时，即使角度误差很小（如1°），也会导致IoU大幅下降。此外，角度的周期性和边界问题也增加了回归难度。
+##### 方法解读
 
-**四边形顶点 (Quadrangle Vertex)**：直接回归四个顶点坐标 $(x_1, y_1, ..., x_4, y_4)$，虽然避免了角度敏感性问题，但存在**顶点顺序歧义**——对于同一个四边形，不同的顶点起始顺序和排列方式会产生不同的回归目标，导致训练混淆。
+旋转目标检测常用 \((x,y,w,h,\theta)\)，但角度 \(\theta\) 有周期边界，细长目标对微小角度误差极敏感。另一类方法直接回归四个顶点，却需要人为规定顶点顺序；同一个四边形从不同角点开始都会产生不同标签，训练时容易混淆。
 
-### 1.3 核心动机
+Gliding Vertex 的观察很简单：一个方向四边形 \(O\) 的水平外接框 \(B_h\) 与目标边界通常在上、右、下、左四条边各有一个交点。只要记录交点在对应边上的归一化位置，就能恢复目标四边形：
 
-作者观察到：**任意方向的四边形目标与其水平包围框的四条边各有且仅有一个交点**。因此，可以通过描述这四个交点在对应边上的位置（即滑动偏移量）来唯一确定方向目标，无需角度回归，也无顶点顺序歧义。
+$$
+\alpha_{1,3}=\frac{\|s_{1,3}\|}{w},\quad
+\alpha_{2,4}=\frac{\|s_{2,4}\|}{h}
+$$
 
----
+其中 \(\alpha_1,\alpha_2,\alpha_3,\alpha_4\in[0,1]\)，分别绑定到水平框的上、右、下、左边。这种绑定消除了“从哪个顶点开始回归”的顺序问题，也避免了角度边界。
 
-## 2. 方法详解
+倾斜度因子 \(r\) 解决近水平目标的特殊情况：
 
-### 2.1 核心思想
+$$
+r=\frac{|O|}{|B_h|}
+$$
 
-本文的核心创新是**滑动顶点表征（Gliding Vertex Representation）**：在水平包围框 $B_h$ 的每条边上定义一个滑动顶点，通过4个归一化的长度比率 $(\alpha_1, \alpha_2, \alpha_3, \alpha_4)$ 描述方向目标，再引入一个**倾斜度因子（Obliquity Factor）** $r$ 实现水平/方向检测的分治选择。
+当目标几乎水平时，\(O\) 和 \(B_h\) 面积接近，\(r\) 接近 1；此时四个滑动比例很容易受噪声影响，直接输出水平框反而更稳定。倾斜明显时，\(r\) 较小，模型输出恢复后的方向四边形。
 
-### 2.2 滑动顶点表征
+训练时在 Faster R-CNN 原有分类与水平框回归外，增加滑动比例和倾斜度回归：
 
-![Fig 2: 滑动顶点表征示意](https://ar5iv.labs.arxiv.org/html/1911.09358/assets/x2.png)
-*图2：方向目标 O（蓝色框）与其水平包围框 $B_h$（黑色框）的交点 $\{v_i\}$ 示意。通过 $(x, y, w, h, \alpha_1, \alpha_2, \alpha_3, \alpha_4)$ 表示方向目标。*
+$$
+\mathcal{L}_{reg}=\lambda_h\mathcal{L}_h+\lambda_\alpha\sum_{i=1}^{4}\operatorname{SmoothL1}(\alpha_i-\alpha_i^*)+\lambda_r\operatorname{SmoothL1}(r-r^*)
+$$
 
-给定方向目标 $O$ 及其水平包围框 $B_h = (x, y, w, h)$，设 $v_i, i \in \{1,2,3,4\}$ 分别为目标与 $B_h$ 的上、右、下、左边的交点，$v'_i$ 为 $B_h$ 对应边的起始角点。定义四个长度比率：
+推理阶段先可用水平 NMS 快速过滤，再做 oriented NMS 精筛。与 RoI Transformer 等方法相比，Gliding Vertex 没有引入旋转 RoI 特征变换，而是把“方向”压进检测头回归变量，因此实现轻量。
 
-$$\alpha_{\{1,3\}} = \|s_{\{1,3\}}\| / w, \quad \alpha_{\{2,4\}} = \|s_{\{2,4\}}\| / h \tag{1}$$
+> 💡 关键：Gliding Vertex 的贡献是一个稳定表示，不是复杂网络。它把旋转框难题转成有界比例回归和一个面积比选择问题。
 
-其中 $\|s_i\| = \|v_i - v'_i\|$ 表示滑动顶点 $v_i$ 到参考角点 $v'_i$ 的距离。所有 $\alpha_i \in [0, 1]$，对于水平目标 $\alpha_i = 1$。
+#### 🧪 练习题
 
-**关键优势**：
-- **无角度回归**：避免了旋转框角度敏感性问题
-- **无顺序歧义**：每个 $\alpha_i$ 与 $B_h$ 的特定边一一对应（上右下左），定义唯一
-- **值域有界**：$\alpha_i \in [0, 1]$，回归目标天然归一化，易于学习
-
-### 2.3 倾斜度因子（Obliquity Factor）
-
-为了区分近水平目标和倾斜目标，引入倾斜度因子：
-
-$$r = |O| / |B_h| \tag{2}$$
-
-其中 $|\cdot|$ 表示面积。近水平目标的 $r$ 接近1，极度倾斜的细长目标 $r$ 接近0。
-
-**分治策略**：推理时，若 $r > t_r$（阈值，默认0.8），则选择水平框 $(x,y,w,h)$ 作为最终检测结果；否则选择方向框 $(x,y,w,h,\alpha_1,\alpha_2,\alpha_3,\alpha_4)$。这一策略有效缓解了近水平目标滑动偏移回归不精确的问题。
-
-### 2.4 网络架构
-
-![Fig 3: 网络架构](https://ar5iv.labs.arxiv.org/html/1911.09358/assets/x3.png)
-*图3：网络架构。仅需在 Faster R-CNN 的检测头上增加5个额外的目标变量（通过sigmoid归一化到[0,1]）。K为类别数。*
-
-网络架构与 Faster R-CNN 几乎完全相同，仅在 R-CNN 检测头上增加5个输出节点：
-- **4个滑动比率** $(\alpha_1, \alpha_2, \alpha_3, \alpha_4)$：通过 sigmoid 归一化到 $[0,1]$
-- **1个倾斜度因子** $r$：同样通过 sigmoid 归一化
-
-整体流程：输入图像 → 骨干网络提取特征 → RPN 生成水平候选框 → RoIAlign 提取区域特征 → 修改后的 R-CNN 头输出 $(x,y,w,h,\alpha_1,\alpha_2,\alpha_3,\alpha_4,r)$ 及类别。
-
-### 2.5 训练目标
-
-R-CNN 头的损失函数：
-
-$$L = \frac{1}{N_{cls}}\sum_i L_{cls} + \frac{1}{N_{reg}}\sum_i p_i^* \times L_{reg} \tag{3}$$
-
-回归损失包含三项：
-
-$$L_{reg} = \lambda_1 \times L_h + \lambda_2 \times L_\alpha + \lambda_3 \times L_r \tag{4}$$
-
-$$L_\alpha = \sum_{i=1}^{4} \text{smooth}_{L_1}(\alpha_i - \tilde{\alpha}_i), \quad L_r = \text{smooth}_{L_1}(r - \tilde{r})$$
-
-其中 $L_h$ 为标准水平框回归损失，$\lambda_1 = 1, \lambda_2 = 1, \lambda_3 = 16$。
-
-### 2.6 推理流程
-
-1. 前向传播得到 $(x,y,w,h,\alpha_1,\alpha_2,\alpha_3,\alpha_4,r)$
-2. 根据倾斜度因子 $r$ 与阈值 $t_r$ 比较，选择水平框或方向框
-3. **两阶段NMS**：先用高效的水平NMS（IoU=0.5）快速筛除大量候选，再对剩余少量候选执行方向NMS（IoU=0.1）
-
----
-
-## 3. 实验与结果
-
-### 3.1 数据集
-
-| 数据集 | 任务 | 规模 | 评价指标 |
-|--------|------|------|----------|
-| **DOTA** | 航拍目标检测 | 2806张图, 15类, 188K实例 | mAP |
-| **HRSC2016** | 航拍船舶检测 | 1061张图 | mAP |
-| **MSRA-TD500** | 长文本检测 | 500张图 | F-measure |
-| **RCTW-17** | 文本检测 | 12263张图 | F-measure |
-| **MW-18Mar** | 鱼眼行人检测 | 鱼眼相机帧 | LAMR |
-
-### 3.2 主要结果
-
-**DOTA 数据集**（航拍遥感）：
-
-| 方法 | FPN | mAP | FPS |
-|------|-----|-----|-----|
-| FR-O [23] | ✗ | 54.13 | - |
-| RoI Trans.* [5] | ✗ | 67.74 | 5.9 |
-| **Ours*** | **✗** | **72.49** | **8.4** |
-| **Ours** | **✗** | **73.39** | **9.8** |
-| R²CNN++ [27] | ✓ | 71.16 | - |
-| CADNet [28] | ✓ | 69.90 | - |
-| **Ours** | **✓** | **75.02** | **10.0** |
-
-- 无FPN时，超越 RoI Transformer 5.65% mAP，速度更快（9.8 vs 5.9 FPS）
-- 有FPN时，超越 R²CNN++ 3.86% mAP
-
-**HRSC2016 数据集**（船舶检测）：达到 **88.2% mAP**，超越当时 SOTA 约2%。
-
-**消融实验关键发现**：
-
-| 组件 | 贡献 |
-|------|------|
-| 滑动顶点表征 vs RBox回归 | +6.30% mAP (IoU=0.5), +25.93% (IoU=0.7) |
-| 滑动顶点表征 vs 顶点回归 | +11.37% mAP (IoU=0.5), +15.98% (IoU=0.7) |
-| 倾斜度因子分治策略 | +1.06% mAP (无FPN), +0.59% (有FPN) |
-| 阈值 $t_r$ 敏感性 | $t_r \in [0.75, 0.85]$ 范围内性能稳定 |
-
-![Fig 4: DOTA检测结果](https://ar5iv.labs.arxiv.org/html/1911.09358/assets/x4.png)
-*图4：DOTA数据集上的检测结果示例，方法能准确检测密集分布的任意方向目标。*
-
-### 3.3 回归精度分析
-
-![Fig 5: MAE分析](https://ar5iv.labs.arxiv.org/html/1911.09358/assets/x5.png)
-*图5：不同倾斜度范围下，倾斜度因子 r 和滑动偏移 α 回归的平均绝对误差(MAE)。滑动偏移对倾斜目标回归精确，但对近水平目标（r̃>0.8）精度下降——这正是引入倾斜度因子进行分治的动机。*
-
-倾斜度因子 $r$ 的回归总体非常准确（MAE < 5.3%），验证了分治策略的可行性。
-
----
-
-## 4. 总结与评价
-
-### 4.1 核心贡献
-
-1. **滑动顶点表征**：一种简洁优雅的方向目标表示方法，仅需4个 $[0,1]$ 范围的比率值，避免角度敏感性和顶点顺序歧义
-2. **倾斜度因子分治策略**：通过面积比自适应选择水平/方向检测，有效处理近水平目标的边界情况
-3. **即插即用的轻量设计**：仅增加5个回归变量，可轻松集成到任何基于水平框的检测器中，额外计算开销可忽略
-
-### 4.2 优势
-
-- **简洁性**：方法设计极为简单，无需旋转RPN、旋转RoI等复杂模块
-- **通用性**：在遥感、文字检测、鱼眼行人检测三个不同领域均取得优异性能
-- **高效性**：运行速度优于大多数方向目标检测方法（10 FPS with FPN）
-- **准确性**：在高IoU阈值(0.7)下优势更加显著，说明检测框更精确
-
-### 4.3 局限性
-
-- 表征本质上假设目标为凸四边形，对非凸或不规则形状目标可能不够精确
-- 分治策略的阈值 $t_r$ 需要手动设定，虽然对阈值不太敏感但仍是超参数
-- 基于两阶段检测器（Faster R-CNN），未探索单阶段检测器的适配
-- 仅在水平NMS后做方向NMS，两阶段NMS策略可能不是最优的
-
-### 4.4 后续影响
-
-该方法的核心思想——将方向目标回归转化为水平框边上的偏移回归——为后续遥感目标检测领域提供了重要启发。其"在已有表征基础上增加少量变量"的设计范式，体现了在复杂问题中寻找简洁有效解决方案的研究思路。
+```yaml
+question: "Gliding Vertex 引入 obliquity factor 的主要原因是什么？"
+options:
+  - "替代分类分支"
+  - "判断目标是否近水平，从而在水平框和方向四边形之间选择"
+  - "增加图像分辨率"
+  - "减少训练数据类别数"
+answer: 1
+explain: "近水平目标的滑动比例不稳定，面积比 r 可指导模型直接选择水平框；倾斜目标再使用滑动顶点恢复四边形。"
+```

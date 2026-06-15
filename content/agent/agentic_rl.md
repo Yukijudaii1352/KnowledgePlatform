@@ -31,13 +31,11 @@ categories:
 
 ## 领域综述
 
-### 待补充：阶段性领域总结
-请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/agent/agentic_rl/overview/zhihu__面向LLM_Agent强化学习（Agentic_RL）综述__f14be2f1/article.md
 
 ## 最新进展综述
 
-### 待补充：最近一个月最新动向
-请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/agent/agentic_rl/latest/zhihu__Agent训练不稳定、奖励太稀疏还缺数据？ICLR_2026六种RL方案让智能体越训越强__52097435/article.md
 
 ## 算法演化关系
 

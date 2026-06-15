@@ -1,5 +1,5 @@
 /**
- * llm_rlhf-data.js — 由 pipeline/build.py 于 2026-06-15 09:55:58 自动生成。
+ * llm_rlhf-data.js — 由 pipeline/build.py 于 2026-06-15 17:41:33 自动生成。
  * 源文件：content/llm/llm_rlhf.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -317,7 +317,7 @@ window.PAGE_CONFIG = {
       "keyPoints": [
         "核心动机：三阶段流程，PPO+奖励模型对齐"
       ],
-      "detail": "<p>三阶段流程，PPO+奖励模型对齐</p>"
+      "detail": "<h5>示意图/图源</h5>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/1706.03741/assets/x1.png\" alt=\"Deep RL from Human Preferences workflow\" loading=\"lazy\"><p class=\"img-caption\">▲ Deep RL from Human Preferences workflow</p></div>\n<p>图源：Christiano et al., 2017 论文 HTML 图 1，展示 agent 采样片段、人类比较、奖励预测器训练、策略最大化预测奖励的闭环。</p>\n<h5>算法/流程伪代码</h5>\n<pre><code class=\"language-python\">initialize policy pi_theta\ninitialize reward_model r_phi\npretrain or randomly initialize pi_theta\n\nfor iteration in range(T):\n    trajectories = rollout(policy=pi_theta, env=environment)\n    segment_pairs = select_pairs(trajectories, strategy=&quot;uncertainty_or_random&quot;)\n\n    labels = []\n    for seg_a, seg_b in segment_pairs:\n        # human returns which segment is preferred\n        labels.append(human_preference(seg_a, seg_b))\n\n    for batch in preference_batches(segment_pairs, labels):\n        score_a = sum(r_phi(s, a) for s, a in batch.seg_a)\n        score_b = sum(r_phi(s, a) for s, a in batch.seg_b)\n        p_a = exp(score_a) / (exp(score_a) + exp(score_b))\n        update(r_phi, loss=cross_entropy(p_a, batch.preference))\n\n    pi_theta = reinforce_or_ppo(policy=pi_theta, reward=r_phi)\n</code></pre>\n<h5>方法解读</h5>\n<p><strong>1. 偏好比较替代显式奖励。</strong> 许多复杂任务里，人类很难为每一步动作写出数值奖励，却能相对稳定地判断两个短片段哪个更好。RLHF 的关键转化是：把绝对评分问题改成成对排序问题，再从排序中恢复一个可用于 RL 的奖励函数。</p>\n<p><strong>2. 奖励模型是人类反馈的压缩器。</strong> 对两个片段 $\\sigma^1,\\sigma^2$，论文令片段得分为 token/时间步奖励之和，并用\n<div class=\"kb-math kb-math-display\">P(\\sigma^1 \\succ \\sigma^2)=\n\\frac{\\exp\\sum_t r_\\phi(s_t^1,a_t^1)}\n{\\exp\\sum_t r_\\phi(s_t^1,a_t^1)+\\exp\\sum_t r_\\phi(s_t^2,a_t^2)}</div>\n拟合人类偏好。训练好的 $r_\\phi$ 不是“真奖励”，而是偏好数据在当前模型容量和采样分布下的代理。</p>\n<p><strong>3. 策略优化与奖励学习形成闭环。</strong> 初始策略产生的数据通常覆盖面有限；当策略被奖励模型推到新区域后，奖励模型也可能外推失准。因此 RLHF 不是一次性训练奖励模型后结束，而是持续采样、查询、更新奖励模型，再继续训练策略。</p>\n<p><strong>4. 对大语言模型的启发。</strong> 在 LLM 场景里，“轨迹片段”变成 prompt-response，“人类比较”变成两个回答的偏好标注，“环境 RL”通常变成带 KL 约束的 PPO。虽然原论文不是专门为 LLM 写的，但它给出了后来三阶段 RLHF 工业流程的算法骨架。</p>"
     },
     {
       "id": "instructgpt",
@@ -355,7 +355,7 @@ window.PAGE_CONFIG = {
         "核心动机：宪法原则驱动的自我修订机制",
         "演化来源：继承或改进自 rlhf"
       ],
-      "detail": "<p>宪法原则驱动的自我修订机制</p>"
+      "detail": "<h5>示意图/图源</h5>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2212.08073/assets/x1.png\" alt=\"Constitutional AI pipeline\" loading=\"lazy\"><p class=\"img-caption\">▲ Constitutional AI pipeline</p></div>\n<p>图源：Constitutional AI 论文 HTML 图 1，展示监督式自我修订阶段和基于 AI 偏好的 RL 阶段。</p>\n<h5>算法/流程伪代码</h5>\n<p>```python\nconstitution = load_principles()\nbase_assistant = helpful_rlhf_model</p>"
     },
     {
       "id": "rlaif",
@@ -374,7 +374,7 @@ window.PAGE_CONFIG = {
         "核心动机：AI反馈替代人工偏好标注",
         "演化来源：继承或改进自 constitutional_ai"
       ],
-      "detail": "<p>AI反馈替代人工偏好标注</p>"
+      "detail": "<h5>示意图/图源</h5>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2309.00267/assets/x3.png\" alt=\"RLAIF versus RLHF workflow\" loading=\"lazy\"><p class=\"img-caption\">▲ RLAIF versus RLHF workflow</p></div>\n<p>图源：RLAIF 论文 HTML 图 2，对比 AI 反馈路径与传统人工反馈路径。</p>\n<h5>算法/流程伪代码</h5>\n<pre><code class=\"language-python\">judge = load_large_language_model()\npolicy = supervised_or_rlhf_model\n\nfor prompt in preference_prompts:\n    y_a, y_b = sample_two(policy, prompt)\n\n    score_ab = judge_preference(judge, prompt, first=y_a, second=y_b)\n    score_ba = judge_preference(judge, prompt, first=y_b, second=y_a)\n    preference = debias_and_average(score_ab, reverse(score_ba))\n\n    ai_preference_data.append((prompt, y_a, y_b, preference))\n\nreward_model = train_reward_model(ai_preference_data, soft_labels=True)\n\nfor prompt in rl_prompts:\n    response = sample(policy, prompt)\n    reward = reward_model(prompt, response)\n    policy = ppo_update(policy, reward, kl_reference=policy.initial_checkpoint)\n</code></pre>\n<h5>方法解读</h5>\n<p><strong>1. RLAIF 关注反馈瓶颈。</strong> RLHF 的数据采集成本高、周期长，并且标注一致性受标注员训练影响。RLAIF 的目标不是证明 AI judge 永远比人类正确，而是在许多可形式化的偏好维度上，用模型反馈扩大标注吞吐量。</p>\n<p><strong>2. AI judge 可以输出软偏好。</strong> 论文让 judge 对“回答 1”和“回答 2”的选择 token 产生概率，由这些概率形成偏好分布。软标签保留不确定性，比简单地取 argmax 更适合训练奖励模型，尤其是在两个回答质量接近时。</p>\n<p><strong>3. 偏差处理是关键工程细节。</strong> LLM judge 常有位置偏差、长度偏差和风格偏差。RLAIF 通过交换候选顺序、使用 chain-of-thought 式评审提示、聚合多次判断等方式提高反馈可靠性。否则，奖励模型会继承 judge 的系统偏差。</p>\n<p><strong>4. 与 Constitutional AI 的关系。</strong> Constitutional AI 可以看作 RLAIF 在安全原则上的一个代表性实例；RLAIF 更泛化，强调 AI 反馈可用于帮助性、摘要质量、无害性等多种偏好任务。两者共同推动了“AI 反馈放大人类原则”的对齐路线。</p>"
     },
     {
       "id": "dpo",
@@ -393,7 +393,7 @@ window.PAGE_CONFIG = {
         "核心动机：去除奖励模型，直接偏好分类优化",
         "演化来源：继承或改进自 rlhf"
       ],
-      "detail": "<p>去除奖励模型，直接偏好分类优化</p>"
+      "detail": "<h5>示意图/图源</h5>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2305.18290/assets/figures/diagrams/teaser.png\" alt=\"DPO workflow\" loading=\"lazy\"><p class=\"img-caption\">▲ DPO workflow</p></div>\n<p>图源：DPO 论文 HTML 图 1，展示 RLHF 先学奖励再做 RL 与 DPO 直接偏好优化的差异。</p>\n<h5>算法/流程伪代码</h5>\n<pre><code class=\"language-python\">pi_ref = frozen_sft_model\npi_theta = copy(pi_ref)\n\nfor x, y_win, y_lose in preference_dataset:\n    logp_w = log_prob(pi_theta, x, y_win)\n    logp_l = log_prob(pi_theta, x, y_lose)\n    ref_w = log_prob(pi_ref, x, y_win)\n    ref_l = log_prob(pi_ref, x, y_lose)\n\n    margin = beta * ((logp_w - ref_w) - (logp_l - ref_l))\n    loss = -log_sigmoid(margin)\n    update(pi_theta, loss)\n</code></pre>\n<h5>方法解读</h5>\n<p><strong>1. DPO 的入口是 KL 约束 RLHF。</strong> 标准 RLHF 可写成最大化奖励并惩罚策略偏离参考模型：\n<div class=\"kb-math kb-math-display\">\\max_\\pi \\mathbb{E}_{y\\sim\\pi} [r(x,y)]-\\beta D_{KL}(\\pi(y|x)\\|\\pi_{ref}(y|x)).</div>\n这个问题的最优策略满足 $\\pi^*(y|x)\\propto \\pi_{ref}(y|x)\\exp(r(x,y)/\\beta)$。</p>\n<p><strong>2. 隐式奖励来自策略比值。</strong> 由上式反解可得\n<div class=\"kb-math kb-math-display\">r_\\theta(x,y)=\\beta \\log \\frac{\\pi_\\theta(y|x)}{\\pi_{ref}(y|x)}+\\beta \\log Z(x).</div>\n在成对比较中，归一化项 $Z(x)$ 会抵消，因此不需要显式估计奖励模型。</p>\n<p><strong>3. DPO 损失就是偏好分类损失。</strong> 对偏好对 $(x,y_w,y_l)$，目标为\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{DPO}=-\\log\\sigma\\left(\\beta\\left[\n\\log\\frac{\\pi_\\theta(y_w|x)}{\\pi_{ref}(y_w|x)}\n-\\log\\frac{\\pi_\\theta(y_l|x)}{\\pi_{ref}(y_l|x)}\n\\right]\\right).</div>\n它看起来像二分类，但分类 logit 是两个回答相对参考模型的 log-ratio 差。</p>\n<p><strong>4. 简化来自代数，不代表没有约束。</strong> DPO 省掉奖励模型和 PPO，但参考模型、$\\beta$、数据质量仍然决定优化边界。若偏好数据存在长度偏差、风格偏差或覆盖不足，DPO 会直接学习这些偏差，并可能在训练后期过拟合偏好对。</p>"
     },
     {
       "id": "ipo",
@@ -412,7 +412,7 @@ window.PAGE_CONFIG = {
         "核心动机：MSE正则化解决DPO过拟合",
         "演化来源：继承或改进自 dpo"
       ],
-      "detail": "<p>MSE正则化解决DPO过拟合</p>"
+      "detail": "<h5>示意图/图源</h5>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2310.12036/assets/x2.png\" alt=\"IPO versus DPO overfitting behavior\" loading=\"lazy\"><p class=\"img-caption\">▲ IPO versus DPO overfitting behavior</p></div>\n<p>图源：IPO 论文 HTML 图 2，展示 DPO 与 IPO 在玩具偏好分布上的不同过拟合行为。</p>\n<h5>算法/流程伪代码</h5>\n<pre><code class=\"language-python\">pi_ref = frozen_reference_model\npi_theta = copy(pi_ref)\ntarget_margin = 1.0 / (2.0 * tau)\n\nfor x, y_win, y_lose in preference_dataset:\n    h = (\n        log_prob(pi_theta, x, y_win) - log_prob(pi_ref, x, y_win)\n        - log_prob(pi_theta, x, y_lose) + log_prob(pi_ref, x, y_lose)\n    )\n    loss = (h - target_margin) ** 2\n    update(pi_theta, loss)\n</code></pre>\n<h5>方法解读</h5>\n<p><strong>1. IPO 先质疑 DPO 的偏好噪声模型。</strong> DPO 借用了 Bradley-Terry 形式：奖励差越大，优胜回答被偏好的概率越高。若训练数据几乎总是同一个回答胜出，交叉熵会持续推大间隔，模型可能越来越远离参考分布。</p>\n<p><strong>2. 平方损失给偏好间隔设置有限目标。</strong> IPO 的 sampled loss 可写成\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{IPO}=\n\\left(h_\\pi(x,y_w,y_l)-\\frac{1}{2\\tau}\\right)^2,</div>\n其中\n<div class=\"kb-math kb-math-display\">h_\\pi=\\log\\frac{\\pi_\\theta(y_w|x)}{\\pi_{ref}(y_w|x)}\n-\\log\\frac{\\pi_\\theta(y_l|x)}{\\pi_{ref}(y_l|x)}.</div>\n训练目标不是“间隔越大越好”，而是“间隔接近一个由温度控制的合适值”。</p>\n<p><strong>3. 这是一种更强的保守性。</strong> DPO 的 $\\beta$ 控制更新尺度，但在可分数据上仍可能继续增大偏好 margin。IPO 通过 MSE 的目标点让过大的 margin 也产生损失，从目标函数层面抑制过拟合。</p>\n<p><strong>4. IPO 牺牲部分激进优化换稳定性。</strong> 当偏好数据非常可靠且测试分布接近训练分布时，强力拉大间隔可能短期有效；但在真实 LLM 对齐中，偏好数据覆盖有限，过度优化训练偏好容易损害多样性和泛化。IPO 的设计更偏向保守对齐。</p>"
     },
     {
       "id": "kto",
@@ -431,7 +431,7 @@ window.PAGE_CONFIG = {
         "核心动机：前景理论，仅需二元好坏反馈",
         "演化来源：继承或改进自 dpo"
       ],
-      "detail": "<p>前景理论，仅需二元好坏反馈</p>"
+      "detail": "<h5>示意图/图源</h5>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2402.01306/assets/figures/teaser.png\" alt=\"KTO binary feedback setting\" loading=\"lazy\"><p class=\"img-caption\">▲ KTO binary feedback setting</p></div>\n<p>图源：KTO 论文 HTML 图 1，展示 KTO 只需要二元好坏反馈，而 DPO 需要成对偏好。</p>\n<h5>算法/流程伪代码</h5>\n<pre><code class=\"language-python\">pi_ref = frozen_reference_model\npi_theta = initialized_policy\n\nfor x, y, label in binary_feedback_dataset:\n    reward = beta * (log_prob(pi_theta, x, y) - log_prob(pi_ref, x, y))\n    kl_anchor = estimate_batch_kl(pi_theta, pi_ref)\n    centered_reward = reward - kl_anchor\n\n    if label == &quot;desirable&quot;:\n        loss = lambda_d * (1.0 - sigmoid(centered_reward))\n    else:\n        loss = lambda_u * (1.0 - sigmoid(-centered_reward))\n\n    update(pi_theta, loss)\n</code></pre>\n<h5>方法解读</h5>\n<p><strong>1. KTO 解决的是偏好数据形态问题。</strong> DPO 假设有同一 prompt 下的 $(y_w,y_l)$，但真实产品日志里更常见的是单条回答的点赞、踩、通过或失败。KTO 直接接受这种二元反馈，减少构造配对数据的成本。</p>\n<p><strong>2. 前景理论提供效用形状。</strong> 人类对收益和损失并不对称，损失往往更敏感。KTO 将 desirable 样本看作收益方向，将 undesirable 样本看作损失方向，用不同权重和非线性效用塑造优化目标，而不是把所有样本强行配对。</p>\n<p><strong>3. KTO 仍然保留参考模型约束。</strong> 单条样本的隐式奖励来自\n<div class=\"kb-math kb-math-display\">r_\\theta(x,y)=\\beta\\log\\frac{\\pi_\\theta(y|x)}{\\pi_{ref}(y|x)}.</div>\n相对参考模型的奖励能避免模型仅凭绝对概率大小判断好坏，并让训练仍处于偏好优化家族。</p>\n<p><strong>4. 二元反馈不是免费午餐。</strong> 缺少同 prompt 的直接对比后，训练更依赖标签质量、正负样本分布和权重设定。KTO 的贡献是给出一种能从更弱反馈中学习的目标，而不是保证弱反馈一定比成对偏好更可靠。</p>"
     },
     {
       "id": "orpo",
@@ -450,7 +450,7 @@ window.PAGE_CONFIG = {
         "核心动机：单阶段对齐，无需参考模型",
         "演化来源：继承或改进自 dpo"
       ],
-      "detail": "<p>单阶段对齐，无需参考模型</p>"
+      "detail": "<h5>示意图/图源</h5>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2403.07691/assets/x2.png\" alt=\"ORPO alignment comparison\" loading=\"lazy\"><p class=\"img-caption\">▲ ORPO alignment comparison</p></div>\n<p>图源：ORPO 论文 HTML 图 2，对比 RLHF、DPO 等多阶段方法与 ORPO 单阶段对齐。</p>\n<h5>算法/流程伪代码</h5>\n<pre><code class=\"language-python\">pi_theta = base_or_instruction_model\n\nfor x, y_win, y_lose in preference_dataset:\n    nll = -log_prob(pi_theta, x, y_win)\n\n    p_w = exp(sequence_log_prob(pi_theta, x, y_win))\n    p_l = exp(sequence_log_prob(pi_theta, x, y_lose))\n    odds_w = p_w / (1.0 - p_w + eps)\n    odds_l = p_l / (1.0 - p_l + eps)\n\n    log_odds_ratio = log(odds_w / odds_l)\n    preference_loss = -log_sigmoid(log_odds_ratio)\n    loss = nll + lambda_orpo * preference_loss\n\n    update(pi_theta, loss)\n</code></pre>\n<h5>方法解读</h5>\n<p><strong>1. ORPO 从 SFT 的副作用出发。</strong> 标准 SFT 只提高示范回答概率，却没有显式压低不合适回答。ORPO 认为对齐训练应同时做两件事：让 chosen response 更可能，让 rejected response 相对更不可能。</p>\n<p><strong>2. odds ratio 是无参考的相对比较。</strong> ORPO 使用\n<div class=\"kb-math kb-math-display\">odds_\\theta(y|x)=\\frac{P_\\theta(y|x)}{1-P_\\theta(y|x)}</div>\n并最大化 chosen 相对 rejected 的 odds ratio。它不像 DPO 那样比较当前模型和参考模型，而是直接比较当前模型对两个回答的偏好。</p>\n<p><strong>3. 单阶段目标降低工程复杂度。</strong> ORPO 的目标可概括为\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{ORPO}=\\mathcal{L}_{SFT}+\\lambda\\mathcal{L}_{OR}.</div>\n这让训练流程更接近普通微调，不需要额外奖励模型、PPO rollout 或参考模型前向。</p>\n<p><strong>4. 约束来源从参考模型转向 chosen NLL。</strong> 没有 $\\pi_{ref}$ 后，模型不再被显式拉回初始策略。ORPO 依赖 chosen response 的 NLL 维持语言能力和任务分布，因此数据质量、学习率和 $\\lambda$ 对结果影响更明显。</p>"
     },
     {
       "id": "simpo",
@@ -469,7 +469,7 @@ window.PAGE_CONFIG = {
         "核心动机：长度归一化奖励，去参考模型",
         "演化来源：继承或改进自 dpo"
       ],
-      "detail": "<p>长度归一化奖励，去参考模型</p>"
+      "detail": "<h5>示意图/图源</h5>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2405.14734/assets/x1.png\" alt=\"SimPO reference-free objective\" loading=\"lazy\"><p class=\"img-caption\">▲ SimPO reference-free objective</p></div>\n<p>图源：SimPO 论文 HTML 图 1，展示长度归一化、无参考模型的偏好优化思路。</p>\n<h5>算法/流程伪代码</h5>\n<pre><code class=\"language-python\">pi_theta = instruction_model\n\nfor x, y_win, y_lose in preference_dataset:\n    avg_logp_w = log_prob(pi_theta, x, y_win) / len(y_win)\n    avg_logp_l = log_prob(pi_theta, x, y_lose) / len(y_lose)\n\n    reward_gap = beta * (avg_logp_w - avg_logp_l)\n    loss = -log_sigmoid(reward_gap - gamma)\n    update(pi_theta, loss)\n</code></pre>\n<h5>方法解读</h5>\n<p><strong>1. SimPO 重新定义隐式奖励。</strong> DPO 的奖励是相对参考模型的 log-ratio；SimPO 更直接地使用当前模型对回答的平均 log probability：\n<div class=\"kb-math kb-math-display\">r_\\theta(x,y)=\\frac{\\beta}{|y|}\\log\\pi_\\theta(y|x).</div>\n这样可以去掉参考模型，减少显存和计算开销。</p>\n<p><strong>2. 长度归一化是核心而非细节。</strong> 序列 log probability 会随长度累加，长回答天然更容易得到更低总 log 概率。SimPO 使用平均 log probability，使不同长度回答更可比，也更贴近实际解码时按 token 逐步选择的概率尺度。</p>\n<p><strong>3. Margin 让偏好更有判别要求。</strong> SimPO 的损失可写成\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{SimPO}=-\\log\\sigma\\left(\n\\beta\\left[\n\\frac{\\log\\pi_\\theta(y_w|x)}{|y_w|}\n-\\frac{\\log\\pi_\\theta(y_l|x)}{|y_l|}\n\\right]-\\gamma\n\\right).</div>\n目标间隔 $\\gamma$ 防止模型只做到微弱偏好，而是要求 chosen 与 rejected 之间留出足够距离。</p>\n<p><strong>4. 去参考模型带来简洁也带来责任转移。</strong> SimPO 不再依赖参考模型稳定训练，因此超参数、数据分布和初始模型质量更重要。它适合已经有较好 instruction model 的后训练阶段，但不应理解为参考约束在所有场景都无用。</p>"
     },
     {
       "id": "tdpo",
@@ -488,7 +488,7 @@ window.PAGE_CONFIG = {
         "核心动机：Token级前向KL约束保持多样性",
         "演化来源：继承或改进自 dpo"
       ],
-      "detail": "<p>Token级前向KL约束保持多样性</p>"
+      "detail": "<h5>示意图/图源</h5>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2404.11999/assets/x1.png\" alt=\"TDPO token-level KL analysis\" loading=\"lazy\"><p class=\"img-caption\">▲ TDPO token-level KL analysis</p></div>\n<p>图源：TDPO 论文 HTML 图 1 的一个面板；完整公开来源见 https://arxiv.org/abs/2404.11999 和 https://proceedings.mlr.press/v235/zeng24c.html。</p>\n<h5>算法/流程伪代码</h5>\n<pre><code class=\"language-python\">pi_ref = frozen_reference_model\npi_theta = copy(pi_ref)\n\nfor x, y_win, y_lose in preference_dataset:\n    chosen_terms = []\n    rejected_terms = []\n\n    for t in tokens(y_win):\n        prefix = y_win[:t]\n        log_ratio = logp(pi_theta, y_win[t], x, prefix) - logp(pi_ref, y_win[t], x, prefix)\n        fwd_kl = kl(pi_ref.next_token_dist(x, prefix), pi_theta.next_token_dist(x, prefix))\n        chosen_terms.append(log_ratio - alpha * fwd_kl)\n\n    for t in tokens(y_lose):\n        prefix = y_lose[:t]\n        log_ratio = logp(pi_theta, y_lose[t], x, prefix) - logp(pi_ref, y_lose[t], x, prefix)\n        fwd_kl = kl(pi_ref.next_token_dist(x, prefix), pi_theta.next_token_dist(x, prefix))\n        rejected_terms.append(log_ratio - alpha * fwd_kl)\n\n    margin = beta * (sum(chosen_terms) - sum(rejected_terms))\n    loss = -log_sigmoid(margin)\n    update(pi_theta, loss)\n</code></pre>\n<h5>方法解读</h5>\n<p><strong>1. TDPO 认为句子级 KL 过粗。</strong> DPO 在完整回答层面计算 log-ratio 差，无法直接约束每个生成前缀下的 next-token 分布。若某些 token 位置被过度推向单一高偏好模式，模型可能在局部丢失多样性。</p>\n<p><strong>2. token 级 MDP 更贴近自回归生成。</strong> LLM 生成天然是状态 $s_t=(x,y_{&lt;t})$、动作 $a_t=y_t$ 的序列决策。TDPO 将偏好优化拆到这些状态动作上，使每个 token 的策略变化都能被衡量和约束。</p>\n<p><strong>3. 前向 KL 针对 mode covering。</strong> 反向 KL 更偏向 mode seeking，容易集中到少数高概率模式；前向 KL 更强调覆盖参考分布支持集。TDPO 在 token 级引入前向 KL，目的是让模型在偏好优化后仍保留合理备选表达。</p>\n<p><strong>4. 与 DPO 的关系是细化而非推翻。</strong> TDPO 仍然从偏好对出发，保留直接优化的工程优点。它改变的是正则粒度：从完整序列层面的隐式约束，变成每个前缀状态下的分布约束，因此更适合分析和控制生成多样性。</p>"
     },
     {
       "id": "spac",
@@ -507,7 +507,7 @@ window.PAGE_CONFIG = {
         "核心动机：自博弈对抗Critic离线对齐",
         "演化来源：继承或改进自 dpo"
       ],
-      "detail": "<p>自博弈对抗Critic离线对齐</p>"
+      "detail": "<h5>示意图/图源</h5>\n<p>公开图源链接：SPAC 论文 HTML 页面 https://ar5iv.labs.arxiv.org/html/2406.04274 ，arXiv 摘要页 https://arxiv.org/abs/2406.04274 。该公开 HTML 未提供独立论文图片资产，因此这里引用公开页面作为图源，并用下方流程伪代码概括算法结构。</p>\n<h5>算法/流程伪代码</h5>\n<pre><code class=\"language-python\">offline_preferences = load_pairs()  # (x, y_win, y_lose)\npi_theta = initialize_from_sft()\ncritic_psi = initialize_adversarial_critic()\n\nfor step in range(T):\n    # learner proposes policy scores on offline preference pairs\n    policy_margin = score(pi_theta, x, y_win) - score(pi_theta, x, y_lose)\n\n    # critic searches for conservative/adversarial values under coverage limits\n    critic_penalty = critic_psi(x, y_win, y_lose, data_coverage=offline_preferences)\n    critic_loss = adversarial_objective(policy_margin, critic_penalty)\n    update(critic_psi, maximize=critic_loss)\n\n    # policy improves against the adversarial critic\n    preference_loss = -log_sigmoid(policy_margin - critic_penalty)\n    regularizer = kl_or_reference_control(pi_theta)\n    update(pi_theta, preference_loss + regularizer)\n</code></pre>\n<h5>方法解读</h5>\n<p><strong>1. SPAC 针对离线偏好优化的覆盖问题。</strong> DPO 类方法通常把已有偏好对当作足够代表目标分布的数据，但离线数据不可能覆盖所有模型可能生成的回答。策略一旦偏离数据支持集，偏好估计就可能变得过度乐观。</p>\n<p><strong>2. adversarial critic 扮演保守评估者。</strong> SPAC 不只让策略最大化偏好目标，还训练一个 critic 去寻找当前策略在离线数据下不可靠的方向。这个 critic 的作用类似离线 RL 中的 pessimism：对缺乏数据支撑的改进保持怀疑。</p>\n<p><strong>3. 自博弈带来理论抓手。</strong> 论文将 learner 与 critic 的交互组织成博弈，使策略更新不是单纯追逐经验偏好，而是在对抗评估下寻找稳健解。这样可以在比全局覆盖更弱的条件下证明收敛和样本效率性质。</p>\n<p><strong>4. SPAC 与 DPO 的关系是“加 critic 的直接优化”。</strong> 它并不回到传统 RLHF 的在线 PPO 奖励模型流程，而是在离线偏好优化目标中加入对抗 critic 校正。因此 SPAC 适合被看作 DPO 家族面向离线可靠性的扩展。</p>"
     },
     {
       "id": "grpo",
@@ -526,7 +526,7 @@ window.PAGE_CONFIG = {
         "核心动机：组相对评分取代Critic模型",
         "演化来源：继承或改进自 rlhf"
       ],
-      "detail": "<p>组相对评分取代Critic模型</p>"
+      "detail": "<h5>示意图/图源</h5>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2501.12948/assets/x1.png\" alt=\"DeepSeek-R1 benchmark overview\" loading=\"lazy\"><p class=\"img-caption\">▲ DeepSeek-R1 benchmark overview</p></div>\n<p>图源：DeepSeek-R1 论文 HTML 图 1；GRPO 方法在该论文的强化学习训练部分描述。</p>\n<h5>算法/流程伪代码</h5>\n<pre><code class=\"language-python\">pi_ref = frozen_reference_model\npi_old = copy(policy)\n\nfor prompt in training_questions:\n    outputs = [sample(pi_old, prompt) for _ in range(G)]\n    rewards = [rule_or_model_reward(prompt, y) for y in outputs]\n\n    mean_r = mean(rewards)\n    std_r = std(rewards) + 1e-6\n    advantages = [(r - mean_r) / std_r for r in rewards]\n\n    for y, adv in zip(outputs, advantages):\n        ratio = prob(policy, prompt, y) / prob(pi_old, prompt, y)\n        clipped = clip(ratio, 1 - eps, 1 + eps)\n        pg_obj = min(ratio * adv, clipped * adv)\n        kl_penalty = beta * kl(policy, pi_ref, prompt, y)\n        loss = -(pg_obj - kl_penalty)\n        update(policy, loss)\n</code></pre>\n<h5>方法解读</h5>\n<p><strong>1. GRPO 的基线来自组内相对分数。</strong> PPO 通常需要 value model 估计状态价值，作为 advantage 的基线。GRPO 对同一问题采样多条回答，用这些回答的奖励均值作为 baseline，用标准差归一化，从而得到组相对 advantage。</p>\n<p><strong>2. 省掉 critic 是大模型 RL 的实际收益。</strong> 对 7B、70B 乃至更大模型来说，训练和维护一个同规模或近似规模的 value model 成本很高，还会带来 value 估计不准的问题。GRPO 用采样组内统计替代 critic，显著简化训练系统。</p>\n<p><strong>3. 目标仍然保留 PPO 的稳定机制。</strong> GRPO 并不是无约束地提高高分回答概率。它仍使用旧策略比值、clip 操作和参考模型 KL 惩罚，防止单次更新过大，并限制策略偏离基础模型太远。</p>\n<p><strong>4. 它特别适合可自动评分的推理任务。</strong> DeepSeek-R1 场景中，数学、代码和格式化推理往往有规则奖励或可验证答案。只要同一 prompt 的多样采样能产生分数差，组内相对优势就能提供有效学习信号。</p>"
     },
     {
       "id": "rto",
@@ -545,7 +545,7 @@ window.PAGE_CONFIG = {
         "核心动机：MDP建模提取Token级奖励",
         "演化来源：继承或改进自 tdpo"
       ],
-      "detail": "<p>MDP建模提取Token级奖励</p>"
+      "detail": "<h5>示意图/图源</h5>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2404.18922/assets/x1.png\" alt=\"RTO framework\" loading=\"lazy\"><p class=\"img-caption\">▲ RTO framework</p></div>\n<p>图源：RTO 论文 HTML 图 1；正确公开来源见 https://arxiv.org/abs/2404.18922 和 https://proceedings.mlr.press/v267/zhong25b.html。</p>\n<h5>算法/流程伪代码</h5>\n<p>```python\npi_ref = frozen_reference_model\npi_theta = initialized_policy</p>"
     },
     {
       "id": "sepo",
@@ -659,7 +659,7 @@ window.PAGE_CONFIG = {
         "核心动机：边际最大化数据选择改进DPO",
         "演化来源：继承或改进自 dpo"
       ],
-      "detail": "<p>边际最大化数据选择改进DPO</p>"
+      "detail": "<p><img alt=\"BeeS 工作流\" src=\"https://arxiv.org/html/2502.14560v4/x1.png\" />\n<em>图：BeeS 先计算多源 margin，再做贝叶斯聚合与子集选择，最后用筛选数据训练 DPO。manifest 中 paper_url 指向的页面与 BeeS 题名不匹配，本文精读依据可读公开论文页 https://arxiv.org/abs/2502.14560。</em></p>\n<p>```python</p>"
     },
     {
       "id": "bidpo",

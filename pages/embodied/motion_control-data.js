@@ -1,5 +1,5 @@
 /**
- * motion_control-data.js — 由 pipeline/build.py 于 2026-06-15 09:55:54 自动生成。
+ * motion_control-data.js — 由 pipeline/build.py 于 2026-06-15 17:41:30 自动生成。
  * 源文件：content/embodied/motion_control.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -662,7 +662,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 teacher_student",
         "代表机构：ETH Zurich"
       ],
-      "detail": "<p>引入视觉感知的地形自适应控制</p>"
+      "detail": "<h5>资料依据与框架图</h5>\n<div class=\"warn-box\">⚠️ 注意：清单中的 <code>paper_url</code>（<code>arXiv:2206.08392</code>）实际指向一篇数学论文，不是该算法论文。以下精读基于同名公开论文 <em>Learning robust perceptive locomotion for quadrupedal robots in the wild</em>（<code>arXiv:2201.08117</code>）和 ETH 官方项目页；YAML 元信息仍按清单原样保留。</div>\n<p><img alt=\"Perceptive Locomotion 训练与部署框架\" src=\"https://ar5iv.labs.arxiv.org/html/2201.08117/assets/x4.png\" />\n<em>图：先训练带特权信息的 Teacher，再把 Teacher 的动作和环境 belief 蒸馏到只使用真实传感器输入的 Student，最后在真实 ANYmal 上零射部署。</em></p>\n<h5>动机与背景</h5>\n<p>纯本体感知的四足策略已经能在粗糙地形上保持鲁棒，但它必须“踩到之后才知道”地形性质，因此遇到台阶、树根、坑洞时速度和能耗都会受限。外部感知可以让机器人提前抬脚和调整身体姿态，但真实野外的深度信息并不可靠：雪和水可能反光，草和软泡沫看起来像可踩的硬面，树枝和低矮障碍会被 2.5D 高度图错误地当成地面障碍，位姿漂移还会让地图整体偏移。</p>\n<p>论文的核心判断是：不要把 elevation map 当作绝对可信的几何真值，而是让策略在训练中学习“什么时候相信外感、什么时候回退到本体感知”。因此控制器没有手写的传感器置信度规则，而是在循环网络里形成一个 belief state，用过去的身体反馈修正当前高度图。</p>\n<h5>方法机制：Teacher、Student 与 belief state</h5>\n<p>Teacher 策略在仿真中通过 PPO 训练，输入包括机器人本体状态、速度命令、无噪声地形高度、摩擦/扰动等特权量。Teacher 的目标是先学到“如果知道真实环境，最优应该怎么走”。Student 之后只看到真实可用的观测：</p>\n<div class=\"kb-math kb-math-display\">o_t^{\\text{student}} = [o_t^{\\text{prop}},\\ h_t^{\\text{noisy}},\\ c_t]</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">o_t^{\\text{prop}}</span> 是关节、IMU、历史动作等本体信息，<span class=\"kb-math kb-math-inline\">h_t^{\\text{noisy}}</span> 是从机器人中心 elevation map 查询得到的高度采样，<span class=\"kb-math kb-math-inline\">c_t</span> 是期望速度命令。Student 的循环编码器先生成中间状态，再用注意力门控融合外感特征：</p>\n<div class=\"kb-math kb-math-display\">\\tilde{b}_t = \\mathrm{GRU}([o_t^{\\text{prop}}, e_t], b_{t-1}), \\qquad\ng_t = \\sigma(f_g(\\tilde{b}_t))</div>\n<div class=\"kb-math kb-math-display\">b_t = [\\tilde{b}_t,\\ g_t \\odot e_t]</div>\n<p>这里 <span class=\"kb-math kb-math-inline\">e_t</span> 是高度采样编码，<span class=\"kb-math kb-math-inline\">g_t</span> 是逐维门控系数。直觉上，门控系数高表示“当前外感对控制有用”，系数低表示“高度图可能错了，应更多依赖身体反馈和记忆”。</p>\n<h5>训练流程与损失函数</h5>\n<p>```python</p>"
     },
     {
       "id": "anymal_parkour",
@@ -718,7 +718,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 perceptive_loco",
         "代表机构：KAIST"
       ],
-      "detail": "<p>本体+视觉融合极限地形穿越</p>"
+      "detail": "<h5>核心框架图</h5>\n<p><img alt=\"DreamWaQ++ 框架图\" src=\"https://arxiv.org/html/2409.19709v2/x2.png\" />\n<em>图：DreamWaQ++ 的层次编码结构。低层分别编码外感原始测量和本体历史，高层用时空 mixer 融合多模态上下文并输出策略动作。</em></p>\n<p><img alt=\"DreamWaQ++ 外感编码器\" src=\"https://arxiv.org/html/2409.19709v2/x3.png\" />\n<em>图：外感编码器使用 PointNet 骨干，并通过 confidence filter 在点特征聚合前屏蔽不可靠观测。</em></p>\n<h5>动机与背景</h5>\n<p>原始 DreamWaQ 的关键思想是：即使没有视觉，机器人也能从身体历史中隐式估计地形和动力学上下文；但在连续高台阶、缺口、落差等场景中，纯本体感知仍然来不及提前调整摆腿轨迹。另一方面，直接把深度相机或 LiDAR 点云接到策略上也不稳，因为外感频率低、延迟大、可能与本体状态不同步，还会受到标定误差、遮挡和点云噪声影响。</p>\n<p>DreamWaQ++ 的目标不是简单“加视觉”，而是让控制器在多模态之间建立可恢复的上下文：本体感知负责提供真实接触反馈，外感负责提供前方地形先验，融合模块负责判断二者是否一致。如果二者冲突，策略仍能通过本体反馈触发试探、拖脚、扩展支撑面等恢复动作。</p>\n<h5>多模态表示与融合</h5>\n<p>设本体历史为 <span class=\"kb-math kb-math-inline\">\\mathcal{H}_t^p</span>，外感记忆为 <span class=\"kb-math kb-math-inline\">\\mathcal{M}_t^e</span>。两个编码器分别得到上下文：</p>\n<div class=\"kb-math kb-math-display\">z_t^p = E_p(\\mathcal{H}_t^p), \\qquad\nz_t^e = E_e(\\mathcal{M}_t^e)</div>\n<p>外感编码器以点云/体素化局部扫描为输入，先对每个点提特征，再学习置信权重：</p>\n<div class=\"kb-math kb-math-display\">\\alpha_i = \\sigma(f_c(\\phi(p_i))), \\qquad\nz_t^e = \\mathrm{Pool}_i(\\alpha_i \\cdot \\phi(p_i))</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">\\alpha_i</span> 越低，该点越可能来自噪声、遮挡、标定偏差或不可用区域。相比直接最大池化，置信过滤使策略不必把每个外感点都当作真实障碍。</p>\n<p>融合后策略输入为：</p>\n<div class=\"kb-math kb-math-display\">z_t^{pe} = \\mathrm{Mixer}([z_t^p, z_t^e]), \\qquad\na_t \\sim \\pi_\\theta(a_t \\mid o_t^p, z_t^{pe}, c_t)</div>\n<p>这里 <span class=\"kb-math kb-math-inline\">c_t</span> 是速度命令，<span class=\"kb-math kb-math-inline\">a_t</span> 通常是关节目标位置或低层 PD 目标。MLP-Mixer 在 token/mode 维度上做轻量混合，保留 Transformer 类似的跨模态交互能力，但计算更稳定、推理更快。</p>\n<h5>辅助目标：让 latent 不只是“能控制”</h5>\n<p>DreamWaQ++ 的训练不仅靠任务奖励，还加入多种表征损失：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L} =\n\\mathcal{L}_{\\text{PPO}}\n\\lambda_{\\text{est}}\\mathcal{L}_{\\text{est}}\n\\lambda_{\\text{vae}}\\mathcal{L}_{\\text{vae}}\n\\lambda_{\\text{con}}\\mathcal{L}_{\\text{contrast}}</div>\n<p>估计损失让 latent 预测特权状态，例如真实基座速度、足端位置、物理参数、局部高度图等；VAE 损失约束本体上下文形成平滑、可泛化的隐变量；对比损失则鼓励同一地形/状态下的跨模态上下文接近，不同场景下拉开距离。这样做的结果是 latent 更像“地形和动力学语义”，而不是只服务于当前训练分布的黑箱特征。</p>\n<h5>训练与部署伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "exbody",
@@ -738,7 +738,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 teacher_student",
         "代表机构：CMU"
       ],
-      "detail": "<p>人形机器人表现力全身控制</p>"
+      "detail": "<h5>资料依据与框架图</h5>\n<div class=\"warn-box\">⚠️ 注意：清单中的 <code>paper_url</code> 为 <code>arXiv:2402.16759</code>，公开可检索的 ExBody 论文编号为 <code>arXiv:2402.16796</code>。以下内容基于该公开论文和项目页；YAML 元信息按清单保留。</div>\n<p><img alt=\"ExBody 方法框架\" src=\"https://arxiv.org/html/2402.16796v1/extracted/5431719/figures/method.png\" />\n<em>图：ExBody 将多源人类动作重定向到机器人，提取 expression goal 与 root movement goal，再用 goal-conditioned RL 训练可真实部署的全身控制器。</em></p>\n<h5>动机与背景</h5>\n<p>人形机器人控制通常把重点放在“不摔倒”和“跟踪速度”上，因此动作稳定但缺乏人类式表现力。图形学中的物理角色控制可以全身模仿大规模动捕数据，但这些方法常假设仿真角色具有更丰富自由度、更强力矩和仿真可见的特权状态，直接迁移到真实 H1 这类机器人会失败。</p>\n<p>ExBody 的关键取舍是：不要让机器人完整复制人类全身轨迹。上半身的手臂、肩部、手部关键点主要负责表达意图和风格，应该尽量模仿；下半身则承担平衡和移动，必须服从真实机器人动力学能力。因此论文把问题定义为“表达目标 + 根运动目标”的联合控制，而非传统全身逐关节 tracking。</p>\n<h5>控制目标形式化</h5>\n<p>命令条件运动控制通常只跟踪根部速度、朝向或高度：</p>\n<div class=\"kb-math kb-math-display\">\\pi(a_t \\mid o_t, g_t^m)</div>\n<p>ExBody 扩展为：</p>\n<div class=\"kb-math kb-math-display\">\\pi(a_t \\mid o_t, g_t^m, g_t^e)</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">g_t^m</span> 是 root movement goal，例如线速度、朝向误差、根高度等；<span class=\"kb-math kb-math-inline\">g_t^e</span> 是 expression goal，包括上半身 9 个 actuated joints 的目标角度，以及肩、肘、手等关键点的 3D 位置。策略输出低层关节控制目标，由仿真中的 RL 学习如何在满足表达动作的同时保持站立和移动。</p>\n<p>关键奖励可概括为：</p>\n<div class=\"kb-math kb-math-display\">r_t =\nw_m r_t^{\\text{root}}\n+ w_e r_t^{\\text{expression}}\n+ w_s r_t^{\\text{stability}}\n- w_r c_t^{\\text{regularization}}</div>\n<p>上半身表达项使用关键点和关节误差：</p>\n<div class=\"kb-math kb-math-display\">r_t^{\\text{expression}} =\n\\exp(-\\alpha \\|q_{upper} - q_{upper}^{ref}\\|^2)\n+ \\exp(-\\beta \\|p_{key} - p_{key}^{ref}\\|^2)</div>\n<p>下半身不使用同等强度的关节模仿项，这让机器人可以弯膝、调整步态和足端高度，以真实硬件可承受的方式完成同一个表达动作。</p>\n<h5>训练流程伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "hqp_wbc",
@@ -757,7 +757,7 @@ window.PAGE_CONFIG = {
         "核心动机：任务优先级层次化QP求解",
         "代表机构：IIT"
       ],
-      "detail": "<p>任务优先级层次化QP求解</p>"
+      "detail": "<h5>图源与控制框架</h5>\n<div class=\"warn-box\">⚠️ 说明：该 DOI 的公开 PDF 可访问，但页面没有暴露独立的图像直链。下方用公开 PDF 作为图源链接，并用文本框复刻 HQP-WBC 的核心计算图。</div>\n<div class=\"img-wrap\"><img src=\"https://www.cs.cmu.edu/~cga/z/Hopkins_IJHR_2016.pdf\" alt=\"HQP-WBC 原论文公开 PDF\" loading=\"lazy\"><p class=\"img-caption\">▲ HQP-WBC 原论文公开 PDF</p></div>\n<pre><code class=\"language-text\">高层步态 / DCM / 操作任务\n        │\n        ▼\n任务参考: 质心动量、基座姿态、摆动足轨迹、关节姿态\n        │\n        ▼\n层次 QP 逆动力学求解器\n  Level 0: 刚体动力学 + 接触保持 + 摩擦锥 + 力矩/关节限制\n  Level 1: 质心动量 / DCM 稳定\n  Level 2: 摆动足、躯干姿态、手部任务\n  Level 3: 姿态正则、力矩/加速度最小化\n        │\n        ▼\nτ*, qddot*, λ*  →  关节力矩/位置/速度底层控制\n</code></pre>\n<h5>动机与背景</h5>\n<p>腿足机器人全身控制的难点不是单个任务的控制律，而是任务之间会冲突：支撑脚必须不滑、摩擦锥不能违反、浮动基动力学必须成立；同时机器人还要稳定质心、跟踪摆动足轨迹、保持躯干姿态、避免关节限位。若把所有任务简单加权到一个 QP，权重调小的安全任务可能被调大的运动任务牺牲；权重调参也会非常脆弱。</p>\n<p>HQP-WBC 的核心思想是把“任务重要性”变成优化结构本身。高优先级任务先求解并固定其最优误差，低优先级任务只能在不破坏高优先级结果的剩余自由度里优化。这样，接触可行性和动力学一致性不会因为想让手或摆动足更接近目标而被破坏。</p>\n<h5>全身逆动力学约束</h5>\n<p>浮动基机器人满足：</p>\n<div class=\"kb-math kb-math-display\">M(q)\\ddot{q} + h(q,\\dot{q}) = S^\\top \\tau + J_c(q)^\\top \\lambda</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">q\\in\\mathbb{R}^{6+n}</span> 包含 6D 浮动基和 <span class=\"kb-math kb-math-inline\">n</span> 个关节，<span class=\"kb-math kb-math-inline\">S</span> 选择可驱动关节，<span class=\"kb-math kb-math-inline\">\\lambda</span> 是接触力。因为浮动基不可直接驱动，未驱动部分必须由接触力和惯性满足：</p>\n<div class=\"kb-math kb-math-display\">S_f\\left(M(q)\\ddot{q}+h(q,\\dot{q})-J_c^\\top\\lambda\\right)=0</div>\n<p>接触保持约束通常写成：</p>\n<div class=\"kb-math kb-math-display\">J_c\\ddot{q} + \\dot{J}_c\\dot{q}=0</div>\n<p>摩擦锥可线性化为金字塔不等式：</p>\n<div class=\"kb-math kb-math-display\">A_f \\lambda \\le b_f,\\qquad \\lambda_z \\ge 0</div>\n<p>这些约束构成最高优先级，因为它们定义了解是否物理可行。</p>\n<h5>层次 QP 公式</h5>\n<p>第 <span class=\"kb-math kb-math-inline\">k</span> 层任务一般写成：</p>\n<div class=\"kb-math kb-math-display\">A_k x \\approx b_k,\\qquad x=[\\ddot{q},\\lambda,\\tau]</div>\n<p>HQP 的级联形式为：</p>\n<div class=\"kb-math kb-math-display\">x_k^* =\n\\arg\\min_x \\|A_kx-b_k\\|_{W_k}^2</div>\n<p>subject to</p>\n<div class=\"kb-math kb-math-display\">C x \\le d,\\quad E x = e,\\quad\n\\|A_i x-b_i\\|_{W_i}^2 = \\|A_i x_i^*-b_i\\|_{W_i}^2,\\ i&lt;k</div>\n<p>也就是说，第 <span class=\"kb-math kb-math-inline\">k</span> 层不仅要满足物理约束，还要保持所有更高层任务的最优残差。实际实现中也可用 null-space 投影近似：</p>\n<div class=\"kb-math kb-math-display\">x = x_{1}^* + N_1 y_2,\\qquad\nx = x_{2}^* + N_{1:2} y_3,\\ldots</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">N</span> 是高优先级任务的零空间。QP 级联更容易纳入不等式约束；null-space 形式计算更快但对主动约束变化更敏感。</p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "ihwbc",
@@ -777,7 +777,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 hqp_wbc",
         "代表机构：MIT"
       ],
-      "detail": "<p>MPC+WBC联合优化提升动态性能</p>"
+      "detail": "<h5>命名说明与框架图</h5>\n<div class=\"warn-box\">⚠️ 注意：清单名为 IHWBC，但 <code>paper_url</code> 指向论文 <em>Highly Dynamic Quadruped Locomotion via Whole-Body Impulse Control and Model Predictive Control</em>。以下按该链接的 MPC + WBIC/WBC 方法精读，YAML 保持清单原值。</div>\n<p><img alt=\"WBIC + MPC 控制架构\" src=\"https://ar5iv.labs.arxiv.org/html/1909.06586/assets/x1.png\" />\n<em>图：MPC 计算较长时域的反力规划，WBC 将其与身体稳定、摆动腿控制结合，输出实际机器人命令。</em></p>\n<p><img alt=\"整体控制框架\" src=\"https://ar5iv.labs.arxiv.org/html/1909.06586/assets/x2.png\" />\n<em>图：用户速度/步态命令进入 MPC，MPC 输出期望反力和足端/身体命令，WBIC/WBC 生成关节 torque、position、velocity 并交给关节控制器。</em></p>\n<h5>动机与背景</h5>\n<p>Convex MPC 在四足机器人中很强，因为它能实时优化未来接触反力；但只靠简化单刚体模型不能完整处理腿部运动学、摆动足跟踪和关节级执行限制。传统 WBC 能处理全身任务，却缺乏 MPC 的长时域反力规划。WBIC 的设计是把二者组合：MPC 负责“未来支撑力应该怎样变化”，WBC 负责“当前全身应该怎样执行这个力，同时稳定身体并摆动腿”。</p>\n<p>这种组合尤其适合高速运动。高速 trot 或 bound 中支撑时间短、存在飞行相，若 WBC 严格要求每个瞬间都完全满足浮动基任务，优化可能不可行；若完全相信 MPC 反力，又无法处理实际关节和足端任务误差。因此论文在 QP 中对部分约束松弛，让控制器在强动态阶段以可执行性为优先。</p>\n<h5>优先级任务执行</h5>\n<p>WBIC 先用 null-space projection 计算任务空间期望加速度。第 <span class=\"kb-math kb-math-inline\">i</span> 个任务的期望加速度通常为：</p>\n<div class=\"kb-math kb-math-display\">\\ddot{x}_i^{des} =\n\\ddot{x}_i^{ref}\n + K_p(x_i^{ref}-x_i)\n + K_d(\\dot{x}_i^{ref}-\\dot{x}_i)</div>\n<p>任务雅可比为 <span class=\"kb-math kb-math-inline\">J_i</span>，则任务约束为：</p>\n<div class=\"kb-math kb-math-display\">J_i\\ddot{q} + \\dot{J}_i\\dot{q} = \\ddot{x}_i^{des}</div>\n<p>对多任务按优先级投影：</p>\n<div class=\"kb-math kb-math-display\">\\ddot{q}_i =\n\\ddot{q}_{i-1} +\n(J_i N_{i-1})^\\#(\\ddot{x}_i^{des}-\\dot{J}_i\\dot{q}-J_i\\ddot{q}_{i-1})</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">N_{i-1}</span> 是更高优先级任务的零空间，<span class=\"kb-math kb-math-inline\">(\\cdot)^\\#</span> 可取 SVD 伪逆或动态一致伪逆。论文用这种方式同时得到期望关节位置/速度增量和任务加速度，再把加速度送入 QP。</p>\n<h5>QP：用 MPC 反力做参考，而不是照抄</h5>\n<p>MPC 输出接触反力 <span class=\"kb-math kb-math-inline\">\\lambda^{mpc}</span>。WBIC 的 QP 求解：</p>\n<div class=\"kb-math kb-math-display\">\\min_{\\ddot{q},\\lambda,\\delta}\n\\|\\lambda-\\lambda^{mpc}\\|_{W_\\lambda}^2\n+ \\|\\delta_b\\|_{W_b}^2\n+ \\|\\delta_\\lambda\\|_{W_r}^2</div>\n<p>subject to</p>\n<div class=\"kb-math kb-math-display\">S_f(M\\ddot{q}+h-J_c^\\top \\lambda)=\\delta_b</div>\n<div class=\"kb-math kb-math-display\">J_{task}\\ddot{q}+\\dot{J}_{task}\\dot{q}=\\ddot{x}^{des}</div>\n<div class=\"kb-math kb-math-display\">A_f\\lambda \\le b_f</div>\n<p>这里 <span class=\"kb-math kb-math-inline\">\\delta_b</span> 是浮动基动力学松弛项，<span class=\"kb-math kb-math-inline\">\\delta_\\lambda</span> 是反力松弛项。直觉上，QP 既想尽量跟随 MPC 反力，又允许在硬件、接触和任务执行需要时做局部修正。</p>\n<p>得到 <span class=\"kb-math kb-math-inline\">\\ddot{q}^*</span> 和 <span class=\"kb-math kb-math-inline\">\\lambda^*</span> 后，再由刚体动力学求关节力矩：</p>\n<div class=\"kb-math kb-math-display\">\\tau =\nS\\left(M(q)\\ddot{q}^*+h(q,\\dot{q})-J_c(q)^\\top\\lambda^*\\right)</div>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "hwc_loco",
@@ -797,7 +797,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 ihwbc",
         "代表机构：TUM"
       ],
-      "detail": "<p>鲁棒人形行走控制</p>"
+      "detail": "<h5>资料依据与框架图</h5>\n<div class=\"warn-box\">⚠️ 说明：清单 <code>paper_url</code> 是 ResearchGate 风格占位链接，公开论文可检索为 <code>arXiv:2503.00923</code>，题名 <em>HWC-Loco: A Hierarchical Whole-Body Control Approach to Robust Humanoid Locomotion</em>。以下精读基于该公开 arXiv 版本；YAML 按清单原值保留。</div>\n<p><img alt=\"HWC-Loco 框架总览\" src=\"https://arxiv.org/html/2503.00923v3/x2.png\" />\n<em>图：HWC-Loco 先训练目标跟踪策略和安全恢复策略，再训练高层 selector 在两者之间切换，兼顾任务性能与安全恢复。</em></p>\n<h5>动机与背景</h5>\n<p>人形机器人行走策略常见问题是“正常状态性能很好，极端状态恢复很差”。如果把所有场景都放进一个 PPO 奖励里训练，策略要么为了安全变得过于保守，要么为了速度跟踪在强扰动下摔倒。HWC-Loco 的切入点是分层：把正常行走和危险恢复看成两类不同技能，再训练一个高层策略决定何时切换。</p>\n<p>这与传统 WBC 的层次任务思想相似，但 HWC-Loco 的层次不是 QP 优先级，而是学习策略层面的层次：低层连续策略输出关节目标，高层离散策略负责选择“继续追踪目标”还是“进入恢复模式”。</p>\n<h5>低层策略：目标跟踪与安全恢复</h5>\n<p>低层策略输入本体观测 <span class=\"kb-math kb-math-inline\">o_t</span>，包括基座角速度、roll/pitch、关节位置/速度、上一时刻动作和投影重力等；动作是关节目标位置，交给 PD 控制器生成力矩。目标跟踪策略通过 PPO 训练，奖励强调速度命令跟踪：</p>\n<div class=\"kb-math kb-math-display\">r_{\\text{track}} =\n\\exp(-\\alpha_v\\|v_{xy}-v_{xy}^{cmd}\\|^2)\n+ \\exp(-\\alpha_\\omega|\\omega_z-\\omega_z^{cmd}|^2)</div>\n<p>同时加入能耗、安全和动作平滑约束，例如 torque、DoF velocity、DoF acceleration、action rate、碰撞和关节限位惩罚。训练地形包括平地、障碍、坡道和楼梯，并采用课程学习：当目标速度跟踪达到阈值时提高地形难度，低于阈值时降低难度。</p>\n<p>恢复策略使用类似任务奖励，但速度跟踪容忍度更大，并加入站立/姿态恢复奖励：</p>\n<div class=\"kb-math kb-math-display\">r_{\\text{stand}} = \\exp(-\\alpha_q\\|q-q_{\\text{default}}\\|^2)</div>\n<p>直觉是：危险状态下不应继续强迫机器人精确追踪速度命令，而应优先回到稳定可控的站立/行走状态。</p>\n<h5>高层策略：Double-DQN 切换器</h5>\n<p>高层 selector 是一个离散动作策略：</p>\n<div class=\"kb-math kb-math-display\">a_t^{H} \\in \\{\\text{goal},\\ \\text{recovery}\\}</div>\n<p>它输出两个 Q 值：</p>\n<div class=\"kb-math kb-math-display\">Q_\\psi(o_t,\\text{goal}),\\quad Q_\\psi(o_t,\\text{recovery})</div>\n<p>执行时选择 Q 值更大的低层策略。训练采用 Double-DQN，目标为：</p>\n<div class=\"kb-math kb-math-display\">y_t = r_t + \\gamma Q_{\\bar{\\psi}}\\left(o_{t+1},\n\\arg\\max_a Q_\\psi(o_{t+1},a)\\right)</div>\n<p>切换惩罚为：</p>\n<div class=\"kb-math kb-math-display\">r_t^{H} = r_t^{task} - \\lambda_{\\text{switch}}\\mathbf{1}[a_t^H \\ne a_{t-1}^H]</div>\n<p>这样 selector 不会因为短期 Q 值波动在两个策略间高频抖动，而是在危险状态持续时进入 recovery，恢复后再切回 goal tracking。</p>\n<h5>训练伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "domain_rand",
@@ -816,7 +816,7 @@ window.PAGE_CONFIG = {
         "核心动机：随机化物理参数弥合仿真差异",
         "代表机构：Google Brain"
       ],
-      "detail": "<p>随机化物理参数弥合仿真差异</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"随机化对 Sim-to-Real 性能的影响\" src=\"https://ar5iv.labs.arxiv.org/html/1804.10332/assets/x3.png\" />\n<em>图：不同仿真质量和随机扰动组合下，仿真性能与真实机器人性能的差异。改进仿真模型并加入随机扰动后，真实性能更接近仿真。</em></p>\n<p><img alt=\"惯量随机化泛化实验\" src=\"https://ar5iv.labs.arxiv.org/html/1804.10332/assets/x4.png\" />\n<em>图：对不同机体惯量进行测试时，带随机化训练的控制器比未随机化控制器泛化更稳定。</em></p>\n<h5>动机与背景</h5>\n<p>强化学习可以在仿真中产生复杂运动，但真实机器人和仿真总有差异：摩擦系数不准、执行器有延迟、接触模型不完全、质量和惯量存在制造误差，地面也不是理想刚体。若策略只在一个“标称仿真”上训练，它会利用仿真细节，例如刚好踩在某个接触模型的稳定区域，真实硬件上这些细节不存在，策略就会摔倒。</p>\n<p>Domain Randomization 的思路很直接：与其试图把仿真调到完全等于真实，不如让训练时的仿真不断变化。只要真实世界落在这组变化范围内，策略就会学到对参数不敏感的行为。</p>\n<h5>数学形式</h5>\n<p>令 <span class=\"kb-math kb-math-inline\">\\xi</span> 表示仿真域参数，包括动力学、接触、执行器和观测噪声：</p>\n<div class=\"kb-math kb-math-display\">\\xi = [m,\\ I,\\ \\mu,\\ k_d,\\ \\tau_{\\text{delay}},\\ \\eta_{\\text{motor}},\\ h_{\\text{terrain}},\\ldots]</div>\n<p>训练时从分布 <span class=\"kb-math kb-math-inline\">p(\\xi)</span> 采样：</p>\n<div class=\"kb-math kb-math-display\">\\xi_i \\sim p(\\xi)</div>\n<p>策略优化目标为：</p>\n<div class=\"kb-math kb-math-display\">\\pi^* =\n\\arg\\max_\\pi\n\\mathbb{E}_{\\xi\\sim p(\\xi)}\n\\left[\n\\mathbb{E}_{\\tau\\sim P_\\xi(\\tau|\\pi)}\n\\sum_{t=0}^{T}\\gamma^t r(s_t,a_t;\\xi)\n\\right]</div>\n<p>这个目标的含义是：策略不追求在某个固定世界最优，而是在一组可能世界里平均表现好。若参数分布覆盖真实机器人，真实部署时的性能可看作该期望目标中的一个样本点。</p>\n<h5>训练流程伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "isaac_gym",
@@ -836,7 +836,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 domain_rand",
         "代表机构：NVIDIA"
       ],
-      "detail": "<p>端到端GPU物理仿真训练平台</p>"
+      "detail": "<h5>核心框架图</h5>\n<p><img alt=\"Isaac Gym GPU RL 管线\" src=\"https://ar5iv.labs.arxiv.org/html/2108.10470/assets/x1.png\" />\n<em>图：Isaac Gym 的 Tensor API 让 Python/RL 代码直接在 GPU 上 step PhysX 后端并读取/写入仿真状态。</em></p>\n<p><img alt=\"传统管线与端到端 GPU 管线对比\" src=\"https://ar5iv.labs.arxiv.org/html/2108.10470/assets/figure/tensor_api/end2end.png\" />\n<em>图：传统 RL 需要 CPU 物理引擎和 GPU 神经网络之间反复拷贝；Isaac Gym 将仿真与策略计算放在同一 GPU 侧。</em></p>\n<h5>动机与背景</h5>\n<p>强化学习运动控制需要极大量环境交互。传统仿真器往往在 CPU 上运行，神经网络训练在 GPU 上运行，中间的状态拷贝、进程同步和 Python 调度会成为瓶颈。即使神经网络很快，采样速度也会被 CPU physics 限制；如果使用多进程 CPU 并行，又会增加系统复杂度和数据传输成本。</p>\n<p>Isaac Gym 的工程判断是：RL 训练最重要的是吞吐，而不是每个环境单独可视化得多精细。只要把大批量相似机器人环境并行铺到 GPU 上，物理 step、状态收集、策略前向和 loss 计算都可以共享 GPU 的大规模并行能力。</p>\n<h5>Tensor API 与状态布局</h5>\n<p>Isaac Gym 将场景中所有 actor、rigid body、DOF、force sensor 的状态组织成大张量。例如刚体状态可写成：</p>\n<div class=\"kb-math kb-math-display\">X_{\\text{body}}\\in\\mathbb{R}^{N_B\\times 13}</div>\n<p>其中每行包含位置、四元数、线速度和角速度。DOF 状态可写成：</p>\n<div class=\"kb-math kb-math-display\">X_{\\text{dof}}\\in\\mathbb{R}^{N_D\\times 2}</div>\n<p>包含关节位置和速度。RL 代码不需要逐环境调用 getter，而是一次 refresh tensor 后按 env index 切片：</p>\n<pre><code class=\"language-python\">root_state_tensor = gym.acquire_actor_root_state_tensor(sim)\ndof_state_tensor = gym.acquire_dof_state_tensor(sim)\nroot_states = gymtorch.wrap_tensor(root_state_tensor)  # GPU tensor\ndof_states = gymtorch.wrap_tensor(dof_state_tensor)    # GPU tensor\n</code></pre>\n<p>这个设计让观察构造变成 GPU 上的张量索引和拼接，策略网络可直接消费同一块显存中的数据。</p>\n<h5>PPO 训练循环伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "rma",
@@ -856,7 +856,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 domain_rand",
         "代表机构：UC Berkeley"
       ],
-      "detail": "<p>在线自适应网络实时调整策略</p>"
+      "detail": "<h5>核心框架图</h5>\n<p><img alt=\"RMA 训练与部署框架\" src=\"https://ar5iv.labs.arxiv.org/html/2107.04034/assets/x1.png\" />\n<em>图：RMA 上半部分为两阶段训练：基础策略使用特权 extrinsics latent；适应模块学习从历史观测预测 latent。下半部分为部署：只用本体历史在线估计 latent 并驱动基础策略。</em></p>\n<h5>动机与背景</h5>\n<p>Domain Randomization 让策略在许多仿真参数上平均鲁棒，但它本质上训练的是一个“对所有情况都还可以”的策略。当机器人突然背上重物、踩到油滑地面或走上软泡沫时，最优动作其实应该快速改变：需要更大力矩、更短支撑周期、更谨慎的摆腿，或者更保守的速度响应。若策略无法知道当前处于哪种环境，只能学到折中行为。</p>\n<p>RMA 的核心问题是：能否在不使用真实参数传感器、不在线反向传播的情况下，让机器人从自身运动历史推断当前环境？答案是把可观测历史映射到一个低维 extrinsics latent，再让基础策略条件化于这个 latent。</p>\n<h5>阶段一：带特权 latent 的基础策略</h5>\n<p>仿真中环境因子 <span class=\"kb-math kb-math-inline\">e_t</span> 是已知的，例如摩擦、payload、质心偏移、地形高度和电机强度。RMA 用 encoder <span class=\"kb-math kb-math-inline\">\\mu</span> 将其压缩为：</p>\n<div class=\"kb-math kb-math-display\">z_t = \\mu(e_t)</div>\n<p>基础策略输入当前观测 <span class=\"kb-math kb-math-inline\">x_t</span>、上一动作 <span class=\"kb-math kb-math-inline\">a_{t-1}</span> 和 latent：</p>\n<div class=\"kb-math kb-math-display\">a_t = \\pi_\\theta(x_t, a_{t-1}, z_t)</div>\n<p>策略通过 model-free RL 训练：</p>\n<div class=\"kb-math kb-math-display\">\\theta^* =\n\\arg\\max_\\theta\n\\mathbb{E}_{e\\sim p(e),\\tau\\sim\\pi_\\theta}\n\\sum_t \\gamma^t r_t</div>\n<p>因为 <span class=\"kb-math kb-math-inline\">\\pi</span> 能看到真实 <span class=\"kb-math kb-math-inline\">z_t</span>，它可以学会“在低摩擦时怎样走、在高负载时怎样走、在粗糙地形时怎样抬腿”。这一步相当于训练一个环境条件化专家。</p>\n<h5>阶段二：从历史观测估计 latent</h5>\n<p>真实部署时 <span class=\"kb-math kb-math-inline\">e_t</span> 不可见，因此 RMA 训练适应模块 <span class=\"kb-math kb-math-inline\">\\phi</span>：</p>\n<div class=\"kb-math kb-math-display\">\\hat{z}_t =\n\\phi(x_{t-k:t}, a_{t-k:t-1})</div>\n<p>监督目标是匹配阶段一中的特权 latent：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{\\text{adapt}} =\n\\|\\phi(x_{t-k:t},a_{t-k:t-1}) - \\mu(e_t)\\|_2^2</div>\n<p>训练数据来自基础策略在随机化仿真中的 on-policy rollout。这样 <span class=\"kb-math kb-math-inline\">\\phi</span> 学到的是“在策略真实会遇到的状态分布上，哪些历史运动模式对应哪些环境因子”。例如低摩擦会导致足端打滑、速度跟踪误差和关节力矩模式变化；额外 payload 会造成机身下沉和更大腿部负载，这些都能从历史本体信号中推断。</p>\n<h5>训练与部署伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "isaac_lab",
@@ -876,7 +876,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 isaac_gym",
         "代表机构：NVIDIA"
       ],
-      "detail": "<p>Omniverse多模态机器人学习平台</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"Isaac Lab 多模态机器人学习示意图\" src=\"https://ar5iv.labs.arxiv.org/html/2511.04831/assets/x1.png\" />\n<em>图：Isaac Lab 技术报告中的总览图。该图展示 Isaac Lab 对多机器人、多传感器和 sim-to-real 工作流的统一支撑。</em></p>\n<p><img alt=\"Isaac Lab 传感器与资产组件\" src=\"https://developer-blogs.nvidia.com/wp-content/uploads/2026/02/issac-lab-assets-multimodal-sensors-controllers-png.webp\" />\n<em>图：Isaac Lab 通过资产、传感器、控制器和程序化场景构建可组合机器人学习环境。</em></p>\n<div class=\"warn-box\">⚠️ 依据限制：清单中的 <code>paper_url</code> 当前指向 arXiv:2407.02229（LaMoD 医学影像论文），与 Isaac Lab 不匹配。以下精读基于 NVIDIA Isaac Lab 官方资料与公开技术报告 arXiv:2511.04831，YAML 元信息按任务清单原样保留。</div>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "asap",
@@ -896,7 +896,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 rma",
         "代表机构：Stanford"
       ],
-      "detail": "<p>残差动作补偿弥合仿真差距</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"ASAP 方法流程图\" src=\"https://agile.human2humanoid.com/static/images/ASAP_pipeline-crop.png\" />\n<em>图：ASAP 的四步流程：运动跟踪预训练与真实轨迹采集、delta action model 训练、带对齐仿真的策略微调、真实部署。</em></p>\n<div class=\"warn-box\">⚠️ 依据限制：清单中的 <code>paper_url</code> 指向 arXiv:2504.12609（Human2Sim2Robot），不是 ASAP 论文。以下内容基于 ASAP 官方项目页与正确公开论文 arXiv:2502.01143，YAML 元信息按任务清单原样保留。</div>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "rt2",
@@ -1028,7 +1028,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 pi0",
         "代表机构：NVIDIA"
       ],
-      "detail": "<p>32层扩散Transformer人形控制</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"GR00T N1 架构图\" src=\"https://ar5iv.labs.arxiv.org/html/2503.14734/assets/x3.png\" />\n<em>图：GR00T N1 的 VLA 架构。VLM 输出视觉语言 token，DiT 结合机器人状态与噪声动作块，通过 flow matching 生成连续控制动作。N1.6 延续该架构并扩大 DiT。</em></p>\n<p><img alt=\"GR00T N1.6 预训练数据分布\" src=\"https://research.nvidia.com/labs/gear/n1_6/training_data_distribution_v3.svg\" />\n<em>图：NVIDIA Research 页面展示的 GR00T N1.6 预训练数据加权分布。</em></p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "ge1",
@@ -1048,7 +1048,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 pi0",
         "代表机构：AGIBOT"
       ],
-      "detail": "<p>视频生成式物理交互预测</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"GE-Base 世界模型总览\" src=\"https://ar5iv.labs.arxiv.org/html/2508.05635/assets/x3.png\" />\n<em>图：Genie Envisioner / GE-Base 的世界基础模型概览。模型以多视角视觉条件、语言指令和 sparse memory 为输入，自回归生成未来视频片段。</em></p>\n<div class=\"warn-box\">⚠️ 依据限制：<code>https://www.agibot.com/ge1</code> 当前返回 404。以下内容基于 AGIBOT Genie Envisioner / GE-Base 公开论文和官网新闻整理，作为 GE-1/AGIBOT 世界模型条目的格式化精读。</div>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "dreamdojo",
@@ -1068,7 +1068,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 pi0",
         "代表机构：ShengShu"
       ],
-      "detail": "<p>物理交互预判世界模型</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"DreamDojo 方法总览\" src=\"https://dreamdojo-world.github.io/overview.png\" />\n<em>图：DreamDojo 先用 latent actions 从大规模人类视频中学习物理交互，再在目标机器人数据上后训练，最后通过蒸馏获得实时交互能力。</em></p>\n<p><img alt=\"DreamDojo-HV 数据统计\" src=\"https://dreamdojo-world.github.io/hv.png\" />\n<em>图：DreamDojo-HV 数据覆盖大量场景、物体和技能，用于扩大世界模型的物理交互先验。</em></p>\n<div class=\"warn-box\">⚠️ 依据限制：清单中的 <code>paper_url</code> 当前不是 DreamDojo 公开项目主页；公开项目页为 <code>https://dreamdojo-world.github.io/</code>，论文为 arXiv:2602.06949。以下内容基于这些公开资料整理，YAML 元信息按任务清单原样保留。</div>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     }
   ],
   "categories": {

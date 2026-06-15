@@ -1,5 +1,5 @@
 /**
- * llm_pretraining-data.js — 由 pipeline/build.py 于 2026-06-15 09:55:57 自动生成。
+ * llm_pretraining-data.js — 由 pipeline/build.py 于 2026-06-15 17:41:33 自动生成。
  * 源文件：content/llm/llm_pretraining.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -724,7 +724,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 fineweb",
         "代表机构：学术界"
       ],
-      "detail": "<p>24T带12类文档分类标签</p>"
+      "detail": "<p><img alt=\"Essential-Web 五阶段方法图\" src=\"https://ar5iv.labs.arxiv.org/html/2506.14111/assets/x2.png\" />\n<em>图：Essential-Web v1.0 论文 Figure 2，展示 taxonomy 设计、合成标注、蒸馏分类器、全量推理和下游过滤验证的流程。Manifest 中 paper_url 指向了不相关论文，正文方法依据公开论文 arXiv:2506.14111 与数据集卡补足。</em></p>\n<p>```python</p>"
     },
     {
       "id": "fed_dedup",
@@ -744,7 +744,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 minhash_dedup",
         "代表机构：学术界"
       ],
-      "detail": "<p>GPU加速MinHash快107倍</p>"
+      "detail": "<p><img alt=\"SEDD GPU 去重框架总览\" src=\"https://ar5iv.labs.arxiv.org/html/2501.01046/assets/x3.png\" />\n<em>图：SEDD 论文 Figure 3，展示多 GPU 文档加载、MinHash 生成、按 band 分配 bucket、GPU 候选验证和流式通信。Manifest 中 paper_url 指向不相关论文，正文依据公开论文 arXiv:2501.01046 补足。</em></p>\n<p>```python</p>"
     },
     {
       "id": "lshbloom",
@@ -764,7 +764,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 fed_dedup",
         "代表机构：学术界"
       ],
-      "detail": "<p>Bloom Filter节省18倍空间</p>"
+      "detail": "<p><img alt=\"LSHBloom 与 MinHashLSH 时间分解\" src=\"https://ar5iv.labs.arxiv.org/html/2411.04257/assets/x1.png\" />\n<em>图：LSHBloom 论文 Figure 1，对比传统 MinHashLSH 与 LSHBloom 在 peS2o 子集上的 wall-clock time breakdown。Manifest 中 paper_url 指向不相关论文，正文依据 arXiv:2411.04257 补足。</em></p>\n<p>```python</p>"
     },
     {
       "id": "data_mixing_agent",
@@ -784,7 +784,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 doremi",
         "代表机构：学术界"
       ],
-      "detail": "<p>强化学习动态数据加权</p>"
+      "detail": "<p><img alt=\"Data Mixing Agent 总览\" src=\"https://ar5iv.labs.arxiv.org/html/2507.15640/assets/x2.png\" />\n<em>图：Data Mixing Agent 论文 Figure 2，展示轨迹采样、proxy model 环境反馈、CQL 训练 agent，以及目标模型持续预训练时在线预测混合比例的流程。Manifest 的 paper_url 是 data mixing survey，正文用具体方法论文补足。</em></p>\n<p>```python</p>"
     },
     {
       "id": "mixed_precision",
@@ -861,7 +861,7 @@ window.PAGE_CONFIG = {
         "核心动机：可学习门控抑制梯度爆炸",
         "代表机构：学术界"
       ],
-      "detail": "<p>可学习门控抑制梯度爆炸</p>"
+      "detail": "<p><img alt=\"WeSaR loss spike 与 update ratio\" src=\"https://ar5iv.labs.arxiv.org/html/2410.05052/assets/x1.png\" />\n<em>图：WeSaR 论文 Figure 1，展示 13B Transformer 训练中 loss spike 与特定矩阵 update ratio 的关系，以及 WeSaR 对 update ratio 的稳定作用。Manifest 中 paper_url 指向不相关论文，正文依据 arXiv:2410.05052 补足。</em></p>\n<p>```python</p>"
     },
     {
       "id": "muon",
@@ -917,7 +917,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 flash_attention_2",
         "代表机构：Together AI"
       ],
-      "detail": "<p>Blackwell架构71%硬件利用率</p>"
+      "detail": "<p><img alt=\"FlashAttention-4 前向流水线\" src=\"https://tridao.me/assets/img/2026-03-05-flash4/fa4_fwd_pipeline.png\" />\n<em>图：Tri Dao 官方博客中的 FlashAttention-4 forward pipeline，展示 ping-pong Q tiles、softmax warpgroups 和 correction stage。Manifest 的 blog 路径已失效，正文使用官方正确路径 /blog/2026/flash4/ 与 arXiv:2603.05451 补足。</em></p>\n<p>```python</p>"
     },
     {
       "id": "snip_quartet",
@@ -937,7 +937,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 mixed_precision",
         "代表机构：NeurIPS"
       ],
-      "detail": "<p>原生FP4训练层级动态量化</p>"
+      "detail": "<p><img alt=\"SNIP 系统总览\" src=\"https://ar5iv.labs.arxiv.org/html/2602.01410/assets/x2.png\" />\n<em>图：SNIP 论文 Figure 2，展示周期性统计收集、层级量化影响评估和 FP4/FP8 配置更新。</em></p>\n<p><img alt=\"Quartet 低精度训练分析\" src=\"https://ar5iv.labs.arxiv.org/html/2505.14669/assets/x1.png\" />\n<em>图：Quartet 论文 Figure 1，展示低精度训练设置下的 scaling-law/accuracy-compute 分析。Manifest 中 paper_url 不匹配，正文使用 SNIP 与 Quartet 的公开论文补足。</em></p>\n<p>```python</p>"
     },
     {
       "id": "longrope2",
@@ -956,7 +956,7 @@ window.PAGE_CONFIG = {
         "核心动机：进化搜索扩展至200万上下文",
         "代表机构：Microsoft"
       ],
-      "detail": "<p>进化搜索扩展至200万上下文</p>"
+      "detail": "<p><img alt=\"LongRoPE2 mixed context window training\" src=\"https://ar5iv.labs.arxiv.org/html/2502.20082/assets/x5.png\" />\n<em>图：LongRoPE2 论文 Figure 5，展示短上下文使用原始 RoPE、长上下文使用 rescaled RoPE 的 mixed context window training。Manifest 中 paper_url 指向不相关论文，正文依据 arXiv:2502.20082 补足。</em></p>\n<p>```python</p>"
     },
     {
       "id": "gpipe",
@@ -1033,7 +1033,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 zero",
         "代表机构：Meta"
       ],
-      "detail": "<p>PyTorch原生完全分片数据并行</p>"
+      "detail": "<p><img alt=\"FSDP 算法总览\" src=\"https://ar5iv.labs.arxiv.org/html/2304.11277/assets/x1.png\" />\n<em>图：FSDP 论文 Figure 1，模型被拆成多个 FSDP unit；每个 unit 在前向/反向前收集完整参数，计算后释放非本地分片。</em></p>\n<p><img alt=\"FlatParameter 完全分片\" src=\"https://ar5iv.labs.arxiv.org/html/2304.11277/assets/x4.png\" />\n<em>图：FSDP 论文 Figure 3，原始参数被 flatten/concat/pad 成 FlatParameter，再按 sharding group 均匀切分。</em></p>\n<p>```python</p>"
     },
     {
       "id": "distflashattn",
@@ -1053,7 +1053,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 flash_attention_2",
         "代表机构：学术界"
       ],
-      "detail": "<p>Token级负载均衡百万上下文</p>"
+      "detail": "<p><img alt=\"DISTFLASHATTN 序列并行与负载均衡\" src=\"https://ar5iv.labs.arxiv.org/html/2310.03294/assets/x1.png\" />\n<em>图：论文 Figure 1，左侧为序列维度切分，右侧展示 causal attention 负载均衡前后的 bubble。</em></p>\n<p><img alt=\"DISTFLASHATTN 通信计算重叠\" src=\"https://ar5iv.labs.arxiv.org/html/2310.03294/assets/x2.png\" />\n<em>图：论文 Figure 2，worker 7 在计算当前 attention block 时用通信 stream 预取下一块远端 KV。</em></p>\n<p><img alt=\"Rematerialization-aware checkpointing\" src=\"https://ar5iv.labs.arxiv.org/html/2310.03294/assets/x4.png\" />\n<em>图：论文 checkpointing 对比，将 checkpoint 放在 FlashAttention 输出处，避免重复执行 attention forward。</em></p>\n<p>```python</p>"
     }
   ],
   "categories": {

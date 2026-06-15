@@ -1,5 +1,5 @@
 /**
- * model_compression-data.js — 由 pipeline/build.py 于 2026-06-15 09:55:57 自动生成。
+ * model_compression-data.js — 由 pipeline/build.py 于 2026-06-15 17:41:32 自动生成。
  * 源文件：content/infra/model_compression.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -469,7 +469,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 qat",
         "代表机构：北大"
       ],
-      "detail": "<p>显著降低大模型量化训练资源消耗</p>"
+      "detail": "<h3>方法示意图</h3>\n<blockquote>\n<p><strong>论文 Figure 2 — EfficientQAT 整体框架</strong>\n<img alt=\"EfficientQAT Framework\" src=\"https://arxiv.org/html/2407.11062v3/x3.png\" /></p>\n<p>左侧为 <strong>Block-AP 阶段</strong>：逐块训练，每个 Transformer block 独立优化所有参数（权重 W、step size s、zero point z），使用 MSE 重建损失对齐量化前后的 block 输出。\n右侧为 <strong>E2E-QP 阶段</strong>：固定量化后的整数权重 $W_{int}$，仅端到端训练 step size $s$，使用标准语言建模损失（next-token prediction）。</p>\n</blockquote>\n<h3>核心算法伪代码</h3>\n<p>```python</p>"
     },
     {
       "id": "lottery_ticket",
@@ -825,7 +825,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 nm_sparsity",
         "代表机构：AAAI"
       ],
-      "detail": "<p>稀疏引导MoE高效十亿像素检测</p>"
+      "detail": "<p>核心示意图说明：官方 AAAI 页面未提供独立图片直链；论文 Figure 1 位于官方 PDF <code>https://ojs.aaai.org/index.php/AAAI/article/download/38810/42772</code>，展示 GigaMoE 相比 SparseFormer 的 FLOPs 分解，说明 FFN/MoE 是主要优化对象。</p>\n<p>```python</p>"
     },
     {
       "id": "hierasparse",

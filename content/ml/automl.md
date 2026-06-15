@@ -34,8 +34,7 @@ categories:
 
 ## 最新进展综述
 
-### 待补充：最近一个月最新动向
-请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/ml/automl/latest/zhihu__我们的书《动手学_AutoML》出版啦！从_NAS_到大模型优化，系统讲透这套方法论__c1e53b22/article.md
 
 ## 算法演化关系
 

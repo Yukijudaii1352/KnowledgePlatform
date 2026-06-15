@@ -26,13 +26,11 @@ categories:
 
 ## 领域综述
 
-### 待补充：阶段性领域总结
-请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/cv/video_vision/overview/zhihu__CVPR_2026_视频模型趋势梳理：不止生成下一帧，更要理解下一步__eae08cc3/article.md
 
 ## 最新进展综述
 
-### 待补充：最近一个月最新动向
-请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/cv/video_vision/latest/zhihu__CVPR_2026_多模态视觉智能全景梳理：从感知到推理的范式重写__bc1f7fc3/article.md
 
 ## 算法演化关系
 

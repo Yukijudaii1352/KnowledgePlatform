@@ -1,0 +1,4 @@
+overview:
+  include_raw: temp/content_survey_bulk_20260614_174337/researcher_output/aigc/text_edit/overview/zhihu__最新综述：基于文生图-扩散模型的多模态引导下的图像编辑技术__6eeabdf1/article.md
+latest_overview:
+  include_raw: temp/content_survey_bulk_20260614_174337/researcher_output/aigc/text_edit/latest/zhihu__CVPR_2026_图像编辑趋势梳理：从参考一张图，到融合整个视觉世界__711e2c9f/article.md

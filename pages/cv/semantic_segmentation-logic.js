@@ -341,11 +341,20 @@ function applyPageImageSize(size) {
   updateImageSizeControls();
 }
 
+function resetExpandedContentImages() {
+  document.querySelectorAll('.img-wrap.is-expanded').forEach((wrap) => {
+    wrap.classList.remove('is-expanded');
+    const btn = wrap.querySelector('.img-action-btn');
+    if (btn) btn.textContent = '展开';
+  });
+}
+
 function setPageImageSize(size) {
   const normalized = IMAGE_SIZE_CHOICES.has(size) ? size : 'balanced';
   try {
     localStorage.setItem(IMAGE_SIZE_STORAGE_KEY, normalized);
   } catch (_) {}
+  resetExpandedContentImages();
   applyPageImageSize(normalized);
 }
 
@@ -358,7 +367,75 @@ function toggleImageExpanded(wrap) {
   }
 }
 
+function isZhihuEquationImage(img) {
+  return (img?.getAttribute('src') || '').includes('zhihu.com/equation?tex=');
+}
+
+function getMeaningfulNodes(parent) {
+  return Array.from(parent.childNodes).filter(node => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return Boolean(node.textContent && node.textContent.trim());
+    }
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      return node.tagName !== 'BR';
+    }
+    return false;
+  });
+}
+
+function createImageCaption(img) {
+  const alt = String(img.getAttribute('alt') || '').trim();
+  if (!alt) return null;
+  const caption = document.createElement('p');
+  caption.className = 'img-caption';
+  caption.textContent = `▲ ${alt}`;
+  return caption;
+}
+
+function normalizeContentImages() {
+  document.querySelectorAll('.field-overview img, .algo-body img').forEach((img) => {
+    if (img.closest('.img-wrap') || img.closest('table') || isZhihuEquationImage(img)) return;
+    const parent = img.parentElement;
+    if (!parent) return;
+
+    if (parent.tagName === 'P') {
+      const meaningful = getMeaningfulNodes(parent);
+      if (meaningful[0] !== img) return;
+
+      const wrap = document.createElement('div');
+      wrap.className = 'img-wrap';
+      const captionNodes = meaningful.slice(1);
+
+      parent.replaceWith(wrap);
+      wrap.appendChild(img);
+
+      if (captionNodes.length) {
+        const caption = document.createElement('p');
+        caption.className = 'img-caption';
+        caption.appendChild(document.createTextNode('▲ '));
+        captionNodes.forEach(node => caption.appendChild(node));
+        wrap.appendChild(caption);
+      } else {
+        const caption = createImageCaption(img);
+        if (caption) wrap.appendChild(caption);
+      }
+      return;
+    }
+
+    const meaningful = getMeaningfulNodes(parent);
+    if (meaningful.length !== 1 || meaningful[0] !== img) return;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'img-wrap';
+    parent.replaceWith(wrap);
+    wrap.appendChild(img);
+    const caption = createImageCaption(img);
+    if (caption) wrap.appendChild(caption);
+  });
+}
+
 function enhanceContentImages() {
+  normalizeContentImages();
   document.querySelectorAll('.field-overview .img-wrap, .algo-body .img-wrap').forEach((wrap) => {
     if (wrap.dataset.enhanced === '1') return;
     const img = wrap.querySelector('img');

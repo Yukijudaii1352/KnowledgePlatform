@@ -4,116 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI Knowledge Hub · AI 知识学习平台</title>
+<script>
+(function(){try{var theme=localStorage.getItem('kp_theme_v1')||'dark';document.documentElement.dataset.theme=theme==='light'?'light':'dark';document.documentElement.style.colorScheme=document.documentElement.dataset.theme;}catch(e){document.documentElement.dataset.theme='dark';}})();
+</script>
 <link rel="stylesheet" href="assets/css/common.css">
-<style>
-.hero {
-  padding: 72px 0 56px;
-  text-align: center;
-  background: linear-gradient(180deg, rgba(102,126,234,0.04) 0%, transparent 100%);
-}
-.hero-eyebrow {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 7px 16px; border-radius: 999px;
-  background: var(--accent-soft); border: 1px solid var(--accent-border);
-  font-size: 0.84rem; color: var(--accent); font-weight: 500;
-  margin-bottom: 22px;
-}
-.hero-eyebrow::before {
-  content: ''; width: 7px; height: 7px; border-radius: 50%;
-  background: var(--accent);
-  animation: pulse 2s infinite;
-}
-@keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.3 } }
-.hero h1 {
-  font-size: clamp(2rem, 4.5vw, 3.2rem);
-  font-weight: 800; letter-spacing: -0.03em; line-height: 1.2;
-  color: var(--text);
-}
-.hero h1 em {
-  font-style: normal;
-  background: var(--gradient-1);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.hero-desc {
-  max-width: 640px; margin: 18px auto 0;
-  font-size: 1.08rem; color: var(--text-secondary); line-height: 1.75;
-}
-.hero-stats {
-  display: flex; justify-content: center; gap: 48px;
-  margin-top: 36px; flex-wrap: wrap;
-}
-.hero-stat-num {
-  font-size: 2rem; font-weight: 800;
-  background: var(--gradient-2);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.hero-stat-label { font-size: 0.84rem; color: var(--text-dim); margin-top: 2px; }
-
-.domains-section { padding: 32px 0 80px; }
-.domain-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 28px;
-  cursor: pointer;
-  transition: all 0.28s ease;
-  position: relative; overflow: hidden;
-  box-shadow: var(--shadow-sm);
-}
-.domain-card::before {
-  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-  opacity: 0; transition: opacity 0.28s;
-}
-.domain-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); border-color: var(--border-strong); }
-.domain-card:hover::before { opacity: 1; }
-.domain-card:nth-child(1)::before { background: var(--gradient-1); }
-.domain-card:nth-child(2)::before { background: var(--gradient-2); }
-.domain-card:nth-child(3)::before { background: var(--gradient-5); }
-.domain-card:nth-child(4)::before { background: var(--gradient-3); }
-.domain-card:nth-child(5)::before { background: var(--gradient-6); }
-.domain-card:nth-child(6)::before { background: var(--gradient-7); }
-.domain-card:nth-child(7)::before { background: var(--gradient-4); }
-.domain-card:nth-child(8)::before { background: var(--gradient-8); }
-.domain-card:nth-child(9)::before { background: linear-gradient(135deg, #22c55e, #14b8a6); }
-.domain-icon { width: 48px; height: 48px; border-radius: 12px; display: grid; place-items: center; font-size: 22px; margin-bottom: 16px; }
-.d1 .domain-icon { background: rgba(102,126,234,0.1); }
-.d2 .domain-icon { background: rgba(6,182,212,0.1); }
-.d3 .domain-icon { background: rgba(236,72,153,0.1); }
-.d4 .domain-icon { background: rgba(245,158,11,0.1); }
-.d5 .domain-icon { background: rgba(249,115,22,0.1); }
-.d6 .domain-icon { background: rgba(20,184,166,0.1); }
-.d7 .domain-icon { background: rgba(16,185,129,0.1); }
-.d8 .domain-icon { background: rgba(139,92,246,0.1); }
-.d9 .domain-icon { background: rgba(34,197,94,0.12); }
-.domain-name { font-size: 1.12rem; font-weight: 700; margin-bottom: 8px; color: var(--text); }
-.domain-desc { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 14px; line-height: 1.65; }
-.domain-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
-.domain-count { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--text-dim); }
-.domain-count::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); opacity: 0.5; }
-.domain-arrow {
-  position: absolute; right: 22px; bottom: 22px;
-  width: 30px; height: 30px; border-radius: 8px;
-  background: var(--bg-surface);
-  display: grid; place-items: center;
-  color: var(--text-dim); font-size: 15px;
-  transition: all 0.28s;
-}
-.domain-card:hover .domain-arrow { background: var(--accent-soft); color: var(--accent); transform: translateX(3px); }
-
-/* GitHub 图标链接 */
-.nav-github {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 36px; height: 36px; border-radius: 8px;
-  color: var(--text-secondary);
-  transition: all 0.2s ease;
-}
-.nav-github:hover { background: var(--bg-surface); color: var(--text); }
-.nav-github svg { width: 22px; height: 22px; display: block; }
-</style>
 </head>
-<body>
+<body class="tech-page home-page" id="top">
+<canvas class="tech-dotfield" aria-hidden="true"></canvas>
 
 <header class="topbar">
   <div class="shell">
@@ -141,24 +38,53 @@
 
 <section class="hero">
   <div class="shell">
-    <span class="hero-eyebrow"><span data-ph="BUILD_DATE">2026-06-15</span>更新</span>
-    <h1>连接 AI 各领域<br>构建<em>高效学习体系</em></h1>
-    <p class="hero-desc">
-      汇聚大语言模型、计算机视觉、Agent、多模态、具身智能、AI Infra 等多领域前沿知识，
-      帮助 AI 从业者系统化学习、跨领域交流、追踪最新进展。
-    </p>
-    <div class="hero-stats">
-      <div class="hero-stat"><div class="hero-stat-num"><span data-ph="STAT_TOPICS_LIVE">60</span></div><div class="hero-stat-label">已上线专题</div></div>
-      <div class="hero-stat"><div class="hero-stat-num"><span data-ph="STAT_DOMAINS">8</span></div><div class="hero-stat-label">核心领域</div></div>
-      <div class="hero-stat"><div class="hero-stat-num"><span data-ph="STAT_TOPICS_TOTAL">65</span></div><div class="hero-stat-label">知识专题</div></div>
-      <div class="hero-stat"><div class="hero-stat-num">MIT</div><div class="hero-stat-label">开源</div></div>
+    <div class="hero-grid">
+      <div class="hero-main">
+        <div class="hero-console">
+          <span class="hero-console-dot" aria-hidden="true"></span>
+          <span>KNOWLEDGE PIPELINE</span>
+          <span><span data-ph="BUILD_DATE">2026-06-15</span> SYNC</span>
+          <span class="hero-clock">UTC+8 00:00:00</span>
+        </div>
+        <h1>AI Knowledge Hub<em>跨领域知识图谱</em></h1>
+        <p class="hero-desc">
+          汇聚大语言模型、计算机视觉、Agent、多模态、具身智能、AI Infra 等多领域前沿知识，
+          帮助 AI 从业者系统化学习、跨领域交流、追踪最新进展。
+        </p>
+        <div class="hero-actions">
+          <a class="hero-btn primary" href="#domains">进入知识领域</a>
+          <a class="hero-btn" href="https://zhuyun97.github.io/embodied-ai-learning/" target="_blank" rel="noopener noreferrer">具身智能专题</a>
+        </div>
+        <div class="hero-stats">
+          <div class="hero-stat"><div class="hero-stat-num"><span data-ph="STAT_TOPICS_LIVE">60</span></div><div class="hero-stat-label">已上线专题</div></div>
+          <div class="hero-stat"><div class="hero-stat-num"><span data-ph="STAT_DOMAINS">8</span></div><div class="hero-stat-label">核心领域</div></div>
+          <div class="hero-stat"><div class="hero-stat-num"><span data-ph="STAT_TOPICS_TOTAL">65</span></div><div class="hero-stat-label">知识专题</div></div>
+          <div class="hero-stat"><div class="hero-stat-num">MIT</div><div class="hero-stat-label">开源协议</div></div>
+        </div>
+      </div>
+      <div class="hero-visual" aria-hidden="true">
+        <div class="hero-orbital">
+          <div class="hero-core">AI</div>
+          <span class="hero-ring-label label-llm">LLM</span>
+          <span class="hero-ring-label label-agent">AGENT</span>
+          <span class="hero-ring-label label-vision">VISION</span>
+          <span class="hero-ring-label label-embodied">EMBODIED</span>
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
 <section class="domains-section" id="domains">
   <div class="shell">
-    <h2 class="section-title">🗂️ 知识领域</h2>
+    <div class="section-heading">
+      <div>
+        <span class="section-kicker">DOMAIN MATRIX</span>
+        <h2 class="section-title">知识领域</h2>
+        <p class="section-desc">按研究方向组织专题入口，保留已上线与规划中的完整知识结构。</p>
+      </div>
+      <a class="hero-btn" href="#top">返回控制台</a>
+    </div>
     <div class="grid-auto">
 
 
@@ -192,21 +118,21 @@
       </div>
 
 
-      <div class="domain-card d4" onclick="window.location.href='pages/multimodal/index.html'">
-        <div class="domain-icon">🔗</div>
-        <div class="domain-name">多模态</div>
-        <div class="domain-desc">视觉-语言模型、跨模态对齐、多模态推理、视频与音频理解等研究方向。</div>
-        <div class="domain-tags"><span class="tag active">视觉-语言基础模型</span><span class="tag active">多模态检索</span><span class="tag active">多模态推理</span><span class="tag active">视频理解</span><span class="tag active">音频理解</span><span class="tag active">Omni模型</span></div>
+      <div class="domain-card d4" onclick="window.location.href='pages/embodied/index.html'">
+        <div class="domain-icon">🤖</div>
+        <div class="domain-name">具身智能</div>
+        <div class="domain-desc">机器人学习、Sim2Real、VLA 模型、导航规划与具身推理。</div>
+        <div class="domain-tags"><span class="tag active">视觉-语言-动作基础模型</span><span class="tag">具身感知</span><span class="tag active">具身强化学习</span><span class="tag active">世界模型</span><span class="tag">灵巧操作</span><span class="tag active">导航与移动智能</span><span class="tag active">运动控制</span><span class="tag">人机交互</span><span class="tag active">仿真</span></div>
         <div class="domain-count">6 个专题已上线</div>
         <div class="domain-arrow">→</div>
       </div>
 
 
-      <div class="domain-card d5" onclick="window.location.href='pages/embodied/index.html'">
-        <div class="domain-icon">🤖</div>
-        <div class="domain-name">具身智能</div>
-        <div class="domain-desc">机器人学习、Sim2Real、VLA 模型、导航规划与具身推理。</div>
-        <div class="domain-tags"><span class="tag active">视觉-语言-动作基础模型</span><span class="tag">具身感知</span><span class="tag active">具身强化学习</span><span class="tag active">世界模型</span><span class="tag">灵巧操作</span><span class="tag active">导航与移动智能</span><span class="tag active">运动控制</span><span class="tag">人机交互</span><span class="tag active">仿真</span></div>
+      <div class="domain-card d5" onclick="window.location.href='pages/multimodal/index.html'">
+        <div class="domain-icon">🔗</div>
+        <div class="domain-name">多模态</div>
+        <div class="domain-desc">视觉-语言模型、跨模态对齐、多模态推理、视频与音频理解等研究方向。</div>
+        <div class="domain-tags"><span class="tag active">视觉-语言基础模型</span><span class="tag active">多模态检索</span><span class="tag active">多模态推理</span><span class="tag active">视频理解</span><span class="tag active">音频理解</span><span class="tag active">Omni模型</span></div>
         <div class="domain-count">6 个专题已上线</div>
         <div class="domain-arrow">→</div>
       </div>
@@ -251,5 +177,6 @@
   </div>
 </footer>
 
+<script src="assets/js/tech-effects.js" defer></script>
 </body>
 </html>

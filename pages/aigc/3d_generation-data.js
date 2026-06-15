@@ -1,5 +1,5 @@
 /**
- * 3d_generation-data.js — 由 pipeline/build.py 于 2026-06-15 09:55:50 自动生成。
+ * 3d_generation-data.js — 由 pipeline/build.py 于 2026-06-15 17:41:26 自动生成。
  * 源文件：content/aigc/3d_generation.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -413,7 +413,7 @@ window.PAGE_CONFIG = {
         "核心动机：MLP+体渲染实现连续隐式表示",
         "代表机构：UC Berkeley"
       ],
-      "detail": "<p>MLP+体渲染实现连续隐式表示</p>"
+      "detail": "<p><strong>核心示意图/框架图</strong></p>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2003.08934/assets/x2.png\" alt=\"NeRF rendering pipeline\" loading=\"lazy\"><p class=\"img-caption\">▲ NeRF rendering pipeline</p></div>\n<p>NeRF 的主线是“相机射线采样 -&gt; MLP 查询密度和颜色 -&gt; 体渲染积分 -&gt; 像素级监督”。对一条射线 $\\mathbf{r}(t)=\\mathbf{o}+t\\mathbf{d}$，连续体渲染写作：</p>\n<div class=\"kb-math kb-math-display\">C(\\mathbf{r})=\\int_{t_n}^{t_f}T(t)\\sigma(\\mathbf{r}(t))\\mathbf{c}(\\mathbf{r}(t),\\mathbf{d})dt,\\quad\nT(t)=\\exp\\left(-\\int_{t_n}^{t}\\sigma(\\mathbf{r}(s))ds\\right).</div>\n<p>离散实现中，把射线分成 $N$ 个样本，令 $\\alpha_i=1-\\exp(-\\sigma_i\\delta_i)$，权重为 $w_i=T_i\\alpha_i$，最终颜色为 $\\hat{C}(\\mathbf{r})=\\sum_i w_i\\mathbf{c}_i$。这个公式让密度既影响遮挡也影响几何边界，梯度可以从像素误差反传到每个采样点。</p>\n<p><strong>算法伪代码</strong></p>\n<pre><code class=\"language-python\">for step in training_steps:\n    rays, target_rgb = sample_camera_rays(images, poses)\n    z_coarse = stratified_samples(rays, near, far, N_coarse)\n    x = rays.o[:, None] + z_coarse[..., None] * rays.d[:, None]\n    sigma, rgb = mlp(posenc(x), posenc(rays.d))\n    rgb_coarse, weights = volume_render(sigma, rgb, z_coarse)\n\n    z_fine = importance_samples(z_coarse, weights, N_fine)\n    sigma_f, rgb_f = mlp(posenc(points(rays, z_fine)), posenc(rays.d))\n    rgb_fine, _ = volume_render(sigma_f, rgb_f, z_fine)\n\n    loss = mse(rgb_coarse, target_rgb) + mse(rgb_fine, target_rgb)\n    loss.backward()\n    optimizer.step()\n</code></pre>\n<p>位置编码是 NeRF 成功的必要条件之一。原始坐标直接输入 MLP 时，网络倾向先拟合低频函数，细纹理和锐边界会被平滑掉；NeRF 使用</p>\n<div class=\"kb-math kb-math-display\">\\gamma(p)=\\left(\\sin(2^0\\pi p),\\cos(2^0\\pi p),\\dots,\\sin(2^{L-1}\\pi p),\\cos(2^{L-1}\\pi p)\\right)</div>\n<p>把坐标展开到多频空间，使小 MLP 也能表达高频变化。论文还把坐标和方向分开处理：密度只依赖位置，颜色在较深层再注入方向，这个归纳偏置避免几何随视角漂移。</p>\n<p>分层采样解决的是计算预算问题。coarse 网络先在整条射线上粗采样，估计哪些深度段有较高权重；fine 网络再按权重分布重采样，让查询集中在物体表面附近。这个过程不是显式三角网格重建，而是在优化一个可微渲染器；因此 NeRF 很适合新视角合成，但提取可编辑几何还需要后处理。</p>"
     },
     {
       "id": "mip_nerf",
@@ -433,7 +433,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 nerf",
         "代表机构：Google Research"
       ],
-      "detail": "<p>集成位置编码解决多尺度渲染</p>"
+      "detail": "<p><strong>核心示意图/框架图</strong></p>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2103.13415/assets/x1.png\" alt=\"Mip-NeRF cone tracing and integrated positional encoding\" loading=\"lazy\"><p class=\"img-caption\">▲ Mip-NeRF cone tracing and integrated positional encoding</p></div>\n<p>Mip-NeRF 的关键观察是：一个像素不是一条数学射线，而是一个随深度扩张的圆锥。若仍只在圆锥中心线上采点，模型会被迫解释超过采样带宽的高频信号，训练视图和测试视图尺度不一致时就会出现闪烁、摩尔纹和模糊。</p>\n<p>论文用多元高斯近似圆台区间，并对位置编码取期望。对一维高斯 $x\\sim\\mathcal{N}(\\mu,\\sigma^2)$，有：</p>\n<div class=\"kb-math kb-math-display\">\\mathbb{E}[\\sin(\\omega x)]=\\exp\\left(-\\frac{1}{2}\\omega^2\\sigma^2\\right)\\sin(\\omega\\mu),\n\\quad\n\\mathbb{E}[\\cos(\\omega x)]=\\exp\\left(-\\frac{1}{2}\\omega^2\\sigma^2\\right)\\cos(\\omega\\mu).</div>\n<p>这个衰减项很重要：当像素足迹很大、方差很大时，高频项自动被压低；当足迹很小、方差接近 0 时，IPE 退化为普通位置编码。</p>\n<p><strong>算法伪代码</strong></p>\n<pre><code class=\"language-python\">for rays in training_batches:\n    # 每条像素射线带有 cone radius，采样得到一串圆台区间\n    intervals = sample_conical_frustums(rays, near, far)\n    gaussians = [approximate_frustum_as_gaussian(f) for f in intervals]\n\n    encoded = [integrated_positional_encoding(mu, cov) for mu, cov in gaussians]\n    sigma, rgb = nerf_mlp(encoded, viewdirs=rays.d)\n    pred_rgb = volume_render(sigma, rgb, intervals.depths)\n\n    loss = mse(pred_rgb, rays.target_rgb)\n    update(loss)\n</code></pre>\n<p>从方法上看，Mip-NeRF 不是简单的采样数增加，而是改变了输入信号的数学对象：从 $\\mathbf{x}$ 变为 $(\\boldsymbol{\\mu},\\boldsymbol{\\Sigma})$。这让网络看到的是“区域平均后的特征”，相当于内置了随尺度变化的低通滤波器。相比先渲染再做图像空间抗锯齿，Mip-NeRF 的滤波发生在辐射场查询之前，因此能减少错误几何和错误纹理被学进去。</p>\n<p>另一个容易忽略的点是 Mip-NeRF 保持了 NeRF 的可微体渲染损失，因此可直接接入多视角重建流程。它的贡献主要在表示与采样层，而不是引入新的监督。后续 Zip-NeRF、Mip-NeRF 360 等工作继续沿着“区域编码 + 高效结构”的路线扩展大场景和无界场景。</p>"
     },
     {
       "id": "instant_ngp",
@@ -453,7 +453,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 nerf",
         "代表机构：NVIDIA"
       ],
-      "detail": "<p>哈希编码将训练加速1000倍</p>"
+      "detail": "<p><strong>核心示意图/框架图</strong></p>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2201.05989/assets/Figures/teaser/nerf_00.jpg\" alt=\"Instant-NGP neural graphics primitives comparison\" loading=\"lazy\"><p class=\"img-caption\">▲ Instant-NGP neural graphics primitives comparison</p></div>\n<p>论文的核心模块是 multiresolution hash encoding。给定归一化坐标 $\\mathbf{x}$，第 $l$ 层把它缩放到分辨率 $N_l$ 的网格，取周围 $2^d$ 个顶点；每个整数顶点通过哈希函数映射到大小为 $T$ 的特征表，取出特征后做线性/三线性插值。所有层的插值特征拼接成 $\\mathrm{enc}(\\mathbf{x};\\theta)$：</p>\n<div class=\"kb-math kb-math-display\">N_l=\\left\\lfloor N_{\\min} b^l \\right\\rfloor,\\quad\n\\mathbf{y}=\\mathrm{MLP}\\left([\\mathrm{interp}_1(\\mathbf{x}),\\dots,\\mathrm{interp}_L(\\mathbf{x})]\\right).</div>\n<p>哈希表大小 $T$ 控制内存和冲突。粗层通常几乎无冲突，保证全局一致性；细层冲突多但只影响高频细节，且不同空间点在其他层的上下文不同，小 MLP 可以学习把冲突影响分开。</p>\n<p><strong>算法伪代码</strong></p>\n<pre><code class=\"language-python\">def hash_grid_encode(x):\n    features = []\n    for level in range(L):\n        x_l = x * resolution(level)\n        corners, weights = grid_corners_and_weights(x_l)\n        f_l = 0\n        for corner, w in zip(corners, weights):\n            index = spatial_hash(corner) % table_size(level)\n            f_l += w * hash_table[level][index]\n        features.append(f_l)\n    return concat(features)\n\nfor rays, rgb_gt in batches:\n    z = sample_with_occupancy_grid(rays)\n    enc = hash_grid_encode(points(rays, z))\n    sigma, color = tiny_mlp(enc, viewdirs=rays.d)\n    rgb = volume_render(sigma, color, z)\n    update(mse(rgb, rgb_gt))\n</code></pre>\n<p>Instant-NGP 的贡献既是表示，也是系统设计。哈希网格提供高容量局部特征，tiny MLP 降低每次查询的计算量；occupancy grid 周期性记录哪些空间块可能非空，渲染时跳过空区域，减少无效采样。三者结合后，速度提升不是来自单一技巧，而是查询次数、每次查询成本和 GPU kernel overhead 同时下降。</p>\n<p>与 Plenoxels 等纯显式体素方法相比，Instant-NGP 仍保留了神经解码器，因此能在固定内存下共享统计规律；与原始 NeRF 相比，它更依赖工程优化和 GPU 友好结构。后续大量 3D 生成系统把 hash grid 当成默认 NeRF backbone，正是因为它把“逐场景优化”从小时级推进到分钟甚至秒级。</p>"
     },
     {
       "id": "plenoxels",
@@ -473,7 +473,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 nerf",
         "代表机构：UC Berkeley"
       ],
-      "detail": "<p>稀疏体素+球谐函数无需神经网络</p>"
+      "detail": "<p><strong>核心示意图/框架图</strong></p>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2112.05131/assets/x1.png\" alt=\"Plenoxels sparse voxel radiance field\" loading=\"lazy\"><p class=\"img-caption\">▲ Plenoxels sparse voxel radiance field</p></div>\n<p>Plenoxels 的“Plenoptic Voxels”把辐射场拆成两个显式表：密度网格和颜色基函数系数网格。给定空间点 $\\mathbf{x}$，先在稀疏体素结构中插值得到 $\\sigma(\\mathbf{x})$ 和一组球谐系数 $\\mathbf{k}_{lm}(\\mathbf{x})$；给定方向 $\\mathbf{d}$，颜色由球谐基展开：</p>\n<div class=\"kb-math kb-math-display\">\\mathbf{c}(\\mathbf{x},\\mathbf{d})=\\sum_{l=0}^{L}\\sum_{m=-l}^{l}\\mathbf{k}_{lm}(\\mathbf{x})Y_{lm}(\\mathbf{d}).</div>\n<p>这样，视角相关外观由方向基函数表达，空间变化由体素参数表达。渲染仍然使用 NeRF 同款 alpha compositing，因此训练损失可以保持为像素重建误差。</p>\n<p><strong>算法伪代码</strong></p>\n<pre><code class=\"language-python\">initialize_sparse_voxels()\nfor step in training_steps:\n    rays, target = sample_rays(images, poses)\n    samples = sample_points_along_rays(rays)\n\n    sigma = trilinear_interpolate(density_grid, samples.xyz)\n    sh_coef = trilinear_interpolate(sh_grid, samples.xyz)\n    rgb = evaluate_spherical_harmonics(sh_coef, samples.viewdir)\n    pred = volume_render(sigma, rgb, samples.depth)\n\n    loss = mse(pred, target)\n    loss += lambda_tv * total_variation(density_grid, sh_grid)\n    loss += lambda_sparsity * sparsity_regularizer(density_grid)\n    update_voxel_values(loss)\n    prune_low_density_voxels()\n</code></pre>\n<p>Plenoxels 的重要意义在于把“NeRF 的效果”与“必须使用神经网络”解耦。NeRF 的核心其实是可微体渲染和多视角监督，MLP 只是其中一种连续函数参数化。Plenoxels 用显式网格换来更直接的优化：梯度更新落在局部体素上，因此收敛快；但也更依赖网格分辨率和剪枝策略。</p>\n<p>正则化是这篇论文能工作的关键。没有 TV 约束时，显式体素很容易把每个训练视角的误差记成孤立噪声；TV 让相邻体素的密度和颜色系数平滑变化，稀疏正则推动空区域密度变小。它也提示后续方法：显式结构需要强约束，隐式结构则把一部分平滑性藏在网络架构和编码中。</p>"
     },
     {
       "id": "3dgs",
@@ -493,7 +493,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 instant_ngp",
         "代表机构：INRIA"
       ],
-      "detail": "<p>显式高斯实现100+FPS实时渲染</p>"
+      "detail": "<p><strong>核心示意图/框架图</strong></p>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2308.04079/assets/x2.png\" alt=\"3D Gaussian Splatting method overview\" loading=\"lazy\"><p class=\"img-caption\">▲ 3D Gaussian Splatting method overview</p></div>\n<p>3DGS 的每个高斯可写为：</p>\n<div class=\"kb-math kb-math-display\">G(\\mathbf{x})=\\exp\\left(-\\frac{1}{2}(\\mathbf{x}-\\boldsymbol{\\mu})^\\top\\Sigma^{-1}(\\mathbf{x}-\\boldsymbol{\\mu})\\right),</div>\n<p>其中协方差用旋转 $R$ 和尺度 $S$ 参数化为 $\\Sigma=RSS^\\top R^\\top$，以保证半正定。颜色常用球谐系数表达方向相关外观，不透明度 $\\alpha$ 控制该高斯对像素的贡献。</p>\n<p>渲染时，高斯经相机投影近似为 2D 协方差：</p>\n<div class=\"kb-math kb-math-display\">\\Sigma&#x27; = J W \\Sigma W^\\top J^\\top,</div>\n<p>其中 $W$ 是视图变换，$J$ 是投影雅可比。对每个 tile 收集可能覆盖的高斯，按深度排序，再执行前向 alpha compositing。</p>\n<p><strong>算法伪代码</strong></p>\n<pre><code class=\"language-python\">gaussians = initialize_from_sfm_points(point_cloud)\nfor step in training_steps:\n    camera, target = sample_view()\n    visible = project_gaussians_to_tiles(gaussians, camera)\n    pred = rasterize_sorted_gaussian_splats(visible, camera)\n\n    loss = l1(pred, target) + lambda_dssim * dssim(pred, target)\n    update_gaussian_params(loss)\n\n    if step % densify_interval == 0:\n        clone_high_gradient_small_gaussians(gaussians)\n        split_high_gradient_large_gaussians(gaussians)\n        prune_low_opacity_or_huge_gaussians(gaussians)\n</code></pre>\n<p>3DGS 的关键不只是“用高斯”，而是把表示、初始化、优化和光栅化合成一个闭环。SfM 点云给出合理的初始几何位置；高斯的各向异性尺度让一个 primitive 能覆盖面片状结构；自适应 densification 在欠拟合区域增加容量；tile-based renderer 让 GPU 可以高效处理大量 splat。</p>\n<p>相比 NeRF，3DGS 避免了沿射线密集采样，也不需要对每个采样点跑 MLP，因此渲染速度数量级提升。但它的显式 primitive 也带来新问题：高斯可能变得过大、过细或漂浮，边缘处可能出现半透明晕影。后续 HGS、2DGS、MCMC densification 等工作大多围绕这些 artifact 和几何一致性继续改进。</p>"
     },
     {
       "id": "hgs",
@@ -513,7 +513,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 3dgs",
         "代表机构：AAAI"
       ],
-      "detail": "<p>解决模糊和针状伪影问题</p>"
+      "detail": "<p><strong>核心示意图/框架图</strong></p>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2412.04826/assets/x2.png\" alt=\"Hard Gaussian Splatting artifact analysis\" loading=\"lazy\"><p class=\"img-caption\">▲ Hard Gaussian Splatting artifact analysis</p></div>\n<p>HGS 关注的是 3DGS 的一个结构性矛盾：高斯越软，优化越平滑、越容易覆盖空洞；但软尾会把颜色和透明度扩散到真实表面之外，特别是在边缘、细杆、薄片等区域。若优化为了拟合细节把高斯拉成长针状，又会带来不稳定的投影椭圆和异常 splat。</p>\n<p>论文题目中的 “Hard” 可以理解为限制或重塑高斯对像素的有效贡献区域，使一个 primitive 更像局部表面元素而不是无限扩散的半透明云。渲染误差引导的增长则把 densification 从“只看参数梯度”推进到“看图像残差在哪里没有被解释”。这能减少平均化增长：不是在已有高斯附近盲目 clone，而是在错误高、结构缺失的位置补容量。</p>\n<p><strong>算法伪代码</strong></p>\n<pre><code class=\"language-python\">gaussians = initialize_like_3dgs(sfm_points)\nfor step in training_steps:\n    camera, target = sample_training_view()\n    pred, visibility = hard_gaussian_rasterize(gaussians, camera)\n    residual = abs(pred - target)\n\n    loss = photometric_loss(pred, target) + regularize_shape_and_opacity(gaussians)\n    update_gaussians(loss)\n\n    if should_grow(step):\n        error_regions = find_high_residual_regions(residual, visibility)\n        add_or_split_gaussians_at(error_regions, gaussians)\n        suppress_degenerate_needle_gaussians(gaussians)\n        prune_low_contribution_gaussians(gaussians)\n</code></pre>\n<p>从 3DGS 的 alpha compositing 看，一个高斯的屏幕贡献近似是 $\\alpha_i G_i(\\mathbf{u})$，软尾意味着 $G_i(\\mathbf{u})$ 在远离中心时仍有非零贡献。HGS 类方法会通过截断、重加权或硬化 kernel 的方式降低远尾影响，使边界像素不再被背后或旁边的高斯“染色”。这对 thin structures 尤其重要，因为细结构的像素覆盖面积小，软尾平均会迅速吞掉局部对比度。</p>\n<p>HGS 的工程意义在于：3DGS 的实时性已经很好，下一阶段主要瓶颈转向几何质量和 artifact 控制。硬化 kernel 可能牺牲一部分优化平滑性，因此需要和误差引导增长、形状正则、剪枝策略配套使用。它不是替换 3DGS 的整体框架，而是对显式 Gaussian primitive 的有效支持域和密度控制进行修正。</p>"
     },
     {
       "id": "dreamfusion",
@@ -533,7 +533,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 nerf",
         "代表机构：Google Research"
       ],
-      "detail": "<p>提出SDS Loss开创文生3D范式</p>"
+      "detail": "<p><strong>核心示意图/框架图</strong></p>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2209.14988/assets/x1.png\" alt=\"DreamFusion text-to-3D examples and pipeline context\" loading=\"lazy\"><p class=\"img-caption\">▲ DreamFusion text-to-3D examples and pipeline context</p></div>\n<p>DreamFusion 的关键是把“采样扩散图像”改写成“优化一个可微图像生成器”。令 3D 参数为 $\\theta$，随机相机为 $c$，可微渲染得到图像 $x=g(\\theta,c)$。扩散模型在噪声步 $t$ 上看到 $x_t=\\alpha_t x+\\sigma_t\\epsilon$，并预测噪声 $\\hat{\\epsilon}_\\phi(x_t,t,y)$。SDS 使用近似梯度：</p>\n<div class=\"kb-math kb-math-display\">\\nabla_\\theta \\mathcal{L}_{\\text{SDS}}\n=\n\\mathbb{E}_{t,\\epsilon,c}\\left[\nw(t)\\left(\\hat{\\epsilon}_\\phi(x_t,t,y)-\\epsilon\\right)\n\\frac{\\partial x}{\\partial \\theta}\n\\right].</div>\n<p>这个梯度不需要反传穿过扩散 U-Net 的所有内部计算，只把 U-Net 输出当作一个图像空间更新方向。直观上，如果当前渲染图加噪后不像 prompt 对应的自然图像，扩散模型会指出应该往哪个方向去噪；NeRF 渲染器再把这个方向传回密度和颜色。</p>\n<p><strong>算法伪代码</strong></p>\n<pre><code class=\"language-python\">theta = initialize_nerf()\ndiffusion = frozen_text_to_image_model()\nfor step in range(num_steps):\n    cam = sample_random_camera()\n    image = render_nerf(theta, cam)\n    t = sample_diffusion_timestep()\n    eps = normal_like(image)\n    x_t = alpha[t] * image + sigma[t] * eps\n\n    eps_hat = diffusion.predict_noise(x_t, t, text_prompt, guidance_scale=large)\n    grad_image = weight(t) * (eps_hat - eps)\n    backprop_to_nerf(image, grad_image)\n    apply_geometry_regularizers(theta)\n</code></pre>\n<p>DreamFusion 还加入了面向 3D 的工程约束，例如随机视角采样、前景/背景处理、法线与深度相关正则，以及鼓励表面朝向相机的 orientation loss。没有这些约束时，SDS 很容易只优化出能骗过单视角扩散模型的纹理云，而不是闭合、可旋转的物体。</p>\n<p>这篇论文的历史价值大于其最终视觉质量：它证明了强 2D 扩散模型可以作为通用 3D 先验，开创了 text-to-3D 的 optimization-based 路线。后续 Magic3D、Fantasia3D、ProlificDreamer、MVDream 等工作基本都在回答两个问题：如何改进 SDS 的梯度质量，以及如何换更强、更快、更可编辑的 3D 表示。</p>"
     },
     {
       "id": "magic3d",
@@ -623,7 +623,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 dreamfusion",
         "代表机构：Tsinghua University"
       ],
-      "detail": "<p>变分分数蒸馏VSD解决过平滑</p>"
+      "detail": "<p><strong>核心示意图/框架图</strong></p>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2305.16213/assets/x1.png\" alt=\"ProlificDreamer text-to-3D samples\" loading=\"lazy\"><p class=\"img-caption\">▲ ProlificDreamer text-to-3D samples</p></div>\n<p>SDS 的问题可以理解为：它把一个 prompt 的多模态图像分布压成一个确定更新方向，多个合理外观会被平均，结果容易过平滑。VSD 从变分推断角度把 3D 参数 $\\theta$ 当作随机变量，目标是让渲染图像分布 $q^\\mu(x|y)$ 接近预训练扩散模型定义的图像分布 $p_\\phi(x|y)$：</p>\n<div class=\"kb-math kb-math-display\">\\min_{\\mu}\\ \\mathrm{KL}\\left(q^\\mu(x|y)\\ \\|\\ p_\\phi(x|y)\\right).</div>\n<p>实际更新可理解为两个 score 的差：</p>\n<div class=\"kb-math kb-math-display\">\\nabla_\\theta \\mathcal{L}_{\\text{VSD}}\n\\propto\nw(t)\\left(\\hat{\\epsilon}_{\\text{pretrain}}(x_t,t,y)\n-\\hat{\\epsilon}_{\\text{LoRA}}(x_t,t,c,y)\\right)\n\\frac{\\partial x}{\\partial \\theta}.</div>\n<p>其中预训练模型给出“文本图像先验”的 score，LoRA 模型给出“当前 3D 渲染分布”的 score；二者相减更像把粒子分布推向目标分布，而不是把所有样本压到单一模式。</p>\n<p><strong>算法伪代码</strong></p>\n<pre><code class=\"language-python\">particles = [initialize_3d_representation() for _ in range(num_particles)]\nlora_score = attach_lora_to_frozen_diffusion()\nfor step in range(num_steps):\n    for theta in particles:\n        cam = sample_camera()\n        image = render(theta, cam)\n        t, eps = sample_t_and_noise()\n        x_t = alpha[t] * image + sigma[t] * eps\n\n        eps_target = frozen_diffusion(x_t, t, prompt)\n        eps_current = lora_score(x_t, t, prompt, cam)\n        grad_image = weight(t) * (eps_target - eps_current)\n        update_3d_particle(theta, image, grad_image)\n\n    train_lora_on_current_particle_renderings(lora_score, particles)\n</code></pre>\n<p>ProlificDreamer 的贡献不只是一条新公式，也包括系统性梳理 text-to-3D 的训练设计空间。论文强调普通图像扩散常用的 CFG 权重在 VSD 下更稳定，而 SDS 往往依赖很大的 guidance scale 才能成形。VSD 还可以先优化 NeRF，再转 mesh 细化，让几何和纹理更适合最终资产输出。</p>\n<p>需要注意的是，VSD 的质量来自更多计算和更复杂的训练闭环：每一步既要更新 3D 表示，也要维护 LoRA score 估计。它降低了 SDS 的模式坍缩倾向，但没有从根本上提供严格多视角监督，因此在复杂 prompt 和遮挡结构上仍可能依赖表示、初始化和相机采样策略。</p>"
     },
     {
       "id": "luciddreamer",
@@ -643,7 +643,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 prolificdreamer",
         "代表机构：KAIST"
       ],
-      "detail": "<p>区间分数匹配ISM提升保真度</p>"
+      "detail": "<p><strong>核心示意图/框架图</strong></p>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2311.11284/assets/x2.png\" alt=\"LucidDreamer SDS pseudo-GT analysis\" loading=\"lazy\"><p class=\"img-caption\">▲ LucidDreamer SDS pseudo-GT analysis</p></div>\n<p>LucidDreamer 对 SDS 的解释很直接：给定同一个当前渲染 $x_0$，不同噪声 $\\epsilon$ 和时间步 $t$ 会诱导不同的 $\\hat{x}_0^t$，这些 pseudo-GT 在细节上可能互相矛盾。一个共享 3D 模型被迫同时朝多个方向更新，最终就会学到平均化纹理和模糊几何。</p>\n<p>ISM 试图避免这种“每次随机换目标”的问题。它沿确定性扩散轨迹构造两个相关状态 $x_t$ 与 $x_s$，并匹配它们之间的区间 score。论文中 ISM 目标可概括为：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{\\text{ISM}}(\\theta)\n=\n\\mathbb{E}_{t,c}\\left[\n\\omega(t)\\left\\|\n\\epsilon_\\phi(x_t,t,y)-\\epsilon_\\phi(x_s,s,\\emptyset)\n\\right\\|^2\n\\right].</div>\n<p>其中 $x_t$ 来自当前 3D 渲染和文本条件，$x_s$ 来自同一确定性轨迹上的另一状态。这样更新更关注同一轨迹区间内的方向差，而不是把多个独立随机 pseudo-GT 混到一起。</p>\n<p><strong>算法伪代码</strong></p>\n<pre><code class=\"language-python\">gaussians = initialize_3d_gaussians()\ndiffusion = frozen_text_to_image_diffusion()\nfor step in range(num_steps):\n    cam = sample_camera()\n    image = render_gaussian_splatting(gaussians, cam)\n\n    t, s = sample_interval_timesteps()\n    x_t, x_s = deterministic_diffusion_interval(image, t, s)\n    eps_text = diffusion.predict_noise(x_t, t, prompt)\n    eps_base = diffusion.predict_noise(x_s, s, empty_prompt)\n\n    loss_ism = weight(t) * squared_norm(eps_text - eps_base)\n    update_gaussians_through_render(loss_ism)\n    apply_3dgs_density_and_opacity_control(gaussians)\n</code></pre>\n<p>结合 3DGS 后，LucidDreamer 的训练循环不再需要密集 NeRF MLP 查询，渲染和反传更快。显式高斯也让几何增长、剪枝、透明度控制更直接；这与 ISM 的稳定梯度配合，目标是用更少迭代得到更锐利的纹理和形状。</p>\n<p>不过 ISM 并不是多视图扩散模型。它缓解了 SDS 的噪声目标不一致，但文本先验仍主要来自单图扩散模型；对强对称、遮挡、细长结构的 3D 一致性，仍需要相机采样、表示正则或 MVDream 这类多视图先验补充。</p>"
     },
     {
       "id": "zero123",
@@ -662,7 +662,7 @@ window.PAGE_CONFIG = {
         "核心动机：注入相机参数实现单图新视角",
         "代表机构：Columbia University"
       ],
-      "detail": "<p>注入相机参数实现单图新视角</p>"
+      "detail": "<p><strong>核心示意图/框架图</strong></p>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2303.11328/assets/x3.png\" alt=\"Zero-1-to-3 conditional latent diffusion architecture\" loading=\"lazy\"><p class=\"img-caption\">▲ Zero-1-to-3 conditional latent diffusion architecture</p></div>\n<p>单图 3D 是高度欠约束问题：看不到的背面并没有唯一答案。Zero-1-to-3 的策略不是直接输出 3D，而是先学习“给定源图和相机变化时，合理目标视图长什么样”。这种形式保留了不确定性，也能继承 Stable Diffusion 的自然图像先验。</p>\n<p>训练时，取同一 3D 物体的两张渲染图 $x_{\\text{src}}$ 和 $x_{\\text{tgt}}$，计算相对相机 $\\Delta c$。扩散模型在目标图 latent 上做噪声预测：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}=\n\\mathbb{E}_{t,\\epsilon}\n\\left[\n\\left\\|\n\\epsilon -\n\\epsilon_\\theta(z_t,t,\\mathrm{CLIP}(x_{\\text{src}}),\\Delta c)\n\\right\\|^2\n\\right].</div>\n<p>其中源图通常通过 CLIP/image encoder 提供语义和外观条件，相机向量提供几何控制。论文中常用球坐标变化表示相机，例如 $[\\theta,\\sin(\\phi),\\cos(\\phi),r]$，避免俯仰角周期性表示不连续。</p>\n<p><strong>算法伪代码</strong></p>\n<pre><code class=\"language-python\">for src_img, tgt_img, rel_camera in rendered_view_pairs:\n    cond_img = image_encoder(src_img)\n    cond_pose = pose_mlp(rel_camera)\n    z = vae.encode(tgt_img)\n    t, eps = sample_t_and_noise()\n    z_t = alpha[t] * z + sigma[t] * eps\n\n    eps_pred = unet(z_t, t, image_condition=cond_img, pose_condition=cond_pose)\n    loss = mse(eps_pred, eps)\n    update(loss)\n\ndef generate_new_view(input_img, rel_camera):\n    return diffusion_sample(condition=(input_img, rel_camera))\n</code></pre>\n<p>Zero-1-to-3 的价值在于把 3D 先验变成可调用的 feed-forward 视角生成器。与 DreamFusion 类逐场景优化相比，它一次生成新视图只需几秒；与传统单图重建相比，它不被固定类别 CAD 先验限制。但生成的新视图之间可能不完全一致，所以后续 One-2-3-45、SyncDreamer、MVDream 等工作都在加强多视图一致性或直接把多视图作为联合输出。</p>"
     },
     {
       "id": "one2345",
@@ -682,7 +682,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 zero123",
         "代表机构：Stanford University"
       ],
-      "detail": "<p>多视图生成+快速网格重建</p>"
+      "detail": "<p><strong>核心示意图/框架图</strong></p>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2306.16928/assets/figures/pipeline.png\" alt=\"One-2-3-45 pipeline\" loading=\"lazy\"><p class=\"img-caption\">▲ One-2-3-45 pipeline</p></div>\n<p>One-2-3-45 的名字概括了流程：从 one image 到若干 novel views，再到 3D mesh，并强调快速完成。它没有像 DreamFusion 那样把每次渲染送入扩散模型做长时间优化，而是把扩散模型用于一次性补视角，然后交给重建网络或重建流程融合。</p>\n<p>典型流程包括：先对输入图做前景分割和规范化；用 Zero-1-to-3 生成固定相机集合的多视图，例如左右后等视角；再用多视图条件的几何重建方法估计隐式表面或体素/SDF；最后用 marching cubes 等方式提取 mesh，并从输入与生成视图回投纹理。</p>\n<p><strong>算法伪代码</strong></p>\n<pre><code class=\"language-python\">input_img = remove_background_and_center(object_image)\nviews = {front: input_img}\nfor pose in canonical_target_poses:\n    views[pose] = zero123_generate(input_img, rel_camera=pose)\n\nrecon_features = encode_multiview_images(views, camera_poses)\nsdf_or_density = reconstruct_geometry(recon_features)\nmesh = extract_mesh(sdf_or_density)\ntexture = project_or_optimize_texture(mesh, views, camera_poses)\nreturn mesh, texture\n</code></pre>\n<p>从技术取舍看，One-2-3-45 把难题分解成两个较容易工程化的模块。扩散模型负责“想象不可见部分”，重建模块负责“把多视图约束变成 3D”。这种模块化很实用：可以替换更强的视图生成器，也可以替换更强的重建器；但误差也会级联，前一阶段的幻觉会被后一阶段当作观测。</p>\n<p>相对优化式 text/image-to-3D，One-2-3-45 的重建速度是最大卖点；相对真正多视图摄影测量，它又能从单图启动。它适合快速生成粗网格，但对细节、背面真实性、透明/反光材料和非典型物体仍依赖 Zero123 先验的泛化能力。</p>"
     },
     {
       "id": "mvdream",
@@ -702,7 +702,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 zero123",
         "代表机构：ByteDance"
       ],
-      "detail": "<p>多视图注意力解决Janus问题</p>"
+      "detail": "<p><strong>核心示意图/框架图</strong></p>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2308.16512/assets/x6.png\" alt=\"MVDream multi-view diffusion model\" loading=\"lazy\"><p class=\"img-caption\">▲ MVDream multi-view diffusion model</p></div>\n<p>MVDream 的关键判断是：仅仅让扩散模型知道“当前是背面视角”还不够，因为每个视图独立生成时仍可能各自满足文本，却彼此不一致。真正需要的是联合建模一组视图，让前后左右共享身份、纹理和结构。</p>\n<p>形式上，模型输入是一组 noisy latent $\\mathbf{x}_t\\in\\mathbb{R}^{F\\times H\\times W\\times C}$，其中 $F$ 是视图数。U-Net 保留文本 cross-attention，同时把原本只在单张图内部做的 self-attention 扩展到跨视图维度，并加入相机参数：</p>\n<div class=\"kb-math kb-math-display\">\\epsilon_\\theta =\n\\epsilon_\\theta(\\mathbf{x}_t,t,y,\\{c_1,\\dots,c_F\\}).</div>\n<p>训练损失仍是扩散噪声预测 MSE：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}=\n\\mathbb{E}_{t,\\epsilon}\n\\left[\n\\left\\|\n\\epsilon-\\epsilon_\\theta(\\mathbf{x}_t,t,y,\\mathbf{c})\n\\right\\|^2\n\\right],</div>\n<p>但样本是同一物体的多视图组，因此模型被迫学习跨视角一致性。</p>\n<p><strong>算法伪代码</strong></p>\n<p>```python</p>"
     },
     {
       "id": "wonder3d",

@@ -30,13 +30,11 @@ image_base: ../../content/aigc/3d_generation/assets/
 
 ## 领域综述
 
-### 待补充：阶段性领域总结
-请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/aigc/3d_generation/overview/zhihu__2024年AI+3D技术进展总结_（第三篇）-_3D_AIGC方向2__cadc045e/article.md
 
 ## 最新进展综述
 
-### 待补充：最近一个月最新动向
-请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/aigc/3d_generation/latest/zhihu__CVPR_2026_3D_视觉前沿梳理：模型正在学会理解、生成和构建世界__f84c74ee/article.md
 
 ## 算法演化关系
 

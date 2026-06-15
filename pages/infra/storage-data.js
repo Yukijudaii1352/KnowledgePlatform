@@ -1,5 +1,5 @@
 /**
- * storage-data.js — 由 pipeline/build.py 于 2026-06-15 09:55:57 自动生成。
+ * storage-data.js — 由 pipeline/build.py 于 2026-06-15 17:41:32 自动生成。
  * 源文件：content/infra/storage.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -352,7 +352,7 @@ window.PAGE_CONFIG = {
         "核心动机：大规模廉价硬件上的可靠存储",
         "代表机构：Google"
       ],
-      "detail": "<p>大规模廉价硬件上的可靠存储</p>"
+      "detail": "<p><strong>核心示意图说明</strong>：官方 PDF 的 Figure 1 展示了 Application/GFS client、GFS master 与多个 GFS chunkserver 的控制流和数据流。该图没有稳定的独立图片直链，官方论文入口为 https://research.google/pubs/pub51/，下面用文本重构其核心结构。</p>\n<pre><code class=\"language-text\">Application -&gt; GFS client --metadata--&gt; GFS master\n                         &lt;--handle, replicas--\nGFS client  --chunk data read/write--&gt; Chunkserver replicas\nMaster      --heartbeat, lease, GC--&gt;  Chunkservers\n</code></pre>\n<p>```python</p>"
     },
     {
       "id": "hdfs",
@@ -412,7 +412,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 hdfs",
         "代表机构：Meta"
       ],
-      "detail": "<p>分层哈希分片,统一存储栈</p>"
+      "detail": "<p><strong>核心示意图说明</strong>：论文 Figure 2 展示 Tectonic 架构：Client Library 调用 Metadata Store 和 Chunk Store，Metadata Store 之下是 KV store 与 Name/File/Block 层，后台服务多为无状态组件。USENIX PDF 地址为 https://www.usenix.org/system/files/fast21-pan.pdf。</p>\n<pre><code class=\"language-text\">Client Library\n  |-- metadata RPC --&gt; Metadata Store -&gt; KV Store\n  |                    |-- Name layer\n  |                    |-- File layer\n  |                    `-- Block layer\n  |-- data RPC ------&gt; Chunk Store -&gt; storage nodes\n  `-- policies ------&gt; replication / RS encoding / traffic groups\nBackground services: repair, GC, rebalance, health, stat\n</code></pre>\n<p>```python</p>"
     },
     {
       "id": "lustre",
@@ -431,7 +431,7 @@ window.PAGE_CONFIG = {
         "核心动机：HPC场景高并发I/O首选",
         "代表机构：社区"
       ],
-      "detail": "<p>HPC场景高并发I/O首选</p>"
+      "detail": "<p><strong>核心示意图说明</strong>：Lustre 官方 Wiki 将系统拆为 Client、MDS/MDT、OSS/OST 和 MGS 四类组件，并强调文件系统可随 OSS/OST building block 线性扩展。ACM 任务链接为综述/论文页，稳定方法说明可参考 https://wiki.lustre.org/Introduction_to_Lustre。</p>\n<pre><code class=\"language-text\">Application\n  -&gt; Lustre Client\n     |-- namespace RPC --&gt; MDS -&gt; MDT\n     `-- parallel I/O --&gt; OSS0 -&gt; OST0\n                       --&gt; OSS1 -&gt; OST1\n                       --&gt; OSSN -&gt; OSTN\nMGS: cluster configuration registry\n</code></pre>\n<p>```python</p>"
     },
     {
       "id": "ceph",
@@ -450,7 +450,7 @@ window.PAGE_CONFIG = {
         "核心动机：统一块/文件/对象存储",
         "代表机构：UCSC"
       ],
-      "detail": "<p>统一块/文件/对象存储</p>"
+      "detail": "<p><strong>核心示意图说明</strong>：OSDI 2006 论文 Figure 1 展示客户端、Metadata Cluster 和 Object Storage Cluster：客户端元数据请求访问 MDS，文件 I/O 直接访问 OSD。官方论文 PDF 可访问 https://ceph.io/assets/pdfs/weil-ceph-osdi06.pdf。</p>\n<pre><code class=\"language-text\">Ceph client\n  |-- metadata ops --&gt; MDS cluster (CephFS only)\n  |-- object I/O ----&gt; OSD cluster (RADOS)\n  |-- cluster map &lt;--- Monitors\nCRUSH(object, pool, map) -&gt; placement group -&gt; acting OSD set\n</code></pre>\n<p>```python</p>"
     },
     {
       "id": "glusterfs",
@@ -489,7 +489,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 lustre",
         "代表机构：ThinkParQ"
       ],
-      "detail": "<p>BeeOND临时FS,GPUDirect支持</p>"
+      "detail": "<p><strong>核心示意图说明</strong>：BeeGFS 文档将系统拆为管理服务、元数据服务、存储服务和客户端；BeeOND 文档强调按作业创建临时 BeeGFS 实例，GDS 文档说明 BeeGFS client 和 storage service 可直接参与 GPU/RDMA 数据路径。稳定文档入口为 https://www.beegfs.io/docs/。</p>\n<pre><code class=\"language-text\">BeeGFS Client\n  |-- config/discovery --&gt; Management service\n  |-- namespace ops ----&gt; Metadata services\n  `-- striped I/O -----&gt; Storage services -&gt; targets\n\nBeeOND: job nodes' local SSD/RAM -&gt; temporary BeeGFS mount -&gt; destroyed after job\nGDS: NVMe/RDMA NIC -&gt; BeeGFS -&gt; GPU memory path\n</code></pre>\n<p>```python</p>"
     },
     {
       "id": "juicefs",
@@ -528,7 +528,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 lustre",
         "代表机构：学术研究"
       ],
-      "detail": "<p>元数据负载均衡,DL管道优化</p>"
+      "detail": "<p><strong>核心示意图说明</strong>：arXiv 页面说明 FalconFS 的关键路径由客户端/VFS shortcut、服务端路径解析、混合元数据索引、懒命名空间复制和数据服务组成。论文 HTML/PDF 可从 https://arxiv.org/abs/2507.10367 访问；若图片直链不稳定，以下为核心结构重构。</p>\n<pre><code class=\"language-text\">DL dataloader / pipeline\n  -&gt; VFS shortcut / FalconFS client\n  -&gt; server-side path resolver\n     |-- hybrid metadata index\n     |-- lazy namespace replication\n     `-- concurrent request merging\n  -&gt; data read/write service\n</code></pre>\n<p>```python</p>"
     },
     {
       "id": "minio",
@@ -566,7 +566,7 @@ window.PAGE_CONFIG = {
         "核心动机：分布式缓存,存算分离桥梁",
         "代表机构：UC Berkeley"
       ],
-      "detail": "<p>分布式缓存,存算分离桥梁</p>"
+      "detail": "<p><strong>核心示意图说明</strong>：Alluxio 官方页面将其描述为位于 compute 与 cloud storage 之间的高吞吐低延迟 cache，包含 global namespace、distributed caching、S3 API、POSIX client 和 Python SDK。稳定入口为 https://www.alluxio.io/。</p>\n<pre><code class=\"language-text\">PyTorch / TensorFlow / Spark / Ray\n  -&gt; POSIX / S3 / Python client\n  -&gt; Alluxio namespace + masters\n  -&gt; Alluxio workers: memory / NVMe / SSD cache\n  -&gt; Under File Systems: S3, GCS, HDFS, NAS, object stores\n</code></pre>\n<p>```python</p>"
     },
     {
       "id": "gds",

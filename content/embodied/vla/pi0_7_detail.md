@@ -1,3 +1,5 @@
+### π0.7：物理智能零点七
+
 ```yaml
 id: pi0_7
 name: π0.7
@@ -10,150 +12,101 @@ parent: pi0
 motivation: 组合泛化支持跨多种机器人本体
 ```
 
-### π0.7：物理智能零点七
-
 #### 📝 一句话总结
 
-π0.7 是 Physical Intelligence 推出的可操控通用视觉-语言-动作（VLA）模型，通过多模态提示（语言指令、元数据、控制模态、视觉子目标）训练，首次展示了机器人基础模型的**涌现组合泛化**能力——无需微调即可将已学技能重组用于新任务、新物体和新机器人本体，且开箱性能匹敌此前需 RL 微调的专家模型。
+π0.7 提出一种可操控的通用 VLA 训练方法，用语言、子任务、子目标图像、控制模式和质量/速度/错误等元数据共同构成 prompt，让单一机器人基础模型能从混合质量、多机器人和非机器人数据中学习。它解决了此前 VLA 往往需要任务专门微调、难以组合已学技能完成新任务的问题，展示了零样本跨本体迁移和初步组合泛化。
 
 #### 🎯 核心要点
 
-- 单一统一模型：π0.7 是一个通用 VLA 模型，能操控多种不同类型的机器人执行广泛任务，无需针对具体任务/本体进行微调
-- 可操控（Steerable）架构：训练时注入多样化多模态提示——语言指令（what to do）、元数据/策略元数据（how to do: 质量、速度）、控制模态切换、视觉子目标图像
-- 涌现组合泛化（Compositional Generalization）：首次展现机器人基础模型像 LLM 一样重组已学技能解决全新任务（如操作未见过的厨房电器、折叠衣物在新机器人本体上）
-- 语言指导（Language Coaching）：可通过逐步口头指令"教"机器人新任务，并将指导经验蒸馏为高层策略实现完全自主执行
-- Recap 蒸馏：将 RL（Recap 算法）训练中产生的自主数据蒸馏到 π0.7 模型中，单模型在折叠衣物、制作浓缩咖啡、折叠纸箱等任务上达到或超越 RL 专家策略的性能和吞吐量
-- 跨本体迁移（Cross-Embodiment Transfer）：从固定双臂数据采集机器人到 UR5e 双臂系统的折叠衣物零样本迁移，成功率匹配经验丰富的人类遥操作员的零样本表现
-- 广泛数据混合：融合多种机器人数据、人类演示数据和自主策略 rollout 数据，通过策略元数据标签（如质量/速度级别）实现有效的数据混合利用
+- 5B 参数级 VLA：由约 4B Gemma3 VLM backbone、MEM 风格视频历史编码器和约 860M flow-matching action expert 组成。
+- 核心不是单一新模块，而是 diverse context conditioning：训练时给每段数据附加“做什么”和“怎么做”的多模态上下文。
+- Prompt 组成包括 task instruction、subtask instruction、multi-view subgoal images、episode metadata、mistake label 和 control mode。
+- Episode metadata 标注执行质量、速度/长度、是否犯错等信息，使模型可以利用低质量演示、失败、自主 rollout 和 RL specialist 经验，而不是被它们平均化拖累。
+- 子目标图像由轻量世界模型在测试时生成，帮助策略把抽象语言目标转成近未来视觉状态，尤其利于跨本体和空间布局变化。
+- 训练时对 prompt 组件做随机 dropout，让模型能在测试时灵活使用任意子集；有人工口头指导时也能逐步执行新长时任务。
+- 实验展示 out-of-the-box dexterity、复杂语言跟随、UR5e 零样本洗衣折叠迁移，以及空气炸锅/烤面包机等未见长时任务的语言 coaching。
 
 #### 🔬 深入细节
 
-##### 核心架构与推理流程
+![π0.7 架构总览](https://ar5iv.labs.arxiv.org/html/2604.15483/assets/x1.png)
+*图：π0.7 用 VLM backbone、observation memory、action expert、high-level policy 和 world model 组成可操控 VLA 系统。*
 
-![π0.7 训练与推理流程示意图](https://www.pi.website/_next/image?url=%2Fimages%2Fpi07%2Fsubgoal_1.png&w=3840&q=75)
-*图：π0.7 训练时接收语言指令、子目标图像、Episode 元数据（Quality/Speed）；推理时由高层策略生成任务指令 → 子任务指令，世界模型生成子目标图像，VLA 政策执行动作*
+元信息中的 `paper_url` 是官方博客的标题式地址；公开页面实际可访问版本为 `https://www.pi.website/blog/pi07`，并链接论文 `π0.7: a Steerable Generalist Robotic Foundation Model with Emergent Capabilities`（arXiv:2604.15483）。论文给出的主张是：机器人 foundation model 的泛化瓶颈不只是数据量，而是异构数据里的“策略意图”没有被充分条件化。若把高质量演示、失败轨迹、不同机器人、不同控制模式、人类视频和互联网多模态数据直接混在一起，模型容易学到平均行为；π0.7 用更详细的 prompt 把这些差异显式告诉模型。
 
-π0.7 的架构核心是一种**可操控（Steerable）的 VLA 模型**，其关键创新在于训练时向模型注入的不只是"做什么（what）"，还包括"怎么做（how）"的信息。训练时的多模态提示流包括：
+π0.7 的低层 VLA 仍然遵循 flow-based action expert 范式：给定历史观测 \(o_{t-T:t}\)、上下文 \(C_t\)，预测未来动作块 \(a_{t:t+H}\)。可以把训练目标写成：
 
-1. **语言指令**：描述任务的自然语言（如 "pick up the oven mitt" → "open the drawer" → "grab the spatula"...），构成任务执行的层次化语义指导
-2. **视觉子目标（Subgoal Images）**：世界模型生成的期望未来观察图像，为策略提供视觉锚定的中间目标状态
-3. **Episode 元数据（Metadata）**：标量标签（如 Quality 和 Speed 等级），使同一模型可以根据部署需求调整行为风格——高质量模式更稳健，高速度模式更快
+$$
+\max_\theta\ \mathbb{E}_{D}\left[\log \pi_\theta(a_{t:t+H}\mid o_{t-T:t}, C_t)\right]
+$$
 
-推理时的高层流程：
+其中上下文不再只是短语言指令，而是多模态结构：
 
-```
-高层策略（High-Level Policy）
-  ├── 任务指令（TASK INSTRUCTION）
-  └── 子任务指令序列（SUBTASK INSTRUCTIONS）
-       └── 世界模型（World Model）
-            └── 子目标图像（SUBGOAL）+ 期望元数据（Quality/Speed）
-                 └── π0.7 VLA Policy → 动作序列
-```
+$$
+C_t = (\ell_{\mathrm{task}}, \ell_{\mathrm{subtask}}, g_t, m_{\mathrm{quality}}, m_{\mathrm{speed}}, m_{\mathrm{mistake}}, m_{\mathrm{control}})
+$$
+
+\(\ell_{\mathrm{task}}\) 描述总体任务，例如“clean the kitchen”；\(\ell_{\mathrm{subtask}}\) 描述当前阶段，例如“pick up the knife”；\(g_t\) 是多视角子目标图像；metadata 描述该段轨迹执行得快不快、好不好、是否出错以及使用关节控制还是末端控制。这个设计的直觉是：失败轨迹也能教模型“什么情况下会失败”，但前提是模型知道它是失败轨迹，而不是把它当成理想示范。
 
 ```python
-# π0.7 推理流程伪代码
-def pi07_inference(observation_history, task_instruction, metadata):
-    """
-    推理时 π0.7 接收多模态提示并自回归生成动作序列
-    
-    Args:
-        observation_history: 历史观测（图像）序列
-        task_instruction:  高层/子任务语言指令
-        metadata:          dict with "quality" 和 "speed" 键控制行为风格
-    """
-    # 1. 高层策略将任务分解为子任务语言指令
-    subtask_instructions = high_level_policy.generate(task_instruction)
-    
-    for subtask_text in subtask_instructions:
-        # 2. 世界模型根据当前观测+子任务文本生成视觉子目标
-        subgoal_image = world_model(
-            observation_history,
-            subtask_text,
-            desired_metadata=metadata
+# π0.7 测试时可操控推理伪代码
+def pi07_rollout(observation_history, task_instruction, desired_metadata):
+    memory = encode_observation_history(observation_history)
+    subtask = high_level_policy(
+        observation=observation_history,
+        task=task_instruction,
+        metadata=desired_metadata,
+        previous_subtasks=[]
+    )
+
+    while not task_done():
+        subgoal_images = world_model(
+            current_observation=observation_history,
+            subtask_instruction=subtask,
+            metadata=desired_metadata
         )
-        
-        # 3. VLA 策略融合所有模态生成动作
-        #    输入: 观测记忆 + 子任务文本 + 子目标图像 + 元数据
-        action = pi07_vla_policy(
-            obs_memory=observation_history,
-            language_prompt=subtask_text,
-            visual_subgoal=subgoal_image,
-            quality_flag=metadata["quality"],
-            speed_flag=metadata["speed"]
+
+        context = {
+            "task": task_instruction,
+            "subtask": subtask,
+            "subgoal_images": subgoal_images,
+            "metadata": desired_metadata,
+            "control_mode": choose_control_mode(task_instruction)
+        }
+
+        action_chunk = pi07_vla_action_expert(
+            observation_memory=memory,
+            context=context
         )
-        
-        # 4. 执行动作并更新观测历史
-        observation_history = execute_and_update(action)
+        execute_prefix(action_chunk)
+        observation_history = update_observations()
+        memory = update_memory(memory, observation_history)
+        subtask = high_level_policy(observation_history, task_instruction, desired_metadata)
 ```
 
-##### 组合泛化的实现机制
+![π0.7 prompt 示例](https://ar5iv.labs.arxiv.org/html/2604.15483/assets/x2.png)
+*图：同一个模型可以同时接收当前观测、子目标图像、子任务文本和 metadata；折衣任务中使用 subgoal 与质量/速度提示完成跨本体迁移。*
 
-π0.7 的组合泛化能力来源于三个层面的设计：
+子任务语言解决的是长时任务分解。对“把食物放到桌上”这类任务，单句总体指令不一定告诉机器人下一步该按微波炉按钮、取盘子还是关门。π0.7 在训练中为片段标注中间语义步骤，让模型能被人类实时 coaching，也能由高层策略自动生成下一条 subtask instruction。论文中空气炸锅、倒出空气炸锅、烤贝果等长时任务没有对应机器人训练轨迹，但模型可以在人工逐步口头提示下完成，再把这些语言指导轨迹用于训练高层策略，实现自主执行。
 
-**① 多样化多模态提示的解耦训练（Disentangled Prompt Training）**
+子目标图像解决的是“语言不够具体”。例如“抓住把手”没有说明手腕视角下夹爪应处于何种姿态；世界模型根据当前观测和子任务生成近未来目标图像，把目标状态以视觉方式传给 VLA。这个机制在跨本体时尤其重要：源机器人和 UR5e 的工作空间、惯量和夹爪姿态不同，生成的子目标能给目标机器人一个更贴合自身形态的视觉参照。
 
-传统 VLA 模型训练时仅使用单一的语言指令或目标图像，π0.7 在训练过程中**同时或交替使用多种提示模态**——语言、元数据、控制模态标志和视觉子目标。这迫使模型学会将技能的不同维度（语义理解、行为质量、执行速度、视觉推理）解耦编码，从而在推理时可以实现自由重组。
+metadata 是 π0.7 能利用混合质量数据的关键。论文把 episode speed/length、quality score、mistake label 等作为 prompt token 注入训练；部署时可以要求高质量、较快、无错误的行为。这样，低质量或失败数据不会被简单平均进“理想动作”，而是作为有条件经验存在。官方博客还强调，将 RL specialist/Recap 过程中产生的自主数据加上策略元数据蒸馏进 π0.7 后，单一 generalist 能在洗衣、浓缩咖啡、折箱等任务上接近或超过专门 RL policy 的吞吐和成功率。
 
-例如，训练数据中：
-- 样本 A：语言 = "fold the towel"，质量 = high，速度 = low
-- 样本 B：语言 = "wipe the counter"，质量 = medium，速度 = high
-- 样本 C：仅提供视觉子目标，无语言
+与 π0/π0.5 这类主要依赖短任务描述的模型相比，π0.7 的提升来自更丰富的上下文接口。论文明确说它构建在 π0.6 与 MEM 记忆系统之上，并不是把泛化归因于一个孤立的新网络层；真正的设计点是让训练样本携带足够的“意图解释”，使模型能从多机器人、多策略、多质量的数据中抽取可组合技能。
 
-通过交错训练，模型学会了"折叠毛巾"的语义技能和"高质量"的执行风格是两个可独立的因子，推理时即可将"折叠衣物"（已学语义）+"高质量"+"UR5e 本体观测"组合。
+实验层面，π0.7 的亮点包括：无需任务特定后训练即可完成浓缩咖啡、洗衣、扔垃圾袋、折箱、削蔬菜等 dexterous long-horizon 任务；在未见厨房/卧室环境中跟随复杂语言；在没有 UR5e 洗衣折叠数据的情况下，将源双臂平台的折衣技能迁移到 bimanual UR5e，并达到接近专家遥操作员零样本表现的成功率；对新短任务可直接 prompt，对更长的新电器任务可通过语言 coaching 学会。
 
-**② 语言指导（Language Coaching）的动态技能获取**
-
-这是 π0.7 实现新任务泛化的关键管道。对于训练数据中未出现的新任务（如操作空气炸锅），人类通过逐步口头指令引导机器人：
-
-1. **零样本尝试**：给定高层指令 "load a sweet potato into the air fryer"，π0.7 做出合理但不完整的尝试（打开空气炸锅、尝试放入红薯，但未能完成）
-2. **逐步语言指导**：人类提供细致步骤指令（"open the air fryer basket" → "place the sweet potato inside" → "close the basket" → "press start"），π0.7 在执行过程中将语言指令与视觉观察和动作进行对齐
-3. **高层策略蒸馏**：多次指导后，将成功的语言指令序列用于微调高层策略，使其能自主生成子任务指令序列，实现完全自主执行
-
-这一流程本质上是一种**基于语言的上下文化强化学习**：模型利用预训练的语义理解和物理操控能力，通过语言提示"锚定"新任务的执行轨迹。
-
-**③ Recap RL 经验的数据蒸馏**
-
-π0.7 在训练数据上集成了 Recap 算法产生的自主 rollout 轨迹。Recap 是 RL 微调流程，用于同时优化任务成功率和执行速度。关键发现是：
-
-- 直接将 RL rollout 数据与其他数据源（人类演示、不同机器人数据）混合训练**并不能**带来好的效果
-- 解决方案是给每条数据打上策略元数据标签（quality level, speed level），让模型在学习过程中条件化于这些元数据
-- 最终单一 π0.7 模型能在折叠衣物、浓缩咖啡制作、折叠纸箱等任务上达到或超越任务专属 RL 专家策略（Recap specialist）的表现
-
-这验证了一个重要假设：**如果给予正确的条件化信号，通用模型可以从多样化质量的数据中有效学习，而不会被低质量数据污染**。
-
-##### 与传统方法的区别
-
-| 维度 | 传统 VLA 模型 | π0.7 |
-|------|:------------:|:----:|
-| 任务泛化 | 需对每个任务微调（fine-tuning）才能获得好性能 | 开箱即用，多任务直出 |
-| 技能重组 | 未见组合泛化能力报道 | 涌现组合泛化，操作新电器、新本体折叠衣物 |
-| 行为风格 | 固定策略，无法调节质量/速度 | 通过元数据标签实时调控行为风格 |
-| 新技能获取 | 需收集新演示数据 | 语言指导 + 高层策略蒸馏，无新遥操作数据 |
-| 数据利用 | 谨慎过滤数据，避免低质量数据拖累 | 策略元数据条件化，可有效利用混合质量数据 |
-
-> 💡 关键洞察：π0.7 的核心贡献不是架构创新，而是**训练策略和数据混合方式的创新**——它证明了正确的多模态条件化可以让 VLA 模型涌现出此前仅在 LLM 中观察到的组合泛化能力。
-
-> ⚠️ 注意：π0.7 的组合泛化仍处于"早期迹象"阶段——在空气炸锅任务的重试后仍需语言指导才能成功。Physical Intelligence 明确将其描述为"first signs of compositional generalization"，而非完全解决。
-
-##### 训练与推理代价
-
-从博客披露的信息推断，π0.7 的训练融合了：
-- 多机器人平台（双臂固定式、UR5e 双臂、Franka 等）的操作数据
-- 开源 DROID 数据集（Franka 臂）
-- 人类遥操作演示数据
-- Recap RL 自主 rollout 数据
-
-策略元数据标签（Quality/Speed）使模型可以条件化地利用不同质量水平的数据——低质量数据在低质量标签下仍可提供有价值的探索信息，而不会在高标签条件下误导模型。这是数据高效利用的关键工程设计。
+> ⚠️ 注意：π0.7 展示的是“strong signs of compositional generalization”，不是完全解决机器人组合泛化。论文也指出新任务定义、训练数据泄漏边界和长时自主稳定性仍然是评估难点。
 
 #### 🧪 练习题
 
 ```yaml
-question: "π0.7 实现组合泛化的关键训练机制是什么？"
+question: "π0.7 为什么要在 prompt 中加入质量、速度、错误等 episode metadata？"
 options:
-  - "使用更大的 Transformer 模型参数量"
-  - "通过多模态提示（语言、元数据、子目标图像）解耦技能维度，并在推理时重组"
-  - "在测试时用 RL 对每个新任务进行快速微调"
-  - "仅使用人类专家演示数据，确保数据质量一致性"
+  - "为了把动作空间从连续值改成纯文本输出"
+  - "为了让模型区分不同质量和策略的数据，从而利用失败或低质量数据而不把它们平均成理想行为"
+  - "为了删除语言指令，只依赖子目标图像"
+  - "为了让每个新任务都必须重新训练一个专用模型"
 answer: 1
-explain: "π0.7 训练时同时/交替接收语言指令、策略元数据（质量/速度）、视觉子目标等多样化提示，促使模型将技能语义与执行风格解耦编码；推理时可通过自由重组这些因子实现对未见任务/本体的泛化。"
+explain: "metadata 把轨迹的执行方式和质量显式条件化，部署时可要求高质量/无错误策略；否则混合演示、失败和自主 rollout 容易让模型学到平均且次优的动作。"
 ```

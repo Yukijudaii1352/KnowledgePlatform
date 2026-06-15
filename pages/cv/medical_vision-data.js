@@ -1,5 +1,5 @@
 /**
- * medical_vision-data.js — 由 pipeline/build.py 于 2026-06-15 09:55:52 自动生成。
+ * medical_vision-data.js — 由 pipeline/build.py 于 2026-06-15 17:41:28 自动生成。
  * 源文件：content/cv/medical_vision.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -429,7 +429,7 @@ window.PAGE_CONFIG = {
         "核心动机：可学习注意力权重聚合实例特征解决WSI弱监督",
         "代表机构：阿姆斯特丹大学"
       ],
-      "detail": "<p>可学习注意力权重聚合实例特征解决WSI弱监督</p>"
+      "detail": "<h3>架构图</h3>\n<p>论文Figure 6展示了三种MIL架构的对比：</p>\n<p><img alt=\"MIL架构对比\" src=\"https://ar5iv.labs.arxiv.org/html/1802.04712/assets/x1.png\" /></p>\n<blockquote>\n<p>Figure 6: (a) Instance-based：先打分再聚合；(b) Embedding-based：先聚合再分类；(c) <strong>Attention-based（本文）</strong>：用可学习的attention权重聚合嵌入。</p>\n</blockquote>\n<h3>Attention计算伪代码</h3>\n<p>```python</p>"
     },
     {
       "id": "unet_pp",

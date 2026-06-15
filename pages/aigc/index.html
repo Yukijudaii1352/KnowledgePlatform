@@ -4,21 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AIGC · AI Knowledge Hub</title>
+<script>
+(function(){try{var theme=localStorage.getItem('kp_theme_v1')||'dark';document.documentElement.dataset.theme=theme==='light'?'light':'dark';document.documentElement.style.colorScheme=document.documentElement.dataset.theme;}catch(e){document.documentElement.dataset.theme='dark';}})();
+</script>
 <link rel="stylesheet" href="../../assets/css/common.css">
-<style>
-.topic-card { position: relative; transition: all 0.28s ease; }
-.topic-card.ready { border-left: 3px solid var(--accent); }
-.topic-card.coming { opacity: 0.55; }
-.topic-card.card-clickable:hover { transform: translateY(-3px); }
-.topic-name { font-size: 1.08rem; font-weight: 700; margin-bottom: 8px; color: var(--text); }
-.topic-desc { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.65; }
-.topic-meta {
-  display: flex; gap: 14px; margin-top: 14px;
-  font-size: 0.82rem; color: var(--text-dim);
-}
-</style>
 </head>
-<body>
+<body class="tech-page domain-index-page">
+<canvas class="tech-dotfield" aria-hidden="true"></canvas>
 
 <header class="topbar">
   <div class="shell">
@@ -42,8 +34,23 @@
 
 <div class="shell-narrow">
   <div class="page-header">
+    <span class="domain-kicker">DOMAIN NODE</span>
     <h1>🎨 AIGC</h1>
     <p>AI 生成内容：文本、图像、视频、音频、3D 内容生成。</p>
+    <div class="domain-readout">
+      <div class="domain-readout-item">
+        <span class="domain-readout-num">8</span>
+        <span class="domain-readout-label">已上线专题</span>
+      </div>
+      <div class="domain-readout-item">
+        <span class="domain-readout-num">8</span>
+        <span class="domain-readout-label">目录专题</span>
+      </div>
+      <div class="domain-readout-item">
+        <span class="domain-readout-num">LIVE</span>
+        <span class="domain-readout-label">自动扫描</span>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -70,5 +77,6 @@
   </div>
 </footer>
 
+<script src="../../assets/js/tech-effects.js" defer></script>
 </body>
 </html>

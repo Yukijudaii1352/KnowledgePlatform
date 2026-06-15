@@ -1,5 +1,5 @@
 /**
- * mm_retrieval-data.js — 由 pipeline/build.py 于 2026-06-15 09:55:59 自动生成。
+ * mm_retrieval-data.js — 由 pipeline/build.py 于 2026-06-15 17:41:34 自动生成。
  * 源文件：content/mm/mm_retrieval.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -411,7 +411,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 clip",
         "代表机构：Salesforce"
       ],
-      "detail": "<p>CapFilt机制提升数据质量</p>"
+      "detail": "<p><img alt=\"BLIP 学习框架\" src=\"https://ar5iv.labs.arxiv.org/html/2201.12086/assets/x3.png\" />\n<em>图：论文 Figure 3。BLIP 用 Captioner 生成合成 caption，用 Filter 去除噪声 image-text pairs，再将过滤后的数据与人工标注数据合并继续预训练。</em></p>\n<p><img alt=\"BLIP MED 架构与目标\" src=\"https://ar5iv.labs.arxiv.org/html/2201.12086/assets/x2.png\" />\n<em>图：论文 Figure 2。MED 通过共享模块实现图文对比、图文匹配和条件语言建模三类目标。</em></p>\n<p>```python</p>"
     },
     {
       "id": "blip2",
@@ -635,7 +635,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 imagebind",
         "代表机构：—"
       ],
-      "detail": "<p>MLLM-as-a-Judge自动标注</p>"
+      "detail": "<p><img alt=\"UniME-V2 与传统方法对比\" src=\"https://garygutc.github.io/UniME-v2/static/image_uniMEv2/introduction.png\" />\n<em>图：传统方法主要在 batch 内找难负样本，并用 one-hot 目标训练；UniME-V2 改为全局检索候选、用 MLLM-as-a-Judge 给软语义分数，再把嵌入相似度分布对齐到语义分布。</em></p>\n<p><img alt=\"MLLM-as-a-Judge 难负样本挖掘流程\" src=\"https://garygutc.github.io/UniME-v2/static/image_uniMEv2/method1.png\" />\n<em>图：UniME-V2 先通过现成嵌入模型召回潜在难负样本，再用 MLLM 判断 query-candidate 是否语义匹配，从而过滤 false negatives 并保留更有训练价值的 hard negatives。</em></p>\n<p><img alt=\"UniME-V2 训练框架与 Reranker\" src=\"https://garygutc.github.io/UniME-v2/static/image_uniMEv2/method2.png\" />\n<em>图：UniME-V2 使用 MLLM 语义分数作为软监督训练嵌入模型；UniME-V2-Reranker 通过 pairwise 和 listwise 目标学习候选重排序。</em></p>\n<p>```python</p>"
     }
   ],
   "categories": {

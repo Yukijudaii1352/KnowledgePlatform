@@ -1,0 +1,4 @@
+overview:
+  include_raw: temp/content_survey_bulk_20260614_174337/researcher_output/infra/distributed_training/overview/zhihu__Efficient_Training_of_Large_Language_Models_on_Dis__644d92e7/article.md
+latest_overview:
+  include_raw: temp/content_survey_bulk_20260614_174337/researcher_output/infra/distributed_training/latest/zhihu__AI_Infra_多机多卡训练深度分析报告与最佳实践__8dabf540/article.md

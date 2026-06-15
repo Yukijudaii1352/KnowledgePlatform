@@ -1,5 +1,5 @@
 /**
- * digital_human-data.js — 由 pipeline/build.py 于 2026-06-15 09:55:50 自动生成。
+ * digital_human-data.js — 由 pipeline/build.py 于 2026-06-15 17:41:27 自动生成。
  * 源文件：content/aigc/digital_human.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -580,7 +580,7 @@ window.PAGE_CONFIG = {
         "核心动机：首个实时RGB视频面部重演系统",
         "代表机构：斯坦福/纽伦堡大学"
       ],
-      "detail": "<p>首个实时RGB视频面部重演系统</p>"
+      "detail": "<h5>核心示意图</h5>\n<p>论文主页可访问，但部分原图直链不稳定；这里使用公开 ar5iv 页面中可访问的 Face2Face pipeline 图作为框架图。</p>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2007.14808/assets/images/pipeline2.jpg\" alt=\"Face2Face pipeline\" loading=\"lazy\"><p class=\"img-caption\">▲ Face2Face pipeline</p></div>\n<h5>方法拆解</h5>\n<p>Face2Face 使用参数化人脸模型描述几何形状，通常可以写成身份与表情的线性可加形式：</p>\n<div class=\"kb-math kb-math-display\">M_{geo}(\\alpha,\\delta)=\\bar{M}+B_{id}\\alpha+B_{exp}\\delta</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">\\alpha</span> 表示目标人物身份，<span class=\"kb-math kb-math-inline\">\\delta</span> 表示当前表情。系统离线阶段会通过非刚性 model-based bundling 从目标视频中恢复较稳定的身份、纹理/反照率与光照估计；在线阶段则在每一帧快速优化姿态、表情和少量光照，使合成脸能够贴合输入视频。</p>\n<p>在线跟踪的目标函数由光度项、landmark 项、正则项和时间平滑项组成：</p>\n<div class=\"kb-math kb-math-display\">E_{track}=E_{photo}+\\lambda_{lan}E_{lan}+\\lambda_{reg}E_{reg}+\\lambda_{temp}E_{temp}</div>\n<p>光度项约束渲染图像和真实帧在可见区域的颜色一致，landmark 项抑制纯光度优化在快速运动和遮挡下的漂移，正则项避免身份/表情系数落到不可信区域，时间项让连续帧参数更平滑。由于每帧都依赖上一帧初始化，并且只优化低维参数，该系统可以接近实时运行。</p>\n<p>表情转移不是直接拷贝像素，而是在源和目标的 blendshape 空间中做 deformation transfer。源视频估计出的表达变化会被映射到目标身份上，目标仍保留自己的头部姿态、肤色、光照和背景。随后系统重新渲染目标脸部，并与原视频融合。</p>\n<p>嘴部区域是系统最脆弱的部分，因为牙齿、舌头和口腔内部很难由简单 3DMM 正确建模。Face2Face 为目标视频建立 mouth interior database，根据当前口型和时间连续性检索合适的嘴部纹理，再和重演结果融合。这让它在 2016 年的实时场景下获得了比单纯渲染更自然的口腔细节。</p>\n<h5>核心流程伪代码</h5>\n<pre><code class=\"language-python\">def face2face_reenact(source_video, target_video):\n    target_identity = bundle_fit_identity(target_video)\n    target_reflectance, target_lighting = estimate_appearance(target_video, target_identity)\n    mouth_database = build_target_mouth_database(target_video, target_identity)\n\n    for src_frame, tgt_frame in stream(source_video, target_video):\n        src_params = track_rgb_frame(src_frame)\n        tgt_params = track_rgb_frame(tgt_frame, identity=target_identity)\n\n        transferred_expr = deformation_transfer(\n            source_expression=src_params.expression,\n            target_identity=target_identity,\n        )\n        reenacted_mesh = render_target_face(\n            identity=target_identity,\n            expression=transferred_expr,\n            pose=tgt_params.pose,\n            lighting=target_lighting,\n        )\n        mouth = retrieve_mouth_texture(mouth_database, transferred_expr, prev_choice=True)\n        output = composite_face_and_mouth(tgt_frame, reenacted_mesh, mouth)\n        yield output\n</code></pre>\n<h5>优势与局限</h5>\n<p>Face2Face 的优势是可解释、可控、实时，并且不需要大规模神经网络训练。它直接显式操控表情参数，所以适合早期实时交互和可视化研究。</p>\n<p>局限也来自同一套显式建模假设：系统依赖人脸跟踪质量，难以处理大遮挡、极端姿态、复杂头发和非刚性皮肤细节。身份纹理主要来自目标视频，重演的真实感受目标素材覆盖度影响明显。和后来的扩散模型或神经渲染方法相比，它的生成能力较弱，但工程闭环非常清晰。</p>"
     },
     {
       "id": "monkey_net",
@@ -600,7 +600,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 face2face",
         "代表机构：Snap Inc."
       ],
-      "detail": "<p>自监督移动关键点学习实现通用动画</p>"
+      "detail": "<h5>核心示意图</h5>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/1812.08861/assets/x2.png\" alt=\"Monkey-Net architecture\" loading=\"lazy\"><p class=\"img-caption\">▲ Monkey-Net architecture</p></div>\n<h5>方法拆解</h5>\n<p>Monkey-Net 的训练样本来自同一视频的两帧 <span class=\"kb-math kb-math-inline\">x_s</span> 和 <span class=\"kb-math kb-math-inline\">x_d</span>。由于两帧属于同一物体或同一身份，模型可以把 <span class=\"kb-math kb-math-inline\">x_s</span> 当作外观来源，把 <span class=\"kb-math kb-math-inline\">x_d</span> 当作运动目标，通过重建 <span class=\"kb-math kb-math-inline\">x_d</span> 自动学到哪些位置在运动中最有解释力。关键点不是人工标签，而是检测器为了降低重建误差主动发现的中间表示。</p>\n<p>关键点检测器输出 <span class=\"kb-math kb-math-inline\">K</span> 个二维点：</p>\n<div class=\"kb-math kb-math-display\">P_s=\\Delta(x_s),\\quad P_d=\\Delta(x_d)</div>\n<p>运动预测网络根据源关键点和驱动关键点之间的位移估计稠密运动场 <span class=\"kb-math kb-math-inline\">\\hat{T}_{s\\leftarrow d}</span>。生成器再利用该运动场从源图像或源特征中采样，把源外观变形到目标姿态。相比只在稀疏点附近做局部贴图，dense motion 可以让脸颊、衣服、动物肢体等非关键点区域也产生连续变化。</p>\n<p>为了避免关键点塌缩到无意义位置，训练通常引入等变性约束：对图像施加随机几何变换 <span class=\"kb-math kb-math-inline\">T</span> 后，关键点也应按同样方式变化：</p>\n<div class=\"kb-math kb-math-display\">\\Delta(T(x)) \\approx T(\\Delta(x))</div>\n<p>这个约束使关键点更像真实可跟踪的物体部件，而不是生成器内部任意编码。推理时，给定一张源图像和一段驱动视频，系统逐帧取驱动关键点并驱动源图像。若直接使用绝对关键点，源图像可能继承驱动主体的比例；使用相对位移可更好保留源主体形状。</p>\n<h5>核心流程伪代码</h5>\n<pre><code class=\"language-python\">def train_monkey_net(video_batch):\n    source, driving = sample_two_frames(video_batch)\n    source_kp = keypoint_detector(source)\n    driving_kp = keypoint_detector(driving)\n\n    dense_motion = motion_predictor(source, source_kp, driving_kp)\n    reconstruction = generator(source, dense_motion)\n\n    loss = perceptual_loss(reconstruction, driving)\n    loss += equivariance_loss(keypoint_detector, source)\n    update(loss)\n\n\ndef animate(source_image, driving_video):\n    source_kp = keypoint_detector(source_image)\n    for frame in driving_video:\n        driving_kp = keypoint_detector(frame)\n        motion = motion_predictor(source_image, source_kp, driving_kp)\n        yield generator(source_image, motion)\n</code></pre>\n<h5>贡献与不足</h5>\n<p>Monkey-Net 的关键贡献是把动画问题转成“学习可迁移运动表示”的问题。它不限定对象必须是人脸，因此能扩展到人体、动物或其他具有规律运动的类别。</p>\n<p>不足在于关键点没有语义监督，稳定性和可控性不如人脸 landmark；当驱动运动超出源图像可见区域时，生成器需要凭训练先验补全，结果容易模糊。它的 dense motion 主要由关键点位移诱导，无法充分刻画局部旋转、尺度和非刚性形变，这正是 FOMM 引入一阶运动近似的原因。</p>"
     },
     {
       "id": "fomm",
@@ -620,7 +620,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 monkey_net",
         "代表机构：Snap Inc."
       ],
-      "detail": "<p>一阶泰勒近似运动场实现单图驱动</p>"
+      "detail": "<h5>核心示意图</h5>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2003.00196/assets/x5.png\" alt=\"FOMM overview\" loading=\"lazy\"><p class=\"img-caption\">▲ FOMM overview</p></div>\n<h5>方法拆解</h5>\n<p>FOMM 的核心观察是：只用关键点位移描述运动过于粗糙。真实面部或人体运动在关键点附近不只是平移，还包含局部旋转、缩放和非刚性变形。因此论文把局部运动写成一阶泰勒展开，关键点 <span class=\"kb-math kb-math-inline\">p_k</span> 附近的变换由位置和 Jacobian 共同决定。</p>\n<p>对第 <span class=\"kb-math kb-math-inline\">k</span> 个关键点，源到驱动的候选反向变换可写成：</p>\n<div class=\"kb-math kb-math-display\">T_{s\\leftarrow d,k}(z)=p_{s,k}+J_{s,k}J_{d,k}^{-1}(z-p_{d,k})</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">p_{s,k},p_{d,k}</span> 是源帧和驱动帧的关键点位置，<span class=\"kb-math kb-math-inline\">J_{s,k},J_{d,k}</span> 是对应局部仿射矩阵。这个公式让局部区域可以随驱动帧发生旋转和形变，而不只是围绕关键点平移。</p>\n<p>Dense motion network 会接收所有候选变换后的源图像/特征，并预测每个像素属于哪个局部运动的软掩码 <span class=\"kb-math kb-math-inline\">M_k(z)</span>。最终稠密运动场是多个候选场的加权和：</p>\n<div class=\"kb-math kb-math-display\">\\hat{T}_{s\\leftarrow d}(z)=\\sum_{k=0}^{K}M_k(z)T_{s\\leftarrow d,k}(z)</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">k=0</span> 常表示背景恒等变换。由于驱动姿态可能暴露源图像中不存在的区域，网络还会预测遮挡图 <span class=\"kb-math kb-math-inline\">\\hat{O}</span>，生成器据此决定哪些 warping 特征可用，哪些需要由生成先验补全。</p>\n<h5>核心流程伪代码</h5>\n<pre><code class=\"language-python\">def fomm_forward(source, driving):\n    kp_s, jac_s = keypoint_detector(source)\n    kp_d, jac_d = keypoint_detector(driving)\n\n    candidate_flows = [identity_flow()]\n    for k in range(num_keypoints):\n        local_flow = first_order_flow(\n            source_point=kp_s[k],\n            driving_point=kp_d[k],\n            source_jacobian=jac_s[k],\n            driving_jacobian=jac_d[k],\n        )\n        candidate_flows.append(local_flow)\n\n    masks, occlusion = dense_motion_network(source, candidate_flows)\n    dense_flow = weighted_sum(masks, candidate_flows)\n    return generator(source, dense_flow, occlusion)\n</code></pre>\n<h5>训练与推理</h5>\n<p>训练时，FOMM 从同一视频抽取源帧和驱动帧，要求重建驱动帧。关键点检测器、dense motion network 和生成器端到端训练。等变性损失同样重要：随机变换图像后，关键点位置和 Jacobian 应与该变换一致，这会抑制关键点漂移到纹理噪声上。</p>\n<p>推理时，源图像只需一张。驱动视频逐帧提供运动，FOMM 通过相对关键点运动把驱动表情、头部姿态或物体姿态迁移到源图像上。它的速度和质量让它成为 talking-head 和 image animation 领域的强基线。</p>\n<p>局限是它仍依赖 2D warping。大姿态变化、严重遮挡、侧脸转正、口腔内部和头发等不可见区域需要生成器补全，容易出现模糊或伪影。后续 Head2Head、MegaPortraits、LivePortrait 和扩散式方法大多在高分辨率、3D 表达或时序生成方面继续改进。</p>"
     },
     {
       "id": "head2head",
@@ -640,7 +640,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 fomm",
         "代表机构：帝国理工"
       ],
-      "detail": "<p>神经网络条件视频合成提升质量</p>"
+      "detail": "<h5>核心示意图</h5>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2005.10954/assets/x1.png\" alt=\"Head2Head pipeline\" loading=\"lazy\"><p class=\"img-caption\">▲ Head2Head pipeline</p></div>\n<h5>方法拆解</h5>\n<p>Head2Head 的第一阶段从输入视频估计 3DMM 参数，包括身份、表情、头部姿态和相机。跟踪目标函数通常由 landmark 重投影、先验约束和时间平滑组成：</p>\n<div class=\"kb-math kb-math-display\">E=E_l+\\lambda_{pr}E_{pr}+\\lambda_{sm}E_{sm}</div>\n<p><span class=\"kb-math kb-math-inline\">E_l</span> 保证投影后的 3D landmark 贴合检测点，<span class=\"kb-math kb-math-inline\">E_{pr}</span> 约束身份和表情参数不要偏离合理人脸空间，<span class=\"kb-math kb-math-inline\">E_{sm}</span> 让连续帧动作平滑。得到参数后，系统可以把源视频的表情、头姿和眼动迁移到目标身份上，生成目标人物应该执行的 3D 条件序列。</p>\n<p>第二阶段是 neural video renderer。网络输入不是原始源脸，而是目标身份下的语义几何渲染，包括 NMFC（Normalized Mean Face Coordinates）、眼睛相关图和前景 mask。NMFC 可以理解为“当前像素属于标准人脸模型的哪个位置”，因此比 RGB 图像更稳定，也能让渲染器专注于把几何条件翻译成目标人物的真实纹理。</p>\n<p>为了提升时序质量，渲染器不只看当前条件帧，还参考前几帧生成结果，并结合光流或视频判别器约束连续帧一致。论文还特别强调嘴部区域，因为嘴唇和牙齿是人类最敏感的错误来源；针对嘴部的局部判别器能加强口型细节。</p>\n<h5>核心流程伪代码</h5>\n<pre><code class=\"language-python\">def head2head_pipeline(source_video, target_video):\n    target_model = fit_target_identity_and_renderer(target_video)\n    target_identity = target_model.identity\n\n    for source_frame in source_video:\n        source_params = track_3dmm(source_frame)\n        transferred = {\n            &quot;identity&quot;: target_identity,\n            &quot;expression&quot;: source_params.expression,\n            &quot;head_pose&quot;: source_params.head_pose,\n            &quot;eye_gaze&quot;: source_params.eye_gaze,\n        }\n        nmfc = render_nmfc(transferred)\n        eye_image = render_eye_condition(transferred)\n        mask = render_face_mask(transferred)\n        frame = neural_video_renderer(nmfc, eye_image, mask, previous_outputs=True)\n        yield frame\n</code></pre>\n<h5>价值与局限</h5>\n<p>Head2Head 的价值在于把“可控的几何参数”和“神经网络的真实感渲染”结合起来。几何阶段提供明确可编辑的表情、姿态和注视控制，神经阶段补足传统渲染难以处理的皮肤、头发、口腔和背景边界。</p>\n<p>它的代价是通常需要目标人物视频用于个体化训练或适配，泛化到新身份不像后来的 one-shot 方法那样方便。3DMM 跟踪错误也会传导到渲染条件中。相比扩散模型，Head2Head 的生成分布更窄，但在受控目标身份和视频到视频重演场景中具有清晰的工程路径。</p>"
     },
     {
       "id": "megaportraits",
@@ -660,7 +660,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 head2head",
         "代表机构：Samsung AI"
       ],
-      "detail": "<p>交叉注意力机制实现百万像素级合成</p>"
+      "detail": "<h5>核心示意图</h5>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2207.07621/assets/x1.png\" alt=\"MegaPortraits base model\" loading=\"lazy\"><p class=\"img-caption\">▲ MegaPortraits base model</p></div>\n<h5>方法拆解</h5>\n<p>MegaPortraits 的基础模型把源图像 <span class=\"kb-math kb-math-inline\">I_s</span> 编码为两类外观信息：一个三维神经体特征 <span class=\"kb-math kb-math-inline\">v_s</span>，以及一个全局外观描述符 <span class=\"kb-math kb-math-inline\">e_s</span>。驱动图像或驱动视频帧 <span class=\"kb-math kb-math-inline\">I_d</span> 通过 motion encoder 得到头部旋转、平移和表情相关 latent。这种设计把“这个人长什么样”和“现在怎么动”拆开处理。</p>\n<p>可以把生成过程抽象为：</p>\n<div class=\"kb-math kb-math-display\">v_s,e_s=A(I_s),\\quad m_d=M(I_d),\\quad \\hat{I}_d=G(W(v_s,m_d),e_s)</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">A</span> 是 appearance encoder，<span class=\"kb-math kb-math-inline\">M</span> 是 motion encoder，<span class=\"kb-math kb-math-inline\">W</span> 是按照驱动运动对 3D volume 做 canonical-to-driving 变形的模块，<span class=\"kb-math kb-math-inline\">G</span> 是投影后的 2D 生成器。由于中间表示具有 3D 结构，模型在较大头姿变化时比纯 2D 特征变形更稳。</p>\n<p>高分辨率是论文的重要目标。直接在百万像素视频上训练完整模型开销大，而且高分辨率动态 paired 数据不足。因此系统先学习中等分辨率的可控头像生成，再用高分辨率静态肖像、视频帧和增强器学习皮肤、眼睛、头发等细节。这个阶段不能简单理解为普通超分辨率，因为模型还必须在新表情和新姿态下保持身份一致。</p>\n<p>论文还讨论了蒸馏和轻量化思路：基础模型可以作为 teacher，把高质量神经头像能力压缩到更高效的 student 中，方便实际部署。MegaPortraits 的贡献不在于完全解决所有 talking-head 问题，而在于把 one-shot 驱动、3D latent 表示和高分辨率渲染较系统地结合起来。</p>\n<h5>核心流程伪代码</h5>\n<pre><code class=\"language-python\">def megaportaits_generate(source_image, driving_video):\n    volume, appearance_code = appearance_encoder(source_image)\n\n    for driving_frame in driving_video:\n        motion_code = motion_encoder(driving_frame)\n        canonical_volume = source_to_canonical_warp(volume)\n        driven_volume = canonical_to_driving_warp(canonical_volume, motion_code)\n        low_res = neural_renderer_2d(driven_volume, appearance_code)\n        high_res = portrait_enhancer(low_res, source_image, appearance_code)\n        yield high_res\n</code></pre>\n<h5>优势与局限</h5>\n<p>MegaPortraits 的优势是高质量 one-shot 头像动画，尤其适合单张参考图加驱动视频的场景。3D latent volume 让它在转头和表情变化时比普通 2D warping 更有几何余量。</p>\n<p>局限在于模型复杂度和训练成本较高，高分辨率阶段依赖数据分布和增强器质量。对于极端侧脸、手部遮挡、复杂发型和强光照变化，latent volume 仍可能无法完整恢复真实 3D 几何。后续 LivePortrait 更重视效率和可部署性，而扩散式方法则从生成先验和音频条件方向继续扩展。</p>"
     },
     {
       "id": "liveportrait",
@@ -680,7 +680,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 megaportraits",
         "代表机构：快手"
       ],
-      "detail": "<p>拼接与重定向控制提升效率</p>"
+      "detail": "<h5>核心示意图</h5>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2407.03168/assets/x2.png\" alt=\"LivePortrait training pipeline\" loading=\"lazy\"><p class=\"img-caption\">▲ LivePortrait training pipeline</p></div>\n<h5>方法拆解</h5>\n<p>LivePortrait 的基本生成路径可以写成：源图像提取外观特征，源和驱动图像分别估计隐式关键点及其运动参数，然后用驱动运动变换源特征，最后由生成器输出动画帧。隐式关键点不一定对应人类可命名的眼角或嘴角，但它们在训练中承担可变形控制点的作用。</p>\n<p>一种简化的关键点变换形式为：</p>\n<div class=\"kb-math kb-math-display\">x_s=s_s(R_s x_{c,s}+\\Delta_s)+t_s,\\quad\nx_d=s_d(R_d x_{c,d}+\\Delta_d)+t_d</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">x_c</span> 是规范空间关键点，<span class=\"kb-math kb-math-inline\">R</span>、<span class=\"kb-math kb-math-inline\">t</span>、<span class=\"kb-math kb-math-inline\">s</span> 表示头姿旋转、平移和尺度，<span class=\"kb-math kb-math-inline\">\\Delta</span> 表示表情形变。推理时，模型根据源和驱动的相对运动构造目标关键点，再通过 warping estimator 对源特征做变形。</p>\n<p>LivePortrait 的工程价值来自两个补丁式但很关键的控制模块。Stitching module 预测关键点或特征残差，让生成头部与源图背景、脖子、肩部等非头部区域自然衔接。Eye/lip retargeting module 根据眼睛开合比和嘴唇开合比调整动画，避免源图闭眼、驱动睁眼或口型幅度不匹配时产生错误。</p>\n<p>相比 FOMM，LivePortrait 更重视部署速度和用户可调控制；相比 MegaPortraits，它没有把重点放在复杂 3D volume 和百万像素神经头像，而是让常见单图肖像动画在消费级硬件上快速稳定运行。</p>\n<h5>核心流程伪代码</h5>\n<pre><code class=\"language-python\">def liveportrait_animate(source_image, driving_video, eye_ratio=None, lip_ratio=None):\n    source_feature = appearance_feature_extractor(source_image)\n    source_kp = canonical_keypoint_detector(source_image)\n    source_motion = motion_estimator(source_image)\n\n    for driving_frame in driving_video:\n        driving_motion = motion_estimator(driving_frame)\n        target_kp = transform_keypoints(source_kp, source_motion, driving_motion)\n\n        if eye_ratio is not None:\n            target_kp = eye_retargeting(target_kp, eye_ratio)\n        if lip_ratio is not None:\n            target_kp = lip_retargeting(target_kp, lip_ratio)\n\n        stitched_kp = stitching_module(source_kp, target_kp)\n        flow, occlusion = warping_estimator(source_feature, source_kp, stitched_kp)\n        yield generator(source_feature, flow, occlusion)\n</code></pre>\n<h5>优势与局限</h5>\n<p>LivePortrait 的优势是速度、可控性和开源生态友好。它适合实时预览、交互式头像、批量短视频生成等场景，不需要扩散模型的长步数采样。</p>\n<p>局限在于 warping 路线仍受源图可见内容限制。大角度转头、复杂遮挡、夸张表情和口腔细节仍可能比强生成先验的扩散模型更困难。它的亮点不是理论上最强的生成能力，而是把可用性、可控性和效率做成了可部署系统。</p>"
     },
     {
       "id": "emo",
@@ -700,7 +700,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 fomm",
         "代表机构：阿里巴巴"
       ],
-      "detail": "<p>直接Audio2Video无需中间表征</p>"
+      "detail": "<h5>核心示意图</h5>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2402.17485/assets/images/pipeline.png\" alt=\"EMO pipeline\" loading=\"lazy\"><p class=\"img-caption\">▲ EMO pipeline</p></div>\n<h5>方法拆解</h5>\n<p>EMO 的输入是一张参考肖像 <span class=\"kb-math kb-math-inline\">I_{ref}</span> 和一段音频 <span class=\"kb-math kb-math-inline\">a_{1:T}</span>，输出视频帧 <span class=\"kb-math kb-math-inline\">\\hat{I}_{1:T}</span>。扩散模型从噪声 latent 开始，逐步在参考身份和音频条件下去噪：</p>\n<div class=\"kb-math kb-math-display\">z_{t-1}=D_\\theta(z_t, I_{ref}, A(a), m, c_{speed}, t)</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">A(a)</span> 是预训练音频编码器提取的语音特征，<span class=\"kb-math kb-math-inline\">m</span> 是人脸区域或运动区域 mask，<span class=\"kb-math kb-math-inline\">c_{speed}</span> 是运动速度相关条件。相比先预测 landmark 再渲染，EMO 让网络在视频生成空间内直接学习音频到口型、表情和头部运动的对应关系。</p>\n<p>ReferenceNet 负责从参考图中提取身份和细节特征，并通过 attention 注入 denoising UNet。音频特征通常需要覆盖当前帧附近的上下文窗口，因为口型不仅由当前音素决定，还受前后音素和发音过渡影响。可以抽象为：</p>\n<div class=\"kb-math kb-math-display\">A_t = [A(a_{t-w}),\\ldots,A(a_t),\\ldots,A(a_{t+w})]</div>\n<p>Temporal Modules 在帧间传播信息，减少闪烁并让头部运动连续。Face locator 或 facial mask 提供弱空间约束，帮助模型知道应该在哪些区域生成与语音相关的变化，而不是让整个图像随音频无规律抖动。</p>\n<h5>核心流程伪代码</h5>\n<pre><code class=\"language-python\">def emo_generate(reference_image, audio):\n    ref_features = reference_net(reference_image)\n    audio_features = audio_encoder(audio)\n    face_mask = face_locator(reference_image)\n    latents = sample_video_noise(num_frames=audio_to_frames(audio))\n\n    for step in reversed(diffusion_steps):\n        local_audio = collect_audio_context(audio_features, step)\n        eps = denoising_unet(\n            latents,\n            timestep=step,\n            reference=ref_features,\n            audio=local_audio,\n            face_mask=face_mask,\n            temporal_context=True,\n        )\n        latents = diffusion_scheduler.step(latents, eps, step)\n\n    return vae_decode_video(latents)\n</code></pre>\n<h5>意义与局限</h5>\n<p>EMO 的意义在于把 audio-driven portrait 从“中间结构预测 + 图像合成”的管线推向端到端视频生成。它能利用扩散模型强大的视觉先验，生成更丰富的表情和头动，而不被 landmark 的低维表达限制。</p>\n<p>局限是推理成本较高，采样速度慢于 LivePortrait 这类 warping 方法。直接生成也意味着精确编辑更难：如果用户希望锁定某个眼神、头部轨迹或特定口型，显式控制不如 landmark/3DMM 路线直接。长视频还需要额外的分段连续性策略，否则身份、姿态和背景可能随时间漂移。</p>"
     },
     {
       "id": "hallo",
@@ -720,7 +720,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 emo",
         "代表机构：复旦/阿里"
       ],
-      "detail": "<p>分层音频注入解决时序一致性</p>"
+      "detail": "<h5>核心示意图</h5>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2406.08801/assets/fig_tab/halo.png\" alt=\"Hallo pipeline\" loading=\"lazy\"><p class=\"img-caption\">▲ Hallo pipeline</p></div>\n<h5>方法拆解</h5>\n<p>Hallo 的整体框架仍是条件视频扩散。参考图像经 ReferenceNet 提供身份与纹理，音频经 wav2vec 类编码器得到语音特征，denoising UNet 在这些条件下逐步生成视频 latent。基础去噪可抽象为：</p>\n<div class=\"kb-math kb-math-display\">z_{t-1}=D_\\theta(z_t, f_{ref}, f_{audio}, f_{motion}, t)</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">f_{motion}</span> 可以来自上一视频片段的运动帧，用来保持长视频段落之间的头部姿态和表情连续。</p>\n<p>分层音频注入是 Hallo 的关键。语音对人脸不同区域的影响并不相同：音素强烈影响嘴唇开合，语调和韵律影响表情，节奏和情绪可能影响头部运动。如果把全部音频特征一次性注入所有视觉 token，网络容易在口型同步和自然运动之间互相干扰。Hallo 将视觉特征分成不同层级或区域，通过交叉注意力分别融合音频：</p>\n<div class=\"kb-math kb-math-display\">H_r=\\operatorname{softmax}\\left(\\frac{Q_rK_a^\\top}{\\sqrt{d}}\\right)V_a,\\quad\nr\\in\\{\\text{lip},\\text{expr},\\text{pose}\\}</div>\n<p>最终视觉更新可以看作多个层级响应的加权组合：</p>\n<div class=\"kb-math kb-math-display\">H=w_lH_{lip}+w_eH_{expr}+w_pH_{pose}</div>\n<p>这种结构让嘴部区域更专注于音素级同步，同时给表情和头姿保留更平滑、更低频的音频响应。训练中 motion module 常初始化自通用图像到视频模型，以获得更好的时序先验。</p>\n<h5>核心流程伪代码</h5>\n<pre><code class=\"language-python\">def hallo_generate(reference_image, audio, previous_motion_frames=None):\n    ref_features = reference_net(reference_image)\n    audio_features = wav2vec_encoder(audio)\n    motion_context = encode_motion_frames(previous_motion_frames)\n    latents = init_video_latents(audio_duration=audio.duration)\n\n    for step in reversed(diffusion_steps):\n        visual_tokens = denoising_unet.backbone(latents, step, ref_features)\n        lip_tokens, expr_tokens, pose_tokens = split_visual_hierarchy(visual_tokens)\n        lip_tokens = cross_attention(lip_tokens, audio_features, level=&quot;lip&quot;)\n        expr_tokens = cross_attention(expr_tokens, audio_features, level=&quot;expression&quot;)\n        pose_tokens = cross_attention(pose_tokens, audio_features, level=&quot;pose&quot;)\n        latents = denoise_with_motion_module(\n            latents,\n            merge(lip_tokens, expr_tokens, pose_tokens),\n            motion_context,\n            step,\n        )\n\n    return decode_video(latents)\n</code></pre>\n<h5>价值与局限</h5>\n<p>Hallo 的价值在于承认 audio-to-face 不是单一映射。嘴唇、表情、头姿对音频的敏感频率和语义层级不同，分层注入比简单拼接音频条件更符合问题结构。</p>\n<p>局限是扩散采样成本仍高，长视频仍需要分段生成和运动上下文维持。分层注意力能改善同步和自然度，但不能完全保证精确可编辑性；当用户需要指定某个头部轨迹或表情曲线时，显式 landmark 或控制信号仍更直接。</p>"
     },
     {
       "id": "hallo2",
@@ -740,7 +740,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 hallo",
         "代表机构：阿里巴巴"
       ],
-      "detail": "<p>渐进式训练实现4K小时级生成</p>"
+      "detail": "<h5>核心示意图</h5>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2410.07718/assets/fig/overview.png\" alt=\"Hallo2 overview\" loading=\"lazy\"><p class=\"img-caption\">▲ Hallo2 overview</p></div>\n<h5>方法拆解</h5>\n<p>Hallo2 的基本输入仍是一张参考肖像和长音频，但生成不再一次性完成全部帧，而是按时间窗口分段。第 <span class=\"kb-math kb-math-inline\">i</span> 个片段的生成可以抽象为：</p>\n<div class=\"kb-math kb-math-display\">\\hat{V}_i=D_\\theta(I_{ref}, A_i, \\tilde{C}_{i-1}, p)</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">A_i</span> 是当前音频窗口特征，<span class=\"kb-math kb-math-inline\">\\tilde{C}_{i-1}</span> 是由上一片段末尾构造的运动连续性条件，<span class=\"kb-math kb-math-inline\">p</span> 是可选表情或风格提示。这样模型能在段落之间继承姿态和表情趋势，避免每个窗口从静态参考图重新开始。</p>\n<p>长视频中的一个典型风险是历史 motion frames 同时携带运动和外观。如果模型过度依赖这些帧，就可能逐段累积颜色、纹理或背景误差。Hallo2 使用 patch-drop 和高斯噪声等增强扰动连续性条件：</p>\n<div class=\"kb-math kb-math-display\">\\tilde{C}=M\\odot C+(1-M)\\odot \\epsilon,\\quad \\epsilon\\sim\\mathcal{N}(0,\\sigma^2)</div>\n<p>这会迫使模型从 motion frames 中提取运动线索，而不是简单复制上一段的像素外观，从而降低长时漂移。</p>\n<p>高分辨率部分通常不让扩散主干直接承担全部 4K 细节。更可行的做法是先在较低 latent 分辨率中保证运动、身份和口型同步，再通过高质量 decoder、VQ token 对齐或超分模块恢复高清细节。这样把“时间一致的动态生成”和“空间细节增强”拆成两个更稳定的学习问题。</p>\n<h5>核心流程伪代码</h5>\n<pre><code class=\"language-python\">def hallo2_long_generate(reference_image, long_audio, prompt=None):\n    ref_features = reference_net(reference_image)\n    previous_tail = None\n    outputs = []\n\n    for audio_window in split_audio(long_audio, seconds=5, overlap=True):\n        audio_features = audio_encoder(audio_window)\n        motion_condition = build_motion_context(previous_tail)\n        motion_condition = patch_drop_and_noise(motion_condition)\n\n        low_res_clip = diffusion_generate_clip(\n            ref_features=ref_features,\n            audio_features=audio_features,\n            motion_context=motion_condition,\n            prompt=prompt,\n        )\n        high_res_clip = high_resolution_decoder(low_res_clip, reference_image)\n        outputs.append(blend_overlap(high_res_clip))\n        previous_tail = select_tail_frames(low_res_clip)\n\n    return concatenate(outputs)\n</code></pre>\n<h5>优势与局限</h5>\n<p>Hallo2 的价值在于把 audio-driven portrait 从 demo 级短视频推向长时内容生产。分段生成、运动上下文、条件增强和高分辨率恢复构成了一套比较完整的工程方案。</p>\n<p>局限是长时生成仍然非常依赖数据分布和后处理。即使有 motion context，情绪、视线、背景和身份细节也可能在超长时间中累积偏移。4K 细节模块能提升观感，但也可能放大低分辨率阶段的口型或边界错误。因此它更适合作为长视频肖像动画系统，而不是保证逐帧物理一致的数字人仿真器。</p>"
     },
     {
       "id": "aniportrait",
@@ -760,7 +760,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 emo",
         "代表机构：腾讯"
       ],
-      "detail": "<p>双流ReferenceNet双条件扩散</p>"
+      "detail": "<h5>核心示意图</h5>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2403.17694/assets/x1.png\" alt=\"AniPortrait framework\" loading=\"lazy\"><p class=\"img-caption\">▲ AniPortrait framework</p></div>\n<h5>方法拆解</h5>\n<p>AniPortrait 的第一阶段把音频特征映射为面部运动。语音经 wav2vec2.0 类模型编码后，Transformer 或序列网络预测 3D mesh/landmark 和头部姿态，再投影成 2D landmark 序列：</p>\n<div class=\"kb-math kb-math-display\">L_{1:T},P_{1:T}=F_{audio}(A(a_{1:T}))</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">L</span> 表示脸部关键点，<span class=\"kb-math kb-math-inline\">P</span> 表示头姿。因为 landmark 是显式几何轨迹，系统可以在这一阶段做平滑、幅度调整或和外部控制信号混合。</p>\n<p>第二阶段 Lmk2Video 用参考图保持身份，用 landmark 图驱动运动。它和 AnimateAnyone/ControlNet 风格的视频扩散模型相近：ReferenceNet 提取参考外观，PoseGuider 或 landmark encoder 把 2D landmark 转为多尺度控制特征，denoising UNet 在 temporal module 帮助下生成视频 latent。</p>\n<p>可以把图像生成写成：</p>\n<div class=\"kb-math kb-math-display\">\\hat{V}=G_\\theta(I_{ref}, \\operatorname{Rasterize}(L_{1:T},P_{1:T}), \\epsilon)</div>\n<p>其中 landmark rasterization 把点序列画成结构图，让扩散模型在每一帧知道嘴唇、眼睛、脸轮廓和头部位置。相比纯音频条件，landmark 条件给模型提供更明确的空间对齐信号。</p>\n<h5>核心流程伪代码</h5>\n<pre><code class=\"language-python\">def aniportrait_generate(reference_image, audio):\n    audio_features = wav2vec_encoder(audio)\n    mesh_seq, pose_seq = audio_to_mesh_and_pose(audio_features)\n    landmark_seq = project_to_2d_landmarks(mesh_seq, pose_seq)\n    landmark_seq = smooth_and_normalize(landmark_seq)\n\n    ref_features = reference_net(reference_image)\n    landmark_conditions = pose_guider(rasterize_landmarks(landmark_seq))\n    latents = sample_video_noise(len(landmark_seq))\n\n    for step in reversed(diffusion_steps):\n        eps = denoising_unet(\n            latents,\n            timestep=step,\n            reference=ref_features,\n            landmark_condition=landmark_conditions,\n            temporal_context=True,\n        )\n        latents = scheduler_step(latents, eps, step)\n\n    return vae_decode_video(latents)\n</code></pre>\n<h5>优势与局限</h5>\n<p>AniPortrait 的优势是把可控几何和扩散生成结合起来。Audio2Lmk 给出结构化运动，Lmk2Video 用生成模型补足真实纹理和细节；当用户需要修改口型、头姿或表情时，landmark 序列比纯 latent 音频条件更容易干预。</p>\n<p>局限是两阶段误差会传递：Audio2Lmk 如果预测口型或头姿错误，后续扩散模型通常会忠实渲染错误条件。landmark 本身也压缩了细微表情、舌头、牙齿和眼神细节。与 EMO/Hallo 这类直接生成方法相比，它更可控但上限受中间表示表达能力限制。</p>"
     },
     {
       "id": "echomimic",
@@ -780,7 +780,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 aniportrait",
         "代表机构：蚂蚁集团"
       ],
-      "detail": "<p>可编辑Landmark条件增强控制</p>"
+      "detail": "<h5>核心示意图</h5>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2407.08136/assets/x2.png\" alt=\"EchoMimic pipeline\" loading=\"lazy\"><p class=\"img-caption\">▲ EchoMimic pipeline</p></div>\n<h5>方法拆解</h5>\n<p>EchoMimic 面向的核心矛盾是：纯音频可以自动驱动口型，但难以精确控制眼睛、表情和头部动作；纯 landmark 可控，但需要用户或上游模型提供完整运动轨迹。EchoMimic 因此把音频和 landmark 同时作为条件，让模型在不同模式下使用不同信息源。</p>\n<p>扩散去噪过程可抽象为：</p>\n<div class=\"kb-math kb-math-display\">z_{t-1}=D_\\theta(z_t, f_{ref}, f_{audio}, f_{lmk}, t)</div>\n<p><span class=\"kb-math kb-math-inline\">f_{ref}</span> 来自参考图像，保证身份和外观；<span class=\"kb-math kb-math-inline\">f_{audio}</span> 来自语音编码器，主要控制口型与发音节奏；<span class=\"kb-math kb-math-inline\">f_{lmk}</span> 来自 landmark encoder，提供眼睛、眉毛、嘴部或头姿等可编辑空间结构。训练时随机丢弃或组合条件，可以让模型在推理时支持不同控制模式。</p>\n<p>与 AniPortrait 的“音频先转 landmark”不同，EchoMimic 不必把所有音频信息都压缩到 landmark 序列里。音频仍能直接通过 attention 影响口型细节，landmark 则负责用户关心的显式动作。对于眨眼、视线、表情幅度等难以从语音唯一确定的因素，这种并行条件尤其有价值。</p>\n<p>长视频生成中，EchoMimic 也需要 temporal attention 和 motion frames 维持连续性。参考图像只提供静态身份，连续帧的表情和姿态需要在去噪网络内部保持一致，否则容易出现抖动、身份漂移或局部五官闪烁。</p>\n<h5>核心流程伪代码</h5>\n<pre><code class=\"language-python\">def echomimic_generate(reference_image, audio=None, landmarks=None, mode=&quot;audio_landmark&quot;):\n    ref_features = reference_unet(reference_image)\n    audio_features = audio_encoder(audio) if audio is not None else None\n    landmark_features = landmark_encoder(landmarks) if landmarks is not None else None\n    latents = sample_video_noise(num_frames=infer_length(audio, landmarks))\n\n    for step in reversed(diffusion_steps):\n        eps = denoising_unet(\n            latents,\n            timestep=step,\n            reference=ref_features,\n            audio=audio_features if mode in [&quot;audio&quot;, &quot;audio_landmark&quot;] else None,\n            landmarks=landmark_features if mode in [&quot;landmark&quot;, &quot;audio_landmark&quot;] else None,\n            temporal_attention=True,\n        )\n        latents = scheduler_step(latents, eps, step)\n\n    return decode_video(latents)\n</code></pre>\n<h5>优势与局限</h5>\n<p>EchoMimic 的优势是控制入口更灵活。自动内容生产可以只给音频，精修场景可以额外给 selected landmarks 控制眨眼、表情或头部运动。并行条件比串联管线更不容易让某个中间预测错误完全决定最终结果。</p>\n<p>局限是多条件训练和推理更复杂，条件冲突时需要模型学会取舍。例如音频暗示大幅张嘴，但用户给的嘴部 landmark 幅度很小，输出可能在口型同步和编辑意图之间折中。manifest 链接与公开 EchoMimic 资料存在版本差异，也意味着实现细节应以实际代码或论文版本为准。</p>"
     },
     {
       "id": "vasa1",
@@ -800,7 +800,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 emo",
         "代表机构：微软"
       ],
-      "detail": "<p>潜在空间整体面部动力学建模</p>"
+      "detail": "<h5>核心示意图</h5>\n<p>本次快速检索中页面响应不稳定；下图采用公开 ar5iv 镜像中常见的 VASA-1 pipeline 图路径，正文基于 manifest 与公开论文方法信息归纳。</p>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2404.10667/assets/figures/pipeline_.jpg\" alt=\"VASA-1 pipeline\" loading=\"lazy\"><p class=\"img-caption\">▲ VASA-1 pipeline</p></div>\n<h5>方法拆解</h5>\n<p>VASA-1 的关键是把人脸视频压缩到一个适合建模的 latent dynamics 空间。单张参考图提供身份和静态外观，训练视频提供真实说话时的面部动态。编码器把每帧的动态状态映射为 latent <span class=\"kb-math kb-math-inline\">m_t</span>，解码器学习从身份外观和动态 latent 重建视频帧：</p>\n<div class=\"kb-math kb-math-display\">\\hat{I}_t=G_\\phi(I_{ref}, m_t)</div>\n<p>当这个 latent 空间学好后，音频驱动任务就变成预测 <span class=\"kb-math kb-math-inline\">m_{1:T}</span>，而不是直接预测高维 RGB 帧。音频编码器提取语音特征，序列生成模型根据音频和可选控制信号生成连续的面部动态：</p>\n<div class=\"kb-math kb-math-display\">m_{1:T}=F_\\theta(A(a_{1:T}), c_{pose}, c_{gaze}, c_{emotion})</div>\n<p>这种表示使模型能同时控制嘴部、脸部表情、眼睛和头部运动。相比只优化唇形同步，VASA-1 更强调“这个人正在自然说话”的整体感觉：头部会随语音节奏微动，表情和眼神也随语义或情绪变化。</p>\n<p>VASA-1 与 EMO/Hallo 的差异在于生成粒度。EMO/Hallo 倾向于用扩散模型在视频 latent 或图像 latent 中去噪；VASA-1 更像先构建一个可实时解码的面部动态空间，再在这个空间中做音频条件生成。这样能显著降低推理延迟，也更方便加入可控变量。</p>\n<h5>核心流程伪代码</h5>\n<pre><code class=\"language-python\">def train_vasa_latent_space(video_frames, reference_image):\n    motion_latents = motion_encoder(video_frames)\n    reconstruction = face_decoder(reference_image, motion_latents)\n    loss = reconstruction_loss(reconstruction, video_frames)\n    loss += temporal_smoothness(motion_latents)\n    update(loss)\n\n\ndef vasa1_generate(reference_image, audio, controls=None):\n    identity_code = appearance_encoder(reference_image)\n    audio_features = audio_encoder(audio)\n    motion_latents = dynamics_generator(audio_features, controls=controls)\n\n    frames = []\n    for latent in motion_latents:\n        frame = face_decoder(identity_code, latent)\n        frames.append(frame)\n    return frames\n</code></pre>\n<h5>优势与局限</h5>\n<p>VASA-1 的优势是实时性和整体自然度。它不只让嘴对上音频，而是把表情、头动和视线纳入同一个动态空间，适合交互式数字人、实时通话头像和低延迟内容生成。</p>\n<p>局限在于 latent 空间的表达上限决定了最终视频的多样性。若参考图中没有足够的侧脸、牙齿或发型信息，解码器仍需依赖训练先验补全。控制信号虽然比纯音频更强，但不等于完全物理可控；当用户指定的姿态或情绪与音频节奏冲突时，模型仍可能折中生成。</p>"
     },
     {
       "id": "vasa3d",
@@ -854,7 +854,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 hallo",
         "代表机构：阿里巴巴"
       ],
-      "detail": "<p>全局-局部音频注入提升表达力</p>"
+      "detail": "<p><img alt=\"Sonic 框架图\" src=\"https://arxiv.org/html/2411.16331v1/x1.png\" />\n<em>图：Sonic 公开 arXiv HTML 中的整体框架图，展示参考图像、音频条件和视频扩散生成骨干的协同关系。</em></p>\n<div class=\"warn-box\">⚠️ 资料限制：manifest 中的 <code>paper_url</code> 指向 <code>2410.10223</code>，快速核验后与 Sonic 论文不匹配；本文依据公开可匹配的 Sonic 论文题名、HTML 图资源和该方向公开方法整理，YAML 仍保留 manifest 原始链接。</div>\n<p>Sonic 的动机来自一个常见缺陷：多数音频驱动肖像方法只看当前帧附近的音频窗口，因此能对齐嘴唇，却难以理解更长范围内的语气、停顿、重音和情绪变化。局部窗口足以决定“这一帧嘴张多大”，但不足以决定“这一句话整体应该如何起伏、何时点头、何时收敛表情”。</p>\n<p>方法上，Sonic 可以理解为在扩散式 talking-head 骨干上增加两级音频条件。局部分支提取与帧同步的 wav2vec/Hubert 类特征，进入 cross-attention 或调制层，负责精细唇形；全局分支对整段音频或较长上下文做 Transformer 聚合，得到全局韵律 token，再在视频 UNet/DiT 的时序层中注入，负责长程表情和头部动态。</p>\n<p>核心条件可以写为：</p>\n<div class=\"kb-math kb-math-display\">\\epsilon_\\theta = f_\\theta(z_t, t, I_{ref}, A_{local}, A_{global})</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">z_t</span> 是带噪视频 latent，<span class=\"kb-math kb-math-inline\">I_{ref}</span> 是身份参考图，<span class=\"kb-math kb-math-inline\">A_{local}</span> 提供帧级音素/能量线索，<span class=\"kb-math kb-math-inline\">A_{global}</span> 提供句子级节奏和情绪上下文。这样设计的直觉是：局部音频约束“准确”，全局音频约束“自然”。</p>\n<p>```python</p>"
     },
     {
       "id": "teller",
@@ -874,7 +874,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 vasa1",
         "代表机构：字节跳动"
       ],
-      "detail": "<p>自回归实时流式生成架构</p>"
+      "detail": "<p><img alt=\"Teller 整体框架\" src=\"https://arxiv.org/html/2503.18429v1/x2.png\" />\n<em>图：Teller 的实时流式音频驱动肖像动画框架，包含自回归运动 latent 生成和时序真实性增强模块。</em></p>\n<div class=\"warn-box\">⚠️ 资料限制：manifest 中 <code>paper_url</code> 指向的 <code>2409.01776</code> 与 Teller 标题不匹配；公开可匹配论文为 <code>Teller: Real-Time Streaming Audio-Driven Portrait Animation with Autoregressive Motion Generation</code>，本文据此整理。</div>\n<p>Teller 针对的是实时系统里的核心矛盾：高质量扩散/视频生成往往需要整段上下文和多步推理，而直播、对话代理、数字人客服需要边听边动。直接使用离线扩散模型会带来不可接受的延迟；直接逐帧回归又容易抖动、表情僵硬。</p>\n<p>它先把复杂的面部和身体局部运动压缩到 motion latent 空间。Residual VQ 模型把隐式关键点或运动表示编码成紧凑 token，自回归 Transformer 每次接收当前音频特征和历史 motion token，预测下一组 token。论文图注指出，Teller 的 AR 输入/输出以 token pair 为单位，目的是在流式条件下同时保持局部细节和相邻帧关系。</p>\n<p>Efficient Temporal Module 是第二个关键模块。它不重新生成整段视频，而是在低成本的时序模块中校正运动真实性，抑制自回归累积误差。最终 renderer 再把 motion latent 作用到参考肖像上生成视频帧。</p>\n<p>```python</p>"
     },
     {
       "id": "read",
@@ -894,7 +894,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 vasa1",
         "代表机构：学术界"
       ],
-      "detail": "<p>异步噪声调度实现实时性</p>"
+      "detail": "<p><img alt=\"READ 框架图\" src=\"https://arxiv.org/html/2508.03457v1/x1.png\" />\n<em>图：READ 框架。先预训练 SpeechAE，再用异步前向过程训练 DiT，推理时执行异步去噪以提升实时效率。</em></p>\n<p>READ 的问题设定很明确：扩散模型在 talking-head 上质量高，但标准视频扩散需要大量空间 token、时间 token 和采样步数。若直接对每帧 latent 同步去噪，延迟和吞吐都难以满足实时数字人。</p>\n<p>第一步是压缩表示。Temporal VAE 不只压缩空间分辨率，也压缩时间维，把一段视频映射到更短、更稠密的 latent 序列；SpeechAE 则把原始语音特征压缩到相同时间粒度，避免音频 token 远多于视频 token 导致对齐困难。</p>\n<p>第二步是异步噪声调度。传统扩散对整段 latent 使用同一个时间步 <span class=\"kb-math kb-math-inline\">t</span>，READ 则允许序列中不同块处在不同噪声级别。靠近当前输出的块更快完成去噪，后续块保留较高噪声继续滚动优化，从而形成连续流式生成。</p>\n<p>```python</p>"
     },
     {
       "id": "dimitra",
@@ -914,7 +914,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 emo",
         "代表机构：学术界"
       ],
-      "detail": "<p>条件运动扩散Transformer架构</p>"
+      "detail": "<p><img alt=\"Dimitra 框架图\" src=\"https://arxiv.org/html/2502.17198v1/extracted/6228656/Figures/dimitra.png\" />\n<em>图：Dimitra 包含 Motion Modeling Module、条件 Motion Diffusion Transformer 和 Video Renderer 三部分。</em></p>\n<p>Dimitra 的核心取舍是先生成“运动”，再生成“视频”。音频到像素的端到端模型虽然直接，但很容易把口型、身份纹理、头姿、背景稳定性混在一起学习；Dimitra 将中间表示显式设为 3D 人脸运动序列，使扩散模型只负责动态建模。</p>\n<p>训练时，Motion Modeling Module 从真实视频中估计 3DMM 或 mesh 运动，得到 <span class=\"kb-math kb-math-inline\">m_{1:T}</span>。扩散模型学习从噪声恢复该运动序列：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L} = \\mathbb{E}_{t,m,\\epsilon}\\|\\epsilon - \\epsilon_\\theta(m_t, t, a, r)\\|_2^2</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">a</span> 是音频特征，<span class=\"kb-math kb-math-inline\">r</span> 是参考图像特征。论文摘要特别强调 phoneme 序列提升唇部运动真实性，transcript 相关信息帮助表情和头姿更符合语义节奏。</p>\n<p>```python</p>"
     },
     {
       "id": "edityourself",
@@ -934,7 +934,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 emo",
         "代表机构：学术界"
       ],
-      "detail": "<p>视频到视频编辑修复能力</p>"
+      "detail": "<p><img alt=\"EditYourself 框架图\" src=\"https://arxiv.org/html/2601.22127v1/x2.png\" />\n<em>图：EditYourself 在视频 DiT 中加入全局音频投影和音频 cross-attention，并对口部 token 做区域化去噪编辑。</em></p>\n<div class=\"warn-box\">⚠️ 资料限制：manifest 中 <code>2502.09876</code> 快速核验为不相关论文；公开可匹配论文为 <code>EditYourself: Audio-Driven Generation and Manipulation of Talking Head Videos with Diffusion Transformers</code>，本文据此整理，YAML 保留 manifest 原链接。</div>\n<p>EditYourself 解决的问题与传统 talking-head 生成不同：很多真实需求并不是从照片生成全新视频，而是修改已有视频中的一句话。如果直接整段重生成，身份、背景、头部运动和镜头质感都会改变；如果只贴嘴，又难以处理新增词、删除词或语速改变带来的脸部运动变化。</p>\n<p>方法的关键是区域化扩散编辑。训练时保留干净的首帧/上下文 latent，只对嘴部区域 token 加噪，并要求模型根据新音频把这些 token 去噪回来。这样模型学到的是“在已有视频结构中修复说话区域”，而不是无约束地生成全帧。</p>\n<p>```python</p>"
     },
     {
       "id": "mmface_dit",
@@ -954,7 +954,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 vasa1",
         "代表机构：CVPR 2026"
       ],
-      "detail": "<p>双流DiT多模态融合架构</p>"
+      "detail": "<p><img alt=\"MMFace-DiT 生成流程\" src=\"https://arxiv.org/html/2603.29029v1/Images/MMDiT_Process.jpg\" />\n<em>图：MMFace-DiT 生成流程。图像 latent 被切成 image tokens，文本由 CLIP 编码为空间外语义条件，空间先验作为结构控制输入。</em></p>\n<div class=\"warn-box\">⚠️ 资料限制：manifest 中 <code>2601.12345</code> 快速核验后标题不匹配；公开可匹配论文为 <code>MMFace-DiT: A Dual-Stream Diffusion Transformer for High-Fidelity Multimodal Face Generation</code>，本文据此整理。</div>\n<p>传统多模态人脸生成常把空间控制模块拼接到预训练文本扩散模型外部，例如额外加 ControlNet 或多个单模态分支。这类做法能快速复用模型，但不同条件之间常出现冲突：文本说“高发髻”，mask 给出另一种轮廓，模型可能只服从其中一个条件。</p>\n<p>MMFace-DiT 的核心是把多模态融合放进 DiT 主干。图像 latent token 和文本 token 并行流动，空间条件经过编码后影响 image stream；全局条件通过 AdaLN 调制每个 DiT block；RoPE attention 在统一注意力中建模 token 间空间关系和语义关系。</p>\n<p>```python</p>"
     },
     {
       "id": "rap",
@@ -974,7 +974,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 vasa1",
         "代表机构：腾讯"
       ],
-      "detail": "<p>Video DiT架构实时生成</p>"
+      "detail": "<p><img alt=\"RAP 框架图\" src=\"https://arxiv.org/html/2508.05115v1/x2.png\" />\n<em>图：RAP pipeline。音频和参考图像被编码为压缩 token，经 DiT 去噪生成 talking portrait 视频。</em></p>\n<div class=\"warn-box\">⚠️ 资料限制：manifest 中的 <code>2601.23456</code> 返回 404；公开可匹配论文为 <code>RAP: Real-time Audio-driven Portrait Animation with Video Diffusion Transformer</code>，本文据此整理。</div>\n<p>RAP 面向实时部署的难点与 READ 类似：为了快，必须使用很紧凑的 latent；但 latent 越紧凑，唇部细节、牙齿边界、微表情和背景稳定性越容易丢。RAP 的设计目标是在压缩空间中仍能保留足够的音画同步信息。</p>\n<p>框架先把参考图像编码为身份/外观 token，把音频编码为时间对齐 token，再在 Video DiT 中执行条件去噪。混合注意力模块把空间 token、时间 token 和音频 token 放在同一生成过程中交互，避免“嘴动了但脸部其他区域不跟随”或“头部自然但口型不准”的割裂。</p>\n<p>```python</p>"
     },
     {
       "id": "syncnet",
@@ -993,7 +993,7 @@ window.PAGE_CONFIG = {
         "核心动机：双流CNN对比学习音视频对齐",
         "代表机构：牛津VGG"
       ],
-      "detail": "<p>双流CNN对比学习音视频对齐</p>"
+      "detail": "<p><img alt=\"SyncNet 论文图示\" src=\"https://www.robots.ox.ac.uk/~vgg/publications/2016/Chung16a/chung16a.pdf\" />\n<em>图：官方论文 PDF 中给出了 SyncNet 双流音视频嵌入框架；早期项目页未提供稳定图片直链，因此此处使用官方 PDF 作为图示来源。</em></p>\n<div class=\"warn-box\">⚠️ 资料限制：manifest 中 <code>1606.00264</code> 快速核验为不相关 arXiv 条目；SyncNet 对应官方论文为 Oxford VGG 的 <code>Out of time: automated lip sync in the wild</code> PDF，本文据该公开资料整理。</div>\n<p>SyncNet 的核心不是生成视频，而是回答一个判别问题：给定一小段口部图像序列 <span class=\"kb-math kb-math-inline\">v</span> 和一小段音频 <span class=\"kb-math kb-math-inline\">a</span>，它们是否来自同一时间？如果同步，视觉嵌入和音频嵌入应该接近；如果错开若干帧，距离应该变大。</p>\n<p>模型由两个分支组成。视觉分支输入连续 mouth ROI，提取唇形运动特征；音频分支输入 MFCC/频谱片段，提取发音特征。两个分支输出同维 embedding，训练时用 contrastive loss 拉近同步样本、推远异步样本：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}=yD^2+(1-y)\\max(m-D,0)^2,\\quad D=\\|f_v(v)-f_a(a)\\|_2</div>\n<p>推理时，SyncNet 会在多个时间偏移上计算距离曲线，距离最小的位置就是估计的同步 offset。后续 Wav2Lip 把类似判别器变成训练监督：生成器只有让口型与音频 embedding 接近，才能获得低 sync loss。</p>\n<p>```python</p>"
     },
     {
       "id": "wav2lip",
@@ -1013,7 +1013,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 syncnet",
         "代表机构：IIIT Hyderabad"
       ],
-      "detail": "<p>SyncNet判别器强制精确同步</p>"
+      "detail": "<p><img alt=\"Wav2Lip 框架图\" src=\"https://ar5iv.labs.arxiv.org/html/2008.10010/assets/x1.png\" />\n<em>图：Wav2Lip 使用音频编码、视觉编码和 lip-sync expert 监督生成口型同步结果。</em></p>\n<p>Wav2Lip 的关键观察是：普通重建损失会鼓励模型生成“平均嘴型”，但不会强制每个音素对应正确唇形。于是论文先训练一个专家同步网络 <span class=\"kb-math kb-math-inline\">D_{sync}</span>，它像 SyncNet 一样判断音频片段和嘴部视频片段是否同步，再把它冻结为生成器的训练监督。</p>\n<p>生成器输入包括目标帧、被 mask 的下半脸区域和音频 mel 片段。视觉编码器负责保留身份、姿态、光照；音频编码器提取当前发音；解码器输出修复后的嘴部图像。核心同步损失可写为：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{sync}=-\\log\\left(\\cos(f_v(\\hat{V}), f_a(A))\\right)</div>\n<p>总损失通常结合重建项、同步项和视觉质量对抗项：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}=\\mathcal{L}_{recon}+\\lambda_{sync}\\mathcal{L}_{sync}+\\lambda_{adv}\\mathcal{L}_{adv}</div>\n<p>```python</p>"
     },
     {
       "id": "makeittalk",
@@ -1033,7 +1033,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 wav2lip",
         "代表机构：Adobe Research"
       ],
-      "detail": "<p>解耦语音内容与说话人身份</p>"
+      "detail": "<p><img alt=\"MakeItTalk 框架图\" src=\"https://ar5iv.labs.arxiv.org/html/2004.12992/assets/x1.png\" />\n<em>图：MakeItTalk 从音频中分离内容与说话人特征，预测 landmark 运动并渲染 talking-head。</em></p>\n<p>MakeItTalk 的动机是：同一句话由不同人说出来，嘴部内容相似，但表情幅度、头部摆动、眨眼和说话习惯不同。因此，音频驱动不应只学习 phoneme 到嘴型的映射，还要建模说话人风格。</p>\n<p>方法先提取音频内容特征，驱动与发音强相关的嘴部 landmark；再引入 speaker embedding，控制更个性化的面部动态。landmark 序列作为中间层，既比像素更低维，又能显式表达运动结构。</p>\n<p>```python</p>"
     },
     {
       "id": "audio2head",
@@ -1053,7 +1053,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 makeittalk",
         "代表机构：浙江大学"
       ],
-      "detail": "<p>Flow网络驱动头部姿态生成</p>"
+      "detail": "<p><img alt=\"Audio2Head 框架图\" src=\"https://ar5iv.labs.arxiv.org/html/2107.09293/assets/x1.png\" />\n<em>图：Audio2Head 先预测头部姿态，再通过 dense motion field 驱动单图生成 talking-head。</em></p>\n<p>Audio2Head 针对的是早期单图 talking-head 的典型问题：嘴会动，但头不动或头动不自然。人的头部运动往往与语音韵律、重音和停顿有关，属于低频整体运动；嘴唇和表情则是高频局部运动。把两者混在一个像素生成器里学习会很困难。</p>\n<p>因此论文先预测 6D 头姿 <span class=\"kb-math kb-math-inline\">p_t=(R_t, T_t)</span>，再把头姿转换成关键点运动和 dense motion field。运动场告诉生成器每个像素应从源图哪里采样或如何变形，能在大姿态下更好保持身份和背景。</p>\n<p>```python</p>"
     },
     {
       "id": "difftalk",
@@ -1073,7 +1073,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 wav2lip",
         "代表机构：学术界"
       ],
-      "detail": "<p>首个扩散模型口型同步方法</p>"
+      "detail": "<p><img alt=\"DiffTalk 框架图\" src=\"https://ar5iv.labs.arxiv.org/html/2301.03786/assets/x1.png\" />\n<em>图：DiffTalk 将参考肖像、音频和 landmark 条件注入潜在扩散模型，逐步去噪生成说话人视频。</em></p>\n<p>DiffTalk 的背景是 2023 年前后潜在扩散在图像生成上已经表现出强大的细节建模能力，但 talking-head 还常依赖 GAN、landmark renderer 或局部口型修复。DiffTalk 的关键尝试是把肖像动画改写为“条件视频 latent 去噪”。</p>\n<p>在训练中，真实视频经 VAE 编码为 latent <span class=\"kb-math kb-math-inline\">z_0</span>，扩散前向过程加入噪声得到 <span class=\"kb-math kb-math-inline\">z_t</span>。模型学习在音频 <span class=\"kb-math kb-math-inline\">a</span>、参考图 <span class=\"kb-math kb-math-inline\">r</span>、landmark <span class=\"kb-math kb-math-inline\">l</span> 条件下预测噪声：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}=\\mathbb{E}_{z_0,t,\\epsilon}\\|\\epsilon-\\epsilon_\\theta(z_t,t,a,r,l)\\|_2^2</div>\n<p>音频决定嘴部动态，参考图约束身份外观，landmark 提供几何结构和大致姿态。三者结合后，扩散模型不必从音频中同时猜身份、纹理和结构，生成难度显著降低。</p>\n<p>```python</p>"
     },
     {
       "id": "latentsync",
@@ -1093,7 +1093,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 difftalk",
         "代表机构：字节跳动"
       ],
-      "detail": "<p>潜在空间口型修正消除伪影</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"LatentSync 框架图\" src=\"https://arxiv.org/html/2412.09262v2/x3.png\" />\n<em>图：LatentSync 使用 Whisper 音频嵌入、参考帧、masked frames 和 noisy latents 作为 U-Net 输入，并在训练时加入 StableSyncNet 与 TREPA 监督。</em></p>\n<p>资料说明：该论文的 arXiv HTML 可访问，图像链接来自 arXiv HTML 转换页；这里优先解读方法部分，实验数字只保留对方法有帮助的结论。</p>\n<h5>核心流程伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "audio2face3d",
@@ -1113,7 +1113,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 latentsync",
         "代表机构：NVIDIA"
       ],
-      "detail": "<p>开源SDK集成LLM会话能力</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"Audio2Face-3D 扩散网络架构\" src=\"https://arxiv.org/html/2508.16401/x6.png\" />\n<em>图：Audio2Face-3D-v3.0 的扩散式网络，以噪声动画、扩散步、音频、情感和身份为条件，预测去噪后的面部动画偏移。</em></p>\n<p>资料说明：manifest 的 <code>paper_url</code> 是 NVIDIA Audio2Face 产品页。方法细节主要依据公开的 Audio2Face-3D 论文页面 <code>https://arxiv.org/abs/2508.16401</code> 与 NVIDIA 官方页面；该项更接近系统/SDK论文，而不是单一学术算法。</p>\n<h5>核心流程伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "flame",
@@ -1226,7 +1226,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 dreamtalk",
         "代表机构：TUM/Meta"
       ],
-      "detail": "<p>扩散模型驱动NPHM参数化头部</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"FaceTalk pipeline\" src=\"https://arxiv.org/html/2312.08459v2/x2.png\" />\n<em>图：FaceTalk 使用冻结 Wav2Vec 2.0 提取音频嵌入，扩散模型在 NPHM expression sequence 上迭代去噪，并用 transformer decoder 与 FiLM timestep conditioning 生成最终表达序列。</em></p>\n<h5>核心流程伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "realtalk",
@@ -1536,7 +1536,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 mdm",
         "代表机构：ICLR 2025"
       ],
-      "detail": "<p>AR与Diffusion混合实时控制</p>"
+      "detail": "<h4>1. 整体架构</h4>\n<p>DART由三个核心组件构成：运动基元表示、运动基元VAE、潜在扩散去噪器。DartControl在此基础上增加空间控制模块。</p>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2410.05260/assets/x1.png\" alt=\"DART整体架构\" loading=\"lazy\"><p class=\"img-caption\">▲ DART整体架构</p></div>\n<p><strong>运动基元表示</strong>：将连续运动序列切分为重叠的短片段（motion primitives），每个基元包含 $H=2$ 帧历史和 $F=8$ 帧未来，总共10帧。相邻基元之间重叠2帧（历史帧=上一基元的最后2帧），实现自回归拼接。</p>\n<p>每帧运动状态 $\\mathbf{x}_i \\in \\mathbb{R}^{276}$，包含：\n- SMPL-X身体参数：全局朝向(6D)、身体姿态(63×6D=378→降维)、手部姿态\n- 全局平移(3D)、关节位置、关节速度等</p>\n<p>运动基元定义为：</p>\n<div class=\"kb-math kb-math-display\">\\mathbf{M} = [\\mathbf{x}_{-H+1}, \\ldots, \\mathbf{x}_0, \\mathbf{x}_1, \\ldots, \\mathbf{x}_F]</div>\n<p>其中 $\\mathbf{x}_{-H+1}, \\ldots, \\mathbf{x}_0$ 为历史帧（条件），$\\mathbf{x}_1, \\ldots, \\mathbf{x}_F$ 为待生成的未来帧。</p>\n<h4>2. 运动基元VAE</h4>\n<p>采用Transformer架构的变分自编码器，将运动基元压缩到紧凑的潜在空间：</p>\n<p><strong>编码器</strong>：输入完整基元（历史+未来帧），通过Transformer编码器映射到潜在分布 $q(\\mathbf{z}|\\mathbf{M})$，潜在向量 $\\mathbf{z} \\in \\mathbb{R}^d$。</p>\n<p><strong>解码器</strong>：以历史帧 $\\mathbf{M}_h$ 和潜在向量 $\\mathbf{z}$ 为条件，通过Transformer解码器重建未来帧：</p>\n<div class=\"kb-math kb-math-display\">\\hat{\\mathbf{M}}_f = \\text{Dec}(\\mathbf{z}, \\mathbf{M}_h)</div>\n<p>训练损失：\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{\\text{VAE}} = \\mathcal{L}_{\\text{recon}} + \\beta \\cdot D_{\\text{KL}}(q(\\mathbf{z}|\\mathbf{M}) \\| \\mathcal{N}(0, I))</div></p>\n<p>重建损失包含关节位置、关节速度、全局平移等多项L2损失。</p>\n<h4>3. 潜在扩散去噪器</h4>\n<p>在VAE的潜在空间上训练DDPM扩散模型，条件包括历史运动帧和文本描述：</p>\n<p><strong>前向过程</strong>（10步）：\n<div class=\"kb-math kb-math-display\">q(\\mathbf{z}_t | \\mathbf{z}_{t-1}) = \\mathcal{N}(\\mathbf{z}_t; \\sqrt{1-\\beta_t}\\mathbf{z}_{t-1}, \\beta_t \\mathbf{I})</div></p>\n<p><strong>去噪网络</strong> $\\epsilon_\\theta$：预测噪声，条件为：\n- 历史运动帧 $\\mathbf{M}_h$（通过Transformer编码）\n- 文本描述 $c$（通过CLIP文本编码器）\n- 扩散时间步 $t$</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{\\text{diff}} = \\mathbb{E}_{t, \\mathbf{z}_0, \\epsilon} \\left[ \\| \\epsilon - \\epsilon_\\theta(\\mathbf{z}_t, t, \\mathbf{M}_h, c) \\|^2 \\right]</div>\n<p><strong>Classifier-Free Guidance (CFG)</strong>：训练时以概率 $p_{\\text{uncond}}$ 丢弃文本条件，推理时使用引导尺度 $w$：</p>\n<div class=\"kb-math kb-math-display\">\\hat{\\epsilon}_\\theta = (1+w) \\cdot \\epsilon_\\theta(\\mathbf{z}_t, t, \\mathbf{M}_h, c) - w \\cdot \\epsilon_\\theta(\\mathbf{z}_t, t, \\mathbf{M}_h, \\varnothing)</div>\n<p><strong>Scheduled Training</strong>：为缓解自回归误差累积，训练时按概率 $p_{\\text{sched}}$ 使用模型自身生成的历史帧（而非GT历史帧）作为条件，类似scheduled sampling。</p>\n<h4>4. 自回归推理流程</h4>\n<pre><code>输入: 文本描述流 {c_1, c_2, ...}, 初始历史帧 M_h^0\n输出: 连续运动序列\n\nfor each step k:\n    1. 采样噪声 z_T ~ N(0, I)\n    2. 用DDPM去噪10步: z_0 = denoise(z_T, M_h^k, c_k)\n    3. 用VAE解码器: M_f^k = Dec(z_0, M_h^k)  # 生成F=8帧未来\n    4. 输出 M_f^k 的前6帧（去除重叠）\n    5. 更新历史: M_h^{k+1} = M_f^k 的最后2帧\n</code></pre>\n<p>生成速度：<strong>334 fps</strong> (RTX 4090)，延迟 <strong>0.02s</strong>。</p>\n<h4>5. DartControl: 空间控制</h4>\n<p>核心思想：由于DDIM采样是确定性的，运动基元完全由初始噪声 $\\mathbf{z}_T$ 决定。因此空间控制等价于在噪声空间中搜索满足约束的最优噪声。</p>\n<div class=\"img-wrap\"><img src=\"https://ar5iv.labs.arxiv.org/html/2410.05260/assets/x2.png\" alt=\"DartControl控制框架\" loading=\"lazy\"><p class=\"img-caption\">▲ DartControl控制框架</p></div>\n<h5>方法A: 梯度优化（适用于运动插值、人-场景交互）</h5>\n<p>将多步自回归展开为可微分的计算图：</p>\n<div class=\"kb-math kb-math-display\">\\mathbf{M}_{1:K} = \\text{Rollout}(\\mathbf{z}_T^{1:K}, c_{1:K}, \\mathbf{M}_h^0)</div>\n<p>定义目标函数（以运动插值为例）：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{\\text{control}} = \\lambda_{\\text{goal}} \\| \\mathbf{x}_{\\text{goal}} - \\hat{\\mathbf{x}}_{\\text{goal}} \\|^2 + \\lambda_{\\text{hist}} \\| \\mathbf{M}_h - \\hat{\\mathbf{M}}_h \\|^2 + \\lambda_{\\text{reg}} \\| \\mathbf{z}_T \\|^2</div>\n<p>通过反向传播计算 $\\nabla_{\\mathbf{z}<em _text_control=\"\\text{control\">T^{1:K}} \\mathcal{L}</em>$，用Adam优化器迭代更新噪声序列。}</p>\n<pre><code>算法: 梯度优化空间控制 (Algorithm 2)\n输入: 目标约束 G, 文本条件 c, 历史帧 M_h, 步数K\n初始化: z_T^{1:K} ~ N(0, I)\n\nfor iter = 1 to N_opt:\n    M_{1:K} = Rollout(z_T^{1:K}, c, M_h)  # 前向展开\n    L = ControlLoss(M_{1:K}, G) + λ_reg * ||z_T||²\n    z_T^{1:K} -= lr * ∇_{z_T} L  # 梯度下降\n\nreturn Rollout(z_T^{1:K}, c, M_h)\n</code></pre>\n<p>对于<strong>人-场景交互</strong>，额外加入场景约束：\n- 碰撞损失：$\\mathcal{L}<em _text_contact=\"\\text{contact\">{\\text{collision}} = \\sum_j \\max(0, -\\text{SDF}(\\mathbf{p}_j))^2$（SDF为场景的有符号距离场）\n- 接触损失：$\\mathcal{L}</em>}} = | \\mathbf{p<em _text_surface=\"\\text{surface\">{\\text{contact}} - \\mathbf{p}</em> |^2$}</p>\n<h5>方法B: 强化学习（适用于目标到达导航）</h5>\n<p>将运动生成建模为马尔可夫决策过程(MDP)：</p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>MDP元素</th>\n<th>定义</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><strong>状态</strong> $s_k$</td>\n<td>当前历史帧 $\\mathbf{M}_h^k$ + 目标位置 $\\mathbf{g}$</td>\n</tr>\n<tr>\n<td><strong>动作</strong> $a_k$</td>\n<td>潜在噪声 $\\mathbf{z}_T^k \\in \\mathbb{R}^d$</td>\n</tr>\n<tr>\n<td><strong>转移</strong></td>\n<td>DART的确定性解码：$\\mathbf{M}_h^{k+1} = f(\\mathbf{z}_T^k, \\mathbf{M}_h^k, c)$</td>\n</tr>\n<tr>\n<td><strong>奖励</strong> $r_k$</td>\n<td>到目标距离减少 + 运动质量惩罚</td>\n</tr>\n</tbody>\n</table></div>\n<p>使用PPO算法训练Actor-Critic网络：\n- <strong>Actor</strong> $\\pi_\\phi(a|s)$：输出高斯分布 $\\mathcal{N}(\\mu_\\phi(s), \\sigma_\\phi(s))$\n- <strong>Critic</strong> $V_\\psi(s)$：估计状态价值</p>\n<p>奖励函数设计：\n<div class=\"kb-math kb-math-display\">r_k = r_{\\text{goal}} + r_{\\text{velocity}} + r_{\\text{quality}}</div></p>\n<p>其中 $r_{\\text{goal}}$ 鼓励接近目标，$r_{\\text{velocity}}$ 鼓励朝目标方向移动，$r_{\\text{quality}}$ 惩罚脚部滑动和穿地。</p>\n<p>RL控制生成速度：<strong>240 fps</strong>。</p>\n<h4>6. 关键实验结果</h4>\n<h5>6.1 文本条件时序运动合成 (Table 1)</h5>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>方法</th>\n<th>Seg FID↓</th>\n<th>R-prec↑</th>\n<th>Trans FID↓</th>\n<th>Speed(fps)↑</th>\n<th>Latency(s)↓</th>\n<th>Mem(MiB)↓</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>TEACH</td>\n<td>17.58</td>\n<td>0.66</td>\n<td>3.89</td>\n<td>31</td>\n<td>161.29</td>\n<td>11892</td>\n</tr>\n<tr>\n<td>FlowMDM</td>\n<td>5.70</td>\n<td><strong>0.65</strong></td>\n<td>3.14</td>\n<td>31</td>\n<td>161.29</td>\n<td>11892</td>\n</tr>\n<tr>\n<td><strong>DART(Ours)</strong></td>\n<td><strong>3.79</strong></td>\n<td>0.62</td>\n<td><strong>1.86</strong></td>\n<td><strong>334</strong></td>\n<td><strong>0.02</strong></td>\n<td><strong>2394</strong></td>\n</tr>\n</tbody>\n</table></div>\n<ul>\n<li>DART在FID指标上最优，表明运动真实性最高</li>\n<li>生成速度是FlowMDM的<strong>10倍以上</strong>，内存占用仅1/5</li>\n<li>R-prec略低于FlowMDM，因在线生成存在自然的动作过渡延迟</li>\n</ul>\n<h5>6.2 用户研究 (Table 2)</h5>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>对比</th>\n<th>真实性(Ours%)</th>\n<th>语义对齐(Ours%)</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>vs. TEACH</td>\n<td><strong>66.7</strong> vs 33.3</td>\n<td><strong>66.0</strong> vs 34.0</td>\n</tr>\n<tr>\n<td>vs. DoubleTake</td>\n<td><strong>66.4</strong> vs 33.6</td>\n<td><strong>66.1</strong> vs 33.9</td>\n</tr>\n<tr>\n<td>vs. T2M-GPT*</td>\n<td><strong>61.3</strong> vs 38.7</td>\n<td><strong>66.7</strong> vs 33.3</td>\n</tr>\n<tr>\n<td>vs. FlowMDM</td>\n<td><strong>53.3</strong> vs 46.7</td>\n<td><strong>51.3</strong> vs 48.7</td>\n</tr>\n</tbody>\n</table></div>\n<p>人类评估中DART在真实性和语义对齐上均优于所有基线。</p>\n<h5>6.3 运动插值 (Table 3, 梯度优化)</h5>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>方法</th>\n<th>History err(cm)↓</th>\n<th>Goal err(cm)↓</th>\n<th>Skate(cm/s)↓</th>\n<th>Jerk↓</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>OmniControl</td>\n<td>17.22</td>\n<td>5.88</td>\n<td>5.48</td>\n<td>1.26</td>\n</tr>\n<tr>\n<td>DNO</td>\n<td>2.15</td>\n<td>5.52</td>\n<td>5.12</td>\n<td>0.72</td>\n</tr>\n<tr>\n<td><strong>DART Opt.</strong></td>\n<td><strong>0.00</strong></td>\n<td><strong>0.54</strong></td>\n<td><strong>3.97</strong></td>\n<td><strong>0.71</strong></td>\n</tr>\n</tbody>\n</table></div>\n<p>DART在所有指标上均最优，目标误差仅0.54cm，且能更好地保持文本语义。</p>\n<h5>6.4 RL目标到达 (Table 4)</h5>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>方法</th>\n<th>Time(s)↓</th>\n<th>Success↑</th>\n<th>Skate(cm/s)↓</th>\n<th>Floor dist(cm)↓</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>GAMMA walk</td>\n<td>31.44</td>\n<td>0.95</td>\n<td>5.14</td>\n<td>5.55</td>\n</tr>\n<tr>\n<td>Ours 'walk'</td>\n<td>13.82</td>\n<td><strong>1.0</strong></td>\n<td>5.07</td>\n<td><strong>1.87</strong></td>\n</tr>\n<tr>\n<td>Ours 'run'</td>\n<td><strong>12.16</strong></td>\n<td><strong>1.0</strong></td>\n<td><strong>4.70</strong></td>\n<td>2.02</td>\n</tr>\n<tr>\n<td>Ours 'hop'</td>\n<td>13.89</td>\n<td><strong>1.0</strong></td>\n<td>41.18</td>\n<td><strong>1.43</strong></td>\n</tr>\n</tbody>\n</table></div>\n<p>DART RL控制器100%到达目标，速度更快，且支持多种文本条件动作。</p>\n<h4>7. 关键设计选择与消融</h4>\n<ul>\n<li><strong>扩散步数</strong>：仅需10步即可高质量生成（得益于紧凑的潜在空间）</li>\n<li><strong>基元长度</strong>：F=8帧（约0.27s@30fps），平衡了生成效率和动作语义粒度</li>\n<li><strong>历史帧数</strong>：H=2帧提供足够的运动连续性条件</li>\n<li><strong>Scheduled Training</strong>：$p_{\\text{sched}}$ 从0线性增长到0.5，有效缓解误差累积</li>\n<li><strong>CFG引导尺度</strong>：$w$ 控制文本条件强度，过大会降低多样性</li>\n</ul>\n<hr />"
     },
     {
       "id": "energymogen",
@@ -1596,7 +1596,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 persona",
         "代表机构：学术界"
       ],
-      "detail": "<p>轻量化3DGS移动端90FPS渲染</p>"
+      "detail": "<h5>核心示意图/框架图</h5>\n<p><img alt=\"TaoAvatar method overview\" src=\"https://pixelai-team.github.io/TaoAvatar/static/images/method_overview.png\" />\n<em>图：TaoAvatar 方法。先重建 clothed SMPLX++ 与 Gaussian texture，再用 StyleUnet teacher 学形变，最后蒸馏到 MLP student 并加 blend shape 补偿。</em></p>\n<h5>核心流程伪代码</h5>\n<p>```python</p>"
     }
   ],
   "categories": {

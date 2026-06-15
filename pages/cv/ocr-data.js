@@ -1,5 +1,5 @@
 /**
- * ocr-data.js — 由 pipeline/build.py 于 2026-06-15 09:55:53 自动生成。
+ * ocr-data.js — 由 pipeline/build.py 于 2026-06-15 17:41:29 自动生成。
  * 源文件：content/cv/ocr.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -360,7 +360,7 @@ window.PAGE_CONFIG = {
         "核心动机：垂直锚点+BLSTM检测水平文本",
         "代表机构：Tsinghua University / Megvii"
       ],
-      "detail": "<p>垂直锚点+BLSTM检测水平文本</p>"
+      "detail": "<h3>整体架构图</h3>\n<p><img alt=\"CTPN Architecture\" src=\"https://ar5iv.labs.arxiv.org/html/1609.03605/assets/figures/CTPN_main1.png\" /></p>\n<p><strong>图1</strong>: CTPN整体架构。(a) 网络结构：VGG16提取conv5特征，3×3滑窗后接Bi-LSTM和FC层，输出三个分支。(b) CTPN在文本行上产生的细粒度提议序列可视化。</p>\n<hr />\n<h3>算法流程</h3>\n<pre><code>算法: CTPN文本检测流程\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n输入: 自然场景图像 I (任意尺寸，短边缩放至600)\n输出: 文本行边界框集合 B = {(x1, y1, x2, y2)}\n\n[阶段1: 特征提取]\n1. 将图像送入VGG16，提取conv5特征图 F ∈ R^(H/16 × W/16 × C)\n   - 下采样率 stride = 16\n   - 感受野大小 = 228 像素\n\n[阶段2: 序列编码]  \n2. 对F的每个空间位置(i,j)，取3×3×C的局部特征向量\n3. 将同一行的所有特征向量组成序列，送入Bi-LSTM:\n   - 前向LSTM: H_t^f = φ(H_{t-1}^f, X_t), t = 1,...,W\n   - 后向LSTM: H_t^b = φ(H_{t+1}^b, X_t), t = W,...,1\n   - 输出: H_t = [H_t^f; H_t^b] ∈ R^256 (128D × 2方向)\n4. FC层映射: H_t → 512D特征\n\n[阶段3: 锚点预测]\n5. 对每个位置预测k=10个锚点:\n   - 文本/非文本得分: s ∈ R^(2k) (softmax分类)\n   - 垂直坐标回归: v = {v_c, v_h} ∈ R^(2k)\n     v_c = (c_y - c_y^a) / h^a    (中心y偏移)\n     v_h = log(h / h^a)            (高度比例)\n   - 边界偏移: o ∈ R^k\n     o = (x_side - c_x^a) / w^a   (水平边界偏移)\n\n[阶段4: 后处理 - 文本行构建]\n6. NMS过滤冗余提议 (IoU阈值=0.7)\n7. 文本行构建规则 (贪心连接):\n   - 对提议B_i，寻找其右侧最近邻B_j (水平距离&lt;50px)\n   - 条件: B_j也将B_i视为左侧最近邻 (pair关系)\n   - 递归连接形成文本行序列\n8. Side-refinement: 用首尾提议的o值精修文本行左右边界\n9. 输出最终文本行边界框 B\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n</code></pre>\n<hr />\n<h3>核心机制详解</h3>\n<h4>1. 细粒度文本提议 (Fine-scale Text Proposals)</h4>\n<p><strong>设计动机</strong>: 传统检测器需要预测文本行的完整宽度，但文本行宽度变化极大(几十到几千像素)，导致回归困难。CTPN将问题简化为仅预测固定16像素宽度切片的<strong>垂直位置</strong>。</p>\n<p><strong>垂直锚点机制</strong>:\n- 每个空间位置设置 k=10 个锚点\n- 锚点高度从11到273像素等比递增（覆盖各种字号）\n- 宽度固定为16像素（等于conv5的stride）\n- 仅回归垂直方向：中心y坐标偏移 $v_c$ 和高度比例 $v_h$</p>\n<div class=\"kb-math kb-math-display\">v_c = \\frac{c_y - c_y^a}{h^a}, \\quad v_h = \\log\\frac{h}{h^a}</div>\n<p>其中 $c_y^a$ 和 $h^a$ 分别是锚点的中心y坐标和高度。</p>\n<p><strong>优势</strong>: 将二维回归问题降维为一维，大幅降低预测难度。</p>\n<p><img alt=\"Fine-scale proposals vs RPN\" src=\"https://ar5iv.labs.arxiv.org/html/1609.03605/assets/figures/RPN.png\" /></p>\n<p><strong>图2</strong>: 左图为RPN的多尺度提议（宽度不固定，难以精确定位文本边界）；右图为CTPN的细粒度提议（固定16px宽，精确覆盖文本行）。</p>\n<hr />\n<h4>2. 循环连接 (Recurrent Connection via Bi-LSTM)</h4>\n<p><strong>设计动机</strong>: 单个16px切片的局部特征可能不足以判断是否为文本（如纹理区域易混淆），需要利用水平方向的上下文信息。</p>\n<p><strong>实现方式</strong>:\n- 将conv5特征图的每一行视为一个序列（长度=W/16）\n- 双向LSTM在序列上传播信息，每个位置可\"看到\"整行的上下文\n- 前向LSTM编码左侧上下文，后向LSTM编码右侧上下文\n- 拼接得到256维特征（128D×2方向）</p>\n<p><strong>关键效果</strong>:\n- 减少孤立的误检（非文本区域缺乏序列一致性）\n- 恢复弱文本区域的检测（从相邻强文本区域获得支持）</p>\n<p><img alt=\"With and without RNN\" src=\"https://ar5iv.labs.arxiv.org/html/1609.03605/assets/figures/no_lstm1.jpg\" /></p>\n<p><strong>图3</strong>: 上图为无RNN连接的检测结果（存在大量误检和漏检）；下图为加入RNN后的结果（误检显著减少，弱文本被恢复）。</p>\n<hr />\n<h4>3. Side-Refinement (边界精修)</h4>\n<p><strong>设计动机</strong>: 细粒度提议的固定16px宽度导致文本行左右边界的定位精度受限（最大误差±8px）。</p>\n<p><strong>实现方式</strong>:\n- 网络额外预测每个锚点的水平边界偏移 $o$:</p>\n<div class=\"kb-math kb-math-display\">o = \\frac{x_{side} - c_x^a}{w^a}, \\quad w^a = 16</div>\n<ul>\n<li>其中 $x_{side}$ 是预测的最近水平边界（左边界或右边界）的x坐标</li>\n<li>仅对文本行首尾的\"side-proposals\"应用此偏移来精修最终边界框</li>\n</ul>\n<p><strong>效果</strong>: 在SWT和Multi-Lingual数据集上带来约2%的性能提升。</p>\n<p><img alt=\"Side-refinement effect\" src=\"https://ar5iv.labs.arxiv.org/html/1609.03605/assets/figures/refinement.png\" /></p>\n<p><strong>图4</strong>: 红色框为使用side-refinement的检测结果，黄色虚线框为不使用时的结果。可见边界精度显著提升。</p>\n<hr />\n<h4>4. 多任务损失函数</h4>\n<div class=\"kb-math kb-math-display\">L(s_i, v_j, o_k) = \\frac{1}{N_s}\\sum_i L_s^{cl}(s_i, s_i^*) + \\frac{\\lambda_1}{N_v}\\sum_j L_v^{re}(v_j, v_j^*) + \\frac{\\lambda_2}{N_o}\\sum_k L_o^{re}(o_k, o_k^*)</div>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>损失项</th>\n<th>含义</th>\n<th>具体形式</th>\n<th>作用范围</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>$L_s^{cl}$</td>\n<td>文本/非文本分类</td>\n<td>Softmax交叉熵</td>\n<td>所有锚点 (正负样本)</td>\n</tr>\n<tr>\n<td>$L_v^{re}$</td>\n<td>垂直坐标回归</td>\n<td>Smooth-L1</td>\n<td>正锚点 (IoU&gt;0.5)</td>\n</tr>\n<tr>\n<td>$L_o^{re}$</td>\n<td>边界偏移回归</td>\n<td>Smooth-L1</td>\n<td>Side-anchors (距GT边界&lt;32px)</td>\n</tr>\n</tbody>\n</table></div>\n<ul>\n<li>$\\lambda_1 = \\lambda_2 = 1.0$ (平衡系数)</li>\n<li>$N_s, N_v, N_o$ 分别为各损失项的归一化因子</li>\n</ul>\n<p><strong>正负样本定义</strong>:\n- 正样本: IoU ≥ 0.7 与GT文本提议\n- 负样本: IoU ≤ 0.5 与所有GT文本提议\n- 训练时正负样本比例 1:1</p>\n<hr />\n<h4>5. 训练细节</h4>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>参数</th>\n<th>值</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>Backbone</td>\n<td>VGG16 (ImageNet预训练)</td>\n</tr>\n<tr>\n<td>优化器</td>\n<td>SGD, momentum=0.9</td>\n</tr>\n<tr>\n<td>学习率</td>\n<td>0.001 (前16K iter), 0.0001 (后4K iter)</td>\n</tr>\n<tr>\n<td>Batch size</td>\n<td>每张图采样128个anchor (正负1:1)</td>\n</tr>\n<tr>\n<td>图像预处理</td>\n<td>短边缩放至600px</td>\n</tr>\n<tr>\n<td>LSTM隐层</td>\n<td>128维 × 2方向 = 256维</td>\n</tr>\n<tr>\n<td>锚点数k</td>\n<td>10 (高度: 11, 16, 23, 33, 48, 68, 97, 139, 199, 273)</td>\n</tr>\n<tr>\n<td>NMS阈值</td>\n<td>0.7</td>\n</tr>\n<tr>\n<td>文本行连接</td>\n<td>水平距离&lt;50px + pair条件</td>\n</tr>\n</tbody>\n</table></div>\n<hr />\n<h4>6. 文本行构建规则 (Graph-based)</h4>\n<pre><code>对于检测到的细粒度提议集合 {B_i}:\n1. 对每个B_i，找score最高的右侧邻居B_j:\n   - B_j的中心x &gt; B_i的中心x\n   - 水平距离 ≤ 50 pixels  \n   - 垂直重叠(IoU_v) &gt; 0.7\n2. 建立pair关系: B_i → B_j 且 B_j → B_i (互为最近邻)\n3. 将满足pair关系的提议序列连接为文本行\n4. 对文本行首尾提议应用side-refinement偏移\n</code></pre>\n<hr />\n<h3>实验结果对比</h3>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>方法</th>\n<th>ICDAR 2013 (F)</th>\n<th>ICDAR 2015 (F)</th>\n<th>速度</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>CTPN (本文)</td>\n<td><strong>0.88</strong></td>\n<td><strong>0.61</strong></td>\n<td>0.14s</td>\n</tr>\n<tr>\n<td>TextFlow</td>\n<td>0.76</td>\n<td>-</td>\n<td>-</td>\n</tr>\n<tr>\n<td>FASText</td>\n<td>0.77</td>\n<td>-</td>\n<td>-</td>\n</tr>\n<tr>\n<td>Yin et al.</td>\n<td>0.81</td>\n<td>-</td>\n<td>-</td>\n</tr>\n<tr>\n<td>Zhang et al.</td>\n<td>0.83</td>\n<td>0.43</td>\n<td>-</td>\n</tr>\n</tbody>\n</table></div>\n<p><strong>消融实验</strong> (ICDAR 2013):</p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>配置</th>\n<th>Recall</th>\n<th>Precision</th>\n<th>F-measure</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>CTPN (无RNN)</td>\n<td>0.77</td>\n<td>0.89</td>\n<td>0.82</td>\n</tr>\n<tr>\n<td>CTPN (单向LSTM)</td>\n<td>0.80</td>\n<td>0.90</td>\n<td>0.85</td>\n</tr>\n<tr>\n<td>CTPN (Bi-LSTM)</td>\n<td>0.83</td>\n<td>0.93</td>\n<td>0.88</td>\n</tr>\n</tbody>\n</table></div>\n<hr />"
     },
     {
       "id": "textboxes",
@@ -449,7 +449,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 east",
         "代表机构：Nanjing University"
       ],
-      "detail": "<p>渐进扩展分离粘连文本</p>"
+      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"PSENet 整体流程\" src=\"https://ar5iv.labs.arxiv.org/html/1903.12473/assets/x3.png\" />\n<em>图：PSENet 使用 FPN 提取并融合多尺度特征，输出多个文本核分割图，再通过 Progressive Scale Expansion 得到最终文本实例。</em></p>\n<p><img alt=\"PSENet 渐进式扩展示意\" src=\"https://ar5iv.labs.arxiv.org/html/1903.12473/assets/x4.png\" />\n<em>图：PSE 先在最小尺度文本核上找到连通域，再逐级吸收更大尺度中的相邻像素，冲突像素保持先到先得的实例归属。</em></p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "pan",
@@ -602,7 +602,7 @@ window.PAGE_CONFIG = {
         "核心动机：CNN+RNN+CTC开创序列识别",
         "代表机构：Huazhong University of Science and Technology"
       ],
-      "detail": "<p>CNN+RNN+CTC开创序列识别</p>"
+      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"CRNN 网络架构\" src=\"https://ar5iv.labs.arxiv.org/html/1507.05717/assets/x1.png\" />\n<em>图：CRNN 由卷积层、循环层和转录层组成。卷积特征图按宽度方向展开为序列，RNN 输出每个时间步的字符分布，CTC 将分布折叠为最终字符串。</em></p>\n<p><img alt=\"CRNN 感受野到序列映射\" src=\"https://ar5iv.labs.arxiv.org/html/1507.05717/assets/x2.png\" />\n<em>图：特征序列中的每个向量对应输入图像上的一个局部感受野，文本识别由二维图像问题转化为一维序列标注问题。</em></p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "aster",
@@ -930,7 +930,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 mask_textspotter",
         "代表机构：Huazhong University of Science and Technology"
       ],
-      "detail": "<p>SPN解决极端长宽比文本</p>"
+      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"Mask TextSpotter v3 总览\" src=\"https://ar5iv.labs.arxiv.org/html/2007.09482/assets/x2.png\" />\n<em>图：Mask TextSpotter v3 用 SPN 生成分割式 proposal，再送入 Fast R-CNN、文本实例分割、字符分割和空间注意力识别模块。</em></p>\n<p><img alt=\"RPN 与 SPN 对比\" src=\"https://ar5iv.labs.arxiv.org/html/2007.09482/assets/x1.png\" />\n<em>图：RPN 的矩形 RoI 往往包含多个相邻文本实例；SPN 的多边形 proposal 更贴合文本区域，能为识别分支提供更干净的 RoI 特征。</em></p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "abcnet",
@@ -950,7 +950,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 mask_textspotter",
         "代表机构：University of Adelaide"
       ],
-      "detail": "<p>贝塞尔曲线提速10倍</p>"
+      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"ABCNet 框架\" src=\"https://ar5iv.labs.arxiv.org/html/2002.10200/assets/x2.png\" />\n<em>图：ABCNet 用检测分支回归文本的 Bezier 曲线控制点，再通过 BezierAlign 从共享特征中提取曲线对齐的序列特征，送入识别分支。</em></p>\n<p><img alt=\"ABCNet 方法概览\" src=\"https://ar5iv.labs.arxiv.org/html/2002.10200/assets/x1.png\" />\n<em>图：相比字符级或分割式方法，ABCNet 以参数化曲线直接表达任意形状文本，并自然连接识别分支。</em></p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "abcnet_v2",
@@ -1093,7 +1093,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 layoutlm",
         "代表机构：Microsoft Research Asia"
       ],
-      "detail": "<p>海量无标注自监督预训练</p>"
+      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"DiT MIM 预训练架构\" src=\"https://ar5iv.labs.arxiv.org/html/2203.02378/assets/x1.png\" />\n<em>图：DiT 将文档图像切分为 patch，随机 mask 后输入 ViT，并预测由文档 dVAE tokenizer 产生的离散 visual token。</em></p>\n<p><img alt=\"DiT 检测框架接入方式\" src=\"https://ar5iv.labs.arxiv.org/html/2203.02378/assets/x2.png\" />\n<em>图：DiT 作为 ViT backbone 接入检测框架时，通过分辨率调整模块产生多尺度特征，供 Mask R-CNN 或 Cascade R-CNN 使用。</em></p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "donut",
@@ -1113,7 +1113,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 layoutlmv3",
         "代表机构：NAVER CLOVA"
       ],
-      "detail": "<p>OCR-Free直接生成结构化</p>"
+      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"Donut 流水线\" src=\"https://ar5iv.labs.arxiv.org/html/2111.15664/assets/x3.png\" />\n<em>图：Donut 的 encoder 将文档图像映射为视觉 embedding，decoder 根据视觉 embedding 和历史 token 生成结构化输出序列。</em></p>\n<p><img alt=\"Donut 训练格式\" src=\"https://ar5iv.labs.arxiv.org/html/2111.15664/assets/x14.png\" />\n<em>图：Donut 使用 teacher forcing 训练 decoder；推理时把上一步生成 token 作为下一步输入，直到输出结束标记。</em></p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "pix2struct",
@@ -1133,7 +1133,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 donut",
         "代表机构：Google Research"
       ],
-      "detail": "<p>截图解析预训练VLU</p>"
+      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"Pix2Struct 预训练示例\" src=\"https://ar5iv.labs.arxiv.org/html/2210.03347/assets/figures/pretraining_example.png\" />\n<em>图：Pix2Struct 的预训练样本由网页截图和目标 HTML 片段构成，模型需要根据像素恢复结构化文本。</em></p>\n<p><img alt=\"Pix2Struct 可变分辨率输入\" src=\"https://ar5iv.labs.arxiv.org/html/2210.03347/assets/x1.png\" />\n<em>图：variable-resolution input 在固定 patch 数预算下保留图像纵横比，相比固定缩放或 padding 更适合长文档和宽表格。</em></p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "got_ocr",
@@ -1153,7 +1153,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 donut",
         "代表机构：StepFun"
       ],
-      "detail": "<p>580M统一模型处理全类型</p>"
+      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"GOT-OCR2.0 框架\" src=\"https://arxiv.org/html/2409.01704v1/x2.png\" />\n<em>图：GOT 的三阶段训练框架。先用小语言模型适配视觉 encoder，再连接 Qwen-0.5B 注入通用 OCR-2.0 知识，最后扩展细粒度能力。</em></p>\n<p><img alt=\"GOT 数据引擎\" src=\"https://arxiv.org/html/2409.01704v1/x3.png\" />\n<em>图：GOT 使用多种渲染工具生成表格、公式、几何、乐谱、图表等训练数据，使统一模型覆盖更多“字符”类型。</em></p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     },
     {
       "id": "glm_ocr",
@@ -1173,7 +1173,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 got_ocr",
         "代表机构：Zhipu AI"
       ],
-      "detail": "<p>专用VLM文档解析领跑基准</p>"
+      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"GLM-OCR 架构与工作流\" src=\"https://arxiv.org/html/2603.10910v1/x3.png\" />\n<em>图：GLM-OCR 支持文档解析和 KIE 两类任务；文档解析模式先做 layout detection 和 region cropping，再并行执行区域级识别并输出 Markdown/JSON。</em></p>\n<p><img alt=\"GLM-OCR OmniDocBench 结果\" src=\"https://arxiv.org/html/2603.10910v1/x2.png\" />\n<em>图：GLM-OCR 在 OmniDocBench v1.5 上的整体表现，报告中强调 0.9B 专用模型对大规模通用 VLM 的效率优势。</em></p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
     }
   ],
   "categories": {

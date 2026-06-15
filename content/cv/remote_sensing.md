@@ -26,13 +26,11 @@ categories:
 
 ## 领域综述
 
-### 待补充：阶段性领域总结
-请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/cv/remote_sensing/overview/zhihu__遥感视觉大模型综述（近万字长文，包括但不限于遥感领域）__a15530e7/article.md
 
 ## 最新进展综述
 
-### 待补充：最近一个月最新动向
-请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/cv/remote_sensing/latest/zhihu__论文介绍：DINO_Soars：DINOv3_用于遥感影像的开放词汇语义分割__76f97d40/article.md
 
 ## 算法演化关系
 

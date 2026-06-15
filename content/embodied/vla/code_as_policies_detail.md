@@ -1,157 +1,88 @@
-# Code as Policies (CaP): Language Model Programs for Embodied Control
+### Code as Policies：代码即策略
 
-> **论文信息**: Jacky Liang, Wenlong Huang, Fei Xia, Peng Xu, Karol Hausman, Brian Ichter, Pete Florence, Andy Zeng (Google Robotics)  
-> **发表**: CoRL 2022 (Oral) | arXiv: 2209.07753 | [项目网站](https://code-as-policies.github.io/)  
-> **标签**: #VLA #LLM #Robot #Code_Generation #Hierarchical_Planning
-
----
+```yaml
+id: code_as_policies
+name: Code as Policies
+full_name: 代码即策略 (Code as Policies)
+year: "2022.11"
+org: Google
+paper_url: https://ai.googleblog.com/2022/11/robots-that-write-their-own-code.html
+category: llm_planning
+parent: saycan
+motivation: LLM生成Python代码控制机器人
+```
 
 #### 📝 一句话总结
 
-让大语言模型直接为机器人编写**可执行Python代码**（而非自然语言指令序列），通过**递归组合语言模型程序（LMPs）**形成分层策略，并利用代码的函数调用、变量状态、循环/条件结构、API参数化等编程语言原语，实现复杂长时任务的推理与闭环纠错，显著提升机器人策略的空间泛化力、行为多样性和交互灵活性。
-
----
+Code as Policies 将代码生成大模型转化为机器人策略生成器，让 LLM 直接写可执行 Python 控制逻辑，解决了传统语言规划只能调用固定技能、难以表达反馈循环和几何计算的问题。它通过语言模型程序（LMP）和递归函数生成，把感知 API、控制 API、Python 控制流和第三方库组合成可在机器人上运行的策略。
 
 #### 🎯 核心要点
 
-- **核心理念：代码即策略（Code as Policies）** — 用LLM生成的Python代码直接作为机器人控制策略，而不仅是生成高层行动计划或子目标序列。代码天然支持状态变量、循环、条件分支、函数递归等，比纯自然语言更具表现力和可组合性。
-- **语言模型程序（LMP）** — 将LLM输出的代码视为一种"程序单元"，既可调用现有感知基元和控制API，也可定义新函数供其他LMP调用，形成**递归分层结构**。上层LMP可调用下层LMP来逐步具象化模糊指令。
-- **分层代码生成** — 复杂任务被分解为多个LMP的层次调用链：高层LMP将自然语言需求转为带参数的函数调用；中间层LMP定义任务特化的辅助函数（如空间推理、顺序约束处理）；底层LMP直接调用机器人控制API（如 `pick_and_place`）。
-- **代码作为"Chain-of-Thought"的强化版** — 精心命名的变量和函数名、中间计算步骤、日志输出等，天然构思维链，且代码能被编译器和运行时检验语法错误，部分逻辑错误也可在仿真中发现。
-- **零样本跨实体迁移** — 因为LMP生成的是高层控制逻辑，底层API可被替换为不同机器人的控制原语（如移动基座速度控制、物体操作用夹爪API），实现**同一高层策略在不同实体间的复用**。
-- **人机交互新范式** — 用户可以用自然语言给机器人新指令，LLM当场生成新代码片段；也可进行"代码审阅"式的纠错；机器人遇到错误时LLM能生成排查/恢复代码。
-- **安全与限制** — 论文展示了仿真和真实机器人上的多样化实验，但生成的代码存在安全风险（语法/语义错误、不安全动作），实际部署需人工监督或沙箱测试。
-
----
+- 提出 Language Model Programs（LMP）：把 LLM 输出的 Python 程序作为机器人策略，而不是只输出自然语言计划或离散技能序列。
+- Few-shot prompt 由 Hints 和 Examples 组成：Hints 暴露可用感知/控制 API，Examples 展示自然语言注释到代码的映射格式。
+- 层级代码生成：当主策略调用未定义函数时，用专门的函数生成 LMP 递归补全函数体，形成可复用的动态代码库。
+- 代码表达反馈策略：用 `if/else`、`for/while`、变量、函数调用和会话状态表示闭环行为、上下文引用和多步任务。
+- 代码调用外部库：用 NumPy、Shapely 等库处理坐标、形状、排序和空间几何关系，弥补纯文本规划对数值推理的弱点。
+- 机器人落地依赖因子化接口：开放词汇检测器提供对象、位置、边界框等结构化感知结果，底层控制原语执行抓取、放置、导航、轨迹跟踪等动作。
+- 实验覆盖桌面抓放、形状绘制、移动操作和代码生成基准；层级生成在 RoboCodeGen 与 HumanEval 上均优于 flat code generation。
 
 #### 🔬 深入细节
 
-##### 1. 问题形式化
+![Code as Policies 框架图](https://ar5iv.labs.arxiv.org/html/2209.07753/assets/x1.png)
+*图：CaP 用 few-shot prompt 将自然语言命令翻译为策略代码，代码调用感知 API、控制 API，并递归生成未定义函数。*
 
-给定：
-- 用户自然语言指令 $\ell$（如："把所有红块放到篮子里，然后在桌上画一个L形"）
-- 一组预定义的**控制基元** $\mathcal{A}$（如 `pick(obj)`, `place(pos)`, `draw_shape(coords)`）
-- 感知模块 $\mathcal{P}$（返回物体名称/位姿/颜色等结构化信息）
+元信息中的 `paper_url` 指向 Google Research 官方博客而非论文正文；这里同时依据该博客、项目页和论文 `Code as Policies: Language Model Programs for Embodied Control`（arXiv:2209.07753）完成精读。论文的核心问题是：SayCan 等方法把 LLM 用作高层规划器，通常输出一串已有技能，但机器人仍必须预先训练或手写这些技能；一旦指令需要“向左一点”“直到看到苹果再停”“画一个更小的三角形”这类数值、反馈或几何细节，固定技能表就很难覆盖。
 
-目标是生成一个**可执行的Python代码片段** $c$，使得在机器人上运行 $c$ 能完成指令 $\ell$ 所述任务。CaP 用 LLM 作为转换器：$c \sim \text{LLM}(\text{prompt}(\ell, \mathcal{A}, \mathcal{P}, \text{examples}))$。
+CaP 的做法是把策略写成程序。给定自然语言指令 \(\ell\)、感知 API 集合 \(\mathcal{P}\)、控制 API 集合 \(\mathcal{A}\) 和 few-shot 示例 \(E\)，LLM 生成一段代码：
 
-![图1: CaP系统概览](https://code-as-policies.github.io/static/images/overview.png)
+$$
+c \sim p_\theta(c \mid \mathrm{prompt}(\ell, \mathcal{P}, \mathcal{A}, E))
+$$
 
-**图1说明**：用户说"把水壶里的水倒进杯子里"。CaP 生成的LMP代码通过：①调用视觉模块定位物体；②分析物体间空间关系（相对位置、沿轴方向）；③生成机器人轨迹/动作原语序列；④输出执行代码。这一切都在**同一个Python执行环境**中，中间变量、日志等天然可见。
-
-##### 2. 语言模型程序（LMP）的层级结构
-
-CaP 的核心贡献在于提出了**LMP 的分层组合机制**。论文定义了三种层次：
-
-| 层级 | 功能 | 示例LMP |
-|------|------|--------|
-| **L0**: 控制基元 | 直接驱动机器人的动作原语 | `pick(obj)`, `push(obj, dir)`, `move_to(pos)` |
-| **L1**: 感知/空间推理 | 将感知数据结构化，进行空间逻辑推理 | `get_obj_by_relation(base, relation)`, `filter_by_color(objs, color)` |
-| **L2**: 任务规划 | 将自然语言分解为L1/L0调用序列 | 主LMP函数体，含循环、条件和分层调用 |
-
-这种分层的关键优势：**上层LMP无需知道底层API细节**。换一个机器人时，只需替换L0基元，L1和L2代码无需修改。
-
-![图2: 分层代码生成示意](https://code-as-policies.github.io/static/images/hierarchy.png)
-
-**图2说明**：示例指令"stack blocks in the empty bowl"。LLM 生成的高层代码调用 `parse_obj` 获取物体名，再调用 `stack_objs_in_order`。该函数由另一个LMP定义（右上方），内部循环调用 `put_first_on_second` 这一L0基元，实现块块堆叠。此即**函数式递归组合**：每个LMP既可被LLM生成，也可被其他LMP调用。
-
-##### 3. 提示词工程：分层提示 + Few-Shot
-
-CaP 使用**分阶段提示**来生成不同层次的LMP：
-
-```
-阶段1: 定义L1辅助函数 → 阶段2: 定义任务特化的组合函数 → 阶段3: 生成主执行代码
-```
-
-每个阶段的提示包含：
-- **角色描述**：如 "You are a helpful robot assistant that writes code to control a robot."
-- **可用API清单**：带签名的函数列表及简短说明
-- **Few-Shot示例**：2-4个代码生成示例，展示如何将自然语言转换为正确的API调用
-- **当前感知状态**（可选）：当前场景中物体的名称、位置、属性等结构化数据，作为代码中的初始变量
+这段代码不是离线说明，而是在受限 Python 环境中执行的机器人策略。代码可以读取对象检测结果、计算目标坐标、根据条件分支选择动作，并在循环中反复观察环境。对机器人而言，`get_pos("red block")`、`detect_object("orange")`、`put_first_on_second(obj, target)` 这类 API 是 grounding；对 LLM 而言，有意义的函数名和示例让它能把语言短语映射到可执行调用。
 
 ```python
-# CaP 提示结构示例（简化版）
-system_prompt = """
-# Robot Control Code Generation
-Available functions:
-- pick(obj_name: str): pick up the named object
-- place(x: float, y: float): place held object at position
-- get_pos(obj_name: str) -> (float, float): get object position
-Write Python code that uses these functions to achieve the user's instruction.
-"""
+# Code as Policies 层级生成伪代码
+def generate_policy(instruction, scope, examples):
+    prompt = build_prompt(hints=scope.available_apis, examples=examples)
+    code = llm_complete(prompt + f"# {instruction}\n")
+
+    while True:
+        ast_tree = parse_python(code)
+        missing = find_called_functions_not_in_scope(ast_tree, scope)
+        if not missing:
+            break
+
+        for fn_name, signature in missing:
+            fn_prompt = build_function_prompt(fn_name, signature, scope, examples)
+            fn_code = llm_complete(fn_prompt)
+            assert passes_static_safety_checks(fn_code)
+            scope.add_function(fn_name, fn_code)
+            code = fn_code + "\n\n" + code
+
+    assert passes_static_safety_checks(code)
+    exec(code, scope.globals, scope.locals)
 ```
 
-##### 4. 算法伪代码
+层级生成是论文最关键的工程机制。主 LMP 可以先写出“粗略但结构清晰”的策略，例如 `stack_objs_in_order(obj_names)`；如果这个函数还不存在，系统解析 AST 找到未定义调用，再让另一个 LMP 生成函数体。这个过程以深度优先方式重复，直到所有调用都能在当前 scope 中解析。相比一次性让模型写完整长程序，递归函数生成把复杂任务拆成更短、更局部的代码生成问题，也让后续任务能复用已生成函数。
 
-论文的Algorithm 1描述了CaP的核心流程：
+安全执行不是完全放任 `exec`。论文实现会在执行前检查生成代码，禁止 import、`__` 开头的特殊变量、`exec` 和 `eval` 等高风险构造，然后把感知/控制 API 放入 `globals`，把新变量和函数放入 `locals`。这不是完整的物理安全方案，但体现了 CaP 的定位：它负责在高层组合感知结果与控制原语，真正的碰撞检查、力控限制和动作安全仍应由底层机器人控制栈承担。
 
-```
-Algorithm 1: Hierarchical Code-as-Policies Generation
-─────────────────────────────────────────────────────
-Input: Natural language instruction l,
-       Base API primitives A = {f1, f2, ..., fn},
-       Perception module P,
-       Pre-trained LLM (e.g., Codex, PaLM)
-Output: Executable Python policy code C
+CaP 与传统 LLM 规划的主要差别在于“动作参数从代码中算出来”。例如“把最左边的块向右移动 5cm”不需要预训练一个专门技能；策略代码可以先对所有块的位置排序，再把目标位置加上 \([0.05, 0]\)。如果任务涉及形状绘制，代码可以用 NumPy 插值路径点；如果涉及空间包含关系，代码可以用 Shapely 处理几何对象。换言之，LLM 的世界知识负责把语言翻译成程序结构，而确定性的 Python 运算负责做精确数值推理。
 
-1:  state ← P()                              ▷ 获取当前场景感知状态
-2:  prompt ← BUILD_BASE_PROMPT(A, state)     ▷ 构建含API清单+状态的基础提示
-3:  H ← {l}                                  ▷ 初始化LMP层级栈，顶层为用户指令
-4:  C ← ""
-5:  while H is not empty do
-6:      h ← H.pop()                          ▷ 取当前待处理的指令/函数签名
-7:      if h IS_USER_INSTRUCTION then
-8:          prompt_h ← prompt + INSTRUCTION_PROMPT(h, examples)
-9:          c_h ← LLM(prompt_h)              ▷ 生成主执行代码
-10:         C ← c_h
-11:     else if h IS_UNDEFINED_FUNCTION then
-12:         prompt_h ← prompt + FUNCTION_DEF_PROMPT(h, examples)
-13:         c_h ← LLM(prompt_h)              ▷ 生成函数定义
-14:         C ← INSERT_FUNCTION_DEF(C, c_h)
-15:     end if
-16:     H ← H ∪ EXTRACT_UNDEFINED_CALLS(c_h) ▷ 提取未定义函数，推入栈
-17: end while
-18: return C
-```
+> 💡 关键：CaP 的泛化发生在“解释语言、操作结构化感知、参数化控制 API”这一层；它不是端到端学习低层动力学，也不消除对可靠感知和控制原语的依赖。
 
-该算法的核心创新在于**递归展开未定义函数**：当LLM生成的代码中调用了尚未定义的函数时（如 `stack_in_order()`），算法自动将该函数签名推入待处理栈，再调用LLM生成其函数体。最终得到一棵完整的函数调用树。
-
-##### 5. 关键实验与发现
-
-**空间推理的代码表达**：传统VLA模型难以表达复杂的空间关系（如"离门最近的杯子"、"沿墙排成L形"）。CaP通过代码中的数学运算（距离计算、排序、几何变换）优雅地解决：
-
-```python
-# 示例：把离门最近的杯子放到桌子上
-door_pos = get_pos('door')
-cups = [o for o in get_objects() if 'cup' in o]
-nearest_cup = min(cups, key=lambda c: dist(get_pos(c), door_pos))
-pick(nearest_cup)
-place(table_pos)
-```
-
-**多模态交互与纠错**：CaP支持"代码反馈循环"——机器人执行代码后若失败，LLM可根据错误信息生成修正代码。论文展示了一个场景：机器人抓取失败后，LLM生成代码"后退、重新定位、再尝试"（即重试逻辑）。
-
-**跨实体泛化**：在移动机器人（基于语言指令的导航+操作）和固定臂（桌面物体重排）两种场景间，CaP只需替换L0控制基元，高层L1/L2代码可完全复用，验证了代码层面的抽象能力。
-
-##### 6. 局限性分析
-
-- **语法/语义错误风险**：LLM生成的代码可能包含运行时错误（如空列表索引、类型不匹配），论文报告约30-40%的生成代码需事后再生成或人工修正；
-- **计算开销**：复杂任务需要多轮LLM调用（为每个未定义函数递归生成），延迟较高；
-- **安全边界**：代码可直接控制物理机器人，恶意或错误代码可能造成损害；论文仅在实验室环境中测试，未涉及安全沙箱；
-- **感知耦合度**：代码中硬编码了感知函数名（如 `get_color`），若新环境中的感知API不同，需手动适配。
-
----
+局限也直接来自这个边界。若感知 API 无法描述某个属性，代码就无法稳健引用它；若控制 API 没有某类动作，CaP 也不能凭空执行。生成代码还可能出现语法、类型、逻辑和安全问题，真实机器人部署需要沙箱、仿真验证、动作约束和人工监督。尽管如此，CaP 证明了一个重要方向：对具备代码能力的 LLM 来说，程序本身可以成为比自然语言计划更强的机器人策略表示。
 
 #### 🧪 练习题
 
-**Q1（最简单）**：CaP提出的"语言模型程序（LMP）"与传统的"LLM直接生成动作序列"有何本质区别？这种区别为何能提升泛化能力？
-
-**Q2（中等）**：论文Algorithm 1中的递归展开未定义函数机制（步骤16），与标准的Chain-of-Thought有何异同？请从"可验证性"和"模块化复用"两个角度分析。
-
-**Q3（挑战）**：假设你想将CaP部署到一台全新的农业机器人上（如采摘苹果）。请列出需要替换/适配的模块，并说明哪些LMP层级可以复用、哪些需要重新获取Few-Shot示例。
-
-**Q4（开放）**：论文提到约30-40%的生成代码需要二次修正。若要求你设计一个"验证+自动修正"模块来降低出错率，你会如何利用CaP的多轮生成能力和机器人的仿真/现实环境反馈？请勾勒大致流程。
-
----
-
-> *本文基于Google Research Blog文章 [Code as Policies: Language Model Programs for Embodied Control](https://ai.googleblog.com/2022/11/code-as-policies-language-model.html) 及原始论文 [arXiv:2209.07753](https://arxiv.org/abs/2209.07753) 精读撰写。*
+```yaml
+question: "Code as Policies 相比只输出自然语言技能序列的 LLM 规划器，最核心的优势是什么？"
+options:
+  - "完全不需要底层机器人控制 API"
+  - "可以用可执行代码表达变量、循环、条件分支和数值几何计算"
+  - "把所有机器人动作都改成端到端强化学习"
+  - "只依赖图像生成模型来预测下一帧"
+answer: 1
+explain: "CaP 的关键是让 LLM 生成可执行 Python 策略代码，代码能处理感知输出、计算动作参数并表达闭环逻辑；它仍然需要可靠的感知和控制 API。"
+```

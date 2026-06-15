@@ -26,13 +26,11 @@ categories:
 
 ## 领域综述
 
-### 待补充：阶段性领域总结
-请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/llm/prompt_engineering/overview/zhihu__提示词工程（Prompt_Engineering）：从构建到自动优化_——技术发展阶段、趋势（类综述__b300ffc0/article.md
 
 ## 最新进展综述
 
-### 待补充：最近一个月最新动向
-请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/llm/prompt_engineering/latest/zhihu__2026年提示词工程进阶策略：Expert_Panel、Compression_Protocol、R__6f349f83/article.md
 
 ## 算法演化关系
 

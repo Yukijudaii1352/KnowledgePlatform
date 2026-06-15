@@ -29,13 +29,11 @@ categories:
 
 ## 领域综述
 
-### 待补充：阶段性领域总结
-请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/ai4sci/ai4material/overview/zhihu__北京大学张锦院士团队Chem._Rev.：面向材料科学的人工智能__a2eb40c8/article.md
 
 ## 最新进展综述
 
-### 待补充：最近一个月最新动向
-请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/ai4sci/ai4material/latest/zhihu__56｜AI4Science篇：语言模型能造出常温超导吗？——蛋白质、材料与数学的发现范式__be044594/article.md
 
 ## 算法演化关系
 

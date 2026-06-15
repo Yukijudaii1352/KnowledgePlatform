@@ -34,13 +34,11 @@ image_base: ../../content/ai4sci/ai4physics/assets/
 
 ## 领域综述
 
-### 待补充：阶段性领域总结
-请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/ai4sci/ai4physics/overview/zhihu__物理AI（二）：物理AI数学原理及实操__d24e7271/article.md
 
 ## 最新进展综述
 
-### 待补充：最近一个月最新动向
-请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/ai4sci/ai4physics/latest/zhihu__当物理遇上AI：深度学习里的物理元素（下）__7b82434b/article.md
 
 ## 算法演化关系
 

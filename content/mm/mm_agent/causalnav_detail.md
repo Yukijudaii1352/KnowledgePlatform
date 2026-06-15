@@ -1,229 +1,115 @@
-### CausalNav: A Long-term Embodied Navigation System for Autonomous Mobile Robots in Dynamic Outdoor Scenarios
+### CausalNav
 
 ```yaml
-标题: "CausalNav: A Long-term Embodied Navigation System for Autonomous Mobile Robots in Dynamic Outdoor Scenarios"
-作者: Hongbo Duan, Shangyi Luo, Zhiyuan Deng, Yanbo Chen, Yuanhao Chiang, Yi Liu, Fangming Liu, Xueqian Wang
-机构: 清华大学深圳国际研究生院人工智能与机器人中心; 鹏城实验室
-发表: IEEE Robotics and Automation Letters (RA-L), 2026
-DOI: 10.1109/LRA.2026.3653283
-arxiv: "2601.01872"
-关键词: [语义场景理解, 自主导航, 场景图, 检索增强生成, 动态环境, 具身智能, LLM]
+id: causalnav
+name: CausalNav
+full_name: 因果导航 (CausalNav)
+year: '2026'
+org: CMU
+paper_url: https://ieeexplore.ieee.org/abstract/document/11345948/
+category: frontier_2026
+parent: indooruav
+motivation: 因果推理增强动态户外长程导航鲁棒性
 ```
 
 #### 📝 一句话总结
 
-CausalNav 提出首个面向动态户外环境的场景图语义导航框架，通过 LLM 构建多层级 Embodied Graph 并结合 RAG 检索与层次化规划，实现开放词汇、长程、鲁棒的语言引导导航。
+CausalNav 提出面向动态户外环境的长程语义导航系统，通过 LLM 构建多层级 Embodied Graph，并结合 RAG 检索、动态物体时空过滤和全局-局部层次规划，实现开放词汇语言指令下的鲁棒移动机器人导航。
 
 #### 🎯 核心要点
 
-1. **Embodied Graph 多层级语义场景图**：融合离线地图粗粒度建筑信息与在线感知细粒度物体实体，构建包含物体节点、自车节点、建筑节点、聚类节点的四层图结构，作为 RAG 可检索知识库。
-2. **动态物体时空走廊过滤**：通过 CenterPoint + LIOsegmot 多目标跟踪流水线，将物体轨迹编码为时空走廊（spatial-temporal corridor），超过位移阈值的动态物体从图中移除，有效消除瞬态干扰。
-3. **LLM 驱动的层次化语义检索**：基于空间-语义相似度进行层次聚类，利用 LLM 对查询进行逐层评分（公式 9-11），结合空间邻近度与语义相关度的混合得分定位导航目标。
-4. **全局-局部层次化规划**：全局路径通过 Dijkstra 或地图 API 生成航点序列；局部路径采用 informed-RRT* + B-spline 平滑 + NMPC-CBF 控制，CBF 约束保证动态障碍物安全。
-5. **边缘部署开源 LLM**：实验表明 DeepSeek-R1-Distill-14B 等本地部署的开源模型性能接近 GPT-4o，无需依赖商业 API，适合实际机器人部署。
+- Embodied Graph：融合离线地图中的建筑节点、在线感知的物体节点、自车历史节点和 LLM 聚类节点
+- 开放词汇感知：用 YOLO-World 提取 2D 检测框与分割掩码，结合 LiDAR 投影得到世界坐标下的 3D 物体节点
+- 动态过滤：用 CenterPoint + LIOsegmot 跟踪动态物体，并通过 spatial-temporal corridor 移除移动节点
+- 层次聚类：根据空间距离与语义 embedding 相似度自底向上聚类，LLM 为聚类节点生成摘要
+- RAG 检索：把 Embodied Graph 作为可检索知识库，根据语言查询逐层选择候选目标并做空间-语义重排序
+- 分层规划：全局路径由历史轨迹、离线地图或外部地图 API 给出，局部路径由 RH-Map、informed-RRT*、B-spline 和 NMPC-CBF 执行
+- 实验验证：在 Gazebo 仿真和校园真实机器人中完成 100m 到 500m+ 长程动态户外导航
 
 #### 🔬 深入细节
 
-##### 1. 系统架构总览
+##### 框架示意图
 
-![CausalNav Framework](https://ar5iv.labs.arxiv.org/html/2601.01872v1/assets/x2.png)
+![CausalNav 系统框架](https://arxiv.org/html/2601.01872v1/x2.png)
+*图：CausalNav 包含开放词汇目标跟踪与自运动估计、动态物体过滤与 Embodied Graph 构建、图更新与语言导航三个主要阶段。*
 
-*图：CausalNav 框架包含三个顺序模块：(1) 开放词汇目标跟踪与自运动估计；(2) 动态物体过滤与 Embodied Graph 构建；(3) 图更新与人类语言导航。*
+##### 核心算法伪代码
 
-CausalNav 采用层次化架构，将感知、图构建和规划解耦为三个模块。核心数据结构是 **Embodied Graph** \(\mathcal{G}\)，包含四类节点：
+```python
+# CausalNav 在线 Embodied Graph 更新与导航伪代码
+G = EmbodiedGraph()
 
-| 节点类型 | 符号 | 内容 | 层级 |
-|---------|------|------|------|
-| 物体节点 | \(\nu_i^{obj}\) | 描述 \(c_i\)、3D包围盒、世界坐标 | \(L-1\) |
-| 自车节点 | \(\nu_i^{l}\) | 位置、速度 | 轨迹层 |
-| 建筑节点 | \(\nu_i^{build}\) | 名称、坐标（离线地图） | \(L\) |
-| 聚类节点 | \(\nu_i^{cluster}\) | LLM 摘要、质心坐标 | \(L\) |
+while robot_is_running:
+    rgb, lidar, imu = read_sensors()
+    ego_pose = lidar_inertial_odometry(lidar, imu)
 
----
+    detections = yolo_world(rgb)              # open-vocabulary boxes + masks
+    tracks = bytetrack(detections)
+    for obj in tracks:
+        point_cloud = project_lidar_into_mask(lidar, obj.mask)
+        bbox3d, obj_pose = fit_3d_bbox(point_cloud, ego_pose)
+        G.upsert_object(description=obj.label, bbox=bbox3d, pose=obj_pose)
 
-##### 2. 开放词汇目标跟踪与 LiDAR 融合定位
+    dynamic_tracks = centerpoint_liosegmot(lidar, ego_pose)
+    for track in dynamic_tracks:
+        corridor = update_spatiotemporal_corridor(track)
+        if corridor.displacement_steps > k:
+            G.remove_dynamic_object(track.id)
 
-**感知流水线**：YOLO-World（轻量开放词汇检测器）提取 2D 检测框和分割掩码，ByteTrack 进行时序关联：
+    G.add_ego_node(ego_pose)
+    G.hierarchical_cluster_with_llm()
 
-$$
-\mathcal{S}_t = \mathcal{C}(\text{YOLO-World}(I_t)), \quad \mathcal{S}_t = \{S_i = (c_i, \text{2DBBox}_i, \mathcal{B}_i)\}
-$$
-
-**LiDAR-Camera 融合定位**：将 LiDAR 点云投影到图像平面，通过分割掩码筛选物体点云，构建最小体积 3D 包围盒：
-
-$$
-{}^{c}\mathbf{p}_i = \mathbf{K} \cdot \mathbf{H} \cdot \mathbf{P}_i, \quad {}^{l}\mathcal{P}_{\text{obj}} = \{\mathbf{P}_i \in \mathcal{P}_t \mid {}^{c}\mathbf{p}_i \in \mathcal{B}_i\}
-$$
-
-世界坐标系下的物体位姿通过自车位姿变换获得：\({}^{w}\mathbf{T}_{\text{obj}} = {}^{w}\mathbf{T}_{l} \cdot {}^{l}\mathbf{T}_{\text{obj}}\)。
-
-**图增量更新**：新检测物体创建节点，已有物体更新位置：
-
-$$
-G \leftarrow \begin{cases} G \cup \{\nu_i^{obj}\}, & \text{if } \nu_i^{obj} \notin G \\ G \setminus \{{}^{old}\nu_i^{obj}\} \cup \{\nu_i^{obj}\}, & \text{if } {}^{old}\nu_i^{obj} \in G \end{cases}
-$$
-
----
-
-##### 3. 动态物体时空走廊过滤
-
-![Spatial-Temporal Corridor](https://ar5iv.labs.arxiv.org/html/2601.01872v1/assets/x3.png)
-
-*图：时空走廊示意——同一车辆在不同时间戳的三个观测轨迹点及其 3D 包围盒。*
-
-传统基于速度的动态物体过滤容易产生误报。CausalNav 将每个物体的历史轨迹编码为**时空走廊**：
-
-$$
-\mathcal{T} = \{{}^{w}\mathbf{T}_{\text{obj}}^{i}, \text{3DBBox}_i, t_i\}_{i=1}^{n}
-$$
-
-当物体位移超过阈值 \(k\) 步时，其时空走廊被排除，对应动态节点从图中移除：
-
-$$
-G \leftarrow G \setminus \{\mathcal{T} \mid \mathcal{T} \in D\}
-$$
-
-这种方法对间歇性运动模式（如路口附近的车辆）特别有效。
-
----
-
-##### 4. 层次化聚类与 RAG 语义检索
-
-**空间-语义相似度聚类**：
-
-$$
-\kappa_{ij} = (1-\alpha)\kappa_{ij}^{\text{spatial}} + \alpha \kappa_{ij}^{\text{semantic}}
-$$
-
-其中 \(\kappa_{ij}^{\text{spatial}} = \exp(-d_{\text{haversine}}(i,j)/\theta)\) 为空间相似度，\(\kappa_{ij}^{\text{semantic}}\) 为嵌入向量余弦相似度。底层物体节点自底向上聚类形成聚类节点，LLM 为每个聚类生成语义摘要。
-
-**层次化语义检索**：给定查询 \(q\)，在每一层级 \(l\) 通过 LLM 评分选择节点：
-
-$$
-\pi(n_l \mid q) = \frac{\exp[\gamma \cdot \text{LLM}(q, C(n_l))]}{\sum_{n' \in \mathcal{L}_l} \exp[\gamma \cdot \text{LLM}(q, C(n'))]}
-$$
-
-层次化路径得分：
-
-$$
-\Lambda(\zeta) = \prod_{l=1}^{D} [\pi(n_l \mid q) \cdot \phi(n_l, n_{l-1})]
-$$
-
-其中 \(\phi(n_l, n_{l-1}) = \mathbf{1}_{\{n_{l-1} \in \text{Children}(n_l)\}}\) 保证父子链接有效。
-
-**混合重排序**：结合空间邻近度与语义得分：
-
-$$
-\eta(n) = \beta \kappa^{\text{spatial}}(n, \mathbb{L}) + (1-\beta) \Lambda(\zeta)
-$$
-
-消融实验表明最优参数为 \(\alpha = \beta = 0.5\)，\(\gamma = 1.5\)。
-
----
-
-##### 5. 在线图更新算法
-
-```
-Algorithm 1: Online Embodied Graph Updating
-──────────────────────────────────────────
-Input: 感知回调 C, 动态阈值 k
-Initialize: G ← ∅, t ← 0
-
-while 系统运行 do
-    t ← t + 1
-    S_t ← C(I_t, P_t, IMU)                    // 多模态感知
-
-    for each S_i ∈ S_t do                      // 物体节点更新
-        计算 T_obj^w, B_i, 3DBBox_i
-        ν_i^obj ← {c_i, 3DBBox_i, p_obj^w}
-        if ν_i^obj ∉ G then G ← G ∪ {ν_i^obj}
-        else G.update(ν_i^obj)
-
-    for each 动态节点 ν_i^d do                  // 时空走廊过滤
-        if ν_i^d.steps ≥ k then G ← G \ {T}
-
-    更新自车节点 ν_i^l 和所有边 E_ν
-    R ← HCluster(G)                            // 层次聚类
-    for each r ∈ R do
-        E_r ← {(ν_i^cluster, ν_i^obj) | ν_i^obj ∈ r}
-        G ← G ∪ {ν_i^cluster} ∪ E_r
-
-return G
+    if user_query_available():
+        target = G.semantic_retrieve(user_query)
+        global_path = plan_global_route(G, target)
+        local_traj = informed_rrt_star_with_rhmap(global_path)
+        control = nmpc_cbf_track(local_traj, dynamic_obstacles())
+        robot.execute(control)
 ```
 
----
+##### 方法解释
 
-##### 6. 层次化规划：全局 + 局部
+CausalNav 解决的是户外长程语言导航中的三类问题：语义查询开放、环境动态变化、路径跨度很长。传统视觉导航策略往往依赖固定目标图像或局部拓扑图，难以回答“去靠近消防栓旁边的入口”这类开放词汇指令；同时，车辆和行人会在地图中留下动态残影，导致全局路径和局部避障不稳定。
 
-**全局规划**：
-- 若目标可通过历史轨迹到达 → Dijkstra 最短路径
-- 否则 → 离线路网或外部地图 API（Google Maps / 高德）生成粗粒度航点序列 \(\mathcal{W} = \{\mathbf{w}_1, \ldots, \mathbf{w}_n\}\)
-
-**局部规划**：
-1. **动态障碍物移除**：RH-Map（3D 区域哈希图）实时移除动态物体残影，获得可行域 \(\mathcal{F}\)
-2. **路径生成**：informed-RRT* 在 \(\mathcal{F}\) 中生成初始路径，B-spline 平滑
-3. **轨迹跟踪**：NMPC-CBF 优化控制：
+系统的核心数据结构是 Embodied Graph。物体节点包含描述、3D 包围盒和世界坐标；建筑节点来自离线地图；自车节点记录历史轨迹；聚类节点由 LLM 对相邻物体和建筑区域做语义摘要。静态环境的空间-语义相似度可写为：
 
 $$
-\min_{\{\mathbf{x}_k, \mathbf{u}_k\}} \sum_{k=0}^{N-1} \left(\|\mathbf{x}_k - \mathbf{x}_g^k\|_Q^2 + \|\mathbf{u}_k\|_R^2\right)
+\kappa_{ij} = (1-\alpha)\kappa_{ij}^{spatial} + \alpha \kappa_{ij}^{semantic}
 $$
 
+其中空间相似度基于地理距离，语义相似度基于 embedding 余弦相似度。这样可以把“垃圾桶/garbage bin”这类标签变体聚到相似区域。
+
+动态物体过滤是 CausalNav 相对普通语义地图的重要改进。系统不只看瞬时速度，而是把对象历史轨迹编码成 spatial-temporal corridor：
+
 $$
-\text{s.t.} \quad \Delta h_{ob}^i(\mathbf{x}_k, \mathbf{u}_k) + \lambda_k h_{ob}^i(\mathbf{x}_k) \geq 0
+\mathcal{T}=\{(T_i^{obj}, \mathrm{3DBBox}_i, t_i)\}_{i=1}^{n}
 $$
 
-其中 CBF 约束 \(h_i(\mathbf{x}) = (x - x_i^p)^2 + (y - y_i^p)^2 - d_{\text{safe}}^2\) 保证与动态障碍物的安全距离。
+若对象在时间窗口内位移超过阈值，就从 Embodied Graph 的静态结构中剔除。这能减少路口车辆、行人等暂态对象对长期语义地图的污染。
 
----
+> 💡 关键：CausalNav 的“因果”直觉在于区分稳定环境结构与短时动态干扰，让长期导航决策依赖可持续的空间-语义因果线索，而不是被瞬态障碍物误导。
 
-##### 7. 实验结果
+语言检索时，系统逐层让 LLM 根据查询 \(q\) 和节点描述 \(C(n_l)\) 打分：
 
-![Simulation & Embodied Graph](https://ar5iv.labs.arxiv.org/html/2601.01872v1/assets/x4.png)
+$$
+\pi(n_l \mid q) =
+\frac{\exp(\gamma \cdot \mathrm{LLM}(q, C(n_l)))}
+{\sum_{n' \in \mathcal{L}_l}\exp(\gamma \cdot \mathrm{LLM}(q, C(n')))}
+$$
 
-*图：仿真环境与构建的 Embodied Graph。环境包含粗粒度建筑和细粒度物体（消防栓、邮箱等）。*
+再结合父子链接约束和空间邻近度得到最终候选。检索出的目标进入规划模块：如果目标连接到历史轨迹，就用 Dijkstra；否则调用离线地图或外部地图 API 产生全局航点。局部规划使用 RH-Map 移除动态障碍残影，informed-RRT* 生成初始路径，B-spline 平滑后由 NMPC-CBF 跟踪并保证安全约束。
 
-**仿真实验**（Gazebo，25 个随机任务 × 10 次试验）：
-
-| 方法 | 小距离 SR/SPL | 大距离 SR/SPL | 碰撞次数(大) |
-|------|-------------|-------------|------------|
-| ViNT | 84/68.4 | 48/32.2 | 1.6 |
-| NoMaD | 82/70.9 | 22/14.6 | 2.3 |
-| GNM | 84/72.3 | 0/0 | - |
-| CityWalker | 100/82.4 | 80/68.3 | **4.5** |
-| **CausalNav** | **100/88.9** | **80/66.0** | **1.2** |
-
-**关键发现**：
-- CausalNav 在碰撞次数上显著优于 CityWalker（1.2 vs 4.5），动态避障能力更强
-- 拓扑方法（ViNT/NoMaD/GNM）因单向连通性导致长距离任务路径效率极低
-- 在线图更新使 SR 从 78% 提升至 90%，SPL 从 54.7% 提升至 80.1%
-
-**LLM 对比**：DeepSeek-R1-Distill-14B（SR=85%）接近 GPT-4o（SR=88%），层次化检索有效缓解幻觉
-
-**运行效率**：105ms/周期（10Hz 实时），仅比 NoMaD 多 11% 开销
-
-![Real-world Experiments](https://ar5iv.labs.arxiv.org/html/2601.01872v1/assets/x7.png)
-
-*图：真实世界不同距离尺度的导航实验。(a) 短程 130m 物体级指令；(b) 长程 512m 建筑级指令。仅 CausalNav 完成 512m 长程任务。*
-
-**真实世界实验**：在校园环境部署（RTX 4070 + RealSense D435i + RSHelios LiDAR + RTK），CausalNav 是唯一能在 500m+ 高动态户外环境中成功完成长程语义导航的方法。
-
----
-
-##### 8. 参数消融
-
-![Ablation](https://ar5iv.labs.arxiv.org/html/2601.01872v1/assets/x6.png)
-
-*图：关键参数消融。左至右：\(\alpha\)（空间-语义权重）、\(\beta\)（检索-空间权重）、\(\gamma\)（LLM 评分锐度）。准确率和召回率呈钟形分布，在 \(\alpha=\beta=0.5\)、\(\gamma=1.5\) 处达到峰值。*
+实验中，CausalNav 在短程和长程仿真任务中保持高成功率，并显著降低动态环境碰撞；真实校园环境中，约 130m 的物体级指令和 512m 的建筑级指令展示了其对大尺度开放词汇导航的适应能力。
 
 #### 🧪 练习题
 
 ```yaml
-question: "CausalNav 使用时空走廊（spatial-temporal corridor）过滤动态物体的核心优势是什么？"
+question: "CausalNav 中 spatial-temporal corridor 的主要作用是什么？"
 options:
-  - "通过速度阈值快速判断物体是否为动态，计算效率最高"
-  - "通过多步位移累积判断动态性，对间歇性运动模式（如路口停车）更鲁棒"
-  - "直接利用 LLM 语义推理判断物体是否会移动"
-  - "仅依赖 LiDAR 点云密度变化检测动态物体"
+  - "把语言指令翻译成自然语言解释"
+  - "记录动态物体的时间轨迹并从长期 Embodied Graph 中移除瞬态移动对象"
+  - "压缩大语言模型参数"
+  - "替代 LiDAR 完成全部定位"
 answer: 1
-explain: "时空走廊将物体的历史轨迹编码为多时间戳的位姿-包围盒序列，通过累积位移超过阈值 k 步来判断动态性，避免了单帧速度阈值对临时静止物体（如等红灯车辆）的误判。"
+explain: "时空走廊通过历史 3D 包围盒和时间戳判断对象是否持续移动，避免车辆和行人等动态实体污染长期语义图。"
 ```

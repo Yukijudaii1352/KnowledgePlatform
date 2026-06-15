@@ -1,5 +1,5 @@
 /**
- * llm_sft-data.js — 由 pipeline/build.py 于 2026-06-15 09:55:58 自动生成。
+ * llm_sft-data.js — 由 pipeline/build.py 于 2026-06-15 17:41:33 自动生成。
  * 源文件：content/llm/llm_sft.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -715,7 +715,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 dora",
         "代表机构：Alibaba"
       ],
-      "detail": "<p>正则化优化稳定训练超越DoRA</p>"
+      "detail": "<p><img alt=\"LoRA A/B 低秩分支结构\" src=\"https://dkopi.github.io/vera/diagram.png\" />\n<em>图源：VeRA 官方项目页中的 LoRA/VeRA 对比图。LoRA-E2 保持标准 LoRA A/B 分支结构，主要改变 A 初始化和 A/B 优化顺序。ACM PDF 需要访问权限，方法信息补充来自 ACM 摘要页、La Trobe 公开研究输出页和官方 GitHub。</em></p>\n<p>公开论文页面：https://dl.acm.org/doi/10.1145/3774904.3792500<br />\n官方代码页：https://github.com/whu-totemdb/LoRA-E2</p>\n<p>```python</p>"
     },
     {
       "id": "sfed_lora",
@@ -755,7 +755,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 adalora",
         "代表机构：ByteDance"
       ],
-      "detail": "<p>自适应秩选择与剪枝提升效率</p>"
+      "detail": "<p><img alt=\"LoRA A/B 低秩分支结构\" src=\"https://dkopi.github.io/vera/diagram.png\" />\n<em>图源：VeRA 官方项目页中的 LoRA/VeRA 对比图。BladeLoRA 在标准 LoRA A/B 分支上调整逐层 rank、对齐和剪枝；论文正文图需订阅访问。公开摘要页：https://link.springer.com/chapter/10.1007/978-3-032-02899-0_6</em></p>\n<p>```python</p>"
     },
     {
       "id": "lora2",

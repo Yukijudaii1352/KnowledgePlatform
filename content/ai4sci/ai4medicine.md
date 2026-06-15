@@ -30,13 +30,11 @@ image_base: ../../content/ai4sci/ai4medicine/assets/
 
 ## 领域综述
 
-### 待补充：阶段性领域总结
-请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/ai4sci/ai4medicine/overview/zhihu__ACS_Cent._Sci._通往药物超级智能的路线图__eebf15c3/article.md
 
 ## 最新进展综述
 
-### 待补充：最近一个月最新动向
-请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/ai4sci/ai4medicine/latest/zhihu__AI驱动药物发现的发展趋势与挑战_—_Transformer_vs_Diffusion__de3a67d9/article.md
 
 ## 算法演化关系
 

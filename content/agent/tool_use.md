@@ -30,13 +30,11 @@ categories:
 
 ## 领域综述
 
-### 待补充：阶段性领域总结
-请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/agent/tool_use/overview/zhihu__智能体架构汇总（二）——工具调用(Tool_Call)__d7dac5fb/article.md
 
 ## 最新进展综述
 
-### 待补充：最近一个月最新动向
-请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/agent/tool_use/latest/zhihu__智能体只会机械调工具？ICLR_2026五种方案让Agent学会灵活规划与自我进化__e2fd3acc/article.md
 
 ## 算法演化关系
 

@@ -26,13 +26,11 @@ categories:
 
 ## 领域综述
 
-### 待补充：阶段性领域总结
-请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/cv/object_detection/overview/zhihu__从何恺明的演讲出发：视觉目标检测的三十年历史__8e0a8435/article.md
 
 ## 最新进展综述
 
-### 待补充：最近一个月最新动向
-请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/cv/object_detection/latest/zhihu__2026年主流目标检测模型横向评测：速度、精度、部署全对比__aec5eb62/article.md
 
 ## 算法演化关系
 

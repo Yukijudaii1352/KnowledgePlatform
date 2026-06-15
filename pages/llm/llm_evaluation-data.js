@@ -1,5 +1,5 @@
 /**
- * llm_evaluation-data.js — 由 pipeline/build.py 于 2026-06-15 09:55:57 自动生成。
+ * llm_evaluation-data.js — 由 pipeline/build.py 于 2026-06-15 17:41:33 自动生成。
  * 源文件：content/llm/llm_evaluation.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -546,7 +546,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 math",
         "代表机构：Google Research"
       ],
-      "detail": "<p>23个极限推理任务测试逻辑边界</p>"
+      "detail": "<h3>关键图表</h3>\n<p><strong>图1：BBH筛选流程</strong></p>\n<pre><code>BIG-Bench (204 tasks)\n    │\n    ├─ 清洗: 去除非自动评估/格式问题 → 78 tasks\n    │\n    ├─ 筛选: 所有LM未超人类平均 → 36 tasks\n    │\n    └─ 去除极难: 去除所有模型≈随机的13个 → 23 BBH tasks (6,511 samples)\n</code></pre>\n<p><strong>表2：BBH总体结果（核心数据）</strong></p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>模型</th>\n<th>Answer-Only</th>\n<th>CoT</th>\n<th>超越人类任务数</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>PaLM 540B</td>\n<td>52.3%</td>\n<td>65.2% (+12.9)</td>\n<td>10/23</td>\n</tr>\n<tr>\n<td>InstructGPT (text-davinci-002)</td>\n<td>51.8%</td>\n<td>68.4% (+16.6)</td>\n<td>15/23</td>\n</tr>\n<tr>\n<td>Codex (code-davinci-002)</td>\n<td>56.6%</td>\n<td>73.9% (+16.7)</td>\n<td>17/23</td>\n</tr>\n<tr>\n<td>人类平均</td>\n<td>—</td>\n<td>67.7%</td>\n<td>23/23</td>\n</tr>\n<tr>\n<td>人类最佳</td>\n<td>—</td>\n<td>94.4%</td>\n<td>23/23</td>\n</tr>\n<tr>\n<td>BIG-Bench最优先前结果</td>\n<td>50.9%</td>\n<td>—</td>\n<td>0/23</td>\n</tr>\n</tbody>\n</table></div>\n<p><strong>图4/5：CoT的涌现特性（伪代码描述）</strong></p>\n<p>```</p>"
     },
     {
       "id": "humaneval",
@@ -1099,7 +1099,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 webarena",
         "代表机构：University of Hong Kong"
       ],
-      "detail": "<p>操作系统任务评测超越人类基线</p>"
+      "detail": "<p><img alt=\"OSWorld 任务与环境总览\" src=\"https://os-world.github.io/static/images/task_demonstration.png\" />\n<em>图：OSWorld 官方项目页展示的任务与评测闭环。Agent 接收截图或 accessibility tree，输出鼠标/键盘动作，在虚拟机中的真实应用上执行，最终由执行式评测脚本判定。</em></p>\n<p><img alt=\"OSWorld 环境基础设施\" src=\"https://os-world.github.io/static/images/env.png\" />\n<em>图：OSWorld 的配置文件驱动任务初始化、Agent 交互、后处理、信息获取和最终评测。</em></p>\n<p>```python</p>"
     },
     {
       "id": "infbench",
@@ -1118,7 +1118,7 @@ window.PAGE_CONFIG = {
         "核心动机：10万+token超长文本信息检索",
         "代表机构：Tsinghua University"
       ],
-      "detail": "<p>10万+token超长文本信息检索</p>"
+      "detail": "<p><img alt=\"∞Bench 数据长度与任务分布\" src=\"https://raw.githubusercontent.com/OpenBMB/InfiniteBench/main/figs/data_pie.png\" />\n<em>图：∞Bench 官方仓库中的任务分布图。扇区角度表示样例数量，半径以对数尺度表示输入和输出长度。</em></p>\n<p><img alt=\"∞Bench 模型性能雷达图\" src=\"https://raw.githubusercontent.com/OpenBMB/InfiniteBench/main/figs/radar_res.png\" />\n<em>图：GPT-4、Claude 2、Kimi-Chat、YaRN-Mistral 等模型在各任务上的性能雷达图。检索任务明显更容易，代码、数学和深度小说理解更困难。</em></p>\n<p>```python</p>"
     },
     {
       "id": "livebench",

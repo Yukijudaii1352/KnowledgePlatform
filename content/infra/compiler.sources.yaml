@@ -1,0 +1,4 @@
+overview:
+  include_raw: temp/content_survey_bulk_20260614_174337/researcher_output/infra/compiler/overview/zhihu__浅谈AI编译器趋势：从更快的kernel到重新定义执行边界__f901836b/article.md
+latest_overview:
+  include_raw: temp/content_survey_bulk_20260614_174337/researcher_output/infra/compiler/latest/zhihu__现代_AI_编译器__68d4a3cc/article.md

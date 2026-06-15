@@ -30,13 +30,11 @@ image_base: ../../content/aigc/digital_human/assets/
 
 ## 领域综述
 
-### 待补充：阶段性领域总结
-请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/aigc/digital_human/overview/zhihu__[aigc杂谈4][阅读笔记][数字人-Talking_Head_Synthesis_综述]__8808ea00/article.md
 
 ## 最新进展综述
 
-### 待补充：最近一个月最新动向
-请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/aigc/digital_human/latest/zhihu__CVPR_2025_三篇论文直击3D数字人“真实感”痛点：从人-物交互、可解耦生成到可信评估__6531ceeb/article.md
 
 ## 算法演化关系
 

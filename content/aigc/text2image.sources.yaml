@@ -1,0 +1,4 @@
+overview:
+  include_raw: temp/content_survey_bulk_20260614_174337/researcher_output/aigc/text2image/overview/zhihu__图像生成技术演进综述：从VAE到Sora的十二年革命（2013-2025）__09ffefe7/article.md
+latest_overview:
+  include_raw: temp/content_survey_bulk_20260614_174337/researcher_output/aigc/text2image/latest/zhihu__一文了解文生图大模型近期发展趋势__d2b1ff3d/article.md

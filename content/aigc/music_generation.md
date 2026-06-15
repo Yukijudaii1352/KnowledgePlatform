@@ -32,13 +32,11 @@ categories:
 
 ## 领域综述
 
-### 待补充：阶段性领域总结
-请补充一篇纵观一段时间以来的总结性文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/aigc/music_generation/overview/zhihu__AI音乐生成技术发展到什么水平了？我花了一个月深度体验后的真实报告__66e23c74/article.md
 
 ## 最新进展综述
 
-### 待补充：最近一个月最新动向
-请补充最近一个月该领域最新动向的综述文档，建议使用 `!INCLUDE_RAW path/to/article.md` 引入人工筛选后的 Markdown。
+!INCLUDE_RAW ../../temp/content_survey_bulk_20260614_174337/researcher_output/aigc/music_generation/latest/zhihu__对比一下几个顶尖音乐生成模型__64dd2474/article.md
 
 ## 算法演化关系
 

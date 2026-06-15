@@ -1,5 +1,5 @@
 /**
- * ml_platform-data.js — 由 pipeline/build.py 于 2026-06-15 09:55:57 自动生成。
+ * ml_platform-data.js — 由 pipeline/build.py 于 2026-06-15 17:41:32 自动生成。
  * 源文件：content/infra/ml_platform.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -439,7 +439,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 tensorflow",
         "代表机构：Uber"
       ],
-      "detail": "<p>引入Ring All-Reduce提升带宽利用率</p>"
+      "detail": "<blockquote>\n<p>图示说明：论文核心图是 Ring All-Reduce 的环形通信：N 个 worker 每步只与左右邻居交换分片，经过 reduce-scatter 得到分片梯度和 all-gather 得到完整平均梯度。若无稳定图片直链，可按该环形拓扑理解。</p>\n</blockquote>\n<p>```python</p>"
     },
     {
       "id": "ray",
@@ -612,7 +612,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 alpa",
         "代表机构：HPC-AI Tech"
       ],
-      "detail": "<p>统一的大规模并行训练系统</p>"
+      "detail": "<blockquote>\n<p>图示说明：官方论文/项目资料的系统图可概括为 Booster 接管 model、optimizer、dataloader，再由不同 plugin 注入 ZeRO、tensor parallel、pipeline parallel、AMP 和 checkpoint 策略。</p>\n</blockquote>\n<p>```python</p>"
     },
     {
       "id": "megascale",
@@ -746,7 +746,7 @@ window.PAGE_CONFIG = {
         "演化来源：继承或改进自 megascale",
         "代表机构：OSDI Community"
       ],
-      "detail": "<p>整体流水线并行框架，解决万亿参数MoE训练</p>"
+      "detail": "<blockquote>\n<p>图示说明：公开会议信息尚无稳定论文图直链；可将框架理解为 MoE Transformer 被切为多个 pipeline stage，每个 stage 内再放置专家组，调度器同时决定 micro-batch 流水、token 路由和 all-to-all 重叠。</p>\n</blockquote>\n<p>```python</p>"
     },
     {
       "id": "mlflow",
