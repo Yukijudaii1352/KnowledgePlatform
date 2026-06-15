@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 
 from .common import DOMAIN_CATALOG, DOMAIN_MAP, INDEX_HTML, PAGES_DIR, apply_placeholder, is_domain_enabled, ok, today_str, warn
-from .domain_builder import is_source_public, scan_live_topics, resolve_live_topic
+from .domain_builder import is_source_public, load_page_config, scan_live_topics, resolve_live_topic
 
 
 def _is_example_topic_html(html_file: Path) -> bool:
@@ -49,6 +49,40 @@ def _count_total_topics() -> int:
         for domain_id in DOMAIN_MAP
         if is_domain_enabled(domain_id)
     )
+
+
+def _count_collected_papers(pages_dir: Path) -> int:
+    """统计所有上架专题下、存在 paperUrl 的论文条目总数（仅口径：非空 paperUrl）。"""
+    if not pages_dir.is_dir():
+        return 0
+
+    paper_count = 0
+    for domain_id, meta in DOMAIN_MAP.items():
+        if not is_domain_enabled(domain_id):
+            continue
+
+        domain_dir = pages_dir.parent / meta["dir"]
+        if not domain_dir.is_dir():
+            continue
+
+        for data_js in domain_dir.glob("*-data.js"):
+            if not is_source_public(data_js):
+                continue
+            cfg = load_page_config(data_js)
+            if not cfg:
+                continue
+
+            algos = cfg.get("algos", [])
+            if not isinstance(algos, list):
+                continue
+
+            for algo in algos:
+                if not isinstance(algo, dict):
+                    continue
+                if str(algo.get("paperUrl", "")).strip():
+                    paper_count += 1
+
+    return paper_count
 
 
 def _render_home_domain_cards() -> str:
@@ -128,13 +162,15 @@ def render_index():
     stat_live    = _count_live_topics(PAGES_DIR)
     stat_domains = sum(1 for domain_id in DOMAIN_MAP if is_domain_enabled(domain_id))
     stat_total   = _count_total_topics()
+    stat_papers  = _count_collected_papers(PAGES_DIR)
 
     html = apply_placeholder(html, "BUILD_DATE",        build_date)
     html = apply_placeholder(html, "STAT_TOPICS_LIVE",  str(stat_live))
     html = apply_placeholder(html, "STAT_DOMAINS",      str(stat_domains))
     html = apply_placeholder(html, "STAT_TOPICS_TOTAL", str(stat_total))
+    html = apply_placeholder(html, "STAT_PAPER_COUNT", str(stat_papers))
     html = _refresh_domains_section(html)
 
     INDEX_HTML.write_text(html, encoding="utf-8")
     ok(f"刷新首页 index.html · 更新日期={build_date} · "
-       f"已上线={stat_live} · 核心领域={stat_domains} · 知识专题={stat_total}")
+       f"已上线={stat_live} · 核心领域={stat_domains} · 知识专题={stat_total} · 已整理论文={stat_papers}")
