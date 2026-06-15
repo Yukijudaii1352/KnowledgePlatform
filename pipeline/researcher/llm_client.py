@@ -10,7 +10,12 @@ from typing import Any, Dict, List, Optional
 
 from cal_vlm import venusvl_inf
 
-DEFAULT_MODEL = "gpt-5.4"
+try:
+    from cal_llm import DEFAULT_MODEL as CAL_LLM_DEFAULT_MODEL
+except Exception:
+    CAL_LLM_DEFAULT_MODEL = "deepseek-v4-pro"
+
+DEFAULT_MODEL = CAL_LLM_DEFAULT_MODEL
 
 
 def chat(

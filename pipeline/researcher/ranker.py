@@ -22,9 +22,6 @@ import re
 import time as _time
 from typing import Any, Dict, List
 
-from llm_client import chat_json
-
-
 # =====================================================================
 # 分词 & 相关性
 # =====================================================================
@@ -290,12 +287,22 @@ def llm_judge(
     items: List[Dict[str, Any]],
     keywords: List[str],
     batch_size: int = 10,
-    model: str = "gpt-5.4",
+    model: str = "deepseek-v4-pro",
 ) -> List[Dict[str, Any]]:
     """
     对候选项逐批送入 LLM 打分。写入 item["llm_scores"] 与 item["llm_total"] 与 item["llm_reason"]。
     """
     kw_str = " | ".join(keywords)
+    try:
+        from llm_client import chat_json
+    except Exception as e:
+        print(f"[WARN] LLM judge 不可用：{e}，跳过 LLM 精排。")
+        for it in items:
+            it.setdefault("llm_scores", None)
+            it.setdefault("llm_total", None)
+            it.setdefault("llm_reason", "")
+        return items
+
     for start in range(0, len(items), batch_size):
         batch = items[start: start + batch_size]
         prompt = _JUDGE_USER_TMPL.format(
@@ -371,7 +378,7 @@ def final_rank(
     keep_top: int = 10,
     heuristic_top: int = 30,
     use_llm: bool = True,
-    judge_model: str = "gpt-5.4",
+    judge_model: str = "deepseek-v4-pro",
     **_ignored,
 ) -> List[Dict[str, Any]]:
     """

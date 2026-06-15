@@ -1,5 +1,5 @@
 /**
- * vla-data.js — 由 pipeline/build.py 于 2026-06-11 15:11:28 自动生成。
+ * vla-data.js — 由 pipeline/build.py 于 2026-06-15 09:55:55 自动生成。
  * 源文件：content/embodied/vla.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "vla",
     "topic_name": "视觉-语言-动作基础模型",
     "page_title": "视觉-语言-动作 (VLA) 基础模型算法总结",
-    "page_subtitle": "2026-06-11 版",
+    "page_subtitle": "2026-06-15 版",
     "page_desc": "从模仿学习到原生多模态端到端控制，梳理VLA模型在具身智能领域的技术演进与前沿突破",
     "page_icon": "🦾",
     "hero_pills": [

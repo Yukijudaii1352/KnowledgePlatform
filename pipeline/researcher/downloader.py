@@ -183,7 +183,10 @@ def _fetch_zhihu_via_api(url: str) -> Optional[Dict[str, Any]]:
                     "content_html": data.get("content", ""),
                     "author": data.get("author", {}).get("name", ""),
                     "voteup": data.get("voteup_count", 0),
+                    "comment_count": data.get("comment_count", 0),
+                    "zfav_count": data.get("zfav_count", 0),
                     "created": data.get("created_time", ""),
+                    "updated": data.get("updated_time", ""),
                 }
             return None
 
@@ -467,6 +470,19 @@ def download_one(
                 source = "zhihu-api"
                 if zhihu_title:
                     result["title"] = zhihu_title
+                    item["title"] = zhihu_title
+                meta = item.setdefault("meta", {})
+                if zhihu_data.get("author"):
+                    meta["author"] = zhihu_data.get("author", "")
+                for src_key, dst_key in (
+                    ("voteup", "voteup_count"),
+                    ("comment_count", "comment_count"),
+                    ("zfav_count", "zfav_count"),
+                    ("created", "created_time"),
+                    ("updated", "updated_time"),
+                ):
+                    if zhihu_data.get(src_key) not in (None, ""):
+                        meta[dst_key] = zhihu_data.get(src_key)
 
         if source == "fail" or not html:
             result["status"] = "failed_fetch"

@@ -47,6 +47,18 @@ def _time_strftime_year(ts: int) -> str:
     return _time_mod.strftime("%Y", _time_mod.localtime(int(ts)))
 
 
+def _time_strftime_date(ts: int) -> str:
+    return _time_mod.strftime("%Y-%m-%d", _time_mod.localtime(int(ts)))
+
+
+def _date_filter_label(since_ts: int = 0, since_year: int = 0) -> str:
+    if since_ts > 0:
+        return _time_strftime_date(since_ts)
+    if since_year > 0:
+        return f"{since_year}-01-01"
+    return "不限"
+
+
 def _zhihu_headers(xsrf: str = "") -> Dict[str, str]:
     h = {
         "User-Agent": (
@@ -116,6 +128,7 @@ def search_zhihu_articles_only(
     query: str,
     max_results: int = 40,
     since_year: int = 0,
+    since_ts: int = 0,
     drop_unknown_date: bool = True,
 ) -> List[Dict[str, Any]]:
     """
@@ -124,8 +137,9 @@ def search_zhihu_articles_only(
       - 只保留 obj.type == 'article' 的条目
       - URL 必须形如 zhuanlan.zhihu.com/p/{id}
       - 丢弃想法（pin_general/zvideo/answer/question 等其他类型）
-      - 若 since_year>0，则只保留 created_time 年份 >= since_year 的条目
-        （drop_unknown_date=True 时，没有 created_time 的条目也会被丢弃）
+      - 若 since_ts>0，则只保留 max(created_time, updated_time) >= since_ts 的条目
+      - 否则若 since_year>0，则只保留 created_time 年份 >= since_year 的条目
+      - drop_unknown_date=True 时，没有可用时间戳的条目会被丢弃
 
     注意：知乎 search_v3 服务端不支持时间过滤参数（time_interval/sort 实测全部被忽略），
     因此这里完全采用**客户端过滤**。为保证过滤后仍有足够候选，内部会自动多翻页，
@@ -146,7 +160,8 @@ def search_zhihu_articles_only(
     offset = 0
     page_limit = 20
     # 时间过滤开启后，原始返回里大多数会被丢，所以允许翻更多页
-    max_scan_pages = 20 if since_year > 0 else 8
+    has_date_filter = since_ts > 0 or since_year > 0
+    max_scan_pages = 20 if has_date_filter else 8
     pages_scanned = 0
     filtered_by_date = 0
 
@@ -224,15 +239,21 @@ def search_zhihu_articles_only(
             updated = int(obj.get("updated") or obj.get("updated_time") or 0)
 
             # —— 时间过滤（客户端） ——
-            if since_year > 0:
-                if created <= 0:
+            if has_date_filter:
+                filter_ts = max(created, updated) if since_ts > 0 else created
+                if filter_ts <= 0:
                     if drop_unknown_date:
+                        filtered_by_date += 1
+                        seen_ids.add(article_id)
+                        continue
+                elif since_ts > 0:
+                    if filter_ts < since_ts:
                         filtered_by_date += 1
                         seen_ids.add(article_id)
                         continue
                 else:
                     try:
-                        year = int(_time_strftime_year(created))
+                        year = int(_time_strftime_year(filter_ts))
                     except Exception:
                         year = 0
                     if year < since_year:
@@ -274,10 +295,11 @@ def search_zhihu_articles_only(
             break
         offset += page_limit
 
-    if since_year > 0:
+    if has_date_filter:
         print(
             f"   [zhihu-api] 获取到 {len(results)} 条知乎专栏文章"
-            f"（year>={since_year}；时间过滤丢弃 {filtered_by_date} 条，翻了 {pages_scanned} 页）"
+            f"（since>={_date_filter_label(since_ts, since_year)}；"
+            f"时间过滤丢弃 {filtered_by_date} 条，翻了 {pages_scanned} 页）"
         )
     else:
         print(f"   [zhihu-api] 获取到 {len(results)} 条知乎专栏文章（翻了 {pages_scanned} 页）")
@@ -289,23 +311,25 @@ def multi_source_search(
     queries: List[str],
     per_source: int = 40,
     since_year: int = 0,
+    since_ts: int = 0,
     drop_unknown_date: bool = True,
     **_ignored,
 ) -> List[Dict[str, Any]]:
     """
     聚合（极简版）：仅调用知乎专栏文章搜索，多 query 结果按 url 去重、合并 `queries` 列表。
-    since_year>0 时按年份过滤（客户端过滤）。
+    since_ts>0 时按具体日期过滤；否则 since_year>0 时按年份过滤（均为客户端过滤）。
     兼容旧调用签名，额外的 kwargs 会被忽略。
     """
     all_items: Dict[str, Dict[str, Any]] = {}
 
     for q in queries:
-        print(f"  [搜索] query = {q!r}  since_year={since_year or '不限'}")
+        print(f"  [搜索] query = {q!r}  since={_date_filter_label(since_ts, since_year)}")
         try:
             items = search_zhihu_articles_only(
                 cli, q,
                 max_results=per_source,
                 since_year=since_year,
+                since_ts=since_ts,
                 drop_unknown_date=drop_unknown_date,
             )
         except Exception as e:

@@ -25,6 +25,11 @@ Thumbs.db
 *.tmp
 .cache/
 /tmp/
+temp/
+output/
+token
+.env
+.env.*
 
 # ============ 项目私有 ============
 # 本地构建校验产物（pipeline 临时输出）
@@ -43,6 +48,7 @@ content/**/logs/
 # researcher 本地凭据与抓取产物
 pipeline/researcher/cookies.json
 pipeline/researcher/output/
+pipeline/researcher/fuck.json
 
 # repo-local GenericAgent vendor/symlink
 tools/GenericAgent

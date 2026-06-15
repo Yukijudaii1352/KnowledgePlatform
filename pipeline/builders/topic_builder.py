@@ -152,7 +152,45 @@ def _sanitize_overview_metadata(md: str) -> str:
     return "\n".join(sanitized_lines)
 
 
-def parse_overview(md_body: str, section_name: str = "领域综述", src: Path | None = None):
+def _valid_overview_sections(value):
+    if not isinstance(value, list):
+        return False
+    return all(isinstance(item, dict) and isinstance(item.get("body_html"), str) for item in value)
+
+
+def load_existing_page_config(domain: str, topic_id: str) -> dict:
+    domain_meta = DOMAIN_MAP.get(domain) or {}
+    data_path = ROOT / str(domain_meta.get("dir", "")) / f"{topic_id}-data.js"
+    if not data_path.is_file():
+        return {}
+    try:
+        text = data_path.read_text(encoding="utf-8")
+        match = re.search(r"window\.PAGE_CONFIG\s*=\s*(\{.*\})\s*;\s*$", text, re.S)
+        if not match:
+            return {}
+        data = json.loads(match.group(1))
+        return data if isinstance(data, dict) else {}
+    except Exception as exc:
+        warn(f"[{data_path}] 读取历史编译产物失败，无法作为 INCLUDE_RAW 兜底：{exc}")
+        return {}
+
+
+def missing_raw_section(section_name: str, include_path: Path):
+    return [{
+        "title": f"{section_name}原文暂不可用",
+        "body_html": md_to_html(
+            f"编译时未找到引用的原文文件：`{include_path}`。\n\n"
+            "请恢复该文件，或重新运行 researcher 更新对应的 `*.sources.yaml`。"
+        ),
+    }]
+
+
+def parse_overview(
+    md_body: str,
+    section_name: str = "领域综述",
+    src: Path | None = None,
+    fallback_sections=None,
+):
     if not md_body.strip():
         err(f"`## {section_name}` 板块为空")
     include_match = INCLUDE_RAW_RE.match(md_body.strip())
@@ -162,7 +200,11 @@ def parse_overview(md_body: str, section_name: str = "领域综述", src: Path |
             base = src.parent if src else ROOT
             include_path = (base / include_path).resolve()
         if not include_path.is_file():
-            err(f"`## {section_name}` 引用的原文文件不存在：{include_path}")
+            if _valid_overview_sections(fallback_sections):
+                warn(f"`## {section_name}` 引用的原文文件不存在：{include_path}；复用已有编译产物")
+                return fallback_sections
+            warn(f"`## {section_name}` 引用的原文文件不存在：{include_path}；使用缺失提示占位")
+            return missing_raw_section(section_name, include_path)
         raw_md = include_path.read_text(encoding="utf-8")
         return [{"title": "", "body_html": md_to_html(_sanitize_overview_metadata(raw_md))}]
     md_body = _sanitize_overview_metadata(md_body)
@@ -585,10 +627,21 @@ def compile_doc(src: Path, copy_images: bool = False, dry_run: bool = False):
     for must in ("领域综述", "算法演化关系", "核心算法"):
         if must not in secs:
             err(f"[{src}] 缺少 `## {must}` 板块")
-    overview = parse_overview(secs["领域综述"], "领域综述", src)
+    previous_config = load_existing_page_config(domain, topic_id)
+    overview = parse_overview(
+        secs["领域综述"],
+        "领域综述",
+        src,
+        fallback_sections=previous_config.get("overview"),
+    )
     has_latest_overview_doc = "最新进展综述" in secs
     if has_latest_overview_doc:
-        latest_overview = parse_overview(secs["最新进展综述"], "最新进展综述", src)
+        latest_overview = parse_overview(
+            secs["最新进展综述"],
+            "最新进展综述",
+            src,
+            fallback_sections=previous_config.get("latest_overview"),
+        )
     else:
         warn(f"[{src}] 缺少 `## 最新进展综述`，将注入占位模板")
         latest_overview = default_latest_overview_section()

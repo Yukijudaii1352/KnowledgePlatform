@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -68,6 +69,30 @@ def safe_relative(path: Path, base: Path = ROOT) -> str:
         return str(path.resolve().relative_to(base.resolve()))
     except Exception:
         return str(path)
+
+
+def resolve_raw_path(path: Path, output_md: Path) -> Path:
+    if path.is_absolute():
+        return path.resolve()
+
+    root_candidate = (ROOT / path).resolve()
+    if root_candidate.exists():
+        return root_candidate
+
+    local_candidate = (output_md.parent / path).resolve()
+    if local_candidate.exists():
+        return local_candidate
+
+    return root_candidate
+
+
+def include_raw_relative(path: Path, output_md: Path) -> str:
+    resolved = resolve_raw_path(path, output_md)
+    try:
+        rel = os.path.relpath(resolved, output_md.parent.resolve())
+    except Exception:
+        rel = safe_relative(resolved)
+    return rel.replace("\\", "/")
 
 
 def choose_display_topic_name(topic_id: str, topic_name: str, page_title: str) -> str:
@@ -490,9 +515,8 @@ def render_source_entry(entry: Any, output_md: Path) -> str:
         return ""
     if isinstance(entry, str):
         path = Path(entry)
-        if path.exists():
-            rel = safe_relative(path).replace("\\", "/") if path.is_absolute() else path.as_posix()
-            return f"!INCLUDE_RAW {rel}"
+        if resolve_raw_path(path, output_md).exists():
+            return f"!INCLUDE_RAW {include_raw_relative(path, output_md)}"
         return str(entry).strip()
     if isinstance(entry, list):
         blocks = [render_source_entry(item, output_md) for item in entry]
@@ -502,17 +526,11 @@ def render_source_entry(entry: Any, output_md: Path) -> str:
 
     if entry.get("include_raw"):
         raw_path = Path(str(entry["include_raw"]))
-        if not raw_path.is_absolute():
-            raw_path = (ROOT / raw_path).resolve()
-        rel = safe_relative(raw_path).replace("\\", "/")
-        return f"!INCLUDE_RAW {rel}"
+        return f"!INCLUDE_RAW {include_raw_relative(raw_path, output_md)}"
 
     if entry.get("markdown_file"):
         raw_path = Path(str(entry["markdown_file"]))
-        if not raw_path.is_absolute():
-            raw_path = (ROOT / raw_path).resolve()
-        rel = safe_relative(raw_path).replace("\\", "/")
-        return f"!INCLUDE_RAW {rel}"
+        return f"!INCLUDE_RAW {include_raw_relative(raw_path, output_md)}"
 
     if entry.get("body"):
         title = str(entry.get("title") or "").strip()
@@ -528,10 +546,7 @@ def render_source_entry(entry: Any, output_md: Path) -> str:
             body = ""
             if sec.get("include_raw"):
                 raw_path = Path(str(sec["include_raw"]))
-                if not raw_path.is_absolute():
-                    raw_path = (ROOT / raw_path).resolve()
-                rel = safe_relative(raw_path).replace("\\", "/")
-                body = f"!INCLUDE_RAW {rel}"
+                body = f"!INCLUDE_RAW {include_raw_relative(raw_path, output_md)}"
             elif sec.get("body"):
                 body = str(sec["body"]).strip()
             if title:
