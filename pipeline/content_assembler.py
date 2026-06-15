@@ -32,10 +32,10 @@ DOMAIN_MAP = {
 }
 
 SECTION_PATTERNS = {
-    "summary": re.compile(r"^####\s+📝\s*一句话总结\s*$", re.MULTILINE),
-    "keypoints": re.compile(r"^####\s+🎯\s*核心要点\s*$", re.MULTILINE),
-    "detail": re.compile(r"^####\s+🔬\s*深入细节\s*$", re.MULTILINE),
-    "quiz": re.compile(r"^####\s+🧪\s*练习题\s*$", re.MULTILINE),
+    "summary": re.compile(r"^####\s+(?:📝\s*)?一句话总结\s*$", re.MULTILINE),
+    "keypoints": re.compile(r"^####\s+(?:🎯\s*)?核心要点\s*$", re.MULTILINE),
+    "detail": re.compile(r"^####\s+(?:🔬\s*)?深入细节\s*$", re.MULTILINE),
+    "quiz": re.compile(r"^####\s+(?:(?:🧪|📝)\s*)?练习题\s*$", re.MULTILINE),
 }
 HEADING_RE = re.compile(r"^####\s+")
 CODE_BLOCK_RE = re.compile(r"```ya?ml\s*\n.*?\n```", re.DOTALL)

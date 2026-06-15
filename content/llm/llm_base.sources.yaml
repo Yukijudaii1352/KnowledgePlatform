@@ -1,0 +1,4 @@
+overview:
+  include_raw: content/llm/llm_base/overview_survey.md
+latest_overview:
+  include_raw: content/llm/llm_base/latest_survey.md

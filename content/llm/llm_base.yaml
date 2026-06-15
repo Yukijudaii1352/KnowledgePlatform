@@ -1,0 +1,482 @@
+domain: llm
+topic_id: llm_base
+topic_name: 语言基础模型
+page_icon: "🧱"
+page_title: "语言基础模型技术演进"
+page_subtitle: "{build_date} 版"
+page_desc: "系统梳理 Transformer、GPT/BERT/T5、GPT/LLaMA/Qwen 等基础模型家族，以及 MoE、长上下文、混合注意力和 2026 年以来前沿语言模型的演化脉络。"
+hero_pills:
+  - "🏷️ Transformer · GPT/LLaMA · MoE · Long Context"
+  - "📌 Dense Scaling · Open Foundation · Frontier Systems"
+count_pill: "{count} 个算法"
+categories:
+  architecture:
+    label: "架构奠基"
+    color: "#2563EB"
+  autoregressive:
+    label: "GPT式稠密扩展"
+    color: "#7C3AED"
+  open_foundation:
+    label: "开源基础模型"
+    color: "#059669"
+  long_context:
+    label: "长上下文与序列效率"
+    color: "#F59E0B"
+  sparse_moe:
+    label: "稀疏MoE扩展"
+    color: "#DC2626"
+  frontier_2026:
+    label: "2026前沿系统"
+    color: "#0891B2"
+algorithms:
+  - id: transformer
+    name: Transformer
+    full_name: "Transformer 架构 (Attention Is All You Need)"
+    year: "2017.06"
+    org: "Google Brain / Google Research"
+    paper_url: "https://arxiv.org/abs/1706.03762"
+    category: architecture
+    parent: "—"
+    motivation: "自注意力替代循环卷积"
+
+  - id: gpt
+    name: GPT
+    full_name: "生成式预训练 Transformer (Generative Pre-Training)"
+    year: "2018.06"
+    org: "OpenAI"
+    paper_url: "https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf"
+    category: autoregressive
+    parent: transformer
+    motivation: "解码器预训练统一迁移"
+
+  - id: bert
+    name: BERT
+    full_name: "双向编码器表征 (Bidirectional Encoder Representations from Transformers)"
+    year: "2018.10"
+    org: "Google AI Language"
+    paper_url: "https://arxiv.org/abs/1810.04805"
+    category: architecture
+    parent: transformer
+    motivation: "掩码语言建模双向表征"
+
+  - id: transformer_xl
+    name: Transformer-XL
+    full_name: "超长上下文 Transformer (Transformer-XL)"
+    year: "2019.01"
+    org: "CMU / Google Brain"
+    paper_url: "https://arxiv.org/abs/1901.02860"
+    category: long_context
+    parent: transformer
+    motivation: "分段递归缓解上下文截断"
+
+  - id: gpt2
+    name: GPT-2
+    full_name: "无监督多任务语言模型 (Language Models are Unsupervised Multitask Learners)"
+    year: "2019.02"
+    org: "OpenAI"
+    paper_url: "https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf"
+    category: autoregressive
+    parent: gpt
+    motivation: "规模化带来零样本迁移"
+
+  - id: t5
+    name: T5
+    full_name: "文本到文本迁移 Transformer (Text-to-Text Transfer Transformer)"
+    year: "2019.10"
+    org: "Google Research"
+    paper_url: "https://arxiv.org/abs/1910.10683"
+    category: architecture
+    parent: transformer
+    motivation: "所有任务转成文本生成"
+
+  - id: gpt3
+    name: GPT-3
+    full_name: "少样本语言模型 (Language Models are Few-Shot Learners)"
+    year: "2020.05"
+    org: "OpenAI"
+    paper_url: "https://arxiv.org/abs/2005.14165"
+    category: autoregressive
+    parent: gpt2
+    motivation: "175B规模涌现少样本能力"
+
+  - id: switch_transformer
+    name: Switch Transformer
+    full_name: "稀疏专家 Transformer (Switch Transformer)"
+    year: "2021.01"
+    org: "Google Research"
+    paper_url: "https://arxiv.org/abs/2101.03961"
+    category: sparse_moe
+    parent: t5
+    motivation: "Top1路由简化万亿MoE"
+
+  - id: rope
+    name: RoPE
+    full_name: "旋转位置编码 (Rotary Position Embedding)"
+    year: "2021.04"
+    org: "Zhuiyi Technology"
+    paper_url: "https://arxiv.org/abs/2104.09864"
+    category: architecture
+    parent: transformer
+    motivation: "相对位置信息融入注意力"
+
+  - id: glam
+    name: GLaM
+    full_name: "通才语言模型 MoE (Generalist Language Model)"
+    year: "2021.12"
+    org: "Google Research"
+    paper_url: "https://arxiv.org/abs/2112.06905"
+    category: sparse_moe
+    parent: switch_transformer
+    motivation: "稀疏激活降低训练推理成本"
+
+  - id: chinchilla
+    name: Chinchilla
+    full_name: "计算最优语言模型 (Training Compute-Optimal LLMs)"
+    year: "2022.03"
+    org: "DeepMind"
+    paper_url: "https://arxiv.org/abs/2203.15556"
+    category: autoregressive
+    parent: gpt3
+    motivation: "数据参数等比计算最优"
+
+  - id: palm
+    name: PaLM
+    full_name: "Pathways 语言模型 (Pathways Language Model)"
+    year: "2022.04"
+    org: "Google Research"
+    paper_url: "https://arxiv.org/abs/2204.02311"
+    category: autoregressive
+    parent: gpt3
+    motivation: "540B稠密模型验证规模化"
+
+  - id: llama
+    name: LLaMA
+    full_name: "开放高效基础语言模型 (LLaMA)"
+    year: "2023.02"
+    org: "Meta AI"
+    paper_url: "https://arxiv.org/abs/2302.13971"
+    category: open_foundation
+    parent: chinchilla
+    motivation: "公开数据训练高效小模型"
+
+  - id: gpt4
+    name: GPT-4
+    full_name: "GPT-4 技术报告 (GPT-4 Technical Report)"
+    year: "2023.03"
+    org: "OpenAI"
+    paper_url: "https://arxiv.org/abs/2303.08774"
+    category: autoregressive
+    parent: gpt3
+    motivation: "可预测扩展到多模态前沿"
+
+  - id: retnet
+    name: RetNet
+    full_name: "保留网络 (Retentive Network)"
+    year: "2023.07"
+    org: "Microsoft Research"
+    paper_url: "https://arxiv.org/abs/2307.08621"
+    category: long_context
+    parent: transformer_xl
+    motivation: "保留机制兼顾并行与递归"
+
+  - id: llama2
+    name: Llama 2
+    full_name: "开放基础与对话模型 (Llama 2)"
+    year: "2023.07"
+    org: "Meta AI"
+    paper_url: "https://arxiv.org/abs/2307.09288"
+    category: open_foundation
+    parent: llama
+    motivation: "开放预训练与安全对话谱系"
+
+  - id: mistral7b
+    name: Mistral 7B
+    full_name: "高效 7B 基础模型 (Mistral 7B)"
+    year: "2023.10"
+    org: "Mistral AI"
+    paper_url: "https://arxiv.org/abs/2310.06825"
+    category: open_foundation
+    parent: llama
+    motivation: "GQA与滑窗提升小模型效率"
+
+  - id: mamba
+    name: Mamba
+    full_name: "选择性状态空间模型 (Selective State Space Model)"
+    year: "2023.12"
+    org: "CMU / Princeton"
+    paper_url: "https://arxiv.org/abs/2312.00752"
+    category: long_context
+    parent: transformer
+    motivation: "线性序列建模挑战注意力"
+
+  - id: mixtral
+    name: Mixtral
+    full_name: "开放稀疏专家模型 (Mixtral of Experts)"
+    year: "2024.01"
+    org: "Mistral AI"
+    paper_url: "https://arxiv.org/abs/2401.04088"
+    category: sparse_moe
+    parent: mistral7b
+    motivation: "Top2专家开放MoE落地"
+
+  - id: deepseek_moe
+    name: DeepSeekMoE
+    full_name: "细粒度专家分割 MoE (DeepSeekMoE)"
+    year: "2024.01"
+    org: "DeepSeek-AI"
+    paper_url: "https://arxiv.org/abs/2401.06066"
+    category: sparse_moe
+    parent: switch_transformer
+    motivation: "细粒度专家提升专业化"
+
+  - id: gemini15
+    name: Gemini 1.5
+    full_name: "百万上下文 Gemini (Gemini 1.5)"
+    year: "2024.03"
+    org: "Google DeepMind"
+    paper_url: "https://arxiv.org/abs/2403.05530"
+    category: long_context
+    parent: palm
+    motivation: "百万级上下文近完美召回"
+
+  - id: deepseek_v2
+    name: DeepSeek-V2
+    full_name: "经济高效 MoE 语言模型 (DeepSeek-V2)"
+    year: "2024.05"
+    org: "DeepSeek-AI"
+    paper_url: "https://arxiv.org/abs/2405.04434"
+    category: sparse_moe
+    parent: deepseek_moe
+    motivation: "MLA压缩KV缓存"
+
+  - id: llama3
+    name: Llama 3
+    full_name: "Llama 3 模型群 (The Llama 3 Herd of Models)"
+    year: "2024.07"
+    org: "Meta AI"
+    paper_url: "https://arxiv.org/abs/2407.21783"
+    category: open_foundation
+    parent: llama2
+    motivation: "405B稠密开放模型群"
+
+  - id: qwen25
+    name: Qwen2.5
+    full_name: "通义千问 2.5 (Qwen2.5 Technical Report)"
+    year: "2024.12"
+    org: "Alibaba Qwen"
+    paper_url: "https://arxiv.org/abs/2412.15115"
+    category: open_foundation
+    parent: llama3
+    motivation: "18T语料扩展开放谱系"
+
+  - id: deepseek_v3
+    name: DeepSeek-V3
+    full_name: "大规模 MLA+MoE 语言模型 (DeepSeek-V3)"
+    year: "2024.12"
+    org: "DeepSeek-AI"
+    paper_url: "https://arxiv.org/abs/2412.19437"
+    category: sparse_moe
+    parent: deepseek_v2
+    motivation: "无辅助损失负载均衡"
+
+  - id: minimax01
+    name: MiniMax-Text-01
+    full_name: "闪电注意力基础模型 (MiniMax-01)"
+    year: "2025.01"
+    org: "MiniMax"
+    paper_url: "https://arxiv.org/abs/2501.08313"
+    category: long_context
+    parent: mixtral
+    motivation: "Lightning Attention扩长上下文"
+
+  - id: llama4
+    name: Llama 4
+    full_name: "Llama 4 MoE 模型群 (Scout / Maverick)"
+    year: "2025.04"
+    org: "Meta AI"
+    paper_url: "https://ai.meta.com/blog/llama-4-multimodal-intelligence/"
+    category: sparse_moe
+    parent: llama3
+    motivation: "Llama首次转向MoE"
+
+  - id: qwen3
+    name: Qwen3
+    full_name: "通义千问 3 (Qwen3 Technical Report)"
+    year: "2025.05"
+    org: "Alibaba Qwen"
+    paper_url: "https://arxiv.org/abs/2505.09388"
+    category: sparse_moe
+    parent: qwen25
+    motivation: "稠密与MoE统一发布"
+
+  - id: minimax_m1
+    name: MiniMax-M1
+    full_name: "混合注意力推理模型 (MiniMax-M1)"
+    year: "2025.06"
+    org: "MiniMax"
+    paper_url: "https://arxiv.org/abs/2506.13585"
+    category: long_context
+    parent: minimax01
+    motivation: "混合MoE支持测试时扩展"
+
+  - id: kimi_k2
+    name: Kimi K2
+    full_name: "开放智能体 MoE 模型 (Kimi K2)"
+    year: "2025.07"
+    org: "Moonshot AI"
+    paper_url: "https://arxiv.org/abs/2507.20534"
+    category: sparse_moe
+    parent: deepseek_v3
+    motivation: "MuonClip稳定万亿MoE"
+
+  - id: glm45
+    name: GLM-4.5
+    full_name: "ARC 基础模型 (GLM-4.5)"
+    year: "2025.08"
+    org: "Zhipu AI / Tsinghua"
+    paper_url: "https://arxiv.org/abs/2508.06471"
+    category: sparse_moe
+    parent: deepseek_v3
+    motivation: "面向智能体推理编码"
+
+  - id: gpt5
+    name: GPT-5
+    full_name: "统一路由式 GPT 系统 (OpenAI GPT-5 System Card)"
+    year: "2026.01"
+    org: "OpenAI"
+    paper_url: "https://arxiv.org/abs/2601.03267"
+    category: frontier_2026
+    parent: gpt4
+    motivation: "主模型与推理模型统一路由"
+
+  - id: yuan30_ultra
+    name: Yuan3.0 Ultra
+    full_name: "万亿参数企业级 MoE (Yuan3.0 Ultra)"
+    year: "2026.01"
+    org: "IEIT / Yuan Lab"
+    paper_url: "https://arxiv.org/abs/2601.14327"
+    category: frontier_2026
+    parent: deepseek_v3
+    motivation: "LAEP支撑万亿开源MoE"
+
+  - id: latent_moe
+    name: LatentMoE
+    full_name: "低成本潜变量专家架构 (LatentMoE)"
+    year: "2026.01"
+    org: "NVIDIA"
+    paper_url: "https://arxiv.org/abs/2601.18089"
+    category: frontier_2026
+    parent: deepseek_v3
+    motivation: "按FLOP重构专家路径"
+
+  - id: ernie5
+    name: ERNIE 5.0
+    full_name: "统一自回归超稀疏 MoE (ERNIE 5.0)"
+    year: "2026.02"
+    org: "Baidu"
+    paper_url: "https://arxiv.org/abs/2602.04705"
+    category: frontier_2026
+    parent: qwen3
+    motivation: "弹性训练统一多模态MoE"
+
+  - id: eurollm22b
+    name: EuroLLM-22B
+    full_name: "欧洲多语言基础模型 (EuroLLM-22B)"
+    year: "2026.02"
+    org: "Unbabel / EU consortium"
+    paper_url: "https://arxiv.org/abs/2602.05879"
+    category: frontier_2026
+    parent: qwen25
+    motivation: "面向35种欧洲语言从零训练"
+
+  - id: mellum2
+    name: Mellum 2
+    full_name: "开放软件工程 MoE 模型 (Mellum 2)"
+    year: "2026.05"
+    org: "JetBrains"
+    paper_url: "https://arxiv.org/abs/2605.31268"
+    category: frontier_2026
+    parent: minimax_m1
+    motivation: "小激活MoE服务开发场景"
+graph:
+  nodes:
+    - { id: transformer, x: 80, y: 80, category: architecture }
+    - { id: gpt, x: 180, y: 220, category: autoregressive }
+    - { id: bert, x: 180, y: 80, category: architecture }
+    - { id: transformer_xl, x: 260, y: 500, category: long_context }
+    - { id: gpt2, x: 280, y: 220, category: autoregressive }
+    - { id: t5, x: 300, y: 80, category: architecture }
+    - { id: gpt3, x: 400, y: 220, category: autoregressive }
+    - { id: switch_transformer, x: 500, y: 640, category: sparse_moe }
+    - { id: rope, x: 500, y: 80, category: architecture }
+    - { id: glam, x: 580, y: 640, category: sparse_moe }
+    - { id: chinchilla, x: 620, y: 220, category: autoregressive }
+    - { id: palm, x: 650, y: 220, category: autoregressive }
+    - { id: llama, x: 760, y: 360, category: open_foundation }
+    - { id: gpt4, x: 790, y: 220, category: autoregressive }
+    - { id: retnet, x: 820, y: 500, category: long_context }
+    - { id: llama2, x: 840, y: 360, category: open_foundation }
+    - { id: mistral7b, x: 900, y: 360, category: open_foundation }
+    - { id: mamba, x: 920, y: 500, category: long_context }
+    - { id: mixtral, x: 960, y: 640, category: sparse_moe }
+    - { id: deepseek_moe, x: 980, y: 700, category: sparse_moe }
+    - { id: gemini15, x: 1000, y: 500, category: long_context }
+    - { id: deepseek_v2, x: 1040, y: 700, category: sparse_moe }
+    - { id: llama3, x: 1060, y: 360, category: open_foundation }
+    - { id: qwen25, x: 1120, y: 360, category: open_foundation }
+    - { id: deepseek_v3, x: 1140, y: 700, category: sparse_moe }
+    - { id: minimax01, x: 1180, y: 500, category: long_context }
+    - { id: llama4, x: 1240, y: 640, category: sparse_moe }
+    - { id: qwen3, x: 1260, y: 700, category: sparse_moe }
+    - { id: minimax_m1, x: 1320, y: 500, category: long_context }
+    - { id: kimi_k2, x: 1340, y: 640, category: sparse_moe }
+    - { id: glm45, x: 1380, y: 700, category: sparse_moe }
+    - { id: gpt5, x: 1460, y: 780, category: frontier_2026 }
+    - { id: yuan30_ultra, x: 1480, y: 840, category: frontier_2026 }
+    - { id: latent_moe, x: 1500, y: 900, category: frontier_2026 }
+    - { id: ernie5, x: 1540, y: 840, category: frontier_2026 }
+    - { id: eurollm22b, x: 1560, y: 780, category: frontier_2026 }
+    - { id: mellum2, x: 1620, y: 900, category: frontier_2026 }
+  edges:
+    - { from: transformer, to: gpt, label: "解码器预训练" }
+    - { from: transformer, to: bert, label: "双向编码" }
+    - { from: transformer, to: transformer_xl, label: "分段递归" }
+    - { from: transformer, to: t5, label: "文本到文本" }
+    - { from: transformer, to: rope, label: "旋转位置" }
+    - { from: gpt, to: gpt2, label: "扩大网页预训" }
+    - { from: gpt2, to: gpt3, label: "少样本涌现" }
+    - { from: t5, to: switch_transformer, label: "稀疏专家" }
+    - { from: switch_transformer, to: glam, label: "高效MoE" }
+    - { from: gpt3, to: chinchilla, label: "计算最优" }
+    - { from: gpt3, to: palm, label: "Pathways扩展" }
+    - { from: chinchilla, to: llama, label: "开源数据" }
+    - { from: gpt3, to: gpt4, label: "可预测扩展" }
+    - { from: transformer_xl, to: retnet, label: "递归推理" }
+    - { from: llama, to: llama2, label: "开放对话" }
+    - { from: llama, to: mistral7b, label: "GQA滑窗" }
+    - { from: transformer, to: mamba, label: "线性替代" }
+    - { from: mistral7b, to: mixtral, label: "Top2专家" }
+    - { from: switch_transformer, to: deepseek_moe, label: "专家细分" }
+    - { from: palm, to: gemini15, label: "长上下文" }
+    - { from: deepseek_moe, to: deepseek_v2, label: "MLA缓存压缩" }
+    - { from: llama2, to: llama3, label: "405B稠密" }
+    - { from: llama3, to: qwen25, label: "开放竞争" }
+    - { from: deepseek_v2, to: deepseek_v3, label: "无辅助损失" }
+    - { from: mixtral, to: minimax01, label: "混合注意力" }
+    - { from: llama3, to: llama4, label: "Llama转MoE" }
+    - { from: qwen25, to: qwen3, label: "稠密+MoE" }
+    - { from: minimax01, to: minimax_m1, label: "测试时扩展" }
+    - { from: deepseek_v3, to: kimi_k2, label: "MuonClip" }
+    - { from: deepseek_v3, to: glm45, label: "ARC能力" }
+    - { from: gpt4, to: gpt5, label: "系统路由" }
+    - { from: deepseek_v3, to: yuan30_ultra, label: "万亿MoE" }
+    - { from: deepseek_v3, to: latent_moe, label: "服务感知MoE" }
+    - { from: qwen3, to: ernie5, label: "超稀疏统一" }
+    - { from: qwen25, to: eurollm22b, label: "多语言定制" }
+    - { from: minimax_m1, to: mellum2, label: "小激活MoE" }
+  milestones:
+    - transformer
+    - gpt3
+    - llama
+    - deepseek_v3
+    - ernie5
