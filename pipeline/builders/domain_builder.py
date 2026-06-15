@@ -22,7 +22,7 @@ PAGE_CONFIG_RE = re.compile(r"window\.PAGE_CONFIG\s*=\s*(\{.*?\});\s*$", re.DOTA
 DATA_JS_SOURCE_RE = re.compile(r"源文件：([^\n]+)")
 
 
-def _normalize_topic_key(text: str) -> str:
+def normalize_topic_key(text: str) -> str:
     """归一化专题名，便于 catalog 与已上线页面做宽松匹配。"""
     s = str(text or "").strip().lower()
     s = s.replace("（", "(").replace("）", ")")
@@ -32,7 +32,7 @@ def _normalize_topic_key(text: str) -> str:
     return s
 
 
-def _load_page_config(data_js: Path) -> dict | None:
+def load_page_config(data_js: Path) -> dict | None:
     """从 <topic_id>-data.js 中把 JSON 还原出来。"""
     try:
         text = data_js.read_text(encoding="utf-8")
@@ -47,7 +47,7 @@ def _load_page_config(data_js: Path) -> dict | None:
         return None
 
 
-def _read_data_js_source(data_js: Path) -> str:
+def read_data_js_source(data_js: Path) -> str:
     """读取 data.js 注释头中的源文件路径。"""
     try:
         text = data_js.read_text(encoding="utf-8")
@@ -59,8 +59,8 @@ def _read_data_js_source(data_js: Path) -> str:
     return m.group(1).strip()
 
 
-def _source_is_public(data_js: Path) -> bool:
-    source_path = _read_data_js_source(data_js)
+def is_source_public(data_js: Path) -> bool:
+    source_path = read_data_js_source(data_js)
     if not source_path or source_path.startswith("pipeline/examples/"):
         return False
     src = (ROOT / source_path).resolve()
@@ -74,7 +74,7 @@ def _source_is_public(data_js: Path) -> bool:
     )
 
 
-def _scan_live_topics(domain_id: str) -> dict[str, dict]:
+def scan_live_topics(domain_id: str) -> dict[str, dict]:
     """扫描 pages/<domain>/ 下所有 <topic_id>-data.js，返回 {topic_id: info}。
 
     info 字段：
@@ -91,9 +91,9 @@ def _scan_live_topics(domain_id: str) -> dict[str, dict]:
 
     result: dict[str, dict] = {}
     for data_js in domain_dir.glob("*-data.js"):
-        if not _source_is_public(data_js):
+        if not is_source_public(data_js):
             continue
-        cfg = _load_page_config(data_js)
+        cfg = load_page_config(data_js)
         if not cfg:
             continue
         topic_id = data_js.name[: -len("-data.js")]
@@ -113,7 +113,7 @@ def _scan_live_topics(domain_id: str) -> dict[str, dict]:
     return result
 
 
-def _resolve_live_topic(topic: dict, live_map: dict[str, dict]) -> dict | None:
+def resolve_live_topic(topic: dict, live_map: dict[str, dict]) -> dict | None:
     """优先使用手工 match，其次按专题名自动匹配。"""
     match_id = topic.get("match")
     if match_id:
@@ -122,23 +122,29 @@ def _resolve_live_topic(topic: dict, live_map: dict[str, dict]) -> dict | None:
             return live
 
     topic_name = topic.get("name", "")
-    target = _normalize_topic_key(topic_name)
+    target = normalize_topic_key(topic_name)
     if target:
         exact = [
             live for live in live_map.values()
-            if _normalize_topic_key(live.get("topic_name", "")) == target
+            if normalize_topic_key(live.get("topic_name", "")) == target
         ]
         if len(exact) == 1:
             return exact[0]
 
         fuzzy = [
             live for live in live_map.values()
-            if target in _normalize_topic_key(live.get("topic_name", ""))
-            or _normalize_topic_key(live.get("topic_name", "")) in target
+            if target in normalize_topic_key(live.get("topic_name", ""))
+            or normalize_topic_key(live.get("topic_name", "")) in target
         ]
         if len(fuzzy) == 1:
             return fuzzy[0]
     return None
+
+
+# 为兼容旧导入提供的别名（避免其他模块临时引用私有名）
+_scan_live_topics = scan_live_topics
+_resolve_live_topic = resolve_live_topic
+_source_is_public = is_source_public
 
 
 # ============ 卡片渲染 ============
@@ -184,21 +190,13 @@ DOMAIN_INDEX_TEMPLATE = """<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{domain_name} · AI Knowledge Hub</title>
+<script>
+(function(){{try{{var theme=localStorage.getItem('kp_theme_v1')||'dark';document.documentElement.dataset.theme=theme==='light'?'light':'dark';document.documentElement.style.colorScheme=document.documentElement.dataset.theme;}}catch(e){{document.documentElement.dataset.theme='dark';}}}})();
+</script>
 <link rel="stylesheet" href="../../assets/css/common.css">
-<style>
-.topic-card {{ position: relative; transition: all 0.28s ease; }}
-.topic-card.ready {{ border-left: 3px solid var(--accent); }}
-.topic-card.coming {{ opacity: 0.55; }}
-.topic-card.card-clickable:hover {{ transform: translateY(-3px); }}
-.topic-name {{ font-size: 1.08rem; font-weight: 700; margin-bottom: 8px; color: var(--text); }}
-.topic-desc {{ color: var(--text-secondary); font-size: 0.9rem; line-height: 1.65; }}
-.topic-meta {{
-  display: flex; gap: 14px; margin-top: 14px;
-  font-size: 0.82rem; color: var(--text-dim);
-}}
-</style>
 </head>
-<body>
+<body class="tech-page domain-index-page">
+<canvas class="tech-dotfield" aria-hidden="true"></canvas>
 
 <header class="topbar">
   <div class="shell">
@@ -222,8 +220,23 @@ DOMAIN_INDEX_TEMPLATE = """<!DOCTYPE html>
 
 <div class="shell-narrow">
   <div class="page-header">
+    <span class="domain-kicker">DOMAIN NODE</span>
     <h1>{icon} {domain_name}</h1>
     <p>{domain_desc}</p>
+    <div class="domain-readout">
+      <div class="domain-readout-item">
+        <span class="domain-readout-num">{live_hit}</span>
+        <span class="domain-readout-label">已上线专题</span>
+      </div>
+      <div class="domain-readout-item">
+        <span class="domain-readout-num">{topic_total}</span>
+        <span class="domain-readout-label">目录专题</span>
+      </div>
+      <div class="domain-readout-item">
+        <span class="domain-readout-num">LIVE</span>
+        <span class="domain-readout-label">自动扫描</span>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -243,6 +256,7 @@ DOMAIN_INDEX_TEMPLATE = """<!DOCTYPE html>
   </div>
 </footer>
 
+<script src="../../assets/js/tech-effects.js" defer></script>
 </body>
 </html>
 """
@@ -258,7 +272,7 @@ def render_domain_indexes():
             warn(f"领域 {domain_id} 未配置二级标签，跳过目录页生成")
             continue
 
-        live_map = _scan_live_topics(domain_id)
+        live_map = scan_live_topics(domain_id)
 
         out_dir = ROOT / meta["dir"]
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -268,7 +282,7 @@ def render_domain_indexes():
         live_hit = 0
         matched_topic_ids: set[str] = set()
         for topic in catalog["topics"]:
-            live = _resolve_live_topic(topic, live_map)
+            live = resolve_live_topic(topic, live_map)
             if live:
                 live_hit += 1
                 matched_topic_ids.add(live["topic_id"])
@@ -287,6 +301,8 @@ def render_domain_indexes():
             domain_name=meta["name"],
             icon=catalog["icon"],
             domain_desc=catalog["desc"],
+            live_hit=live_hit,
+            topic_total=len(catalog["topics"]) + len(extra_live_topics),
             cards="\n".join(cards),
         )
         out_file.write_text(html, encoding="utf-8")

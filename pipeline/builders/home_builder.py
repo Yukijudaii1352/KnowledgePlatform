@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 
 from .common import DOMAIN_CATALOG, DOMAIN_MAP, INDEX_HTML, PAGES_DIR, apply_placeholder, is_domain_enabled, ok, today_str, warn
-from .domain_builder import _resolve_live_topic, _scan_live_topics, _source_is_public
+from .domain_builder import is_source_public, scan_live_topics, resolve_live_topic
 
 
 def _is_example_topic_html(html_file: Path) -> bool:
@@ -17,7 +17,7 @@ def _is_example_topic_html(html_file: Path) -> bool:
     data_js = html_file.with_name(f"{html_file.stem}-data.js")
     if not data_js.is_file():
         return False
-    return not _source_is_public(data_js)
+    return not is_source_public(data_js)
 
 
 def _count_live_topics(pages_dir: Path) -> int:
@@ -42,32 +42,6 @@ def _count_live_topics(pages_dir: Path) -> int:
     return count
 
 
-def _count_live_topics_by_domain(pages_dir: Path) -> dict[str, int]:
-    """统计每个一级领域下实际编译出的专题 HTML 数量（不含 index.html）。"""
-    counts = {domain_id: 0 for domain_id in DOMAIN_MAP if is_domain_enabled(domain_id)}
-    if not pages_dir.is_dir():
-        return counts
-    for domain_id, meta in DOMAIN_MAP.items():
-        if not is_domain_enabled(domain_id):
-            continue
-        domain_dir = Path(meta["dir"])
-        if not domain_dir.is_absolute():
-            domain_dir = pages_dir.parent / domain_dir
-        if not domain_dir.is_dir():
-            continue
-        counts[domain_id] = sum(
-            1
-            for f in domain_dir.iterdir()
-            if (
-                f.is_file()
-                and f.suffix == ".html"
-                and f.name != "index.html"
-                and not _is_example_topic_html(f)
-            )
-        )
-    return counts
-
-
 def _count_total_topics() -> int:
     """首页知识专题数 = DOMAIN_CATALOG 中配置的全部二级标签数。"""
     return sum(
@@ -90,12 +64,12 @@ def _render_home_domain_cards() -> str:
     for idx, (domain_id, meta) in enumerate(visible_domains, start=1):
         catalog = DOMAIN_CATALOG.get(domain_id, {})
         topics = catalog.get("topics", [])
-        live_map = _scan_live_topics(domain_id)
+        live_map = scan_live_topics(domain_id)
 
         active_names = {
             topic["name"]
             for topic in topics
-            if _resolve_live_topic(topic, live_map)
+            if resolve_live_topic(topic, live_map)
         }
         live_count = len(active_names)
         tag_html = "".join(
@@ -124,7 +98,14 @@ def _refresh_domains_section(index_html: str) -> str:
     section_html = (
         '<section class="domains-section" id="domains">\n'
         '  <div class="shell">\n'
-        '    <h2 class="section-title">🗂️ 知识领域</h2>\n'
+        '    <div class="section-heading">\n'
+        '      <div>\n'
+        '        <span class="section-kicker">DOMAIN MATRIX</span>\n'
+        '        <h2 class="section-title">知识领域</h2>\n'
+        '        <p class="section-desc">按研究方向组织专题入口，保留已上线与规划中的完整知识结构。</p>\n'
+        '      </div>\n'
+        '      <a class="hero-btn" href="#top">返回控制台</a>\n'
+        '    </div>\n'
         '    <div class="grid-auto">\n\n'
         f'{_render_home_domain_cards()}\n\n'
         '    </div>\n'

@@ -10,8 +10,8 @@
 ## 快速使用
 
 ```bash
-cd /mnt/petrelfs/wanghaoyu2/KnowledgePipeline
-conda activate whaoyu_codex
+cd /path/to/KnowledgePipeline
+conda activate <your-env>
 
 python3 pipeline/researcher/main.py "LLM 强化学习"
 ```

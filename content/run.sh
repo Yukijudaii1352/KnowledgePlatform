@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # run_paper_pipeline.sh
-# 用法: ./run_paper_pipeline.sh <yaml_file>
-#   例:  ./run_paper_pipeline.sh /group/40048/zcharowang/Agent/KnowledgePipeline/knowlege_tmp/ml/ml_paradigm.yaml
+# 用法: ./run_paper_pipeline.sh <yaml_file> [jobs]
 
 set -uo pipefail
 
@@ -22,14 +21,14 @@ resolve_generic_agent_root() {
         return 0
     fi
 
-    if [[ -f "/mnt/petrelfs/wanghaoyu2/GenericAgent/chat_single_round.py" ]]; then
-        printf '%s\n' "/mnt/petrelfs/wanghaoyu2/GenericAgent"
+    if [[ -f "${REPO_ROOT}/../GenericAgent/chat_single_round.py" ]]; then
+        printf '%s\n' "${REPO_ROOT}/../GenericAgent"
         return 0
     fi
 
     echo "Error: GenericAgent not found." >&2
     echo "Please run: bash ${REPO_ROOT}/scripts/setup_generic_agent.sh" >&2
-    echo "Or set GENERIC_AGENT_ROOT=/abs/path/to/GenericAgent" >&2
+    echo "Or set GENERIC_AGENT_ROOT to your GenericAgent directory." >&2
     exit 1
 }
 

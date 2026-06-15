@@ -39,9 +39,7 @@ def _resolve_api_key() -> str:
         or os.environ.get("DEEPSEEK_API_TOKEN")
     )
     if not api_key:
-        raise ValueError(
-            "未设置 API key。请设置 OPENAI_API_KEY 或 DEEPSEEK_API_KEY 环境变量。"
-        )
+        raise ValueError("未设置 API key。请设置 OPENAI_API_KEY 或 DEEPSEEK_API_KEY 环境变量。")
     return api_key
 
 

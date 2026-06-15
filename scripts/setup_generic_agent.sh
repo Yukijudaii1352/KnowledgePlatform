@@ -4,7 +4,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-DEFAULT_SOURCE="/mnt/petrelfs/wanghaoyu2/GenericAgent"
+DEFAULT_SOURCE="${GENERIC_AGENT_SOURCE:-${GENERIC_AGENT_ROOT:-}}"
 SOURCE_DIR="${DEFAULT_SOURCE}"
 TARGET_DIR="${REPO_ROOT}/tools/GenericAgent"
 MODE="symlink"
@@ -14,13 +14,13 @@ usage() {
 Usage: bash scripts/setup_generic_agent.sh [--source /path/to/GenericAgent] [--mode symlink|copy]
 
 Defaults:
-  --source ${DEFAULT_SOURCE}
+  --source from env GENERIC_AGENT_SOURCE/GENERIC_AGENT_ROOT, if unavailable then auto-detect
   --mode   symlink
 
 After setup, content/run.sh will automatically use:
   1. \$GENERIC_AGENT_ROOT
   2. ${TARGET_DIR}
-  3. ${DEFAULT_SOURCE}
+  3. repo sibling ../GenericAgent (when exists)
 EOF
 }
 
@@ -45,6 +45,18 @@ while (( $# > 0 )); do
             ;;
     esac
 done
+
+if [[ -z "${SOURCE_DIR}" ]]; then
+    if [[ -f "${REPO_ROOT}/../GenericAgent/chat_single_round.py" ]]; then
+        SOURCE_DIR="${REPO_ROOT}/../GenericAgent"
+    fi
+fi
+
+if [[ -z "${SOURCE_DIR}" ]]; then
+    echo "Error: GenericAgent source not set or found automatically." >&2
+    echo "Set --source or pass env GENERIC_AGENT_SOURCE / GENERIC_AGENT_ROOT." >&2
+    exit 1
+fi
 
 SOURCE_DIR="$(readlink -f "${SOURCE_DIR}")"
 

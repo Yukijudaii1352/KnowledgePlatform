@@ -158,9 +158,9 @@ python3 deep_research.py \
 bash scripts/setup_generic_agent.sh
 
 # 如需指定其他位置：
-# bash scripts/setup_generic_agent.sh --source /abs/path/to/GenericAgent
+# bash scripts/setup_generic_agent.sh --source /path/to/GenericAgent
 
-bash content/run.sh /abs/path/to/content/llm/llm_rl.yaml
+bash content/run.sh content/llm/llm_rl.yaml
 ```
 
 它会读取 YAML 中的 `algorithms` 列表，并在 `content/llm/llm_rl/` 下生成或更新每个算法对应的 `*_detail.md`。
@@ -169,7 +169,7 @@ bash content/run.sh /abs/path/to/content/llm/llm_rl.yaml
 
 1. `GENERIC_AGENT_ROOT`
 2. `tools/GenericAgent`
-3. `/mnt/petrelfs/wanghaoyu2/GenericAgent`
+3. `../GenericAgent`（仓库同级目录下）
 
 ### 4. 装配最终知识文档
 

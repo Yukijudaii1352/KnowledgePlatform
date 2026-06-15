@@ -98,201 +98,64 @@ KnowledgePipeline/
 
 ## 🚀 快速开始
 
-### 0️⃣ 环境要求
+### 执行链（推荐）
 
-- Python 3.8+
-- 依赖：`PyYAML`、`markdown`（都是轻量包）
-- 任意静态文件服务器即可预览（`python3 -m http.server` 够用）
+更新一篇专题的完整闭环如下（任选其一）：
+
+```text
+1) 直接写专题文档（含 front-matter + 三段式章节）
+   content/<domain>/<topic_id>.md
+   -> python3 pipeline/build.py content/<domain>/<topic_id>.md
+   -> 输出 pages/<domain>/<topic_id>.html/.js/.css 对应资源
+   -> 首页与领域目录页自动刷新
+
+2) 通过内容生产链（适合从综述+论文自动化生成）
+   download_tmp.py -> deep_research.py -> content/run.sh -> assemble.py
+   -> pipeline/build.py
+   -> pages/<domain>/<topic_id>.html/.js/.logic 与目录页刷新
+```
+
+### Quick Start（更新文章）
 
 ```bash
+# 1) 环境
 pip install pyyaml markdown
-```
 
-### 1️⃣ 我只想预览（读者 / 访客）
+# 2) 写文档
+cp pipeline/examples/rl_demo.md content/llm/my_topic.md
+# 编辑 content/llm/my_topic.md，按 DOCUMENT_SPEC 补齐三段和 YAML
 
-```bash
-# 在仓库根目录启动静态服务
+# 3) 校验与编译（推荐先 dry-run）
+python3 pipeline/build.py content/llm/my_topic.md --dry-run
+python3 pipeline/build.py content/llm/my_topic.md
+
+# 4) 本地预览
 python3 -m http.server 8081
+# 访问 http://127.0.0.1:8081/pages/llm/my_topic.html
 
-# 浏览器访问
-#   http://127.0.0.1:8081/index.html
-#   → 从首页进入 8 个领域 → 点击已上线专题
+# 5) 运行与发布前的完整回归
+python3 pipeline/build.py --include-examples --dry-run
 ```
 
-或者直接访问在线 Demo：<https://yukijudaii1352.github.io/KnowledgePlatform/>
-
-### 2️⃣ 我想写一篇新专题（作者）
-
-**第 1 步**：阅读 [`pipeline/DOCUMENT_SPEC.md`](pipeline/DOCUMENT_SPEC.md)，或直接拷贝示例改写：
+### 内容生产链 Quick Start（自动化）
 
 ```bash
-cp pipeline/examples/rl_demo.md content/LLM/Alignment/my_topic.md
-```
+# 先配置 GenericAgent（首次执行）
+bash scripts/setup_generic_agent.sh --source /path/to/GenericAgent
 
-**第 2 步**：按规范写文档。核心骨架如下：
-
-```markdown
----
-domain: llm                       # 8 个领域枚举之一
-topic_id: my_topic                # 将用作输出文件名
-topic_name: 我的新专题
-page_subtitle: 2026-05 版
-categories:
-  cat_a: 分类A显示名
-  cat_b: 分类B显示名
----
-
-## 领域综述
-（一段领域背景介绍）
-
-## 算法演化关系
-（描述节点、父子关系的 YAML 或列表）
-
-## 核心算法
-### AlgoOne
-（算法 front-matter + 📝一句话总结 / 🎯核心要点 / 🔬深入细节 / 🧪练习题）
-
-### AlgoTwo
-...
-```
-
-**第 3 步**：编译。
-
-```bash
-# 编译单篇
-python3 pipeline/build.py content/LLM/Alignment/my_topic.md
-
-# 把 md 旁边 images/ 里的图片一并同步到 assets/images/<topic_id>/
-python3 pipeline/build.py content/LLM/Alignment/my_topic.md --copy-images
-
-# 只做校验，不落盘（适合 CI / pre-commit）
-python3 pipeline/build.py content/LLM/Alignment/my_topic.md --dry-run
-```
-
-编译成功后自动产出：
-```
-pages/llm/my_topic.html
-pages/llm/my_topic-data.js
-pages/llm/my_topic-logic.js
-```
-同时刷新 `pages/llm/index.html` 和 `index.html`，自动把新专题标记为"✦ 已上线"。
-
-**第 4 步**：本地预览 → 提交 PR。
-
-### 2.5️⃣ 我想走“内容生产 pipeline”
-
-当前仓库的内容生成已经拆成 4 段，中间产物都落在仓库里：
-
-1. 人工挑选综述文章，并用 `pipeline/researcher/download_tmp.py` 下载为 `article.md`
-2. 用 `pipeline/researcher/deep_research.py` 生成专题级中间 YAML：
-   包含页面元信息、分类体系、算法列表、时间线/图谱元数据
-3. 用 `content/run.sh <topic.yaml>` 批量驱动论文精读 agent，生成每个算法的 `*_detail.md`
-4. 用 `pipeline/assemble.py` 把综述 + topic YAML + detail markdown 装配成最终知识文档，再交给 `pipeline/build.py` 编译成网页
-
-#### 2.5.1 获取知乎 Cookie
-
-`download_tmp.py` 下载知乎文章时需要登录 Cookie。当前项目推荐直接复用仓库内置的 [`pipeline/researcher/zhihu-cli`](pipeline/researcher/zhihu-cli) 登录态，而不是手工从浏览器里抄整段 Cookie。
-
-步骤如下：
-
-```bash
-# 1) 安装 zhihu-cli
-pip install -e pipeline/researcher/zhihu-cli
-
-# 2) 登录知乎（推荐二维码）
-zhihu login --qrcode
-
-# 3) 确认登录状态
-zhihu status
-
-# 4) 把 ~/.zhihu-cli/cookies.json 同步到本项目
-python3 pipeline/researcher/sync_zhihu_cookies.py
-```
-
-说明：
-
-- `zhihu login --qrcode` 会把二维码图片保存到 `~/.zhihu-cli/login_qrcode.png`
-- 登录成功后，Cookie 会保存在 `~/.zhihu-cli/cookies.json`
-- `sync_zhihu_cookies.py` 会把它转换到项目使用的 `pipeline/researcher/cookies.json`
-- 如果不方便扫码，也可以执行 `zhihu login --cookie "z_c0=...; _xsrf=...; d_c0=..."` 手动导入
-
-完成后即可正常执行：
-
-```bash
-python3 pipeline/researcher/download_tmp.py "https://zhuanlan.zhihu.com/p/xxxxxxxx" \
-  --output-dir pipeline/researcher/output/manual_downloads
-```
-
-#### 2.5.2 接入论文精读 Agent
-
-论文精读阶段默认调用 `GenericAgent/chat_single_round.py`。为了避免每个用户都去改绝对路径，仓库现在提供了一个项目内安装脚本：
-
-```bash
-# 默认把 /mnt/petrelfs/wanghaoyu2/GenericAgent 挂到 tools/GenericAgent
-bash scripts/setup_generic_agent.sh
-
-# 如果你的 GenericAgent 在别的地方
-bash scripts/setup_generic_agent.sh --source /abs/path/to/GenericAgent
-```
-
-安装完成后，`content/run.sh` 会按下面顺序自动查找 agent：
-
-1. 环境变量 `GENERIC_AGENT_ROOT`
-2. 项目内 `tools/GenericAgent`
-3. 兼容旧路径 `/mnt/petrelfs/wanghaoyu2/GenericAgent`
-
-因此新用户通常不需要再改脚本路径，直接运行：
-
-```bash
+# 生成 detail（默认优先读取 tools/GenericAgent）
 bash content/run.sh content/llm/llm_rl.yaml
-```
 
-常用命令：
-
-```bash
-# 手工下载一篇综述
-python3 pipeline/researcher/download_tmp.py "https://zhuanlan.zhihu.com/p/xxxxxxxx" \
-  --output-dir pipeline/researcher/output/manual_downloads
-
-# 生成 topic YAML（先 dry-run 看 prompt）
-python3 pipeline/researcher/deep_research.py \
-  --domain llm \
-  --topic-id llm_rl \
-  --topic-name "LLM强化学习" \
-  --output content/llm/llm_rl.yaml \
-  --dry-run
-
-# 装配最终知识文档
+# 装配专题源文档并编译为页面
 python3 pipeline/assemble.py content/llm/llm_rl.yaml
+python3 pipeline/build.py content/llm/llm_rl.md
 ```
 
-如果希望把两篇人工综述稳定绑定到某个专题，建议在 `content/<domain>/<topic>.sources.yaml` 中写：
-
-```yaml
-overview:
-  include_raw: pipeline/researcher/output/RL_survey_old/xxx/article.md
-
-latest_overview:
-  include_raw: pipeline/researcher/output/RL_survey_new/yyy/article.md
-```
-
-这样重新装配时，不会把人工挑选的综述冲掉。
-
-### 3️⃣ 我是平台维护者（编译器开发）
+如果你只需要浏览现有页面，可以直接启动静态服务：
 
 ```bash
-# 全量编译：默认扫描 content/ 下所有合规 .md
-python3 pipeline/build.py
-
-# 若希望把 pipeline/examples/ 下的示例文档也一并编译
-python3 pipeline/build.py --include-examples
-
-# 只刷新聚合页（首页 + 所有 pages/<domain>/index.html）
-# 适用场景：只改了 DOMAIN_CATALOG 或首页静态 HTML
-python3 pipeline/build.py --only-index
-
-# 完整回归：编译示例 + 干跑校验
-python3 pipeline/build.py pipeline/examples/rl_demo.md --dry-run
+python3 -m http.server 8081
+# 访问 http://127.0.0.1:8081/index.html
 ```
 
 ---

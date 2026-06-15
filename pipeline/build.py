@@ -185,12 +185,7 @@ def build_all(copy_images: bool, dry_run: bool, include_examples: bool):
 
     if dry_run:
         return
-
-    prune_hidden_outputs(prune_examples=not include_examples)
-    prune_disabled_domain_outputs()
-
-    render_index()
-    render_domain_indexes()
+    _refresh_aggregates(prune_examples=not include_examples)
     ok("全量编译完成 ✅")
 
 
@@ -204,20 +199,14 @@ def build_one(src_path: str, copy_images: bool, dry_run: bool):
         warn(f"跳过 {src}：该文档已标记 publish=false")
         if dry_run:
             return
-        prune_hidden_outputs(prune_examples=True)
-        prune_disabled_domain_outputs()
-        render_index()
-        render_domain_indexes()
+        _refresh_aggregates(prune_examples=True)
         ok("已同步清理隐藏专题产物 ✅")
         return
     if fm and not is_domain_enabled(str(fm.get("domain", "")).strip()):
         warn(f"跳过 {src}：domain={fm.get('domain')} 当前已禁用发布")
         if dry_run:
             return
-        prune_hidden_outputs(prune_examples=True)
-        prune_disabled_domain_outputs()
-        render_index()
-        render_domain_indexes()
+        _refresh_aggregates(prune_examples=True)
         ok("已同步清理禁用领域产物 ✅")
         return
     compile_doc(src, copy_images=copy_images, dry_run=dry_run)
@@ -225,14 +214,18 @@ def build_one(src_path: str, copy_images: bool, dry_run: bool):
     if dry_run:
         return
 
-    prune_disabled_domain_outputs()
-    render_index()
-    render_domain_indexes()
+    _refresh_aggregates(prune_examples=True)
     ok("增量更新完成 ✅")
 
 
 def build_only_index():
     """模式 C：只刷新首页与一级目录页，不编译 markdown。"""
+    _refresh_aggregates(prune_examples=True)
+
+
+def _refresh_aggregates(prune_examples: bool):
+    """统一刷新首页与领域目录页所需的中间产物清理与渲染。"""
+    prune_hidden_outputs(prune_examples=prune_examples)
     prune_disabled_domain_outputs()
     render_index()
     render_domain_indexes()
