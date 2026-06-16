@@ -27,7 +27,13 @@ Ceph 用 RADOS 对象存储和 CRUSH 去中心化放置算法作为统一底座�
 
 #### 🔬 深入细节
 
-**核心示意图说明**：OSDI 2006 论文 Figure 1 展示客户端、Metadata Cluster 和 Object Storage Cluster：客户端元数据请求访问 MDS，文件 I/O 直接访问 OSD。官方论文 PDF 可访问 https://ceph.io/assets/pdfs/weil-ceph-osdi06.pdf。
+![Ceph RADOS 统一存储栈](https://ceph.io/assets/bitmaps/information-stack.png)
+*图：Ceph 官方 Technology 页面给出的 RADOS-based Ceph Stack，展示 LIBRADOS、RGW、RBD、CephFS 都建立在 RADOS 之上。来源：https://ceph.io/en/discover/technology/*
+
+![Ceph PG 到 OSD 的 CRUSH 映射](https://docs.ceph.com/en/quincy/_images/ditaa-45f879e97a08c72aa96aa7c7b94f465611ff941b.png)
+*图：Ceph 文档中的对象、Placement Group 与 OSD 映射示意。来源：https://docs.ceph.com/en/quincy/architecture/*
+
+**核心示意图说明**：OSDI 2006 论文 Figure 1 展示客户端、Metadata Cluster 和 Object Storage Cluster：客户端元数据请求访问 MDS，文件 I/O 直接访问 OSD。由于论文 PDF 中的 Figure 1 没有稳定图片直链，这里使用 Ceph 官方技术页和官方文档图补足同一架构关系；官方论文 PDF 可访问 https://ceph.io/assets/pdfs/weil-ceph-osdi06.pdf。
 
 ```text
 Ceph client

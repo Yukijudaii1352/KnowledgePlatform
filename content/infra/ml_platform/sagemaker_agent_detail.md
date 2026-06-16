@@ -1,149 +1,93 @@
-### SageMaker AI Agent — AI Agent 引导的模型定制工作流
+### SageMaker AI Agent
 
 ```yaml
 id: sagemaker_agent
-name: "SageMaker AI Agent"
-full_name: "Amazon SageMaker AI Agent-Guided Model Customization"
-year: 2026
+name: SageMaker AI Agent
+full_name: SageMaker AI Agent
+year: '2026'
 org: AWS
-paper_url: "https://aws.amazon.com/sagemaker/"
+paper_url: https://aws.amazon.com/sagemaker/
 category: experiment_mgmt
 parent: wandb
-motivation: "通过 AI Agent 引导的自然语言工作流，将模型定制从数周缩短至数天，结合无服务器强化学习实现端到端自动化微调"
+motivation: 智能代理自动完成数据准备到微调策略选择
 ```
 
 #### 📝 一句话总结
 
-Amazon SageMaker AI 推出 Agent 引导的模型定制工作流，用户通过自然语言描述需求即可由 AI Agent 自动完成数据准备、训练策略选择和无服务器强化学习微调，将大模型定制周期从数周压缩至数天，覆盖 Amazon Nova、Llama、Qwen、DeepSeek 等主流模型。
+SageMaker AI Agent 把模型定制中的需求澄清、数据转换、微调策略选择、训练、评估和部署封装为 agent-guided workflow，解决企业从自然语言需求到可运行 SageMaker 训练/部署代码之间依赖人工专家编排的问题。
 
 #### 🎯 核心要点
 
-- **AI Agent 引导工作流**：用户以自然语言描述定制目标，Agent 自动编排数据预处理、超参选择、训练策略推荐的全流程
-- **无服务器强化学习（Serverless RL）**：无需预置 GPU 集群，按需启动 GRPO/PPO 等 RL 训练任务，按实际使用量计费
-- **多模型支持**：通过 SageMaker JumpStart 接入 1000+ 预训练模型（Amazon Nova、Llama、Qwen、DeepSeek、GPT-OSS 等）
-- **多技术路线**：支持监督微调（SFT）、强化学习（RL/GRPO）、LoRA/QLoRA 等参数高效微调方法
-- **HyperPod 分布式训练**：跨数千 AI 加速器的自动化集群管理，训练时间减少最高 40%，支持无检查点连续训练和弹性伸缩
-- **推理优化**：覆盖 80+ 实例类型，提供实时、无服务器、异步和批量推理四种部署模式
-- **MLflow 集成**：全托管 MLflow 实验追踪，无需自建基础设施即可管理模型版本与指标对比
-- **SageMaker Unified Studio**：统一 IDE 整合数据处理、模型开发、部署监控全链路
+- Agent-guided workflow：用户用自然语言描述场景，Kiro、Claude Code、Cursor 等 coding agent 在 SageMaker AI Skills 指导下生成可编辑 notebook/代码
+- 九类模型定制 Skills：覆盖 use case specification、planning、fine-tuning setup、dataset evaluation/transformation、fine-tuning、model evaluation、deployment 等生命周期阶段
+- 训练策略推荐：根据任务和数据在 SFT、DPO、RLVR 等定制技术之间选择，并生成 SageMaker AI serverless fine-tuning 作业
+- 数据到评估闭环：自动检查数据 schema/格式，转换到目标模型所需格式，并用 LLM-as-a-Judge 或任务指标比较 base model 与 fine-tuned model
+- IDE 与协议集成：SageMaker Studio JupyterLab 内置 Kiro，并支持 Agent Communication Protocol 兼容 agent；Skills 也可通过 AWSLabs agent plugin 在本地 IDE/CLI 使用
+- AWS API 编排：agent 生成的代码负责调用 SageMaker AI、S3、MLflow Apps、MCP tools、SageMaker endpoint 或 Bedrock Custom Model Import
 
 #### 🔬 深入细节
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                    SageMaker AI Agent 工作流                      │
-│                                                                  │
-│  ┌──────────┐    ┌──────────────┐    ┌───────────────────────┐  │
-│  │  用户输入  │───▶│  AI Agent    │───▶│  自动化编排引擎        │  │
-│  │ (自然语言) │    │ (意图理解 +  │    │                       │  │
-│  └──────────┘    │  策略推荐)   │    │  ┌─────────────────┐  │  │
-│                  └──────────────┘    │  │ 1. 数据验证&预处理│  │  │
-│                                      │  │ 2. 模型选择       │  │  │
-│  ┌──────────────────────────────┐   │  │ 3. 训练策略推荐   │  │  │
-│  │     SageMaker JumpStart      │   │  │ 4. 超参配置       │  │  │
-│  │  1000+ 预训练模型            │◀──│  │ 5. 启动训练       │  │  │
-│  │  Nova/Llama/Qwen/DeepSeek   │   │  └─────────────────┘  │  │
-│  └──────────────────────────────┘   └───────────────────────┘  │
-│                  │                              │                │
-│                  ▼                              ▼                │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │              训练基础设施层                                │  │
-│  │  ┌────────────────┐  ┌─────────────────────────────────┐│  │
-│  │  │ Serverless RL   │  │  HyperPod 分布式集群             ││  │
-│  │  │ (GRPO/PPO/SFT) │  │  • 自动故障恢复                  ││  │
-│  │  │ • 按需计费      │  │  • 弹性伸缩                      ││  │
-│  │  │ • 零运维        │  │  • 无检查点连续训练               ││  │
-│  │  └────────────────┘  └─────────────────────────────────┘│  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                              │                                  │
-│                              ▼                                  │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │              部署 & 监控层                                 │  │
-│  │  推理优化 (80+ 实例) │ MLflow 实验追踪 │ Unified Studio   │  │
-│  └──────────────────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────────┘
-```
-*图：SageMaker AI Agent 端到端模型定制工作流架构示意*
+![SageMaker AI agent-guided model customization](https://d2908q01vomqb2.cloudfront.net/f1f836cb4ea6efb2a0b1b99f41ad8b103eff4b59/2026/05/04/ml-20721.png)
+*图：AWS Machine Learning Blog 的 SageMaker AI agent-guided model customization 配图，来源为 AWS 官方 CloudFront 图片。*
 
 ```python
-# SageMaker AI Agent 引导的模型定制伪代码
-import sagemaker
-from sagemaker.jumpstart import JumpStartModel
-from sagemaker.customization import AgentWorkflow
+# SageMaker AI Agent-guided model customization 伪代码
+def customize_model_with_agent(user_prompt, data_uri, target_env):
+    context = {
+        "request": user_prompt,
+        "data": data_uri,
+        "deployment_target": target_env,
+    }
 
-# 1. 用户通过自然语言描述定制需求
-user_request = """
-我需要一个中文客服对话模型，基于 Qwen-72B，
-使用我们的客服日志数据进行微调，
-要求回答准确且语气友好。
-"""
+    plan = skills["planning"].run(context)
+    use_case = skills["use_case_specification"].run(context, plan)
+    data_report = skills["dataset_evaluation"].run(data_uri, use_case)
+    transformed = skills["dataset_transformation"].run(data_uri, data_report)
 
-# 2. AI Agent 解析意图并生成定制方案
-agent = AgentWorkflow(region="us-west-2")
-plan = agent.analyze(
-    request=user_request,
-    available_models=JumpStartModel.list(),  # 1000+ 模型
-)
-# plan 包含: base_model, technique, hyperparams, data_config
-
-print(plan)
-# → {base_model: "Qwen-72B", technique: "GRPO",
-#    data_format: "conversation", epochs: 3,
-#    lora_rank: 16, learning_rate: 2e-5}
-
-# 3. Agent 自动执行数据预处理
-processed_data = agent.prepare_data(
-    source_s3="s3://my-bucket/customer-service-logs/",
-    target_format=plan.data_format,
-    validation_split=0.1,
-)
-
-# 4. 无服务器强化学习训练（无需预置集群）
-training_job = agent.launch_training(
-    plan=plan,
-    training_data=processed_data,
-    serverless=True,           # 无服务器模式
-    technique="GRPO",          # Group Relative Policy Optimization
-    reward_model="auto",       # Agent 自动选择/构建奖励模型
-)
-
-# 5. 自动评估与部署
-eval_results = agent.evaluate(training_job)
-if eval_results.meets_criteria():
-    endpoint = agent.deploy(
-        model=training_job.best_model,
-        instance_type="ml.g6e.xlarge",  # Agent 推荐的最优实例
-        optimization="auto",            # 自动量化/编译优化
+    train_cfg = skills["fine_tuning_setup"].select(
+        use_case=use_case,
+        dataset=transformed,
+        candidates=["SFT", "DPO", "RLVR"],
     )
+    training_job = sagemaker_ai.start_serverless_fine_tuning(train_cfg)
+
+    eval_report = skills["model_evaluation"].compare(
+        base_model=train_cfg.base_model,
+        tuned_model=training_job.model_artifact,
+        metrics=use_case.success_criteria,
+    )
+    if eval_report.passes_gate:
+        return skills["deployment"].deploy(training_job.model_artifact, target_env)
+    return {"status": "blocked", "reason": eval_report.failure_summary}
 ```
 
-**动机与背景：从手动微调到 Agent 自动化编排**
+SageMaker AI Agent 不是一个单独的训练算法，而是把模型定制流程拆成可被 coding agent 调用的专家技能集合。AWS 官方文档把这些 Skills 定义为面向 IDE 或命令行 coding assistant 的指令/工作流模块，用来编排 use case specification、planning、dataset transformation、customization technique selection、fine-tuning、model evaluation 和 deployment。用户输入的自然语言并不直接变成一个黑盒作业，而是先被 agent 转换为可审阅计划，再生成 notebook 与 SageMaker API 调用代码。
 
-在大模型时代，企业对模型定制的需求急剧增长，但传统的微调流程面临三大痛点：（1）基础设施复杂——需要手动配置 GPU 集群、管理分布式训练框架、处理节点故障；（2）技术门槛高——选择 SFT 还是 RL、确定 LoRA rank、设置学习率等超参数需要深厚的 ML 经验；（3）周期长——从数据准备到模型上线通常需要数周甚至数月。SageMaker AI Agent 的核心设计理念是将这些专家知识封装进 AI Agent，让用户只需描述业务目标，Agent 即可自动完成从数据到部署的全链路编排。这一思路与 AutoML 的理念一脉相承，但将自动化范围从超参搜索扩展到了包含 RL 训练策略、数据格式转换、奖励模型选择在内的完整工作流。
+核心机制可以理解为“技能选择 + 可执行代码生成”。给定用户请求 \(x\)、数据摘要 \(d\)、目标约束 \(c\)，agent 需要选择一组技能序列 \(\pi\) 并输出可运行 artifact：
 
-**核心机制：Agent 引导 + 无服务器 RL 的双轮驱动**
+$$
+\pi^* = \arg\max_{\pi} \; U(\mathrm{quality}, \mathrm{cost}, \mathrm{latency}, \mathrm{governance} \mid x,d,c)
+$$
 
-SageMaker AI Agent 的技术架构可分为两个核心层。第一层是 **Agent 引导层**：Agent 接收用户的自然语言描述后，通过意图理解模块解析出目标模型类型、数据特征和性能要求，然后从 JumpStart 的 1000+ 模型库中匹配最合适的基座模型，并根据任务特征推荐最优训练策略（如对话任务推荐 GRPO，分类任务推荐 SFT + LoRA）。Agent 还会自动验证数据格式、检测数据质量问题并提出修复建议。第二层是 **无服务器训练层**：与传统需要预先申请 GPU 实例的方式不同，Serverless RL 采用按需分配计算资源的模式。用户无需关心底层集群管理，系统根据模型规模和数据量自动选择合适的实例类型和数量。特别值得注意的是对 GRPO（Group Relative Policy Optimization）的原生支持——这是 DeepSeek 提出的一种无需独立 Value Model 的 RL 算法，通过组内相对排序计算优势函数，显著降低了 RL 微调的资源开销。训练过程中，Agent 持续监控损失曲线和评估指标，在检测到过拟合或训练不稳定时自动调整学习率或提前终止。
+这个公式不是 AWS 文档中的显式目标函数，而是对 workflow 的机制化抽象：agent 在任务质量、训练成本、上线延迟和治理要求之间做规划。与通用聊天助手不同，SageMaker AI Skills 把 AWS API、数据格式、权限、S3、MLflow Apps、SageMaker endpoint 和 Bedrock 导入路径等领域知识放进 agent 上下文，降低了“回答看似正确但无法运行”的概率。
 
-**HyperPod 与推理优化：从训练到部署的全链路加速**
+微调策略选择是最关键的决策点。SFT 适合有高质量示范答案的数据；DPO 适合偏好对比数据；RLVR 则适合答案可以由规则、程序或 verifier 自动给出奖励的任务。agent 的价值在于先检查数据是否支持这些方法，例如是否有 prompt/response、chosen/rejected pair、verifiable reward function 或评估集，再生成相应 serverless training job。对用户来说，差异不是“点一个训练按钮”，而是把数据准备、训练脚本、指标记录和错误处理都写成可复用代码。
 
-对于需要大规模训练的场景，SageMaker HyperPod 提供了跨数千 AI 加速器的分布式训练能力。其三大创新特性包括：（1）**无检查点连续训练（Checkpointless Training）**——传统分布式训练在节点故障时需要从最近的检查点重启，而 HyperPod 通过内存级状态复制实现故障透明恢复，消除了检查点 I/O 开销和恢复期间的空闲计算成本；（2）**弹性训练（Elastic Training）**——根据计算资源可用性自动扩缩训练作业规模，无需人工重新配置；（3）**自动集群管理**——自动处理节点健康检查、网络拓扑优化和数据并行/模型并行策略选择。在推理侧，SageMaker 提供覆盖 80+ 实例类型的四种部署模式（实时、无服务器、异步、批量），并内置自动量化（INT8/FP8）、模型编译（Neuron Compiler）和推测解码等优化技术，将部署周期从数月缩短至数小时。
+训练与评估阶段形成实验管理闭环。AWS 博客示例中，agent 会生成使用 SageMaker AI serverless training job 的 notebook，并把训练/验证指标分发到 SageMaker AI MLflow Apps。评估 Skill 会按 use case 推荐指标，比较 base model 与 fine-tuned model，只有通过阈值或人工审阅条件才进入 deployment Skill。这与 W&B/MLflow 的关系更像互补：W&B/MLflow 侧重记录和可视化，SageMaker AI Agent 侧重生成并执行 AWS 上的工作流，同时把指标和 artifact 接入实验追踪。
 
-**与传统 ML 平台的差异化定位**
+部署阶段体现“agent 生成代码而非替用户隐藏代码”的设计。agent 可以根据延迟、扩缩容和集成要求，在 SageMaker AI endpoint 与 Bedrock Custom Model Import 等路径之间选择，并生成 endpoint provisioning、sample inference 和清理资源的代码。由于 notebook 可编辑，团队可以加入自己的 IAM、VPC、模型注册、审批和成本限制，从而把一次性的对话操作固化为组织内可复用流程。
 
-与 Weights & Biases（W&B）等实验管理平台相比，SageMaker AI Agent 的差异化在于其 **全托管 + Agent 驱动** 的定位。W&B 侧重于实验追踪和可视化，是一个"记录工具"；而 SageMaker AI Agent 是一个"执行引擎"，不仅记录实验过程，还主动驱动实验执行。通过集成 MLflow 的实验追踪能力，SageMaker AI 实现了"Agent 执行 + MLflow 记录"的协同模式。此外，SageMaker Unified Studio 将数据湖（Lakehouse）、ETL 管道、模型开发、部署监控整合在统一 IDE 中，消除了传统 ML 工作流中工具碎片化的问题。这种从"工具集合"到"智能平台"的演进，代表了 MLOps 领域从被动记录向主动编排的范式转变。
-
-> 💡 **关键**：SageMaker AI Agent 的核心价值不在于单一技术突破，而在于将 AutoML、Serverless Computing、RL Training、Agent Orchestration 四大能力整合为统一的自然语言驱动工作流，大幅降低了企业级模型定制的技术门槛和时间成本。
+> 💡 关键：SageMaker AI Agent 的贡献在于把模型定制的专家决策转化为可审阅、可执行、可追踪的 AWS 工作流，而不是只提供一个新的 UI 或单点微调 API。
 
 #### 🧪 练习题
 
 ```yaml
-question: "SageMaker AI Agent 引导工作流中，无服务器强化学习（Serverless RL）的核心优势是什么？"
+question: "SageMaker AI Agent-guided workflow 与普通实验追踪工具的主要区别是什么？"
 options:
-  - "支持更大的模型参数量训练"
-  - "无需预置 GPU 集群，按需分配资源并自动管理训练基础设施"
-  - "仅支持 PPO 算法以确保训练稳定性"
-  - "要求用户手动指定所有超参数以获得最优结果"
+  - "它只记录 loss 曲线，不负责生成训练代码"
+  - "它通过 Skills 指导 coding agent 生成并编排数据、训练、评估和部署代码"
+  - "它只能运行本地 CPU 训练，不能调用云端服务"
+  - "它要求用户手写所有 SageMaker API 调用"
 answer: 1
-explain: "Serverless RL 的核心优势在于用户无需预先申请和管理 GPU 集群，系统根据任务需求自动分配计算资源并按实际使用量计费，同时 Agent 自动推荐超参数配置，大幅降低了 RL 微调的运维和技术门槛。"
+explain: "SageMaker AI Agent 的核心是用领域 Skills 让 coding agent 生成可执行 SageMaker 工作流；实验追踪只是闭环中的一部分。"
 ```

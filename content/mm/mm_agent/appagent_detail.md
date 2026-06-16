@@ -22,7 +22,10 @@ AppAgent 让 LLM 先通过自主探索或观看演示为手机 App 生成操作�
 - **意义**：AppAgent 是 GUI agent 从 prompt-only 执行向“先学习应用、再执行任务”的早期代表，但依赖 XML 和人工/自动探索质量。
 
 #### 🔬 深入细节
-论文：*AppAgent: Multimodal Agents as Smartphone Users*。核心图 Figure 2 展示了探索阶段、知识文档和部署阶段的整体框架，公开图源：https://ar5iv.labs.arxiv.org/html/2312.13771/assets/x2.png
+论文：*AppAgent: Multimodal Agents as Smartphone Users*。核心图 Figure 2 展示了探索阶段、知识文档和部署阶段的整体框架。
+
+![AppAgent 探索与部署两阶段框架图](https://ar5iv.labs.arxiv.org/html/2312.13771/assets/x2.png)
+*图：AppAgent 先在探索阶段与 App 交互并生成参考文档，部署阶段再利用文档、截图和 XML 元素编号完成用户任务。*
 
 AppAgent 的环境运行在 Android CLI/ADB 上。每一步 agent 获得两类观测：当前屏幕截图，以及 XML 文件中解析出的交互元素。系统会为元素分配唯一编号，编号来源可以是 resource id，也可以由 class、size、content 等字段构造，然后半透明叠加到截图上。这样 LLM 可以说“点击 5 号元素”，而不必输出精确像素坐标。
 
@@ -59,5 +62,13 @@ Deployment:
 AppAgent 的限制也直接来自其设计。XML 可用时元素编号很强，但许多复杂 GUI、游戏、canvas 或跨平台界面不一定能给出可靠结构树；探索文档若写错，会在部署阶段被反复使用；LLM 对长文档检索和多步状态的鲁棒性也有限。后续 CogAgent 和 SeeClick 更强调直接从高分辨率截图中识别和定位 GUI 元素，试图减少对 XML/DOM 的依赖。
 
 #### 🧪 练习题
-1. AppAgent 为什么使用元素编号而不是直接让 LLM 输出坐标？这种设计在哪些界面上会失效？
-2. 自主探索文档和观看演示文档分别更容易出现什么偏差？
+```yaml
+question: "AppAgent 为什么把手机操作抽象为编号元素上的离散函数调用？"
+options:
+  - "降低连续坐标预测的不稳定性，让 LLM 基于截图和 XML 元素编号选择可执行动作"
+  - "让模型绕过截图输入，只依赖 App 后端 API 完成任务"
+  - "使探索阶段不需要记录任何页面知识，部署时完全从零推理"
+  - "强制所有 App 使用同一套固定页面布局，避免界面变化"
+answer: 0
+explain: "编号元素和 Tap/Swipe/Text 等函数把低层控制问题离散化，减少像素坐标误差；但它依赖 XML 元素解析和编号覆盖的质量。"
+```

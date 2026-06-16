@@ -12,53 +12,96 @@ motivation: 大规模图像-文本-动作预训练范式
 ```
 
 #### 📝 一句话总结
-PREVALENT 把 VLN 引入“大规模图像-文本-动作 triplet 预训练，再迁移到下游导航”的范式，用 masked language modeling 和 action prediction 学到可复用的导航视觉语言表征。
+PREVALENT 提出 VLN 的预训练-微调范式，把指令、全景视觉状态和下一步动作组织成 image-text-action triplet，通过 masked language modeling 和 action prediction 预训练可迁移的导航视觉语言表征。
 
 #### 🎯 核心要点
-- **从任务训练转向预训练**：不再只在 R2R 上训练一个导航策略，而是先训练通用的 vision-language-action 表征，再 fine-tune 到 R2R、CVDN、HANNA 等任务。
-- **数据规模来自 speaker 合成**：原始 R2R 样本远远不够，PREVALENT 使用 speaker 生成大规模 route-instruction 伪数据，形成数百万级单步 triplet。
-- **输入单位是单步 triplet**：预训练样本通常由指令、当前全景视觉状态和下一动作组成，强调状态-语言-动作的局部对齐。
-- **两个核心目标**：图像辅助的 MLM 让语言 token 依赖视觉上下文恢复；action prediction 让融合表征预测下一步导航动作。
-- **局限**：它增强了单步视觉语言对齐，但没有显式建模完整历史，后续 VLN-BERT 和 HAMT 分别从循环状态和全历史 Transformer 方向补足这一点。
+- **范式转变**：从在单个 R2R 任务上训练策略网络，转向先预训练通用 VLN 编码器，再迁移到 R2R、CVDN、HANNA 等导航任务。
+- **三元组数据**：每个时间步被拆成 \((\boldsymbol{x},\boldsymbol{s}_t,\boldsymbol{a}_t)\)，即指令文本、当前 36-view 全景状态和专家下一动作。
+- **大规模合成数据**：原始 R2R 只有约 104K step-level 样本，论文用 speaker 在 Matterport3D 最短路上生成约 6482K 新样本，使预训练规模可行。
+- **双目标预训练**：image-attended masked language modeling 让语言恢复依赖视觉证据；action prediction 让融合表征直接服务导航决策。
+- **可插拔迁移**：预训练编码器可作为下游 VLN 模型的初始化或特征模块，在 unseen 环境和跨任务迁移中降低过拟合。
 
 #### 🔬 深入细节
-论文：*Towards Learning a Generic Agent for Vision-and-Language Navigation via Pre-training*。核心图 Figure 1 展示了用 image-text-action triplets 预训练再迁移到多个 VLN 下游任务的流程，公开图源：https://ar5iv.labs.arxiv.org/html/2002.10638/assets/x1.png
+![PREVALENT 预训练与微调范式](https://ar5iv.labs.arxiv.org/html/2002.10638/assets/x1.png)
 
-PREVALENT 的出发点是：VLN 数据太少，而通用 V&L BERT 式预训练在很多视觉语言任务中已经证明有效。它把导航轨迹拆成多个时间步样本，每个样本包含自然语言指令 \(\boldsymbol{x}\)、当前全景视觉状态 \(\boldsymbol{s}\) 和专家下一动作 \(\boldsymbol{a}\)。视觉状态由 36 个 view 组成，每个 view 拼接 CNN 图像特征和方向特征，再映射到 Transformer 隐空间。
+*图：PREVALENT 先在 image-text-action triplets 上预训练，再迁移到 R2R、CVDN 和 HANNA 三类 VLN 下游任务。*
 
-模型结构采用单模态编码再跨模态融合的 Transformer。文本 token 经过语言 Transformer，视觉 token 经过视觉 Transformer，随后由跨模态 Transformer 对齐语言与全景观察。最终的融合 `[CLS]` 表征用于动作预测，masked token 的输出用于语言恢复。视觉 embedding 中包含 2048 维图像特征和方向 embedding，方向信息对“左转、上楼、朝门走”等导航语言尤为关键。
+PREVALENT 的核心问题意识是：VLN 任务同时需要语言理解、视觉定位和动作选择，但标注轨迹远少于 BERT 或通用视觉语言预训练所需的数据规模。传统 VLN 方法通常为 R2R 设计一个策略网络，再通过 speaker 或 dropout 做任务内增强；PREVALENT 则把“先学通用导航表征，再微调策略”变成主线。
 
-第一个预训练任务是 image-attended masked language modeling。随机 mask 指令中的词，模型需要结合未 mask 的上下文和当前视觉状态恢复原词：
-\[
+预训练样本来自轨迹的时间步切分。给定专家轨迹 \(\boldsymbol{\tau}=(\boldsymbol{s}_1,\boldsymbol{a}_1,\ldots,\boldsymbol{s}_T,\boldsymbol{a}_T)\) 和指令 \(\boldsymbol{x}\)，每个时间步形成一个 triplet \((\boldsymbol{x},\boldsymbol{s}_t,\boldsymbol{a}_t)\)。基础行为克隆目标可写成：
+
+$$
+\max_\theta \mathcal{L}_\theta(\boldsymbol{\tau},\boldsymbol{x})
+=\log \pi_\theta(\boldsymbol{\tau}\mid \boldsymbol{x})
+=\sum_{t=1}^{T}\log \pi_\theta(\boldsymbol{a}_t\mid \boldsymbol{s}_t,\boldsymbol{x}).
+$$
+
+视觉输入沿用全景动作空间：每个状态 \(\boldsymbol{s}_t=[s_1,\ldots,s_{36}]\) 包含 12 个水平朝向和 3 个俯仰角的 36 张视图。每个 view 的 embedding 由 CNN 图像特征、方向特征和位置/类型信息映射到 Transformer 维度。论文没有直接用 Faster R-CNN 区域特征，因为 36-view 全景中逐视角提 region 代价很高，且 VLN 更需要面向方向和动作的全景表示。
+
+模型结构是 BERT 风格的多模态编码器：文本 token 进入 text Transformer，视觉 token 进入 vision Transformer，再通过 cross-modal Transformer 融合。论文中的配置示例为 \(L_{\text{text}}=9\)、\(L_{\text{vision}}=1\)、\(L_{\text{cross}}=3\)，最终跨模态输出记为：
+
+$$
+\boldsymbol{z}=\boldsymbol{h}_{L_{\text{cross}}}.
+$$
+
+\(\boldsymbol{z}\) 既包含指令 token 的上下文表示，也包含被视觉状态校准过的 `[CLS]`/动作相关表示，可作为下游导航模型的初始化表征。
+
+第一个预训练目标是 image-attended masked language modeling。随机 mask 指令中的词，模型要在当前全景状态条件下恢复原 token：
+
+$$
 \mathcal{L}_{\mathrm{MLM}}
-=-\mathbb{E}\log p(x_i\mid \boldsymbol{x}_{\backslash i},\boldsymbol{s}).
-\]
-与普通 BERT 不同，这里恢复词时应当利用视觉证据，例如“walk past the [MASK]”在看到 sofa、table、stairs 时会有不同倾向。
+=-\sum_{i\in\mathcal{M}}\log p_\theta(x_i\mid \boldsymbol{x}_{\backslash \mathcal{M}},\boldsymbol{s}_t).
+$$
 
-第二个任务是 action prediction。模型从融合后的 `[CLS]` 表征和视觉候选中预测专家动作：
-\[
-\mathcal{L}_{\mathrm{AP}}
-=-\mathbb{E}\log p(\boldsymbol{a}\mid x_{\mathtt{[CLS]}},\boldsymbol{s}),\qquad
-\mathcal{L}_{\mathrm{pre}}=\mathcal{L}_{\mathrm{MLM}}+\mathcal{L}_{\mathrm{AP}}.
-\]
-这个目标把语言理解直接绑到导航决策上，而不是只学图文匹配。论文报告中，原始 R2R 只能形成约十万级样本，speaker 合成数据扩展到数百万级，成为预训练能生效的关键条件。
+与普通 BERT 的区别在于，恢复词不仅依赖句法上下文，还应利用视觉状态。例如“turn [MASK] at the stairs”在看到候选方向和楼梯位置时更容易被恢复为 right 或 left。这迫使文本表示吸收导航场景证据。
 
-```text
-Algorithm: PREVALENT pre-training and fine-tuning
-Input: human VLN data D, speaker-augmented trajectories A
-1. Convert trajectories into step-level triplets (instruction x, state s_t, action a_t).
-2. Build Transformer inputs from word tokens, 36-view visual tokens, and orientation features.
-3. For each batch:
-   a. Mask selected instruction tokens.
-   b. Encode text and vision with single-modal Transformers.
-   c. Fuse modalities with cross-modal Transformer.
-   d. Optimize MLM loss and action prediction loss.
-4. Initialize downstream VLN model with the pretrained representation.
-5. Fine-tune on R2R or transfer to CVDN/HANNA task data.
+第二个预训练目标是 action prediction，论文也记为 \(\mathcal{L}_{\text{PA}}\)。模型基于融合后的图文状态预测专家下一动作：
+
+$$
+\mathcal{L}_{\mathrm{PA}}
+=-\log p_\theta(\boldsymbol{a}_t\mid \boldsymbol{x},\boldsymbol{s}_t),\qquad
+\mathcal{L}_{\mathrm{pre}}=\mathcal{L}_{\mathrm{MLM}}+\mathcal{L}_{\mathrm{PA}}.
+$$
+
+这个目标是 PREVALENT 区别于通用图文匹配预训练的关键。普通 VLP 只要求图像和文字语义匹配，而 VLN 需要知道“当前状态下该往哪走”；把动作预测纳入预训练，相当于把语言 grounding 直接连接到导航决策。
+
+```python
+def prevalent_pretrain(human_r2r, matterport_routes, speaker):
+    human_triplets = trajectory_to_triplets(human_r2r)  # about 104K samples
+
+    synthetic_pairs = []
+    for route in matterport_routes:
+        instruction = speaker.generate(route)
+        synthetic_pairs.append((route, instruction))
+    synthetic_triplets = trajectory_to_triplets(synthetic_pairs)  # about 6482K samples
+
+    encoder = VLNTransformer(text_layers=9, vision_layers=1, cross_layers=3)
+
+    for instruction, state_36_views, expert_action in batch(
+        human_triplets + synthetic_triplets
+    ):
+        masked_instruction, masked_positions = mask_words(instruction)
+        fused = encoder(masked_instruction, state_36_views)
+
+        loss_mlm = predict_masked_words(fused, instruction, masked_positions)
+        loss_pa = predict_next_action(fused, expert_action)
+        update(encoder, loss_mlm + loss_pa)
+
+    return encoder  # used to initialize/fine-tune downstream VLN agents
 ```
 
-PREVALENT 的价值不只是性能提升，而是改变了 VLN 的研究范式：从“为每个数据集设计一个 policy 网络”变成“预训练一个导航感知的多模态 backbone”。不过它的历史建模仍然弱，因为预训练主要看单步状态；一条长指令走到中段后，模型需要知道已完成哪些子目标。VLN-BERT 因此把 recurrent state 注入 Transformer，HAMT 则进一步显式编码完整历史。
+大规模合成数据是 PREVALENT 能工作的前提。论文指出 R2R 原始 step-level 样本量约 104K，比语言或视觉语言预训练常见规模小一个数量级；因此先训练 speaker，再在 Matterport3D Simulator 中收集大量最短路线并生成指令，得到约 6482K 新样本。也就是说，PREVALENT 不是抛弃 Speaker-Follower，而是把 speaker 从“任务内增强器”升级为“预训练语料生成器”。
+
+相对 EnvDrop，PREVALENT 的改进方向也不同。EnvDrop 主要通过视觉特征扰动提升单任务 unseen 泛化；PREVALENT 则学习一个可迁移的图文动作编码器，让下游任务从更好的初始化开始。它的局限是预训练样本多为单步 triplet，对完整历史、已完成子目标和长程记忆建模不足；后续 VLN-BERT、HAMT 等方法继续沿着历史状态建模方向推进。
 
 #### 🧪 练习题
-1. PREVALENT 的 action prediction 与普通 image-text matching 相比，为什么更适合 VLN？
-2. 如果只用原始 R2R 数据而不使用 speaker 合成数据预训练，可能遇到哪些过拟合现象？
+```yaml
+question: "PREVALENT 为什么要在预训练中加入 action prediction，而不只做图文匹配或 MLM？"
+options:
+  - "因为 VLN 的目标是生成更长的自然语言指令"
+  - "因为 action prediction 把视觉语言对齐直接约束到下一步导航决策上"
+  - "因为它可以完全替代下游微调"
+  - "因为它能避免使用全景视觉输入"
+answer: 1
+explain: "VLN 不只需要判断图文是否相关，还要在当前状态下选择动作；action prediction 让融合表征学习与导航策略相关的对齐。"
+```

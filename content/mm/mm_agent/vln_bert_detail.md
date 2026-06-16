@@ -22,7 +22,10 @@ VLN-BERT 将一个 state token 作为循环记忆接入视觉语言 BERT，让 T
 - **可适配预训练 V&L BERT**：论文以 OSCAR/PREVALENT 风格模型为基础，展示了不从零训练大规模 VLN backbone 也能迁移到导航。
 
 #### 🔬 深入细节
-论文：*VLN↻BERT: A Recurrent Vision-and-Language BERT for Navigation*。核心图 Figure 2 展示了初始化语言状态、循环输入 state-language-vision、输出更新状态和动作概率的过程，公开图源：https://ar5iv.labs.arxiv.org/html/2011.13922/assets/x2.png
+论文：*VLN↻BERT: A Recurrent Vision-and-Language BERT for Navigation*。核心图 Figure 2 展示了初始化语言状态、循环输入 state-language-vision、输出更新状态和动作概率的过程。
+
+![VLN-BERT 循环视觉语言 Transformer 架构图](https://ar5iv.labs.arxiv.org/html/2011.13922/assets/x2.png)
+*图：VLN-BERT 在初始化阶段编码完整指令得到初始状态，导航阶段把上一状态、语言记忆和当前视觉观察送入同一个 Transformer，输出更新状态与动作概率。*
 
 VLN-BERT 的形式化输入包括上一状态 \(\boldsymbol{s}_{t-1}\)、语言 token \(\boldsymbol{X}\)、当前可导航视觉 token \(\boldsymbol{V}_t\)，以及在 REVERIE 中额外使用的 object token \(\boldsymbol{O}_t\)。整体递推为
 \[
@@ -79,5 +82,13 @@ Input: instruction U, start viewpoint
 VLN-BERT 的关键取舍是把长历史压缩到一个 state token，因此它比完整历史建模更省内存，也更容易接上预训练 BERT；但如果任务要求回忆很长路径、比较多个过去观测，单 token 状态可能成为瓶颈。HAMT 后续正是用层次化历史 Transformer 来避免这种压缩损失。
 
 #### 🧪 练习题
-1. 为什么 VLN-BERT 不直接用 `[CLS]` 分类头预测动作，而选择 state-to-vision attention？
-2. 对比 LSTM 记忆和 state token 记忆，二者在可解释性和计算成本上有什么差异？
+```yaml
+question: "VLN-BERT 将 state token 接入 Transformer 的主要目的是什么？"
+options:
+  - "把历史导航信息压缩为可递推的跨模态状态，并在每一步结合当前观察更新决策"
+  - "替代视觉特征提取器，使模型不再需要全景图像输入"
+  - "只用于初始化语言编码，导航阶段不再参与计算"
+  - "把所有历史全景图展开为长序列，以获得完整路径记忆"
+answer: 0
+explain: "state token 是 VLN-BERT 的循环记忆载体；它在每一步与语言和当前视觉候选做注意力交互，输出的新状态继续传到下一步。"
+```

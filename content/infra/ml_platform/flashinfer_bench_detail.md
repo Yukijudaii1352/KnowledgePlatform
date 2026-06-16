@@ -4,7 +4,7 @@
 id: flashinfer_bench
 name: FlashInfer-Bench
 full_name: FlashInfer-Bench
-year: "2026"
+year: '2026'
 org: MLSys Community
 paper_url: https://mlsys.org/Conferences/2026/Schedule?type=Poster
 category: experiment_mgmt
@@ -14,53 +14,75 @@ motivation: AI驱动的LLM系统基准测试平台
 
 #### 📝 一句话总结
 
-FlashInfer-Bench 面向 AI 生成 GPU kernel 的 LLM 系统基准平台，通过标准 trace、算子任务和评测 harness，把 kernel 生成、正确性验证和性能比较闭环化。
+FlashInfer-Bench 提出了面向 LLM 推理 GPU kernel 的闭环基准与生产替换流程，用 FlashInfer Trace 把任务定义、真实 workload、候选实现和评测结果统一成可复现记录，解决 AI 生成 kernel 难以进入真实推理系统的问题。
 
 #### 🎯 核心要点
 
-- 作为 MLSys 2026 FlashInfer AI Kernel Generation Contest 的官方评测框架
-- 覆盖 LLM 推理关键 kernel，如 attention、GEMM 变体、状态空间/门控结构等任务
-- 使用标准 trace schema 和数据集，使不同 agent 或人工 kernel 在同一输入分布下比较
-- 评测同时关注正确性、性能、稳定性和对 NVIDIA Blackwell 等硬件的适配
-- starter kit 提供 baseline agent、提交格式和本地/远程 benchmark 流程
+- 闭环架构：把 LLM agent/human expert 生成 kernel、基准评测、排行榜反馈和生产替换组织成同一循环
+- FlashInfer Trace：用 Definition、Workload、Solution、Evaluation 四段 schema 描述 kernel 合约、输入分布、实现和不可变评测记录
+- 真实 workload 数据集：从 SGLang 运行 DeepSeek-V3、Llama-3.1-8B、Qwen3-30B-A3B 等模型的 serving traces 中采集代表性 kernel 输入
+- 鲁棒评测：同时处理确定性 kernel、低精度 FP8 kernel 和采样类随机 kernel，并用隔离执行抑制 reward hacking
+- 连续排行榜：用 `fast_p` 曲线同时衡量正确性和相对 FlashInfer/PyTorch baseline 的加速比例
+- 生产路径：`flashinfer_bench.apply()` 通过 AOT 索引和运行时 dispatcher，把最快的已验证 Solution 动态注入 SGLang/vLLM 等推理引擎
 
 #### 🔬 深入细节
 
-> 图示说明：官方 starter kit 展示的框架可概括为：任务 trace/dataset 输入，agent 生成 Triton/CUDA kernel，harness 编译运行并校验数值正确性与性能，结果回写排行榜/报告。
+![FlashInfer-Bench architecture](https://arxiv.org/html/2601.00227v1/x1.png)
+*图：FlashInfer-Bench 论文 Figure 1，来源为 arXiv HTML；图中展示 FlashInfer Trace、FlashInfer-Bench Dataset、Leaderboard、LLM Engine 和 `flashinfer_bench.apply()` 组成的闭环。*
 
 ```python
-# FlashInfer-Bench 评测流程伪代码
-for task in benchmark_suite:
-    spec = load_trace_schema(task)
-    candidate_kernel = agent.generate_kernel(spec)
-    build = compile_kernel(candidate_kernel, target_gpu='Blackwell')
-    if not numerical_check(build, spec.reference_outputs):
-        mark_failed(task)
-        continue
-    latency = benchmark(build, spec.inputs, warmup=10, repeat=100)
-    score = aggregate(latency, correctness=True, stability=True)
-submit(score, candidate_kernel)
+# FlashInfer-Bench 反馈式 agent 评测流程伪代码，整理自论文 Algorithm 1
+def feedback_loop_agent(definition, language, hardware, max_rounds):
+    accepted = []
+    agent = CodeAgent.initialize(definition, language, hardware)
+    solution = agent.generate()
+
+    for i in range(max_rounds):
+        trace = flashinfer_bench.benchmark(definition, solution)
+        if trace.status == "PASSED":
+            accepted.append((solution, trace))
+
+        # 把编译错误、数值误差、latency、speedup 等反馈给 agent 继续改写 kernel
+        solution = agent.optimize(trace)
+
+    return max(accepted, key=lambda item: item[1].speedup).solution
 ```
 
-AI agent 写 GPU kernel 的难点不是只生成一段能编译的代码，而是要在真实 LLM workload 上稳定、正确、可比较地变快。没有统一 benchmark 时，不同方法容易挑选不同 shape 或不同参考实现，结果不可比。
+FlashInfer-Bench 的核心问题不是“模型能否写出 CUDA/Triton 代码”，而是“候选 kernel 是否能在真实 LLM 服务流量中正确、稳定且可无缝部署”。传统 kernel benchmark 往往用手工挑选的 shape 和公开 reference 做单点测试，容易高估泛化能力；真实服务里会出现 ragged sequence、paged KV cache、FP8/BF16 混合精度、MoE routing、sampling 随机性和不同 batch/concurrency 组合。FlashInfer-Bench 因此把 workload 从生产 trace 中抽象出来，并把每个输入绑定到 Definition，让 agent 面对的是实际推理系统会触发的算子分布。
 
-FlashInfer-Bench 将任务输入、shape 分布、参考输出和评测流程标准化。参赛者或 agent 面对同一组 kernel 任务，生成实现后由 harness 自动编译、运行、校验和计时。
+FlashInfer Trace 是这个平台的通信协议。`Definition` 给出 I/O tensor、dtype、axis 的 const/var 角色和 PyTorch reference semantics；`Workload` 给出具体 shape 与输入材料化方式；`Solution` 保存候选 kernel 源码、入口函数和兼容硬件/软件元数据；`Evaluation` 则把某个 `Definition × Solution × Workload` 的正确性、性能和运行环境快照固化为不可变记录。这样设计的好处是，agent、人类工程师、benchmark service 和 leaderboard 都围绕同一个 trace object 交换信息，不需要在自然语言说明、临时脚本和线下报告之间反复转换。
 
-正确性与性能同等重要。LLM kernel 常有低精度、mask、变长序列、KV cache layout 等边界条件，评测系统必须先保证输出误差在容忍范围内，再统计 latency/throughput。
+评测层首先把正确性放在性能之前。确定性 kernel 需要所有输出元素满足误差界，并拒绝 NaN/Inf；低精度 kernel 用 matched-ratio 规则，允许少量 FP8 等低精度算术造成的 outlier；随机采样 kernel 则不能逐元素对比，需要比较经验分布与目标分布的总变差距离：
 
-它与 vLLM/KServe 这类服务系统不同，关注的是底层 kernel 生成与评测闭环；但高质量 kernel 最终会反馈到推理系统吞吐、延迟和成本。
+$$
+\mathrm{TVD}(\hat{\mathbf{f}}, \mathbf{q}) = \frac{1}{2}\sum_i |\hat{f}_i - q_i| \le \tau_{\mathrm{TVD}}
+$$
 
-> 💡 关键：这类 ML 平台论文的贡献通常不在单个数学公式，而在把计算、状态、通信、调度和故障边界重新组织成可扩展的系统抽象。
+这里 \(\mathbf{q}\) 是由输入概率与 top-k/top-p 等 mask 归一化得到的目标分布，\(\hat{\mathbf{f}}\) 是重复运行 kernel 后的经验分布。TVD 的直觉是直接约束任意事件上的最大概率误差；如果采样结果落在 mask 禁止的 token 上，即使总体分布看似接近也会被判失败。
+
+性能指标采用 KernelBench 风格的 `fast_p`，把正确性和相对加速合成一个曲线：
+
+$$
+\mathrm{fast}_{p}=\frac{1}{N}\sum_{i=1}^{N}\mathbf{1}(\mathrm{correct}_{i}\land \{\mathrm{speedup}_{i}>p\})
+$$
+
+当 \(p=0\) 时它退化为通过率；当 \(p\) 增大时，它衡量在多少 workload 上既正确又超过指定倍数的 baseline。相比单个平均 latency，这个曲线更适合 agent kernel：一个候选实现可能只在部分 shape 上很快，或在少数长序列上失败；`fast_p` 会把这些局部失败直接反映到曲线面积中。
+
+`flashinfer_bench.apply()` 解决最后一公里部署问题。离线阶段，系统按误差阈值过滤 trace，从 workload 中提取 shape/key，给每个 key 选择最快 Solution，并把最常被选中的实现 AOT 编译成执行文件；在线阶段，dispatcher 只需用当前 kernel 参数构造 key，做 \(O(1)\) 索引查找，必要时 JIT 编译剩余候选。这个机制使 serving engine 可以通过环境变量或装饰器启用替换，禁用时透明回退到原始 FlashInfer 实现，避免为了每个 agent kernel 手写集成代码。
+
+与 MLflow/W&B 这类实验管理平台相比，FlashInfer-Bench 更接近“系统优化实验的执行层”。MLflow 主要记录模型训练参数、指标和 artifact；FlashInfer-Bench 则定义了 kernel 级任务、评测沙箱、硬件相关性能度量和 runtime dispatch。它的 MLOps 价值在于让 AI 生成的底层系统优化也具备可复现 lineage、可比较排行榜和可回滚部署路径。
+
+> 💡 关键：FlashInfer-Bench 的贡献不是单个 kernel 优化技巧，而是把 kernel 生成、验证、评测、选择和生产替换变成同一套可自动迭代的协议。
 
 #### 🧪 练习题
 
 ```yaml
-question: "FlashInfer-Bench 的核心作用是什么？"
+question: "FlashInfer-Bench 的 `fast_p` 指标为什么比只报告平均 latency 更适合评测 AI 生成 kernel？"
 options:
-  - "统一评测 AI/人工生成的 LLM GPU kernel 的正确性和性能"
-  - "管理训练数据版本"
-  - "提供聊天机器人前端"
-  - "替代 Kubernetes"
-answer: 0
-explain: "它提供任务、trace、参考结果和 benchmark harness，使 kernel 优化可复现可比较。"
+  - "它只统计编译时间，因此能避免 GPU 噪声"
+  - "它同时要求 kernel 正确，并统计超过指定 baseline 加速阈值的 workload 比例"
+  - "它会自动忽略失败 workload，从而突出最快样本"
+  - "它只适用于训练 loss，而不适用于推理 kernel"
+answer: 1
+explain: "`fast_p` 对每个 workload 同时检查 correctness 和 speedup>p，能暴露局部错误或只在少数 shape 上变快的候选实现。"
 ```

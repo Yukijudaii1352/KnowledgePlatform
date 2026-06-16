@@ -1971,177 +1971,84 @@ motivation: AAAI2026指代性遥感分割框架
 ```
 
 #### 📝 一句话总结
-RS2-SAM 2 提出了一个端到端框架，通过联合编码器实现视觉-文本语义对齐、双向层级融合模块实现多尺度跨模态交互、掩码提示生成器提供密集像素级引导、以及文本引导边界损失强化边界精度，全面增强 SAM 2 在遥感指代图像分割（RRSIS）任务上的表现，在 RefSegRS 和 RRSIS-D 两个基准上取得 SOTA。
+RS2-SAM2 将 SAM2 改造成文本指代的遥感分割框架，通过联合视觉-文本编码、双向层级融合、伪掩码密集提示和文本引导边界约束，解决 SAM2 缺少语言定位能力、遥感目标低对比和边界模糊的问题。
 
 #### 🎯 核心要点
-- **Union Encoder（BEiT-3）**：联合编码图像-文本对，产出语义对齐的视觉特征 \(F_v\)、文本特征 \(F_t\) 和多模态 [CLS] token \(V_{cls}\)
-- **Bidirectional Hierarchical Fusion Module (BHFM)**：在 SAM2-Hiera 编码器每一层嵌入双向交叉注意力，实现文本→视觉和视觉→文本的逐层增强；编码后通过 MHCA + 逐元素乘法进一步融合高层语义
-- **Mask Prompt Generator (MPG)**：利用多模态 [CLS] token 与视觉嵌入的交叉注意力生成伪掩码，作为 SAM 2 解码器的密集提示
-- **Text-guided Boundary Loss (TBL)**：基于梯度的边界检测 + 文本权重加权 MSE 损失，专门优化目标边界精度
-- **总损失函数**：\(\mathcal{L} = \lambda_{ce}\mathcal{L}_{ce} + \lambda_{dice}\mathcal{L}_{dice} + \lambda_{tbl}\mathcal{L}_{tbl}\)，权重分别为 1、0.1、0.2
-- **SOTA 性能**：RefSegRS 测试集 oIoU 80.87% / mIoU 73.90%；RRSIS-D 测试集 oIoU 78.99% / mIoU 66.72%
-- **训练配置**：SAM2-Hiera-Large + BEiT-3-Large，8×RTX4090，输入分辨率 1024²（SAM2）+ 224²（BEiT-3），AdamW 优化器
+- 任务定位：Referring Remote Sensing Image Segmentation，根据自然语言描述分割遥感图像中的目标实例或区域。
+- Union Encoder：使用 BEiT-3 同时编码遥感图像与文本，得到对齐的视觉 token、文本 token 和多模态 `[CLS]` token。
+- Bidirectional Hierarchical Fusion Module：在 SAM2 Hiera 编码器内部和编码后做文本-视觉双向交叉注意力，使语言逐层调制遥感视觉特征。
+- Mask Prompt Generator：用多模态 token 与视觉嵌入生成伪掩码，作为 SAM2 prompt encoder 的 dense prompt。
+- Text-guided Boundary Loss：用文本权重调制预测掩码和真值掩码的边界梯度差，强化小目标和弱边缘。
+- 实验基准：RefSegRS 与 RRSIS-D，公开 arXiv/AAAI 版本报告其在多项 RRSIS 指标上超过 LAVT、RMSIN、FIANet 和 EVF-SAM。
+- 链接说明：给定 `paper_url` 是占位符；可检索官方论文为 `https://arxiv.org/abs/2503.07266`，AAAI 2026 版本题名为 Customized SAM2 for Referring Remote Sensing Image Segmentation。
 
 #### 🔬 深入细节
-##### 架构总览
-
-![RS2-SAM 2 整体架构图](https://arxiv.org/html/2503.07266v1/x2.png)
-*图：RS2-SAM 2 整体框架。左侧为 Union Encoder（BEiT-3）联合编码图像-文本对；中间为 SAM2-Hiera 图像编码器，每层嵌入 BHFM Layer 进行双向融合；右侧为 Mask Prompt Generator 生成密集掩码提示送入 SAM 2 Mask Decoder。*
+![RS2-SAM2 框架图](https://arxiv.org/html/2503.07266v4/x2.png)
+*图：RS2-SAM2 由 union encoder、双向层级融合模块、mask prompt generator 和 SAM2 prompt/mask decoder 组成。*
 
 ##### 算法伪代码
 
 ```python
-# RS2-SAM 2 前向推理流程
-def forward(image, text):
-    # 1. Union Encoder: BEiT-3 联合编码
-    F_v, F_t, V_cls = BEiT3_encode(image_224, text)  # 语义对齐特征
-    
-    # 2. SAM2-Hiera 编码 + BHFM Layer（逐层双向融合）
-    F_hiera = image_1024  # SAM2 输入
-    for layer_i in SAM2_Hiera_Layers:
-        F_hiera = layer_i(F_hiera)
-        # 双向交叉注意力
-        F_hiera = α_i * MHCA(Q=F_hiera, KV=F_t) + F_hiera  # α_i=0.5
-        F_t = α_t * MHCA(Q=F_t, KV=F_hiera) + F_t          # α_t=0.2
-    
-    # 3. 编码后融合（BHFM Post-encoding）
-    F_vt = MHCA(Q=F_hiera, KV=F_t) * F_hiera  # element-wise multiply
-    
-    # 4. Mask Prompt Generator
-    V_cls_enhanced = MHCA(Q=V_cls, KV=F_vt)  # 增强多模态token
-    mask_prompt = MLP(V_cls_enhanced)          # 生成伪掩码 H/4 × W/4
-    
-    # 5. SAM 2 Mask Decoder
-    pred_mask = SAM2_Decoder(F_vt, mask_prompt)
-    return pred_mask
+def rs2_sam2_forward(image_rs, text):
+    # 1. 联合编码，让图像 patch 与文本 token 进入同一语义空间
+    visual_tokens, text_tokens, cls_token = beit3_union_encoder(image_rs, text)
 
-# 损失计算
-L = L_ce + 0.1 * L_dice + 0.2 * L_tbl
+    # 2. SAM2 图像编码器中逐层注入文本信息
+    sam_features = sam2_hiera_stem(image_rs)
+    for layer in sam2_hiera_layers:
+        sam_features = layer(sam_features)
+        sam_features = sam_features + a_img * cross_attn(q=sam_features, kv=text_tokens)
+        text_tokens = text_tokens + a_txt * cross_attn(q=text_tokens, kv=sam_features)
+
+    # 3. 编码后再做文本引导的高层视觉门控
+    fused_features = cross_attn(q=sam_features, kv=text_tokens) * sam_features
+
+    # 4. 生成 dense mask prompt，并交给 SAM2 解码
+    cls_enhanced = cross_attn(q=cls_token, kv=visual_tokens)
+    dense_prompt = mlp_mask_generator(cls_enhanced, visual_tokens)
+    pred_mask = sam2_mask_decoder(fused_features, dense_prompt, sparse_prompt=cls_token)
+    return pred_mask
 ```
 
-##### 动机与背景
+##### 方法解读
 
-遥感指代图像分割（RRSIS）要求根据自然语言描述从遥感图像中分割出特定目标。与自然场景不同，遥感场景面临三大挑战：
+RRSIS 和普通语义分割不同：模型不仅要知道“建筑、道路、飞机”等类别，还要理解“左上角靠近跑道的飞机”“河边白色船只”这类文本约束。SAM2 的原始输入提示是点、框或掩码，它很擅长把被提示区域分割干净，但没有天然的文本 grounding 能力；直接把文本投影成稀疏 prompt 往往难以处理遥感图像中的小目标、密集重复目标和低前景背景对比。
 
-1. **低视觉区分度**：同类目标外观高度相似（如密集排列的建筑），需要强语言引导才能定位
-2. **小目标与密集排列**：遥感图像中目标往往很小且密集，边界模糊
-3. **复杂背景**：鸟瞰视角下背景杂乱，干扰严重
+RS2-SAM2 的第一步是把图像和文本一起送入 BEiT-3 式联合编码器，得到 \(F_v\)、\(F_t\) 和多模态 \(c\)。可以把它理解成先建立一个“候选目标语义空间”：文本不再只是外部条件，而是和视觉 patch 在同一 token 序列中完成初步对齐。
 
-SAM 2 虽然具有强大的分割能力，但其设计面向通用场景的点/框/掩码提示，缺乏文本理解能力，无法直接用于 RRSIS。现有方法（如 RMSIN、FIANet）虽引入了跨模态融合，但融合层次单一、缺乏对 SAM 系列模型的有效适配。
-
-##### 核心机制详解
-
-**1. Union Encoder（联合编码器）**
-
-采用预训练的 BEiT-3（Large）作为联合编码器，将图像 patch 和文本 token 视为统一的"外语"进行联合编码。输入图像缩放至 224×224 后分割为 16×16 patch，与文本 token 拼接后送入 BEiT-3：
+核心模块 BHFM 解决的是 SAM2 编码器内部缺少语言参与的问题。每一层视觉特征先作为 query，从文本 token 中读取指代语义；文本 token 又反向读取当前视觉层的空间信息。简化写法为：
 
 $$
-[V_{cls}, F_v, F_t] = \text{BEiT-3}([I_{patch}, T_{token}])
+\hat{F}_v^{l}=F_v^{l}+\alpha_v\operatorname{MHCA}(F_v^{l}, F_t),\quad
+\hat{F}_t=F_t+\alpha_t\operatorname{MHCA}(F_t, F_v^{l})
 $$
 
-其中 \(V_{cls} \in \mathbb{R}^{1 \times C}\) 是多模态 [CLS] token，\(F_v \in \mathbb{R}^{N_v \times C}\) 是视觉特征，\(F_t \in \mathbb{R}^{N_t \times C}\) 是文本特征。联合编码确保了视觉和文本特征在同一语义空间中对齐。
+这种双向交互比只在解码前拼接文本更细，因为它把“文本说的对象是什么”逐层带入 SAM2 的 Hiera 表征。编码完成后，再用 \(F_t\) 对高层 \(F_v\) 做一次交叉注意力并逐元素相乘，相当于对文本相关区域开门、对背景区域关门。
 
-**2. Bidirectional Hierarchical Fusion Module (BHFM)**
-
-BHFM 分为两个阶段：
-
-*编码中融合（BHFM Layer）*：在 SAM2-Hiera 编码器的每一层嵌入轻量级双向交叉注意力：
+Mask Prompt Generator 则把语言条件转化为 SAM2 最熟悉的 dense prompt。其直觉是：多模态 `[CLS]` token 负责全局“这句话指的是什么”，视觉 token 负责“它在哪里”，两者交互后通过 MLP 生成伪掩码：
 
 $$
-F_v^{(l)'} = \alpha_i \cdot \text{MHCA}(Q{=}F_v^{(l)}, KV{=}F_t) + F_v^{(l)}, \quad \alpha_i = 0.5
+M_p=\operatorname{MLP}\left(\operatorname{MHCA}(c, F_v)\odot c\right)
 $$
 
-$$
-F_t^{(l)'} = \alpha_t \cdot \text{MHCA}(Q{=}F_t, KV{=}F_v^{(l)}) + F_t, \quad \alpha_t = 0.2
-$$
-
-这种设计使得文本语义从低层到高层逐步注入视觉特征，同时视觉信息也反向增强文本表征的空间感知能力。加权残差（\(\alpha_i > \alpha_t\)）确保视觉特征获得更多语言增强，而文本特征保持稳定。
-
-*编码后融合（BHFM Cross-attention）*：编码完成后，对高层视觉特征进行文本引导的精炼：
+训练时常规交叉熵和 Dice 损失负责区域重叠，文本引导边界损失负责让边界贴合描述对象。边界项可概括为对预测与真值的水平/垂直梯度差做 MSE，并用文本相关权重放大关键区域：
 
 $$
-F_{vt} = \text{MHCA}(Q{=}F_v, KV{=}F_t) \odot F_v
+\mathcal{L}=\lambda_{ce}\mathcal{L}_{ce}+\lambda_{dice}\mathcal{L}_{dice}+\lambda_{tbl}\mathcal{L}_{tbl}
 $$
 
-逐元素乘法起到门控作用，让文本相关区域的视觉特征被增强，无关区域被抑制。
-
-> 💡 **关键设计思想**：消融实验表明，双向融合（Bi）比单向融合（Uni）提升 3.8% mIoU，比线性适配器（Linear）提升 5.7% mIoU。编码中（BL）和编码后（BC）的融合缺一不可，两者结合实现了从全局到局部的层级文本理解。
-
-**3. Mask Prompt Generator (MPG)**
-
-SAM 2 的解码器需要提示来指导分割。MPG 利用多模态 [CLS] token 生成密集掩码提示：
-
-$$
-V_{cls}' = \text{MHCA}(Q{=}V_{cls}, KV{=}F_{vt})
-$$
-
-$$
-M_{prompt} = \text{MLP}(V_{cls}') \in \mathbb{R}^{H/4 \times W/4}
-$$
-
-\(V_{cls}\) 聚合了全局多模态语义，通过与融合后的视觉特征交互，生成的伪掩码能精确指示目标位置。消融实验显示，加入 MHCA 交互比直接使用 \(V_{cls}\) 提升 2.31% mIoU。
-
-**4. Text-guided Boundary Loss (TBL)**
-
-遥感目标边界模糊是核心难点。TBL 通过梯度算子检测预测掩码和真值掩码的边界，并用文本相关性加权：
-
-$$
-\nabla M = \sqrt{\left(\frac{\partial M}{\partial x}\right)^2 + \left(\frac{\partial M}{\partial y}\right)^2}
-$$
-
-文本权重 \(w_t\) 通过文本特征与视觉特征的余弦相似度计算，使得文本描述相关区域的边界获得更高的优化权重：
-
-$$
-\mathcal{L}_{tbl} = \frac{1}{N} \sum_{i=1}^{N} w_t^{(i)} \cdot (\nabla M_{pred}^{(i)} - \nabla M_{gt}^{(i)})^2
-$$
-
-> ⚠️ **注意**：TBL 单独使用仅带来 ~2% 提升，但与 BHFM 和 MPG 配合时效果显著，说明边界损失需要在良好的特征融合基础上才能发挥作用。
-
-##### 实验结果
-
-| 数据集 | 划分 | oIoU | mIoU | Pr@0.5 | Pr@0.7 | Pr@0.9 |
-|--------|------|------|------|--------|--------|--------|
-| RefSegRS | Val | 88.03 | 85.21 | 93.63 | 88.24 | 52.94 |
-| RefSegRS | Test | 80.87 | 73.90 | 84.31 | 70.89 | 21.19 |
-| RRSIS-D | Val | 80.16 | 68.81 | 79.09 | 60.18 | 13.45 |
-| RRSIS-D | Test | 78.99 | 66.72 | 77.27 | 57.27 | 11.82 |
-
-与 SOTA 方法对比（RefSegRS Test）：
-
-| 方法 | Backbone | oIoU | mIoU |
-|------|----------|------|------|
-| RMSIN (TGRS'24) | Swin-B | 72.65 | 63.67 |
-| FIANet (CVPR'24) | Swin-B | 73.41 | 65.53 |
-| **RS2-SAM 2** | SAM2-Hiera-L + BEiT-3-L | **80.87** | **73.90** |
-
-##### 消融实验
-
-| 配置 | mIoU | oIoU | Δ mIoU |
-|------|------|------|--------|
-| Baseline (SAM2 + Union Encoder) | 36.64 | 55.51 | — |
-| + TBL | 38.63 | 57.36 | +1.99 |
-| + TBL + MPG | 60.20 | 70.89 | +23.56 |
-| + TBL + BHFM | 68.71 | 78.36 | +32.07 |
-| + TBL + MPG + BHFM (Full) | **73.90** | **80.87** | **+37.26** |
-
-BHFM 结构对比：
-
-| 结构 | mIoU | oIoU |
-|------|------|------|
-| Linear (无文本交互) | 68.19 | 77.39 |
-| Uni (单向：文本→视觉) | 70.10 | 78.93 |
-| **Bi (双向)** | **73.90** | **80.87** |
+> 💡 关键：RS2-SAM2 不是简单“把 SAM2 加文本编码器”，而是把文本对齐、编码器适配、dense prompt 生成和边界监督都放进同一条 SAM2 兼容链路里。
 
 #### 🧪 练习题
 ```yaml
-question: "RS2-SAM 2 中 Bidirectional Hierarchical Fusion Module 的双向交叉注意力权重设置为 α_i=0.5, α_t=0.2，这种不对称设计的主要原因是什么？"
+question: "RS2-SAM2 中 Mask Prompt Generator 的主要作用是什么？"
 options:
-  - "文本特征维度更低，需要较小的学习率"
-  - "视觉特征需要更多语言增强来定位目标，而文本特征应保持语义稳定性"
-  - "为了减少计算量，文本分支使用更小的权重"
-  - "SAM 2 的 Hiera 编码器对大权重更新不稳定"
+  - "替代 SAM2 的图像编码器以减少参数量"
+  - "把视觉-文本联合表征转成 SAM2 可使用的密集掩码提示"
+  - "只在训练阶段生成边界标签"
+  - "把遥感图像裁剪为固定大小 patch"
 answer: 1
-explain: "在 RRSIS 任务中，视觉特征需要大量语言信息来区分外观相似的目标（α_i=0.5），而文本特征本身语义明确，过多视觉信息注入可能破坏其语义表征，因此使用较小权重（α_t=0.2）保持稳定。"
+explain: "MPG 将多模态 token 与视觉嵌入融合成伪掩码，作为 dense prompt 输入 SAM2 prompt encoder/decoder。"
 ```
 
 ### TerraMind
@@ -2188,15 +2095,83 @@ motivation: 全卷积孪生网络奠定深度变化检测基础
 ```
 
 #### 📝 一句话总结
-FC-Siam 的核心目标是：全卷积孪生网络奠定深度变化检测基础。
+FC-Siam 将 U-Net 式全卷积编码器-解码器扩展为双时相共享权重的孪生结构，用跳连拼接或差分显式比较配准影像，解决早期 patch/superpixel 变化检测速度慢、端到端像素预测能力弱的问题。
 
 #### 🎯 核心要点
-- 核心动机：全卷积孪生网络奠定深度变化检测基础
-- 代表机构：ONERA
+- 提出三种端到端 FCNN：FC-EF、FC-Siam-conc、FC-Siam-diff。
+- FC-EF 在输入层拼接两期影像；FC-Siam 在编码器阶段共享权重，保持两期特征可比。
+- FC-Siam-conc 在解码跳连中拼接两期同层特征，保留完整上下文。
+- FC-Siam-diff 在跳连中拼接两期特征绝对差，直接强化变化线索。
+- 使用 OSCD 和 Air Change 数据集，同时测试 RGB 与多光谱输入。
+- 相比 patch-based 前作，推理速度提升到每对影像 0.1 秒量级，论文报告至少快 500 倍。
+- 它奠定了后续 ChangeStar、BIT、ChangeFormer 等双流变化检测网络的基础范式。
 
 #### 🔬 深入细节
-全卷积孪生网络奠定深度变化检测基础
+![FC-Siam-diff 架构示意](https://ar5iv.labs.arxiv.org/html/1810.08462/assets/montpellier-diff2.png)
+*图：FC-Siam-diff 的孪生编码器共享权重，解码跳连使用同层特征的绝对差。*
 
+##### 算法伪代码
+
+```python
+def fc_siam_diff(x_t1, x_t2):
+    skips_1, skips_2 = [], []
+    h1, h2 = x_t1, x_t2
+
+    # Siamese encoder: 两期影像共用同一组卷积参数
+    for enc in encoder_blocks:
+        h1 = enc(h1)
+        h2 = enc(h2)
+        skips_1.append(h1)
+        skips_2.append(h2)
+        h1, h2 = maxpool(h1), maxpool(h2)
+
+    z = merge_bottleneck(h1, h2)
+
+    # Decoder: 用同尺度差分跳连补回空间细节
+    for dec, s1, s2 in reversed(zip(decoder_blocks, skips_1, skips_2)):
+        z = upsample(z)
+        z = concat(z, abs(s1 - s2))
+        z = dec(z)
+
+    logits = conv1x1(z, out_channels=2)
+    return softmax(logits)
+```
+
+##### 方法解读
+
+早期遥感变化检测常把任务拆成 patch 分类、后处理和阈值化，缺点是慢、边界粗、上下文有限。FCN 的出现说明卷积网络可以直接输出像素级预测；FC-Siam 的贡献是把这个思想转成双时相比较问题：输入不再是一张图，而是同一区域的 \(I_1,I_2\)。
+
+FC-EF 是最直接的 baseline：把 \(I_1\) 和 \(I_2\) 在通道维拼接，让网络自己学习比较关系。它实现简单，但两期影像一进入网络就混合，缺少“同一个卷积滤波器看两期影像”的显式对称性。
+
+FC-Siam 的编码器共享权重，保证两期特征在同一特征空间中可比较。第 \(l\) 层特征可写为：
+
+$$
+F_1^l=E_l(I_1),\quad F_2^l=E_l(I_2)
+$$
+
+其中 \(E_l\) 是共享参数编码器。FC-Siam-conc 使用 \([F_1^l,F_2^l]\) 作为跳连，让解码器自行判断差异；FC-Siam-diff 使用 \(|F_1^l-F_2^l|\)，把变化检测的归纳偏置直接放入结构。
+
+全卷积解码器逐级上采样，使输出与输入空间对齐。训练目标通常是逐像素交叉熵：
+
+$$
+\mathcal{L}_{ce}=-\sum_{p}\sum_{c\in\{0,1\}}y_{p,c}\log \hat{y}_{p,c}
+$$
+
+和传统方法相比，FC-Siam 的关键差别不在某个复杂注意力，而在三个工程上极有效的选择：整图推理、共享编码器、跳连融合。这让网络既能处理大图，又能在浅层保留边缘和细小变化。
+
+> 💡 关键：FC-Siam-diff 的绝对差跳连是“变化检测先验”的早期经典形式，它让网络少花容量去重新发现“比较两期特征”这件事。
+
+#### 🧪 练习题
+```yaml
+question: "FC-Siam-diff 与 FC-Siam-conc 的核心区别是什么？"
+options:
+  - "FC-Siam-diff 不共享编码器权重"
+  - "FC-Siam-diff 在跳连中使用两期特征的绝对差"
+  - "FC-Siam-diff 只支持 RGB 图像"
+  - "FC-Siam-diff 使用 Transformer 编码器"
+answer: 1
+explain: "两者都使用孪生共享编码器；区别在于 conc 拼接两期特征，而 diff 拼接同层特征的绝对差。"
+```
 
 ### DASNet
 
@@ -2403,16 +2378,79 @@ motivation: Transformer在特征域建模双时相上下文
 ```
 
 #### 📝 一句话总结
-BIT 的核心目标是：Transformer在特征域建模双时相上下文。
+BIT 把双时相遥感特征压缩为少量语义 token，在 token 空间用 Transformer 建模跨时间长程上下文，再把上下文 token 回投到像素特征中，解决密集像素自注意力计算昂贵和卷积难以捕获全局时空关系的问题。
 
 #### 🎯 核心要点
-- 核心动机：Transformer在特征域建模双时相上下文
-- 演化来源：继承或改进自 stanet
-- 代表机构：Beihang University
+- 使用 Siamese CNN backbone 提取两期高层特征，再插入 BIT 模块。
+- Semantic Tokenizer 用学习到的空间注意力把每期 \(H\times W\) 像素特征汇聚为 \(L\) 个语义 token，满足 \(L\ll HW\)。
+- Transformer Encoder 在两期 token 拼接后的紧凑序列中建模空间-时间上下文。
+- Siamese Transformer Decoder 将上下文增强 token 回投到每期像素特征，细化原始特征图。
+- 预测头对增强后的两期特征做差分，输出像素级变化概率。
+- 论文在 LEVIR-CD、WHU-CD、DSIFN-CD 等数据集上验证精度和效率。
+- 官方实现：`https://github.com/justchenhao/BIT_CD`。
 
 #### 🔬 深入细节
-Transformer在特征域建模双时相上下文
+![BIT 总体框架](https://ar5iv.labs.arxiv.org/html/2103.00208/assets/x2.png)
+*图：BIT 将双时相 CNN 特征转换为语义 token，经 Transformer 编码后再解码回像素空间。*
 
+##### 算法伪代码
+
+```python
+def bit_change_detection(img1, img2):
+    x1, x2 = siamese_cnn(img1), siamese_cnn(img2)
+
+    # 1. 每期特征压缩为少量语义 token
+    t1 = semantic_tokenizer(x1)  # [L, C]
+    t2 = semantic_tokenizer(x2)  # [L, C]
+
+    # 2. 拼接两期 token，在紧凑时空语义空间中做 self-attention
+    tokens = transformer_encoder(concat(t1, t2))
+    t1_ctx, t2_ctx = split(tokens)
+
+    # 3. token 回投到像素空间，增强每个像素的语义上下文
+    x1_refined = transformer_decoder(query=x1, memory=t1_ctx)
+    x2_refined = transformer_decoder(query=x2, memory=t2_ctx)
+
+    # 4. 特征差分 + 浅层 CNN 预测变化图
+    fdi = abs(x1_refined - x2_refined)
+    return prediction_head(fdi)
+```
+
+##### 方法解读
+
+高分辨率遥感变化检测难在“同类物体跨时间外观差异大、不同类别局部纹理相似”。卷积网络擅长局部纹理，但难以把远处同类建筑、水体或道路作为上下文一起考虑；直接对所有像素做 non-local/self-attention 又需要 \(O((HW)^2)\) 的计算。
+
+BIT 的关键观察是：变化相关的高层语义概念通常可以由少量 visual words 表示。Tokenizer 对特征图 \(X^i\in\mathbb{R}^{H\times W\times C}\) 学习 \(L\) 个空间注意力图 \(A^i\)，并做加权池化：
+
+$$
+T_l^i=\sum_{p=1}^{HW}A_{l,p}^i X_p^i,\quad l=1,\ldots,L
+$$
+
+这样，Transformer 的复杂度从像素级 \(O((HW)^2)\) 降为 token 级 \(O((2L)^2)\)。两期 token 拼接后进入 encoder，自注意力可以学习“时间 1 的建筑 token 与时间 2 的建筑 token 如何对应”“哪些 token 代表真实变化而非阴影/光照”等关系。
+
+解码阶段不是直接用 token 分类，而是让每个像素特征作为 query 去读取上下文 token。简化形式为：
+
+$$
+\hat{X}^i=\operatorname{Decoder}(Q=X^i, K=T^i, V=T^i)
+$$
+
+这一步把全局语义重新分配给像素，让最终差分仍保留空间分辨率。预测头只需要在增强后的 \(F_1,F_2\) 上做特征差分和浅层卷积。
+
+与 STANet 一类像素/区域注意力方法相比，BIT 的优势是更轻：它不在所有位置之间建立 dense relation，而是先汇聚成 token 再反馈。它也保留了 CNN 的局部归纳偏置，因此在中小规模 CD 数据集上比纯 Transformer 更容易训练。
+
+> 💡 关键：BIT 的“token 化再回投”是效率来源；Transformer 只负责语义概念之间的长程关系，像素级边界仍由 CNN 特征和解码头保持。
+
+#### 🧪 练习题
+```yaml
+question: "BIT 为什么先把特征图压缩成语义 token 再做 Transformer？"
+options:
+  - "为了让输入图像分辨率变大"
+  - "为了在少量 token 上高效建模双时相长程上下文"
+  - "为了替代所有卷积层"
+  - "为了避免使用监督标签"
+answer: 1
+explain: "语义 token 数量 L 远小于像素数 HW，能显著降低自注意力计算，同时保留高层变化概念。"
+```
 
 ### ChangeFormer
 
@@ -2739,16 +2777,87 @@ motivation: 自适应残差Mamba解决长程依赖问题
 ```
 
 #### 📝 一句话总结
-ARMamba 的核心目标是：自适应残差Mamba解决长程依赖问题。
+ARMamba 提出 Adaptive Residual Mamba，用自适应残差状态块和交叉门控双向扫描替换固定残差与固定扫描策略，使遥感变化检测在保留局部细节的同时更灵活地建模长程空间依赖。
 
 #### 🎯 核心要点
-- 核心动机：自适应残差Mamba解决长程依赖问题
-- 演化来源：继承或改进自 glmamba
-- 代表机构：Various Institutions
+- 官方 DOI 索引题名为 Adaptive Residual Mamba Network for Remote Sensing Change Detection，IEEE GRSL 2026，文档号应为 `11494030`；给定 `11501189` 指向另一篇 IEEE 论文。
+- 目标问题：CNN 局部细节强但全局依赖弱，Transformer 全局强但计算重，早期 Mamba-CD 方法又常使用固定残差和固定扫描。
+- Adaptive Residual State (ARS) block：用自适应卷积核和可学习缩放动态校准残差信号。
+- Cross-Gated Bi-Scanning (CGBS)：沿双向空间序列扫描，并用跨方向门控调节信息流。
+- 变化检测主干：对双时相影像提取共享/对称特征，融合差异特征后解码变化图。
+- 公开摘要报告在 LEVIR-CD、SYSU-CD、WHU-CD 上相对 ChangeMamba 的 F1-score 分别提升 0.82%、1.95%、1.62%。
+- 正文闭源无法确认图表细节，以下结构解读基于 IEEE/DOI 摘要和 Mamba-CD 公开范式做保守还原。
 
 #### 🔬 深入细节
-自适应残差Mamba解决长程依赖问题
+![相关 Mamba-CD 框架图](https://ar5iv.labs.arxiv.org/html/2406.04207/assets/x1.png)
+*图：同类 Mamba 变化检测框架示意。ARMamba 的原论文图未开放访问；此图仅用于说明 Mamba-CD 中编码、扫描与融合模块通常嵌入的位置。*
 
+##### 算法伪代码
+
+```python
+def armamba_change_detection(img1, img2):
+    f1, f2 = stem(img1), stem(img2)
+    multi_scale = []
+
+    for stage in stages:
+        f1, f2 = stage.down(f1), stage.down(f2)
+
+        # ARS: 残差不是固定相加，而是由局部自适应卷积和可学习尺度校准
+        f1 = adaptive_residual_state(f1)
+        f2 = adaptive_residual_state(f2)
+
+        # CGBS: 双向扫描，并用另一方向的状态作为 gate
+        f1 = cross_gated_bi_scan(f1)
+        f2 = cross_gated_bi_scan(f2)
+
+        multi_scale.append(abs(f1 - f2))
+
+    change_features = fuse(multi_scale)
+    return decoder(change_features)
+```
+
+##### 方法解读
+
+遥感变化检测需要同时看清建筑边界、道路细线等局部细节，也要判断大范围上下文中的真实变化和伪变化。CNN 的固定卷积窗口对边界友好，但难以覆盖长距离依赖；Transformer 能全局建模，却对高分辨率双时相影像成本较高。Mamba/State Space Model 提供线性复杂度长序列建模，因此成为 2024 年后 RSCD 的重要方向。
+
+ARMamba 关注的是早期 Mamba-CD 的两个具体不足：第一，残差连接常是固定的 \(Y=X+\operatorname{Mamba}(X)\)，无法根据区域纹理、尺度和变化难度动态调节；第二，选择性扫描路径常被预设，空间依赖建模的方向适应性不足。
+
+ARS block 可以理解为给残差分支加一个可学习的校准器：
+
+$$
+Y=X+\gamma(X)\odot \operatorname{Mamba}(\operatorname{AKC}(X))
+$$
+
+其中 \(\operatorname{AKC}\) 表示自适应 kernel convolver，\(\gamma(X)\) 是可学习或数据相关的缩放。这样，纹理复杂或边界区域可以保留更多局部卷积线索，开阔区域则更多依赖 Mamba 的长程状态传播。
+
+CGBS 的核心是双向扫描与跨方向门控。若 \(S_{\rightarrow}\) 和 \(S_{\leftarrow}\) 分别表示两个方向的 Mamba 状态输出，则融合可以写成：
+
+$$
+G_{\rightarrow}=\sigma(W_g S_{\leftarrow}),\quad
+G_{\leftarrow}=\sigma(W_g S_{\rightarrow})
+$$
+
+$$
+Y=G_{\rightarrow}\odot S_{\rightarrow}+G_{\leftarrow}\odot S_{\leftarrow}
+$$
+
+这种设计让一个方向的上下文决定另一个方向的信息保留强度，缓解单一扫描顺序造成的空间偏置。对双时相变化检测来说，它有助于区分“沿扫描路径出现的局部纹理扰动”和“在多个方向上都一致支持的真实变化”。
+
+训练流程仍是典型二值变化检测：输入配准影像对，输出变化概率图，用 BCE、Dice 或 Focal 类损失优化。公开摘要未披露完整损失公式，因此不应臆造额外监督项；可确定的是模型以 LEVIR-CD、SYSU-CD、WHU-CD 为主要验证集。
+
+> ⚠️ 注意：本条用户给定 IEEE 链接与 ARMamba DOI 不一致；方法图也未开放。因此本文只使用公开摘要可验证的 ARS、CGBS、数据集和增益信息，未编造论文未公开的模块参数。
+
+#### 🧪 练习题
+```yaml
+question: "ARMamba 中 ARS block 相比固定残差连接的主要目的是什么？"
+options:
+  - "完全移除局部卷积信息"
+  - "动态校准残差信号，使局部细节与长程状态建模按区域自适应融合"
+  - "把二值变化检测改成目标检测"
+  - "只降低输入图像分辨率"
+answer: 1
+explain: "ARS 用自适应卷积与可学习缩放调节残差分支，避免所有空间位置都采用同一固定残差强度。"
+```
 
 ### Mamba-FCS
 
@@ -3251,16 +3360,85 @@ motivation: 滑动顶点表征避免角度边界问题
 ```
 
 #### 📝 一句话总结
-Gliding Vertex 的核心目标是：滑动顶点表征避免角度边界问题。
+Gliding Vertex 用水平框四条边上的滑动比例和一个倾斜度因子来表示任意方向目标，避免旋转框角度边界敏感和四点回归顺序歧义，并能以很小改动接入 Faster R-CNN。
 
 #### 🎯 核心要点
-- 核心动机：滑动顶点表征避免角度边界问题
-- 演化来源：继承或改进自 roi_transformer
-- 代表机构：Various Institutions
+- 目标场景：航拍遥感、场景文本、鱼眼行人等任意方向目标检测。
+- 表征方式：水平框 \((x,y,w,h)\) 加四个边上滑动比例 \((\alpha_1,\alpha_2,\alpha_3,\alpha_4)\)。
+- Obliquity factor：用方向目标面积与水平外接框面积比 \(r=|O|/|B_h|\) 衡量倾斜程度。
+- 分治推理：近水平目标输出水平框，明显倾斜目标输出滑动顶点恢复的四边形。
+- 网络改动：在 Faster R-CNN 检测头上额外回归 5 个量，计算开销很小。
+- 损失函数：分类损失 + 水平框回归 + 滑动比例回归 + 倾斜度回归。
+- 实验覆盖 DOTA、HRSC2016、文本检测和鱼眼行人检测，证明该表示不局限于遥感。
 
 #### 🔬 深入细节
-滑动顶点表征避免角度边界问题
+![Gliding Vertex 表征示意](https://ar5iv.labs.arxiv.org/html/1911.09358/assets/x2.png)
+*图：方向目标与水平外接框四条边相交，通过四个滑动顶点比例恢复四边形。*
 
+##### 算法伪代码
+
+```python
+def gliding_vertex_inference(image, threshold=0.8):
+    proposals = faster_rcnn_rpn(image)  # 水平候选框
+    outputs = roi_head(proposals)       # cls, hbox_delta, alpha[4], obliquity r
+    detections = []
+
+    for det in outputs:
+        hbox = decode_hbox(det.hbox_delta)
+        alpha = sigmoid(det.alpha)      # 每条边 [0, 1]
+        r = sigmoid(det.obliquity)
+
+        if r > threshold:
+            box = hbox                  # 近水平目标，避免不稳定的顶点偏移
+        else:
+            box = recover_quad(hbox, alpha)
+        detections.append((box, det.score, det.cls))
+
+    return oriented_nms(detections)
+```
+
+##### 方法解读
+
+旋转目标检测常用 \((x,y,w,h,\theta)\)，但角度 \(\theta\) 有周期边界，细长目标对微小角度误差极敏感。另一类方法直接回归四个顶点，却需要人为规定顶点顺序；同一个四边形从不同角点开始都会产生不同标签，训练时容易混淆。
+
+Gliding Vertex 的观察很简单：一个方向四边形 \(O\) 的水平外接框 \(B_h\) 与目标边界通常在上、右、下、左四条边各有一个交点。只要记录交点在对应边上的归一化位置，就能恢复目标四边形：
+
+$$
+\alpha_{1,3}=\frac{\|s_{1,3}\|}{w},\quad
+\alpha_{2,4}=\frac{\|s_{2,4}\|}{h}
+$$
+
+其中 \(\alpha_1,\alpha_2,\alpha_3,\alpha_4\in[0,1]\)，分别绑定到水平框的上、右、下、左边。这种绑定消除了“从哪个顶点开始回归”的顺序问题，也避免了角度边界。
+
+倾斜度因子 \(r\) 解决近水平目标的特殊情况：
+
+$$
+r=\frac{|O|}{|B_h|}
+$$
+
+当目标几乎水平时，\(O\) 和 \(B_h\) 面积接近，\(r\) 接近 1；此时四个滑动比例很容易受噪声影响，直接输出水平框反而更稳定。倾斜明显时，\(r\) 较小，模型输出恢复后的方向四边形。
+
+训练时在 Faster R-CNN 原有分类与水平框回归外，增加滑动比例和倾斜度回归：
+
+$$
+\mathcal{L}_{reg}=\lambda_h\mathcal{L}_h+\lambda_\alpha\sum_{i=1}^{4}\operatorname{SmoothL1}(\alpha_i-\alpha_i^*)+\lambda_r\operatorname{SmoothL1}(r-r^*)
+$$
+
+推理阶段先可用水平 NMS 快速过滤，再做 oriented NMS 精筛。与 RoI Transformer 等方法相比，Gliding Vertex 没有引入旋转 RoI 特征变换，而是把“方向”压进检测头回归变量，因此实现轻量。
+
+> 💡 关键：Gliding Vertex 的贡献是一个稳定表示，不是复杂网络。它把旋转框难题转成有界比例回归和一个面积比选择问题。
+
+#### 🧪 练习题
+```yaml
+question: "Gliding Vertex 引入 obliquity factor 的主要原因是什么？"
+options:
+  - "替代分类分支"
+  - "判断目标是否近水平，从而在水平框和方向四边形之间选择"
+  - "增加图像分辨率"
+  - "减少训练数据类别数"
+answer: 1
+explain: "近水平目标的滑动比例不稳定，面积比 r 可指导模型直接选择水平框；倾斜目标再使用滑动顶点恢复四边形。"
+```
 
 ### S2A-Net
 
@@ -3279,16 +3457,87 @@ motivation: 单阶段特征对齐解决分类定位失调
 ```
 
 #### 📝 一句话总结
-S2A-Net 的核心目标是：单阶段特征对齐解决分类定位失调。
+S2A-Net 在单阶段旋转目标检测中加入特征对齐模块和方向检测模块，用精炼旋转锚框指导 AlignConv 采样，再用方向敏感/方向不变特征分别服务回归和分类，解决航拍目标锚框、特征与定位质量错位的问题。
 
 #### 🎯 核心要点
-- 核心动机：单阶段特征对齐解决分类定位失调
-- 演化来源：继承或改进自 gliding_vertex
-- 代表机构：Various Institutions
+- 基础框架：RetinaNet/FPN 式单阶段检测器，每个位置只保留一个正方形初始锚框。
+- Feature Alignment Module：Anchor Refinement Network 先生成高质量旋转锚框，再用 Alignment Convolution 让采样点贴合目标方向。
+- Alignment Convolution：偏移量由旋转锚框几何显式计算，而不是完全学习得到。
+- Oriented Detection Module：使用 Active Rotating Filters 编码方向，输出方向敏感特征和方向不变特征。
+- 分支解耦：方向敏感特征用于回归，方向不变特征用于分类，缓解分类分数与定位精度不一致。
+- 评测数据：DOTA 与 HRSC2016，论文报告在精度与速度上优于多种两阶段和单阶段旋转检测器。
+- 官方代码：`https://github.com/csuhan/s2anet`。
 
 #### 🔬 深入细节
-单阶段特征对齐解决分类定位失调
+![S2A-Net 总体架构](https://ar5iv.labs.arxiv.org/html/2008.09397/assets/x3.png)
+*图：S2A-Net 由 backbone、FPN、FAM 和 ODM 构成；FAM 负责锚框与特征对齐，ODM 负责方向感知检测。*
 
+##### 算法伪代码
+
+```python
+def s2anet_forward(image):
+    pyramids = fpn(backbone(image))
+    results = []
+
+    for feat, stride in pyramids:
+        # FAM: 先把单个正方形锚框精炼为旋转锚框
+        refined_anchor = anchor_refinement_network(feat)
+        offsets = geometry_offsets(refined_anchor, stride, kernel_size=3)
+        aligned_feat = align_conv(feat, offsets)
+
+        # ODM: 方向编码，并拆分分类/回归适合的特征
+        orient_feat = active_rotating_filters(aligned_feat, num_orient=8)
+        cls_feat = orientation_pooling(orient_feat)   # 方向不变，适合分类
+        reg_feat = orient_feat                        # 方向敏感，适合定位
+
+        cls_score = cls_head(cls_feat)
+        box_delta = reg_head(reg_feat)
+        results.append(decode(cls_score, box_delta, refined_anchor))
+
+    return rotated_nms(results)
+```
+
+##### 方法解读
+
+航拍图像目标方向任意且常密集排列。传统单阶段检测器用固定水平卷积特征预测旋转框，会出现两个错位：初始锚框与真实目标方向/长宽比错位；卷积采样网格与旋转目标区域错位。结果是分类分数高的框未必定位准，NMS 会错误保留或删除框。
+
+FAM 先用 ARN 从一个简单正方形锚框回归到旋转锚框 \((x,y,w,h,\theta)\)。这一步避免手工枚举大量尺度、比例和角度锚框。随后 AlignConv 根据旋转锚框几何计算 \(k\times k\) 采样点：
+
+$$
+\mathcal{L}_{p}^{r}=\frac{1}{S}\left(x+\frac{1}{k}(w,h)\cdot r\cdot R^T(\theta)\right)
+$$
+
+偏移量是旋转采样点与普通卷积网格的差：
+
+$$
+o=\mathcal{L}_{p}^{r}-(p+r)
+$$
+
+这和 Deformable Conv 的区别在于：AlignConv 的偏移来自检测框几何，目标明确是“采到旋转目标内部”，而不是完全由网络从数据中学习偏移。
+
+ODM 继续处理分类与定位的不同需求。Active Rotating Filters 生成 \(N\) 个方向通道，默认 \(N=8\)。回归需要知道目标朝向，因此保留方向敏感特征；分类更希望同一类飞机/船舶不因旋转而变成不同模式，因此对方向通道池化，得到方向不变特征。
+
+损失由 FAM 阶段回归、最终分类和最终旋转框回归组成。分类通常使用 Focal Loss，回归使用 Smooth L1：
+
+$$
+\mathcal{L}=\frac{1}{N_f}\mathcal{L}_{FAM}+\frac{1}{N_o}(\mathcal{L}_{cls}+\lambda\mathcal{L}_{reg})
+$$
+
+相比 Gliding Vertex 的“轻量表征改造”，S2A-Net 更进一步把特征采样也对齐到旋转目标上；相比 RoI Transformer，它保留单阶段流水线，速度更友好。
+
+> 💡 关键：S2A-Net 的核心不是“预测旋转框”本身，而是让用于预测旋转框的特征也按旋转框对齐。
+
+#### 🧪 练习题
+```yaml
+question: "S2A-Net 中 AlignConv 的偏移量主要来自哪里？"
+options:
+  - "随机初始化的可学习位置编码"
+  - "精炼旋转锚框的几何形状、尺度和角度"
+  - "文本提示中的方向词"
+  - "分类分支输出的类别概率"
+answer: 1
+explain: "AlignConv 根据 ARN 预测的旋转锚框显式计算采样网格偏移，使卷积采样与目标方向对齐。"
+```
 
 ### RTMDet-R
 

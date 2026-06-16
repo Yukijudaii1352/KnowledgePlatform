@@ -27,7 +27,10 @@ GlusterFS 提出一种无集中元数据服务器的可扩展网络文件系统�
 
 #### 🔬 深入细节
 
-**核心示意图说明**：Gluster 官方页面说明其由普通硬件构建可扩展网络文件系统，架构核心是客户端 translator 栈、volume 配置和一组 brick。官方首页未提供稳定的架构图直链，下面给出结构化重构。
+![Red Hat Gluster Storage 架构](https://access.redhat.com/webassets/avalon/d/Red_Hat_Storage-3.1-Administration_Guide-en-US/images/667b8206666b18dbed70d300c3e2710c/RH_Gluster_Storage_diagrams_334434_0415_JCS_5.png)
+*图：Red Hat Gluster Storage 文档中的架构图，展示用户/管理员访问、虚拟 volume/brick 和物理 server/disk 的对应关系。来源：https://docs.redhat.com/en/documentation/red_hat_gluster_storage/3.1/html/administration_guide/chap-red_hat_storage_architecture_and_concepts*
+
+**核心示意图说明**：Gluster 官方页面说明其由普通硬件构建可扩展网络文件系统，架构核心是客户端 translator 栈、volume 配置和一组 brick。Gluster 官方项目页未提供稳定的架构图直链，因此这里使用 Red Hat 官方 Gluster Storage 文档图，并在下面用结构化文本展开 translator 数据路径。
 
 ```text
 Application -> FUSE / libgfapi client

@@ -1,161 +1,119 @@
-### Causal CoT
-
+### Causal CoT：因果思维链 (Causal CoT)
 ```yaml
 id: causal_cot
 name: Causal CoT
-full_name: 因果充分必要性优化思维链推理 (Causal Sufficiency and Necessity Improves Chain-of-Thought Reasoning)
-year: "2025"
-org: Tianjin University / City University of Hong Kong / UCL / Peking University / University of Bristol
-paper_url: https://openreview.net/forum?id=cMstMjlGOo
-category: reasoning_optimization
-parent: CoT
-motivation: 用因果充分必要性(PNS)评估并剪枝CoT推理步骤的冗余性与必要性，提升推理效率
+full_name: 因果思维链 (Causal CoT)
+year: 2026
+org: NeurIPS
+paper_url: https://proceedings.neurips.cc/paper_files/paper/2025/hash/b7870bd43b2d133a1ed95582ae5d82a4-Abstract-Conference.html
+category: frontier_2026
+parent: cot
+motivation: 因果充分性与必要性改进推理
 ```
 
 #### 📝 一句话总结
-
-Causal CoT 将因果推断中的充分必要性概率（PNS）引入思维链推理，通过双层优化算法（链级充分性筛选 + 节点级必要性剪枝）自动移除冗余推理步骤，在大幅减少 token 消耗的同时保持甚至提升推理准确率。
+Causal CoT 将 Pearl 式的必要且充分因果概率 PNS 引入 Chain-of-Thought 步骤筛选，通过反事实干预判断每个推理步骤是否真正影响最终答案。它解决了传统 CoT 同时存在的“推理不够充分”和“过度冗余”问题，把原始长链条重构为更短且仍能支撑正确答案的因果关键路径。
 
 #### 🎯 核心要点
-
-- 将 CoT 推理形式化为结构因果模型（SCM），每个推理步骤作为因果图中的节点
-- 定义三个因果度量：充分性概率 PS（推理链能否导出正确答案）、必要性概率 PN（移除某步骤是否导致答案错误）、充分必要性概率 PNS（综合衡量）
-- 提出双层优化算法（Algorithm 1）：外层通过 PS 筛选充分的推理链，内层通过 PN 逐步剪枝非必要步骤
-- PNS 估计通过 rollout 机制实现，支持三种策略：Direct（直接续写）、Prompt-Based（提示引导）、External（外部强模型）
-- 设定阈值 \(\alpha\) 对 PNS 进行剪枝决策，低于阈值的步骤被移除
-- 优化后的 CoT 可通过 ICL（上下文学习）和 SFT（监督微调）两种方式增强 LLM 推理能力
-- 在 GSM-8k、MATH-500、AIME 2025、CommonsenseQA 四个基准上验证，覆盖 Qwen、DeepSeek、Llama 等多个模型家族
+- 提出用 Probability of Necessity and Sufficiency (PNS) 评估 CoT 中单个步骤的因果贡献，而不是只看注意力、似然、消融准确率等相关性指标。
+- 将 CoT 质量拆成两个目标：链级别 Probability of Sufficiency (PS) 保证推理链足以推出正确答案，节点级别 Probability of Necessity (PN) 判断某一步是否不可替代。
+- 设计双层优化流程：先通过采样或重构提升整条链的充分性，再对每个步骤做反事实替换和 rollout，删除低 PNS 的冗余步骤。
+- 框架包含 Base Model、Rollout Model、Answer Evaluator/Validator：前者生成初始 CoT，rollout 模型生成干预后的替代后续推理，验证器判断答案和逻辑是否仍成立。
+- 支持 Direct Rollout、Prompt-Based Rollout、External Rollout 三类干预策略，用于产生与原步骤语义分离的替代步骤和后续链条。
+- 输出的 compact CoT 可作为高质量示例用于 In-Context Learning，也可作为监督微调数据，让模型学习“必要且充分”的推理模式。
+- 论文在 GSM-8k、MATH-500、AIME、CommonsenseQA 上评估推理效率和准确率，目标是在减少 token 和步骤数的同时保持或提升最终答案表现。
 
 #### 🔬 深入细节
-
-![Causal CoT 框架总览](../assets/causal_cot_p1_img6.jpeg)
-*图：Causal CoT 框架示意。左侧展示 CoT 推理的结构因果模型（SCM），右侧展示基于 PNS 的双层优化流程——先通过 PS 筛选充分推理链，再通过 PN 逐步剪枝冗余节点。*
-
-**算法伪代码（Algorithm 1: PNS-based CoT Optimization）**
+![Causal CoT 因果优化框架](https://arxiv.org/html/2506.09853v3/x3.png)
+*图：Causal CoT 的因果优化框架。模型先生成可能冗余的初始 CoT，再对步骤做反事实替换和 rollout，用 PNS 选择保留的必要步骤，最后形成 compact CoT。*
 
 ```python
-# 输入: 问题 q, 候选推理链集合 {S^(1),...,S^(m)}, rollout 次数 k, 阈值 α
-# 输出: 优化后的推理链 S*
+# Causal CoT: PNS-guided reconstruction of a reasoning chain
 
-# === 外层: 链级充分性筛选 (PS) ===
-for each candidate chain S^(i) in {S^(1),...,S^(m)}:
-    # 计算 PS: 该链能否导出正确答案
-    PS(S^(i)) = P(A_{do(S^(i))} = y | A ≠ y)
-    # 通过 k 次 rollout 估计 PS
-    ps_score = mean([verify(rollout(q, S^(i))) for _ in range(k)])
+def optimize_causal_cot(question, initial_cot, gold_answer, threshold=0.5, rollouts=8):
+    steps = split_into_steps(initial_cot)
 
-# 选择 PS 最高的链
-S* = argmax PS(S^(i))
+    # 1. Chain-level sufficiency: the whole chain must support the answer.
+    if answer_evaluator(question, steps) != gold_answer:
+        return resample_or_repair_cot(question, gold_answer)
 
-# === 内层: 节点级必要性剪枝 (PN) ===
-for each step s_t in S*:
-    # 计算 PN: 移除该步骤后答案是否改变
-    # 构造干预链 S*\{s_t}
-    pn_scores = []
-    for j in range(k):
-        S_intervened = remove_step(S*, s_t)
-        result = rollout(q, S_intervened)
-        pn_scores.append(1 - verify(result))
-    
-    PN(s_t) = mean(pn_scores)
-    
-    # PNS 估计 (Eq.5)
-    PNS(s_t) = 1 - (1/k) * sum(verify(rollout(q, S*\{s_t})))
-    
-    if PNS(s_t) < α:  # 低于阈值，该步骤非必要
-        S* = S* \ {s_t}  # 剪枝
+    compact = []
+    prefix = []
+    for step in steps:
+        counterfactual_failures = 0
 
-return S*
+        # 2. Node-level necessity: replace this step and see whether correctness breaks.
+        for _ in range(rollouts):
+            alt_step = rollout_model.replace_step(
+                question=question,
+                prefix=prefix,
+                original_step=step,
+                require_semantic_disjointness=True,
+            )
+            alt_suffix = rollout_model.continue_reasoning(question, prefix + [alt_step])
+            alt_chain = prefix + [alt_step] + alt_suffix
+            alt_answer = answer_evaluator(question, alt_chain)
+            counterfactual_failures += int(alt_answer != gold_answer)
+
+        pns = counterfactual_failures / rollouts
+        if pns >= threshold:
+            compact.append(step)
+            prefix.append(step)
+        # else: the answer survives replacement, so the step is treated as redundant.
+
+    return compact
 ```
 
-**动机与背景**
+Causal CoT 的出发点是：传统 CoT 的“长”不等于“可靠”。一条推理链可能包含三种状态：其一是足以推出答案但有大量无用步骤，即 sufficient but unnecessary；其二是某些局部步骤看似关键，但整条链还缺少必要推导，即 necessary but insufficient；其三才是论文想要的 sufficient and necessary，即每一步都对答案成立有实际贡献，且整条链足以支撑结论。已有压缩 CoT 或关键步骤识别方法常用相关性信号，例如 token 似然、注意力权重、删除某句后的准确率变化。这些信号能说明“看起来相关”，但不能说明“如果这个步骤被替换，答案是否会因果性改变”。论文因此把问题重新表述为步骤级因果归因。
 
-当前 LLM 的思维链（CoT）推理面临两个根本性挑战：
+论文先把 CoT 看成从问题到中间步骤再到答案的生成过程。给定问题 \(Q=q\)、步骤 \(S=(s_1,\ldots,s_n)\)、答案 \(A=a\)，CoT 的答案概率可写成：
 
-1. **充分性问题**：生成的推理步骤是否完整覆盖了得出最终结论所需的全部逻辑？缺失关键步骤会导致推理不完整。
-2. **必要性问题**：推理链中是否存在对最终答案无实质贡献的冗余步骤？特别是在 DeepSeek-R1 等推理模型中，常出现大量自我验证、重复计算等冗余内容，显著增加推理开销。
+$$
+P(A=a\mid Q=q)\propto \int P(a\mid s_1,\ldots,s_n,q)\prod_{i=1}^{n}P(s_i\mid s_{<i},q)\,dS
+$$
 
-传统方法要么通过启发式规则压缩推理（如 Chain-of-Draft 仅保留关键短语），要么通过简单的长度约束，但这些方法缺乏理论基础，无法区分哪些步骤真正对答案有因果贡献。
+这个式子强调最终答案不是只由最后一句产生，而是由整条推理轨迹共同决定。Causal CoT 在这个轨迹上定义三类因果量。链级充分性 PS 衡量“如果插入这条推理链，原本错误或不完整的回答是否会变正确”：
 
-> 💡 **关键洞察**：本文将"一个推理步骤是否重要"转化为因果推断问题——通过反事实干预（移除或替换步骤）观察答案是否改变，从而量化每个步骤的因果贡献。
+$$
+PS(S,q)=P(A_{\mathrm{do}(S)}=y\mid A\ne y,\bar S,q)
+$$
 
-**核心机制：因果充分必要性（PNS）框架**
+节点级必要性 PN 衡量“如果把某个步骤 \(s_t\) 换成错误或语义分离的替代步骤，并让模型从该处继续 rollout，原本正确答案是否会失效”：
 
-论文将 CoT 推理形式化为结构因果模型（SCM）\(\mathcal{M} = \langle U, V, F \rangle\)，其中：
-- \(U\)：外生变量（问题输入 \(q\)）
-- \(V\)：内生变量（推理步骤 \(s_1, s_2, \ldots, s_n\) 和最终答案 \(A\)）
-- \(F\)：结构方程（LLM 的生成过程）
+$$
+PN(S,s_t,q)=P(A_{\mathrm{do}(s_{<t},\bar{s}_t,s'_{>t})}\ne y\mid A=y,S,q)
+$$
 
-在此框架下定义三个核心因果度量：
+最终的 PNS 则把“原链正确”和“反事实链错误”合在一起：
 
-**定义 1 — 充分性概率 PS（Probability of Sufficiency）**：
+$$
+PNS(S,s_t,q)=P(A_S=y, A_{S'}\ne y)
+$$
 
-$$PS(S) = P(A_{do(S)} = y \mid A \neq y)$$
+直觉上，如果替换 \(s_t\) 以后答案经常仍然正确，那么这个步骤并不必要；如果替换后答案经常崩掉，且原链本身能推出正确答案，那么它就是 compact CoT 应保留的因果关键节点。实践中，论文用 Monte Carlo rollout 近似这个概率：
 
-衡量推理链 \(S\) 是否足以将错误答案纠正为正确答案。直觉上，如果在"原本答案错误"的条件下，施加推理链 \(S\) 后答案变为正确，则该链具有充分性。
+$$
+\widehat{PNS}(s_t)=\frac{1}{K}\sum_{k=1}^{K}\mathbf{1}[V(q,S_{t}^{(k)})\ne y]
+$$
 
-**定义 2 — 必要性概率 PN（Probability of Necessity）**：
+其中 \(S_t^{(k)}\) 是第 \(k\) 次把 \(s_t\) 替换后生成的反事实链，\(V\) 是答案评估器或验证器。这个估计式的含义很直接：替换该步骤后越容易导致答案错误，说明原步骤越必要。
 
-$$PN(s_t) = P(A_{do(\bar{s}_t)} \neq y \mid A = y)$$
+算法流程采用双层优化。第一层先检查整条初始 CoT 是否具有充分性，如果完整链都不能得到正确答案，直接做重采样或修复，因为对一条不充分链做“必要性剪枝”没有意义。第二层在链充分的前提下，按步骤执行反事实干预：移除或替换当前步骤，要求替代步骤与原步骤语义分离，再让 rollout 模型基于新前缀生成后续推理。验证器不仅检查最终答案是否等于 \(y\)，还可检查链条是否逻辑连贯。低于阈值的步骤被剪掉，高于阈值的步骤进入 compact CoT。
 
-衡量单个步骤 \(s_t\) 对正确答案的必要程度。如果移除步骤 \(s_t\)（用替代内容 \(\bar{s}_t\) 干预）后答案不再正确，则该步骤是必要的。
+> 💡 关键：Causal CoT 不是简单让推理更短，而是用“答案是否因替换该步骤而改变”来定义短链条中每一步的必要性。短只是结果，因果必要性才是筛选准则。
 
-**定义 3 — 充分必要性概率 PNS（Probability of Necessity and Sufficiency）**：
+这套方法和普通 CoT 压缩的差别在于，压缩方法往往把 token 数作为目标，容易删掉当前表述中不显眼但逻辑上不可缺的桥接步骤。Causal CoT 先要求 PS，再估计 PN，因此不会为了短而短。若一个步骤看似啰嗦，但替换后 rollout 经常让模型走向错误答案，它仍会被保留；若一个步骤措辞很长但被替换后答案不变，它会被判为冗余。论文进一步把 PNS 优化后的 CoT 用作 ICL 示例和 SFT 数据，使模型在生成时倾向输出“少而关键”的推理路径。
 
-$$PNS(S) = P(A_S = y, A_{S'} \neq y)$$
-
-联合衡量推理链既充分又必要的概率。PNS 同时满足：使用该链时答案正确（充分），不使用时答案错误（必要）。
-
-> ⚠️ **注意**：PNS 不是 PS 和 PN 的简单乘积。根据因果推断理论，PNS 满足不等式 \(\max(0, PS + PN - 1) \leq PNS \leq \min(PS, PN)\)，需要通过联合干预来估计。
-
-**PNS 的实际估计方法**
-
-由于精确计算 PNS 需要遍历所有可能的干预，论文提出基于 rollout 的近似估计（Eq. 5）：
-
-$$\widehat{PNS}(S) = 1 - \frac{1}{k} \sum_{i=1}^{k} V(S^{(i)})$$
-
-其中 \(V(S^{(i)})\) 是第 \(i\) 次 rollout 的验证结果（正确为 1，错误为 0），\(k\) 为 rollout 次数。
-
-三种 rollout 策略提供不同的干预方式：
-- **Direct**：直接让 LLM 从干预点续写，计算成本最低
-- **Prompt-Based**：通过提示词引导 LLM 基于剩余步骤重新推理
-- **External**：使用外部更强模型（如 QwQ-32B 或 DeepSeek-R1）进行 rollout，效果最好但成本更高
-
-**双层优化流程**
-
-Algorithm 1 的核心设计是将优化分为两层：
-
-1. **外层（链级）**：对多条候选推理链计算 PS，选择充分性最高的链作为基础。这确保了起点是一条"能导出正确答案"的推理链。
-
-2. **内层（节点级）**：对选中链的每个步骤计算 PN/PNS，将 PNS 低于阈值 \(\alpha\) 的步骤剪枝。这确保了保留的每个步骤都对最终答案有不可替代的因果贡献。
-
-**与传统方法的区别**
-
-| 方法 | 核心思路 | 局限性 |
-|------|---------|--------|
-| Chain-of-Draft (CoD) | 仅保留关键短语 | 过度压缩导致复杂任务精度大幅下降（MATH-500 仅 55.6%） |
-| Reduction | 快捷结论式推理 | 跳过中间逻辑，难以处理多步推理 |
-| Fast-Solve | 简洁但完整的推理 | 缺乏理论指导，压缩程度有限 |
-| **Causal CoT（本文）** | 基于因果 PNS 量化每步贡献 | 有理论保证，精准剪枝冗余步骤，保持推理完整性 |
-
-**实验验证**
-
-在 GSM-8k、MATH-500、AIME 2025、CommonsenseQA 四个基准上的实验表明：
-
-- **RQ1（PNS 优化效果）**：PNS 优化后，token 长度平均减少 50-70%，步骤数减少 40-60%，同时准确率保持或提升。例如 DeepSeek-R1 在 CommonsenseQA 上从 83.0% 提升至 85.3%，token 从 191 减至 69.8。
-- **RQ2-ICL**：使用优化后 CoT 作为 few-shot 示例，Ours-ICL 在 DeepSeek-V3 上将 GSM-8k 准确率从 97.6% 提升至 99.9%，同时 token 减少 67%。
-- **RQ2-SFT**：在仅 1,229 条 PNS 筛选的 CoT 数据上微调小模型，DeepSeek-R1-Distill-Qwen-1.5B 在 CommonsenseQA 上从 37.6% 提升至 47.2%，推理步骤减半。
-- **人工评估**：50 条优化后 CoT 中，84% 被判定为既充分又必要（S&N），仅 6% 不充分。
+从训练和推理角度看，Causal CoT 更像一个数据重构器或推理示例优化器，而不是改动 Transformer 架构。它可以套在不同基础模型上：base model 负责原始答案与评分，rollout model 负责产生反事实后续链，external rollout 还可以用更强模型生成替代路径。论文在 Qwen 与 DeepSeek 系列上验证这种模型无关性，并用 token 长度、步骤数、最终答案准确率与平均 PNS 共同评估。核心收益是把“推理效率”与“推理忠实性”绑定起来，让缩短链条不再只依赖启发式摘要，而有明确的因果检验。
 
 #### 🧪 练习题
-
 ```yaml
-question: "在 Causal CoT 框架中，PNS（充分必要性概率）的核心作用是什么？"
+question: "Causal CoT 中 PNS 估计的核心作用是什么？"
 options:
-  - "衡量推理链的总长度是否合理"
-  - "量化每个推理步骤对最终答案的因果贡献，指导冗余步骤剪枝"
-  - "评估 LLM 生成推理链的速度"
-  - "计算不同模型之间的推理能力差异"
-answer: 1
-explain: "PNS 通过反事实干预量化每个步骤的因果贡献——如果移除该步骤后答案改变（必要）且保留时答案正确（充分），则该步骤具有高 PNS 值，应当保留；否则可被剪枝。"
+  - "衡量某个步骤被反事实替换后，正确答案是否会失效"
+  - "计算每个 token 的语言模型困惑度"
+  - "让模型生成更多不同风格的长 CoT"
+  - "把所有中间步骤压缩成一个关键词"
+answer: 0
+explain: "PNS 关注原链正确且替换某一步后答案错误的概率，用来判断该步骤是否既充分又必要。"
 ```

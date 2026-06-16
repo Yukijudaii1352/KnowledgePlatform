@@ -2081,16 +2081,90 @@ motivation: 聚类约束的注意力机制实现WSI弱监督高效分类
 ```
 
 #### 📝 一句话总结
-CLAM 的核心目标是：聚类约束的注意力机制实现WSI弱监督高效分类。
+CLAM 提出了聚类约束注意力多实例学习框架，在只有 slide-level 标签的情况下完成全切片图像分类、ROI 热力图解释和多类别亚型诊断。它用 class-specific attention 聚合 WSI patch 特征，并用高/低注意力 patch 的伪标签做实例级聚类约束，缓解弱监督 WSI 学习中监督信号稀疏的问题。
 
 #### 🎯 核心要点
-- 核心动机：聚类约束的注意力机制实现WSI弱监督高效分类
-- 演化来源：继承或改进自 attention_mil
-- 代表机构：哈佛医学院
+- **弱监督 WSI 处理**：不需要 ROI 标注或像素级标注，只用整张切片诊断标签训练。
+- **Patch 特征预提取**：先做组织区域分割与 patch 切块，再用 ImageNet 预训练 CNN 编码每个 patch。
+- **多分支注意力 MIL**：为每个诊断类别学习独立 attention branch，生成 class-specific slide representation。
+- **聚类约束**：用高注意力 patch 作为正证据、低注意力 patch 作为负证据，训练实例级聚类分类器。
+- **多类别亚型诊断**：相比传统二分类 MIL，CLAM 直接支持 RCC、NSCLC 等多类别 subtyping。
+- **可解释热力图**：把预测类别的 attention score 映射回 WSI 空间，生成诊断相关区域热力图。
+- **数据效率**：在较少 slide-level 标签下仍能保持高 AUC，尤其优于 max-pooling MIL 和 same-label patch 训练。
 
 #### 🔬 深入细节
-聚类约束的注意力机制实现WSI弱监督高效分类
+##### 4.1 核心示意图
 
+![CLAM 弱监督 WSI 框架](https://cdn.ncbi.nlm.nih.gov/pmc/blobs/b98d/8711640/cb8bbd942cd9/nihms-1723086-f0002.jpg)
+*图：CLAM 从 WSI 组织区域切 patch，预训练 CNN 编码 patch，注意力网络聚合为 slide representation，并用高/低注意力 patch 训练实例级聚类分支。*
+
+##### 4.2 算法伪代码
+
+```python
+# CLAM 训练流程伪代码
+for slide, y_slide in dataloader:
+    patches = tile_tissue_regions(slide)
+    H = pretrained_cnn(patches)              # [K, D], K 个 patch 特征
+
+    A = class_specific_attention(H)          # [N_class, K]
+    M = softmax(A, dim=1) @ H                # [N_class, D]
+    logits = classifier(M)                   # slide-level logits
+    loss_slide = cross_entropy(logits, y_slide)
+
+    # in-the-class branch: 最高注意力为正证据，最低注意力为负证据
+    top_idx = topk(A[y_slide], B)
+    bottom_idx = bottomk(A[y_slide], B)
+    inst_x = concat(H[top_idx], H[bottom_idx])
+    inst_y = concat(ones(B), zeros(B))
+    loss_patch = smooth_top1_svm(instance_head[y_slide](inst_x), inst_y)
+
+    # 多类别互斥任务中，可把其他类别分支的高注意力 patch 当作 false positive 负证据
+    loss = c1 * loss_slide + c2 * loss_patch
+    loss.backward()
+    optimizer.step()
+```
+
+##### 4.3 方法解读
+
+CLAM 的背景问题是 WSI 的标注粒度和计算规模不匹配：一张 WSI 可能有数十万 patch，但训练标签通常只有整张切片的诊断结果。传统 MIL 的 max pooling 只让最高分实例参与梯度，same-label 方法又把 slide 标签强行赋给所有 patch，导致大量噪声标签。CLAM 选择 embedding-based MIL：先把 patch 编码为特征，再用可学习注意力做集合聚合。
+
+核心注意力聚合可写成：
+
+$$
+\mathbf{h}_{\text{slide}, i}=\sum_{k=1}^{K} a_{i,k}\mathbf{h}_k
+$$
+
+其中 \(i\) 表示类别分支，\(K\) 是 patch 数量，\(a_{i,k}\) 是第 \(i\) 类 attention branch 对第 \(k\) 个 patch 的归一化权重。这样每个类别都有自己的“证据视角”：同一张 WSI 中，被腺癌分支关注的区域和被鳞癌分支关注的区域可以不同。
+
+CLAM 的关键增量是实例级聚类约束。由于没有 patch label，模型从自己的 attention 中构造伪标签：ground-truth 类别分支的 top-\(B\) patch 视为该类正证据，bottom-\(B\) patch 视为负证据；如果任务类别互斥，其他类别分支的 top-\(B\) patch 还可被视为 false positive 负证据。这个辅助任务迫使 patch feature space 把“强诊断证据”和“非诊断证据”拉开。
+
+训练损失由 slide-level 分类损失和 patch-level 聚类损失组成：
+
+$$
+\mathcal{L}_{\text{total}}=c_1\mathcal{L}_{\text{slide}}+c_2\mathcal{L}_{\text{patch}}
+$$
+
+其中 \(\mathcal{L}_{\text{slide}}\) 通常是交叉熵，\(\mathcal{L}_{\text{patch}}\) 使用 smooth top-1 SVM loss。论文选择 margin-style 的实例损失，是因为 attention 伪标签不可避免有噪声；带 margin 的损失比直接交叉熵更不容易过拟合错误伪标签。
+
+推理时，CLAM 对所有 tissue patch 计算 attention score 和 slide logits。预测类别对应的 attention score 会被归一化为 percentile 后映射回原始 WSI 坐标，形成 heatmap。这个热力图不是显式分割模型输出，但在病理诊断中可作为“模型依赖哪些形态学区域”的解释工具。
+
+> 💡 关键：CLAM 不是简单把 Attention MIL 用到病理图像，而是在 attention 选出的代表性 patch 上加入实例级可分性约束，让弱监督训练从“一个 slide 标签”获得更多可用梯度。
+
+##### 4.4 与传统方法的区别
+
+相比 max-pooling MIL，CLAM 不只依赖单个最强 patch，而是通过 attention 加权聚合多个诊断区域；相比 mean pooling，CLAM 不会让背景和无关组织等权参与 slide 表示；相比 patch-level same-label 训练，CLAM 不会把全片标签强加给所有 patch。它的代价是需要先离线提取 patch 特征，并且 attention 伪标签仍可能在早期训练阶段出错，因此聚类约束更适合与稳健的 slide-level loss 共同优化。
+
+#### 🧪 练习题
+```yaml
+question: "CLAM 中实例级聚类约束的主要作用是什么？"
+options:
+  - "用像素级标注训练一个额外的分割头"
+  - "把高/低注意力 patch 构造成伪标签，增强 patch 特征空间的可分性"
+  - "用 NMS 合并多个 WSI 预测框"
+  - "把所有 patch 的 slide 标签都改成独立 patch 标签"
+answer: 1
+explain: "CLAM 没有 patch-level 真值标签，因此利用 attention 选出的 top/bottom patch 构造伪监督，约束诊断证据和负证据在特征空间中分离。"
+```
 
 ### MedSAM
 
@@ -2297,16 +2371,89 @@ motivation: 将3D扫描视为视频序列实现体积自动分割
 ```
 
 #### 📝 一句话总结
-MedSAM-Video 的核心目标是：将3D扫描视为视频序列实现体积自动分割。
+MedSAM-2 将 3D 医学图像和 2D 医学图像流统一建模为“视频”，复用 SAM 2 的视频记忆机制完成跨切片/跨图像分割。它进一步提出 confidence memory bank 和 weighted pick-up，让一次提示能传播到后续切片或相似 2D 图像，解决医学分割中逐切片交互成本高的问题。
 
 #### 🎯 核心要点
-- 核心动机：将3D扫描视为视频序列实现体积自动分割
-- 演化来源：继承或改进自 medsam
-- 代表机构：哈佛/麻省总医院
+- **医学图像即视频**：把 CT/MRI 等 3D 扫描的连续切片视为时序帧，把 2D 图像集合视为可传播的 image flow。
+- **基于 SAM 2**：继承 image encoder、prompt encoder、memory encoder、memory attention、mask decoder 的视频分割管线。
+- **Confidence Memory Bank**：推理时优先保留高置信预测和用户提示帧，减少错误 mask 进入记忆库带来的漂移。
+- **Weighted Pick-up**：根据当前图像与记忆图像的相似度加权读取 memory，而不是对所有 memory 等权融合。
+- **One-Prompt Segmentation**：一次 prompt 不只服务一张图，还能迁移到同任务的其他 2D 医学图像。
+- **多任务评估**：覆盖白细胞、视杯、视网膜血管、下颌骨、冠状动脉、肾肿瘤、肝肿瘤、腹部器官等 2D/3D 任务。
 
 #### 🔬 深入细节
-将3D扫描视为视频序列实现体积自动分割
+##### 4.1 核心示意图
 
+![MedSAM-2 框架](https://arxiv.org/html/2408.00874v1/extracted/5769329/medsam2face.png)
+*图：MedSAM-2 基于 SAM 2，把 3D 医学图像和 2D 图像流视为视频，通过 confidence memory bank 与 weighted pick-up 做记忆增强分割。*
+
+##### 4.2 算法伪代码
+
+```python
+# MedSAM-2 推理伪代码
+def medsam2_segment(frames, prompt_frame, prompt):
+    memory_bank = []
+    outputs = {}
+
+    for t, image in enumerate(frames):
+        image_emb = image_encoder(image)
+
+        if t == prompt_frame:
+            prompt_emb = prompt_encoder(prompt)
+            mask, score, obj_ptr = mask_decoder(image_emb, prompt_emb)
+        else:
+            picked = weighted_pickup(image_emb, memory_bank)
+            conditioned = memory_attention(image_emb, picked)
+            mask, score, obj_ptr = mask_decoder(conditioned, prompt_emb=None)
+
+        outputs[t] = mask
+        if is_confident(score) and is_diverse(image_emb, memory_bank):
+            memory_bank = update_confidence_bank(memory_bank, image_emb, mask, obj_ptr, score)
+
+    return outputs
+```
+
+##### 4.3 方法解读
+
+SAM 2 的核心能力是 promptable video object segmentation：用户在某一帧给出点、框或 mask，模型把对象通过 memory attention 传播到后续帧。MedSAM-2 的观察是，3D 医学体数据的相邻切片在解剖结构上连续，和视频帧的时间连续性高度相似。因此，3D 分割可以转化为“给某个切片一个 prompt，然后沿切片轴跟踪同一目标”。
+
+基础数据流包括五步：首先每张切片进入 image encoder 得到 dense embedding；用户提示帧进入 prompt encoder；mask decoder 输出当前帧 mask 和对象指针；memory encoder 把预测 mask 与图像特征写入 memory；后续帧通过 memory attention 读取历史对象信息。其直觉公式可以写成：
+
+$$
+\tilde{\mathbf{z}}_t=\text{MemoryAttention}(\mathbf{z}_t,\mathcal{M}_{t-1})
+$$
+
+其中 \(\mathbf{z}_t\) 是当前切片特征，\(\mathcal{M}_{t-1}\) 是历史记忆，\(\tilde{\mathbf{z}}_t\) 是融合对象记忆后的特征。mask decoder 在 \(\tilde{\mathbf{z}}_t\) 上预测当前切片掩码。
+
+MedSAM-2 对原始 SAM 2 的重要修改是 memory selection。SAM 2 更偏向按时间顺序维护 memory；医学体数据中，一旦某些切片预测错了，错误 mask 会继续污染后续传播。confidence memory bank 改成优先保留高置信、低噪声、且与已有记忆不重复的样本，降低误差累积。
+
+Weighted pick-up 进一步解决“哪些 memory 对当前切片最有用”的问题。对当前图像 embedding 与 memory embedding 计算相似度，再对 memory value 加权融合：
+
+$$
+w_j=\frac{\exp(\text{sim}(\mathbf{z}_t,\mathbf{m}_j))}{\sum_k \exp(\text{sim}(\mathbf{z}_t,\mathbf{m}_k))}
+,\qquad
+\mathbf{m}^{*}_t=\sum_j w_j\mathbf{m}_j
+$$
+
+这个设计使非相邻但外观相似的切片也能被选中，尤其适合病灶形态在若干切片后重新出现、或 2D 图像之间没有严格时间顺序的场景。
+
+> ⚠️ 注意：MedSAM-2 的“一次提示”能力依赖同一器官/病灶在序列或图像集合中的外观一致性。跨模态、极端形变或低对比度边界仍可能需要额外交互提示纠偏。
+
+##### 4.4 与 MedSAM/SAM 的区别
+
+MedSAM 主要是 2D 医学图像交互分割，通常每张图都要 prompt；SAM 2 支持视频，但不是为医学领域设计。MedSAM-2 的变化在于把医学体数据转成视频任务，并让记忆库更适合医学图像：置信优先减少错误传播，相似度加权减少无关帧干扰。相比逐切片运行 2D SAM，这种方式能利用切片间连续性，显著降低 3D 标注和分割交互成本。
+
+#### 🧪 练习题
+```yaml
+question: "MedSAM-2 为什么要引入 confidence memory bank？"
+options:
+  - "为了把所有历史切片都永久保存下来"
+  - "为了优先保留高置信且多样的记忆，减少错误 mask 传播"
+  - "为了替代 image encoder，直接从文本生成 mask"
+  - "为了只处理单张 2D 图像，不处理 3D 序列"
+answer: 1
+explain: "医学切片传播容易累积错误，confidence memory bank 通过置信度和多样性筛选记忆，降低噪声模板对后续切片的影响。"
+```
 
 ### CIHM
 
@@ -2325,16 +2472,92 @@ motivation: 并行Mamba与CNN分支参数减少345倍
 ```
 
 #### 📝 一句话总结
-CIHM 的核心目标是：并行Mamba与CNN分支参数减少345倍。
+CIHM 提出一个轻量级混合 Mamba 医学分割网络，用并行 SSM/Mamba 分支建模长程上下文，用 T-shaped CNN 分支补足局部中心细节。它通过 CiMC layer 与 MRDB 多尺度桥接模块，在 ISIC、Synapse、DSB18 等任务上保持竞争性能，同时相对 U-Mamba 大幅减少参数量。
 
 #### 🎯 核心要点
-- 核心动机：并行Mamba与CNN分支参数减少345倍
-- 演化来源：继承或改进自 swin_unet
-- 代表机构：中科院/清华大学
+- **CiMC layer**：Context-insight Mamba-CNN layer，核心单元由 SSM/Mamba 分支和 CNN 分支并行组成。
+- **长程上下文建模**：SSM 分支以线性复杂度捕获远距离依赖，避免 Transformer 的二次复杂度。
+- **局部细节增强**：CNN 分支采用 T-shaped convolution，强调 patch center 附近的边界和纹理。
+- **MRDB 模块**：Multiscale Refining Detail Bridge 用 dense multiplication 与 concatenation 融合多尺度上下文。
+- **轻量化目标**：公开摘要报告其参数量较 U-Net 减少约 40 倍、较 U-Mamba 减少约 345 倍。
+- **医学分割基准**：在 ISIC2017、ISIC2018、Synapse、DSB18 上验证皮肤病灶、腹部器官、细胞核等场景。
 
 #### 🔬 深入细节
-并行Mamba与CNN分支参数减少345倍
+##### 4.1 核心示意图
 
+![CIHM 框架图](https://media.springernature.com/lw1200/springer-static/image/art%3A10.1007%2Fs44267-026-00113-5/MediaObjects/44267_2026_113_Fig1_HTML.png)
+*图：CIHM 的整体网络与核心模块示意。正式可检索版本见 Visual Intelligence DOI: 10.1007/s44267-026-00113-5；用户给定 ResearchGate 链接更像占位符。*
+
+##### 4.2 算法伪代码
+
+```python
+# CIHM 编码-解码分割伪代码
+def cihm_forward(x):
+    skips = []
+    for stage in encoder_stages:
+        # CiMC: SSM/Mamba 分支 + CNN 分支并行
+        z_global = mamba_ssm_branch(stage.norm(x))
+        z_local = tshaped_conv_branch(x)
+        x = fuse(z_global, z_local)
+        skips.append(x)
+        x = downsample(x)
+
+    # MRDB: 多尺度细节桥接
+    bridge = mrdb(skips)
+
+    for stage in decoder_stages:
+        x = upsample(x)
+        x = concat(x, bridge.pop(), skips.pop())
+        x = cimh_decoder_block(x)
+
+    return segmentation_head(x)
+```
+
+##### 4.3 方法解读
+
+医学分割模型通常在两类能力之间取舍：CNN 擅长边界、纹理和局部结构，但感受野有限；Transformer 擅长全局关系，但自注意力的 \(O(N^2)\) 复杂度不适合高分辨率医学图像。CIHM 选择 Mamba/SSM 作为全局分支，因为 selective state space model 可以以近似线性复杂度处理长序列特征。
+
+CiMC layer 的思想是“并行互补”而不是串行堆叠。给定输入特征 \(\mathbf{X}\)，SSM 分支负责上下文语义：
+
+$$
+\mathbf{Z}_{\text{ctx}}=\text{SSM}(\text{Norm}(\mathbf{X}))
+$$
+
+CNN 分支负责局部中心洞察：
+
+$$
+\mathbf{Z}_{\text{local}}=\text{TConv}(\mathbf{X})
+$$
+
+最后两路特征融合得到输出：
+
+$$
+\mathbf{Y}=\phi([\mathbf{Z}_{\text{ctx}},\mathbf{Z}_{\text{local}}])
+$$
+
+其中 \([\cdot]\) 表示通道拼接或融合，\(\phi\) 表示轻量投影。这样设计的直觉是：Mamba 分支看“器官/病灶在全局图像中的位置和关系”，CNN 分支看“当前局部边缘到底在哪里”。
+
+MRDB 用于弥补轻量网络中跨尺度信息不足的问题。U-Net 类结构依靠 skip connection 恢复空间细节，但简单拼接可能只是把低层纹理直接送回解码器。MRDB 通过密集乘法和拼接，让不同尺度之间产生交互，强化小目标边界、薄结构和病灶内部纹理。
+
+训练和推理上，CIHM 仍是标准 encoder-decoder segmentation：输入 2D 医学图像，输出每像素类别概率；损失可按任务使用 Dice、BCE 或 Cross Entropy。它的创新不在训练范式，而在网络块设计：用更小参数量同时覆盖全局依赖和局部细节。
+
+> 💡 关键：CIHM 的“轻”不是简单减通道，而是把昂贵全局建模换成线性 SSM，并让 CNN 只补最必要的局部中心信息。
+
+##### 4.4 与 Swin-UNet/U-Mamba 的区别
+
+Swin-UNet 依靠窗口注意力降低 Transformer 成本，但仍需要 attention map 和窗口划分；U-Mamba 将 Mamba 引入 U-Net，但公开摘要显示参数量仍显著高于 CIHM。CIHM 更强调模块级轻量化：CiMC 并行双分支减少冗余，MRDB 在桥接层聚合多尺度细节，整体更适合资源受限的医学分割部署。
+
+#### 🧪 练习题
+```yaml
+question: "CIHM 中 CiMC layer 的核心设计是什么？"
+options:
+  - "只使用窗口自注意力替代所有卷积"
+  - "并行使用 SSM/Mamba 分支建模长程上下文和 CNN 分支提取局部细节"
+  - "把 3D CT 切片全部转换成文本 token"
+  - "只保留 U-Net 的最后一层 skip connection"
+answer: 1
+explain: "CiMC layer 的核心是 Mamba/SSM 与 CNN 并行互补：前者捕获全局上下文，后者通过 T-shaped convolution 强化局部中心结构。"
+```
 
 ### Deco-Mamba
 
@@ -2963,15 +3186,76 @@ motivation: 无监督异常发现解决长尾病变标注稀缺问题
 ```
 
 #### 📝 一句话总结
-UVAS 的核心目标是：无监督异常发现解决长尾病变标注稀缺问题。
+UVAS 将病理发现建模为相对健康组织的低概率异常区域，Screener 用密集自监督特征和密度估计在无标注 CT 上学习“正常性”。它不依赖病灶类别标签，目标是发现长尾、稀有或未标注病变，缓解医学异常分割中监督标签覆盖不足的问题。
 
 #### 🎯 核心要点
-- 核心动机：无监督异常发现解决长尾病变标注稀缺问题
-- 代表机构：ICLR 2026
+- **给定链接为占位符**：`uvas2026` 不是有效 OpenReview ID；可检索 ICLR 2026 主源是 “Modeling the Density of Pixel-level Self-supervised Embeddings for Unsupervised Pathology Segmentation in Medical CT”。
+- **模型名 Screener**：OpenReview TL;DR 描述其为 fully self-supervised pathology segmentation model for medical CT images。
+- **UVAS 问题设定**：假设病理区域相对健康解剖结构稀有，通过正常特征密度低来定位异常。
+- **密集自监督特征**：用 DenseVICReg 等 dense SSL 学习像素/体素级表征，避免依赖 ImageNet 或有监督医学预训练。
+- **密度建模**：在 dense embedding 空间中估计正常分布，对低似然区域生成 anomaly score map。
+- **遮罩不变条件特征**：使用 learned, masking-invariant dense features 作为 conditioning variables，替代手工位置编码。
+- **大规模无标注训练**：OpenReview 摘要报告训练使用超过 30,000 个无标注 3D CT volume，并在 4 个含 1,820 扫描的测试集上评估。
 
 #### 🔬 深入细节
-无监督异常发现解决长尾病变标注稀缺问题
+##### 4.1 核心示意图
 
+![Screener / UVAS 框架图](https://figures.semanticscholar.org/cc920ae3dcd2e300cc4691dc5da77aba10107155/2-Figure1-1.png)
+*图：Screener 的密集自监督特征与条件密度建模流程。该图来自可公开访问的 Semantic Scholar figure CDN，对应 Screener/UVAS 论文图示。*
+
+##### 4.2 算法伪代码
+
+```python
+# UVAS / Screener 推理伪代码
+def screener_infer(ct_volume):
+    # 1. 提取密集自监督特征
+    dense_feat = dense_ssl_encoder(ct_volume)       # [D, H, W, C]
+
+    # 2. 生成遮罩不变条件变量，表示局部解剖和上下文
+    cond_feat = conditioning_encoder(mask_aug(ct_volume))
+
+    # 3. 用正常数据训练得到的密度模型估计每个位置的 log likelihood
+    logp = density_model.log_prob(dense_feat, cond=cond_feat)
+
+    # 4. 低似然位置即异常候选
+    anomaly_score = -logp
+    anomaly_map = postprocess(anomaly_score)
+    return threshold_or_rank(anomaly_map)
+```
+
+##### 4.3 方法解读
+
+监督医学分割的弱点在异常检测上尤其明显：公共数据集通常只标注少数常见病灶，临床上却存在大量长尾异常、偶发病变和组合病理。UVAS 的出发点是“不知道异常类别也要能发现异常”，因此它不学习某个具体病灶的分类边界，而是学习正常 CT 的密集特征分布。
+
+基本评分可以写成负对数似然：
+
+$$
+s(\mathbf{x}_{p})=-\log p_{\theta}(\mathbf{z}_{p}\mid \mathbf{c}_{p})
+$$
+
+其中 \(\mathbf{x}_{p}\) 是位置 \(p\) 的局部影像，\(\mathbf{z}_{p}\) 是 dense SSL encoder 输出的像素/体素级特征，\(\mathbf{c}_{p}\) 是条件变量。若某个位置的表征在正常数据分布下概率很低，则 anomaly score \(s\) 高，被视为病理候选区域。
+
+早期 UVAS 方法常用有监督预训练特征或手工位置编码。Screener 的第一项改进是 dense self-supervised learning：让模型在无标注 CT 上学习局部结构和上下文一致性，避免自然图像特征和医学体数据之间的域差异。第二项改进是 learned masking-invariant conditioning：通过遮罩增强迫使条件变量不依赖病灶本身，而更多表达正常解剖上下文，从而避免密度模型把异常也解释成“正常条件”。
+
+训练流程可分为两阶段。第一阶段训练 dense descriptor，使相同解剖位置或增强视图的特征稳定，不同位置有区分度；第二阶段在这些 dense feature 上训练条件密度模型，例如 flow/Glow 类可逆模型。推理时不需要病灶标签，只输出每个位置的异常分数，再通过阈值、连通域或 top-k 体素生成分割结果。
+
+> ⚠️ 注意：UVAS 不是万能病灶分割器。它对“训练集中罕见、统计上异常”的区域敏感，但对正常变异、扫描伪影、金属伪影或训练集中已频繁出现的慢性改变可能产生误报或漏报。
+
+##### 4.4 与监督分割的区别
+
+传统 nnU-Net/UNETR 学的是 \(p(y\mid x)\)：需要每类病灶的 mask 标签，泛化到未见病种时能力有限。UVAS 学的是 \(p(z\mid c)\)：只要求大量无标注正常或混合 CT，检测低概率区域。它牺牲了病种语义分类能力，换来对未知异常和低标注场景的适应性，因此更适合作为筛查、预标注或低样本微调的前置模型。
+
+#### 🧪 练习题
+```yaml
+question: "UVAS/Screener 为什么适合长尾病变发现？"
+options:
+  - "它为每一种病灶都训练一个有监督分类头"
+  - "它学习正常 dense feature 的条件密度，把低似然区域视为异常候选"
+  - "它只检测 COCO 数据集中的 80 个类别"
+  - "它通过 NMS 合并检测框而不是输出分割图"
+answer: 1
+explain: "UVAS 不依赖具体病灶类别标签，而是用正常特征分布的低似然定位异常，因此更适合未标注或长尾病理发现。"
+```
 
 ### MedVersa
 

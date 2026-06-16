@@ -1,150 +1,93 @@
-### Qwen2.5
+### Qwen2.5：通义千问 2.5 技术报告
+```yaml
+id: qwen25
+name: Qwen2.5
+full_name: 通义千问 2.5 (Qwen2.5 Technical Report)
+year: "2024.12"
+org: Alibaba Qwen
+paper_url: https://arxiv.org/abs/2412.15115
+category: open_foundation
+parent: llama3
+motivation: 18T语料扩展开放谱系
+```
 
 #### 📝 一句话总结
-
-Qwen2.5 系列是通义千问团队在 Qwen2 基础上的全面升级，将预训练数据规模从 7T 扩展到 18T tokens，并引入两阶段强化学习对齐方案（DPO + GRPO），在数学、编程和指令遵循能力上取得显著提升，Qwen2.5-72B 在多项基准上超越 Llama-3.1-405B。
+Qwen2.5 把 Qwen 系列扩展到更完整的开放基础模型谱系，通过 18T token 预训练、更强数据混合、长上下文扩展和 SFT+DPO+GRPO 多阶段后训练，显著提升知识、数学、代码、结构化输出与人类偏好对齐能力。它同时发布 0.5B 到 72B 的开放 dense 模型，并提供 Qwen2.5-Turbo/Plus 等 MoE API 模型，形成从端侧到云端的统一模型族。
 
 #### 🎯 核心要点
-
-- 预训练数据从 Qwen2 的 7T tokens 扩展到 **18T tokens**，知识截止至近期，覆盖更广泛的高质量网页、代码和数学数据
-- 模型规模覆盖 **0.5B / 1.5B / 3B / 7B / 14B / 32B / 72B** 全系列，均采用开放权重
-- 架构延续 Transformer decoder-only：**RoPE 旋转位置编码、SwiGLU 激活、RMSNorm 归一化**；7B+ 模型采用 **GQA (Grouped Query Attention)**
-- 提出 **缩放法则 (Scaling Laws)** 指导训练：最优 Batch Size 随模型规模线性增长，数据量与模型规模的最优配比
-- **长文本训练**：将 32K 上下文窗口扩展至最高 128K tokens，使用 ABF (Adjusted Base Frequency) 调整 RoPE 基频
-- **SFT 阶段**：利用 Qwen2.5-Plus 生成反向翻译数据补充低资源语言指令；对数学/编程采用**拒绝采样**和**执行反馈**筛选高质量 CoT 样本
-- 两阶段 RL 对齐：(1) **DPO** 利用离线偏好数据直接优化策略；(2) **GRPO** 在线探索，无需独立 Reward Model，直接从群体采样中计算相对优势
-- Qwen2.5-72B 在 MMLU-redux、MATH、MBPP、MultiPL-E、LiveCodeBench、Arena-Hard、MT-Bench 上超越 Llama-3.1-405B-Instruct
+- 模型谱系：开放 0.5B、1.5B、3B、7B、14B、32B、72B dense decoder-only LLM，另有 Qwen2.5-Turbo 与 Qwen2.5-Plus 两个托管 MoE 变体。
+- 数据规模：高质量预训练数据从 Qwen2 的 7T token 扩展到 18T token，并增强数学、代码、多语言与高价值知识域数据。
+- 长上下文：多数中大模型支持 128K 上下文与 8K 生成；预训练从 4K 扩到 32K，推理侧结合 YARN 与 Dual Chunk Attention 扩展长度能力。
+- 后训练：使用超过 100 万条 SFT 样本，并进行多阶段强化学习，包括离线 DPO 和在线 GRPO。
+- 能力提升：重点提升数学、代码、结构化数据理解、JSON/结构化输出、长文本生成、指令遵循和多语言能力。
+- 评测定位：Qwen2.5-72B-Instruct 在多个任务上接近或超过更大的 Llama-3.1-405B-Instruct，Qwen2.5-14B/32B 填补中等规模高性能开放模型区间。
 
 #### 🔬 深入细节
+![Qwen2.5 模型卡总览](https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen2.5/Qwen2.5%20modelcard.001.jpeg)
+*图：Qwen 官方 Qwen2.5 LLM model card。它概览了 0.5B 到 72B 模型的参数规模、层数、注意力头/KV 头、上下文长度、生成长度和许可证。*
 
-##### 1. 预训练与缩放法则
+Qwen2.5 的核心不是单个新算子，而是一个完整 foundation model pipeline 的升级。预训练目标仍是标准自回归语言建模：
 
-Qwen2.5 的预训练数据相比 Qwen2 提升超过 2.5 倍，从 7T 扩展到 **18T high-quality tokens**。数据分布经过精心调配：
+$$
+\mathcal{L}_{\text{LM}}(\theta)=-\sum_{t=1}^{T}\log p_\theta(x_t\mid x_{<t})
+$$
 
-> 💡 **关键数据策略**：
-> - 强化了**数学和代码**数据的占比，这是 Qwen2.5 数学推理能力大幅跃升的基础
-> - 增加了**多语言数据**（尤其是中文、日语、韩语、阿拉伯语等），提升跨语言迁移能力
-> - 对网页数据进行更严格的**质量过滤**，使用 Qwen2 系列协助数据清洗
+但论文强调，收益主要来自更大且更干净的数据、面向规模的超参数律、长上下文预训练，以及后训练阶段的系统化偏好优化。相比 Qwen2，Qwen2.5 将高质量语料从 7T 扩到 18T token；数据过滤使用 Qwen2-Instruct 作为质量评估器，对多语言样本进行多维度打分；数据混合则下采样电商、社媒、娱乐等重复/模板化内容，上采样科技、科学、学术等高价值域。
 
-**缩放法则 (Scaling Laws)** 是 Qwen2.5 训练的核心指导原则。团队通过在小模型上外推，确定了如下关系：
+架构上，开放权重 Qwen2.5 是 dense decoder-only Transformer 系列。官方 model card 显示，7B/14B/32B/72B 等中大模型采用较少 KV heads 的 GQA 配置，例如 7B 为 28 个 query heads / 4 个 KV heads，14B 与 32B 为 40 / 8，72B 为 64 / 8。GQA 的直觉是多个 query heads 共享较少的 key/value 投影，从而降低长上下文 KV cache 压力；这与 RoPE、SwiGLU、RMSNorm 等现代 LLM 组件共同构成 Qwen2.5 的基础块。
 
-$$ \text{Optimal Batch Size}(N) = a \times N^b $$
+长上下文训练分阶段进行：先用 4,096 token 上下文做主要预训练，再在最后阶段把上下文扩展到 32,768 token；对于非 Turbo 模型，还通过 YARN 与 DCA 将推理长度能力扩展到 131,072 token。Turbo 版本采用更激进的递进式上下文扩展，训练阶段经过 32K、65K、131K、262K，并在推理侧支持最高 1M token。机制上，RoPE 外推通过调整位置频率基底缓解训练长度与推理长度的分布差异，DCA 则把长序列相对位置映射到更局部的块内/块间结构，减少超长位置带来的注意力退化。
 
-其中 \(N\) 为模型参数量，\(b \approx 0.5\)。这意味着模型每增大 4 倍，最优 batch size 约增大 2 倍。实验还验证了 **Chinchilla 型缩放法则**：给定计算预算，模型规模与数据量应按约 1:20 的比例同步增长。
+```python
+# Qwen2.5 训练与对齐流程伪代码
 
-**长文本扩展**：Qwen2.5 将原生上下文窗口从 Qwen2 的 32K 扩展到 **128K tokens**。技术细节：
-- 使用 **ABF (Adjusted Base Frequency)**：将 RoPE 的基频 \(\theta\) 从 10,000 上调至更高值（如 1,000,000），使高频旋转角度降低，延长有效上下文长度
-- 在预训练后期引入**长序列数据**进行继续训练，逐步从 32K 过渡到 128K
+def build_qwen25(raw_web, code_data, math_data, multilingual_data):
+    scored = qwen2_instruct_quality_filter(raw_web)
+    clean = remove_low_quality_and_contaminated(scored)
+    balanced = domain_rebalance(
+        clean,
+        downsample=["ecommerce", "social_media", "entertainment"],
+        upsample=["technology", "science", "academic", "high_quality_multilingual"],
+    )
+    corpus_18T = mix(balanced, code_data, math_data, multilingual_data)
 
-##### 2. 架构设计
+    theta = pretrain_decoder_only_lm(corpus_18T, context_length=4096)
+    theta = continue_pretrain_long_context(theta, context_length=32768, rope_base=1_000_000)
 
-Qwen2.5 延续 Qwen2 的 Transformer decoder-only 架构，核心组件如下：
-
-| 组件 | 描述 |
-|------|------|
-| **位置编码** | RoPE (Rotary Position Embedding)，支持长度外推 |
-| **激活函数** | SwiGLU，相比 ReLU/GELU 在长序列上更稳定 |
-| **归一化** | RMSNorm (Root Mean Square Layer Normalization)，仅保留缩放，去除平移参数 |
-| **注意力机制** | FlashAttention + GQA (7B 及以上模型)，KV 头数 = 4 或 8 |
-
-```
-Qwen2.5 核心 Transformer 块伪代码：
-
-def transformer_block(x, position):
-    # 1. RMSNorm + GQA Attention
-    normed = rms_norm(x)
-    q = proj_q(normed)        # [batch, seq, n_heads * d_head]
-    k = proj_k(normed)        # [batch, seq, n_kv_heads * d_head]
-    v = proj_v(normed)        # [batch, seq, n_kv_heads * d_head]
-    # 应用 RoPE
-    q, k = apply_rotary_pos_emb(q, k, position)
-    attn_out = flash_attention(q, k, v)  # 使用 FlashAttention 加速
-    attn_out = repeat_kv(attn_out)       # GQA: 将KV头复制到Q头数
-    x = x + proj_out(attn_out)
-
-    # 2. RMSNorm + SwiGLU FFN
-    normed = rms_norm(x)
-    ffn_out = proj_ffn2(swish(proj_ffn1(normed)) * proj_ffn3(normed))
-    x = x + ffn_out
-    return x
+    theta = supervised_finetune(theta, instruction_samples=1_000_000_plus)
+    theta = dpo(theta, preference_pairs="offline human/model feedback")
+    theta = grpo(theta, prompts="online RL prompts", reward_models="preference + task rewards")
+    return theta
 ```
 
-> ⚠️ **注意**：GQA 仅在 7B+ 模型中使用。0.5B/1.5B/3B 采用标准 MHA (Multi-Head Attention)，以降低小模型的计算开销。
+后训练阶段可以理解为从“会续写”到“会按人类意图完成任务”的转换。SFT 先用超过 100 万条指令样本建立基础行为分布；DPO 再用成对偏好样本直接优化胜负回答的相对概率。DPO 的典型目标为：
 
-##### 3. 后训练对齐：两阶段 RL 方案
+$$
+\mathcal{L}_{\text{DPO}}=-\mathbb{E}\left[\log\sigma\left(\beta\log\frac{\pi_\theta(y_w\mid x)}{\pi_{\text{ref}}(y_w\mid x)}-\beta\log\frac{\pi_\theta(y_l\mid x)}{\pi_{\text{ref}}(y_l\mid x)}\right)\right]
+$$
 
-这是 Qwen2.5 技术报告中**最具创新性的部分**。后训练流程分为三个阶段：
+其中 \(y_w\) 是偏好回答，\(y_l\) 是较差回答，\(\pi_{\text{ref}}\) 通常是 SFT 后的参考模型。它不显式训练 reward model 再跑 PPO，而是把偏好差异变成一个二分类式的对数概率间隔优化。
 
-**阶段一：监督微调 (SFT)**
+GRPO 进一步用于在线强化学习。其直觉是对同一 prompt 采样一组回答，用组内奖励均值和方差构造相对优势：
 
-| 技术 | 目的 | 具体方法 |
-|------|------|----------|
-| **反向翻译 (Back-translation)** | 补充低资源语言指令 | 用 Qwen2.5-Plus 将英文指令翻译为多语言，再反向翻译验证一致性 |
-| **拒绝采样 (Rejection Sampling)** | 筛选高质量 CoT | 对数学/编程问题生成多个 CoT 解，保留答案正确的样本 |
-| **执行反馈 (Execution Feedback)** | 代码正确性验证 | 生成代码后实际运行测试用例，仅保留通过全部测试的样本 |
-| **长文本 SFT** | 指令遵循长度扩展 | 构建需要长上下文理解的数据（文档QA、摘要），训练模型在 128K 下保持注意力 |
+$$
+\hat A_i=\frac{r_i-\operatorname{mean}(r_1,\dots,r_G)}{\operatorname{std}(r_1,\dots,r_G)}
+$$
 
-**阶段二：DPO (Direct Preference Optimization)**
+再用类似 PPO 的裁剪比率和 KL 约束更新策略，使高于同组平均的回答概率上升、低于平均的回答概率下降。相比逐样本绝对 reward，组相对优势更适合数学、代码、结构化输出等可自动或半自动评测的任务，也能降低 reward scale 对优化稳定性的影响。
 
-DPO 直接在偏好数据集上优化策略，无需训练独立的 Reward Model：
+Qwen2.5 的一个重要设计取向是“通用底座 + 专长注入”。预训练阶段把 Qwen2.5-Coder 和 Qwen2.5-Math 的高质量数据纳入通用模型，使基础模型已经具备更强代码与数学能力；后训练阶段再重点提升长文本生成、结构化数据分析、JSON 输出和复杂指令遵循。最终，72B-Instruct 在 MATH、LiveCodeBench、Arena-Hard、MT-Bench 等指标上明显超过 Qwen2-72B-Instruct，并在若干关键任务上接近或超过更大参数量的 Llama-3.1-405B-Instruct。
 
-$$\mathcal{L}_{\text{DPO}}(\pi_\theta; \pi_{\text{ref}}) = -\mathbb{E}_{(x, y_w, y_l) \sim \mathcal{D}} \left[ \log \sigma \left( \beta \log \frac{\pi_\theta(y_w|x)}{\pi_{\text{ref}}(y_w|x)} - \beta \log \frac{\pi_\theta(y_l|x)}{\pi_{\text{ref}}(y_l|x)} \right) \right]$$
-
-- 从 Qwen2.5 的 SFT 模型 checkpoint 进行初始化
-- 偏好数据来自**人工标注** + **合成数据**（用更大模型生成偏好对）
-- \(\beta\) 控制与参考策略的偏离程度
-- 此阶段主要提升模型的**指令遵循**和**安全性**
-
-**阶段三：GRPO (Group Relative Policy Optimization)**
-
-GRPO 是 DeepSeekMath 中提出的方法，Qwen2.5 将其作为在线 RL 的第二阶段：
-
-> 💡 **GRPO 核心思想**：无需独立的 Value Network 或 Reward Model，而是对同一 prompt 采样多个回答，以组内平均奖励作为基线计算优势。
-
-```
-GRPO 采样与优化流程：
-
-对于每个 prompt x：
-  1. 从当前策略 π_θ 采样 K 个回答 {y₁, y₂, ..., y_K}
-  2. 用评分函数 r(x, y) 计算每个回答的奖励
-  3. 计算组内标准化优势：
-     A_i = (r_i - mean(r)) / std(r)
-  4. 用裁剪目标更新策略：
-     L = -min(ratio_i * A_i, clip(ratio_i, 1-ε, 1+ε) * A_i)
-     其中 ratio_i = π_θ(y_i|x) / π_θ_old(y_i|x)
-```
-
-GRPO 的优势：
-- **无需训练 Reward Model**：直接用规则或 LLM-as-judge 评分，减少模型数量
-- **在线探索**：采样来自当前策略，避免离线数据的分布偏移 (distribution shift)
-- **组内归一化**：自动消除不同 prompt 的奖励尺度差异，训练更稳定
-
-在 Qwen2.5 中，GRPO 阶段主要针对**数学推理 (MATH/GSM8K)** 和**编程 (LiveCodeBench/HumanEval)** 任务进行强化，是 Qwen2.5 在该类任务上大幅超越 Qwen2 的关键因素。
-
-##### 4. 关键实验结果
-
-Qwen2.5-72B 与竞品对比（部分基准）：
-
-| Benchmark | Qwen2-72B | Qwen2.5-72B | Llama-3.1-70B | Llama-3.1-405B |
-|-----------|-----------|-------------|---------------|----------------|
-| MMLU-redux | 67.2 | **75.4** | 67.2 | 67.1 |
-| MATH | 52.9 | **75.5** | 51.9 | 47.1 |
-| HumanEval | 79.9 | **84.8** | 72.6 | 72.6 |
-| LiveCodeBench | 23.9 | **28.7** | 8.3 | 18.9 |
-| Arena-Hard | 25.0 | **52.0** | 27.8 | 41.6 |
-| MT-Bench | 8.26 | **8.75** | 8.23 | 8.49 |
-
-> 🎉 **核心突破**：Qwen2.5-72B 在 **MATH** 上从 52.9 跃升至 **75.5**（+22.6），在 **Arena-Hard** 上从 25.0 翻倍至 **52.0**，体现了 GRPO 在数学推理和指令遵循上的巨大增益。
+> 💡 关键：Qwen2.5 的方法贡献更像一条可复用的开放基础模型工程路线：数据质量与规模先把底座能力抬高，再用长上下文扩展和多阶段偏好优化把模型推向可用助手。
 
 #### 🧪 练习题
-
 ```yaml
-question: "Qwen2.5 的两阶段 RL 对齐中，DPO 和 GRPO 的核心区别是什么？"
+question: "Qwen2.5 相比 Qwen2 的最关键训练侧升级是什么？"
 options:
-  - "DPO 需要 Reward Model，GRPO 不需要"
-  - "DPO 使用离线偏好数据对，GRPO 从当前策略在线采样并计算组内相对优势"
-  - "DPO 用于数学任务，GRPO 用于对话任务"
-  - "DPO 和 GRPO 是同一算法的两个名称"
-answer: 1
-explain: "DPO 在固定的离线偏好数据集上优化，而 GRPO 对每个 prompt 从当前策略采样 K 个回答，以组内平均奖励作为基线计算优势——这一在线探索机制避免了离线数据的分布偏移。"
+  - "把预训练语料扩展到 18T token，并结合更强数据过滤、数据混合和多阶段后训练"
+  - "完全取消 Transformer 注意力并改用状态空间模型"
+  - "只发布一个 72B 模型以避免小模型能力下降"
+  - "只依赖 DPO，不再进行监督微调"
+answer: 0
+explain: "论文强调 Qwen2.5 的提升来自 18T 高质量预训练数据、长上下文训练，以及 SFT 后接 DPO/GRPO 的多阶段后训练，而不是更换为非 Transformer 架构。"
 ```

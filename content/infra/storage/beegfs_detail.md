@@ -27,6 +27,9 @@ BeeGFS 是面向 HPC/AI 的并行文件系统，通过管理、元数据、存�
 
 #### 🔬 深入细节
 
+![BeeGFS 系统架构](https://doc.beegfs.io/latest/_images/beegfs_architecture.png)
+*图：BeeGFS 官方文档中的 System Architecture，展示 Management、Metadata、Storage、Client 等服务及并行访问关系。来源：https://doc.beegfs.io/latest/architecture/overview.html*
+
 **核心示意图说明**：BeeGFS 文档将系统拆为管理服务、元数据服务、存储服务和客户端；BeeOND 文档强调按作业创建临时 BeeGFS 实例，GDS 文档说明 BeeGFS client 和 storage service 可直接参与 GPU/RDMA 数据路径。稳定文档入口为 https://www.beegfs.io/docs/。
 
 ```text

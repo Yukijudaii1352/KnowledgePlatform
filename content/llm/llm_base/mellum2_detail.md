@@ -1,182 +1,106 @@
-### Mellum 2 — A 12B-Parameter Mixture-of-Experts Transformer
+### Mellum 2：面向软件工程的小激活 MoE 模型
+
+```yaml
+id: mellum2
+name: Mellum 2
+full_name: 开放软件工程 MoE 模型 (Mellum 2)
+year: "2026.05"
+org: JetBrains
+paper_url: https://arxiv.org/abs/2605.31268
+category: frontier_2026
+parent: minimax_m1
+motivation: 小激活MoE服务开发场景
+```
 
 #### 📝 一句话总结
 
-Mellum 2 提出了一种极简的 12B 总参数量 MoE 语言模型（2.5B 激活参数）：深度探索了 MoE 路由、多 token 预测（MTP）、双优化器联合训练、层级选择性 YaRN 上下文扩展、以及基于 GRPO 变体的 RL 后训练，在仅 10.65T tokens 的训练预算下于 7 项评测维度平均超越了 Qwen3.5-14B、OLMo3-12B 和 Ministral3-13B 等同类模型。
+Mellum 2 提出一个开放权重的 12B 总参数、每 token 仅约 2.5B 激活参数的 MoE 语言模型，专门面向代码生成、编辑、调试、工具调用和 agentic coding 等软件工程场景。它的核心贡献是用推理预算反推架构：64 experts / top-8 路由、4 KV heads GQA、3:1 sliding-window attention、MTP、Muon + FP8 训练、layer-selective YaRN 与 RLVR 后训练共同服务“小激活、可部署、偏工程任务”的目标。
 
 #### 🎯 核心要点
 
-- 架构：12B 总参数量 MoE，64 个专家每 token 激活 8 个（8-of-64），实际激活参数仅约 2.5B
-- 40 层 Transformer，隐藏维度 2560，GQA 分组数为 4，滑动窗口注意力比例 3:1
-- 多 Token 预测（MTP）：单头预测下一个 token，推理时可丢弃
-- 训练优化：双优化器设计——Muon 用于嵌入和 LM Head，AdamW 用于其余参数
-- FP8 混合精度训练（Hybrid FP8：注意力 softmax 和 MoE gate 保留 BF16）
-- WHD（Width-Holding Decay）学习率调度器替代 cosine/linear
-- 3 阶段预训练 curriculum：5T → 3.65T → 2T tokens（总计 10.65T）
-- 上下文扩展：层级选择性 YaRN（只对底层 16 层施加 YaRN 缩放），最高可达 131K
-- 后训练流程：SFT 微调 → IcePop（GRPO 变体）RL 训练 → 模型蒸馏
-- RLVR（Reinforcement Learning with Verifiable Reward）：在数学和代码任务上使用可验证奖励
-- 开源发布全部训练细节、超参表和消融实验
+- 模型规模：约 12B 总参数，约 2.5B active parameters per token；目标是在 2-3B dense 计算量附近获得更大的知识容量。
+- MoE 结构：每层 MoE FFN，64 个 routed experts，每 token top-8 激活，expert intermediate size 896，无 shared expert，采用 dropless routing。
+- Transformer 配置：28 层 decoder-only，hidden dimension 2304，32 query heads，4 KV heads，head dimension 128，RMSNorm \(\epsilon=10^{-6}\)，RoPE base \(\theta=500000\)，词表 98304。
+- 注意力效率：3:1 SWA 模式，即每 4 层中 3 层用 window size 1024 的 sliding window attention，剩余 1 层保留 full attention。
+- MTP 头：单个 Multi-Token Prediction transformer layer，loss weight \(\alpha=0.1\)，训练时作为辅助目标，部署时可作为 speculative decoding 的 draft 模型，评测时可移除。
+- 预训练 curriculum：总计 10.65T tokens，三阶段从 web-heavy 转向 code/math-heavy：6.18T、2.79T、1.69T，对应 code 比例 23% → 42% → 59%。
+- 优化与精度：Distributed Muon，内部对 embedding/output layers 使用 Adam；WHD 学习率调度，2000 warmup steps，Phase 3 线性 decay 到 0；BF16 + FP8 hybrid mixed precision，梯度归约 FP32。
+- MoE 稳定性：router 使用 FP32，global auxiliary load-balancing loss 系数 \(10^{-3}\)，router z-loss \(10^{-3}\)，dropless routing 避免 token dropping。
+- 长上下文：从 8192 扩展到 131072 tokens，通过 layer-selective YaRN 只重映射 full-attention layers 的 RoPE 频率，不扰动 sliding-window layers。
+- 后训练：从 128K YaRN checkpoint 出发做 SFT，分别训练 Instruct 与 Thinking 两种变体，再用可程序验证奖励的 RLVR / GRPO 变体强化数学、可执行代码、工具调用等任务。
 
 #### 🔬 深入细节
 
-**1. 架构设计：极简 MoE backbone**
+![Mellum 2 MoE iso-latency 设计空间](https://arxiv.org/html/2605.31268v1/x3.png)
 
-Mellum 2 的架构遵循极简设计哲学，几乎全部采用标准组件，仅在 MoE 路由和多头注意力策略上做了针对效率的精细优化：
+*图：论文 Figure 1(a) 展示 64 experts、8 active 的 Qwen3-MoE 架构在 throughput mode 下的 iso-latency 设计空间，用推理延迟约束筛选 Mellum 2 的 MoE 规模。*
 
-- **总参数量 12B，专家数 64，每 token 激活 8 个（8-of-64），激活参数仅约 2.5B**
-- **40 层 Transformer Decoder**（无 Encoder），`d_model = 2560`
-- **分组查询注意力（GQA）**：4 组查询头，减少 KV cache 开销
-- **滑动窗口注意力（SWA）: 全局注意力 = 3:1**（每 4 层中有 3 层用 SWA，1 层用全局注意力），节省长序列下计算量
-- **RoPE 位置编码**：基频 θ = 50,000,000（5000 万），为长上下文扩展预留空间
-- **QK 归一化**：对 Query 和 Key 施加 LayerNorm，稳定长序列训练
-- **SwiGLU 激活**：FFN 使用标准 SwiGLU 非线性
+```python
+# Mellum 2 单 batch 训练伪代码
+def mellum2_forward(tokens):
+    h = embed(tokens)
+    aux_losses = []
+    for layer_id in range(28):
+        if layer_id % 4 in {0, 1, 2}:
+            a = sliding_window_attention(h, window=1024, q_heads=32, kv_heads=4)
+        else:
+            a = full_attention(h, q_heads=32, kv_heads=4)
+        h = h + a
 
+        # MoE FFN: router 用 FP32，选择 64 个专家中的 top-8
+        router_logits = fp32_router(h)
+        probs = softmax(router_logits)
+        top8 = top_k(probs, k=8)
+        moe = sum(probs[..., i] * expert_i(h) for i in top8.indices)
+        h = h + moe
+
+        aux_losses.append(load_balance_loss(probs, top8) + z_loss(router_logits))
+    return h, sum(aux_losses)
+
+def train_step(batch):
+    h, router_loss = mellum2_forward(batch.tokens)
+    lm_loss = cross_entropy(lm_head(h[:, :-1]), batch.tokens[:, 1:])
+    mtp_loss = cross_entropy(mtp_head(h[:, :-2]), batch.tokens[:, 2:])
+    loss = lm_loss + 0.1 * mtp_loss + 1e-3 * router_loss
+    distributed_muon_step(loss, precision="BF16+FP8 hybrid")
 ```
-Mellum 2 架构简表：
-┌────────────────────────────────────────────┐
-│  Embedding                                  │
-│  ├─ Vocab Size: ~128K                       │
-│  └─ Vocab Embedding Dim: 2560               │
-├────────────────────────────────────────────┤
-│  40× Transformer Decoder Block              │
-│  ├─ QK LayerNorm                            │
-│  ├─ GQA (4 groups, SWA:Global = 3:1)        │
-│  ├─ RoPE (θ = 50,000,000)                   │
-│  ├─ MoE FFN (8-of-64, dropless)             │
-│  │   ├─ Router: top-8 softmax gating        │
-│  │   ├─ Aux Loss coefficient: 1e-3          │
-│  │   └─ Expert capacity: 无限制 (dropless)  │
-│  └─ MTP Head (1 head, 可丢弃)               │
-├────────────────────────────────────────────┤
-│  LM Head (tied with input embedding)         │
-└────────────────────────────────────────────┘
-总参数量: 12B | 激活参数: ~2.5B
-```
 
-**MoE 路由机制**：
-Router 使用经典的 Top-K softmax gating（K=8）。无专家容量限制（"dropless"），即每个 token 被分配的 8 个专家均可完全处理，不存在 token 丢弃。辅助负载均衡损失（auxiliary load balancing loss）系数设为 `1e-3`，以微弱信号鼓励专家间的均匀利用。论文消融实验表明，与 Dense 和 MLA（Multi-head Latent Attention）方案相比，8-of-64 的 MoE 设计在同等激活参数量下提供了最优的推理效率-性能前沿。
+Mellum 2 的出发点不是追求最大的通用 benchmark 分数，而是软件工程部署约束：IDE、代码 agent 和工具调用需要低延迟、高吞吐、长上下文和较强代码能力。论文因此采用 MoE，而不是同等总参数的 dense 模型：每个 token 只激活约 2.5B 参数，但 12B 总参数为长尾编程语言、API、调试模式和推理模板提供更大容量。作者把 64 experts 固定为能放入 GPU 内存的上限，再在 active experts 上做延迟-质量折中；2 active 更快但质量损失明显，最终选择 8 active out of 64。
 
-**2. 预训练体系：三阶段 curriculum + 双优化器 + FP8**
+核心计算可以写成 top-k MoE 聚合：
 
-预训练流程是 Mellum 2 最具参考价值的部分，因为它在相对较小的训练预算（10.65T tokens）下实现了强劲的性能，这归功于精心设计的训练策略。
+$$
+y_t = \sum_{i \in \mathrm{Top8}(g(h_t))} p_i(h_t)\,E_i(h_t),
+\quad p(h_t)=\mathrm{softmax}(g(h_t))
+$$
 
-**三阶段预训练 curriculum**：
+其中 \(g\) 是 router，\(E_i\) 是第 \(i\) 个 expert。Mellum 2 使用 dropless routing，也就是不设置 capacity factor 丢 token；这样早期吞吐会受负载不均影响，但随着 global load-balancing loss 让 router 学会均衡分配，吞吐会接近 capacity-limited routing，同时避免 token dropping 带来的信息损失。router 计算保留 FP32，并加入 \(10^{-3}\) 的 auxiliary load-balancing loss 与 \(10^{-3}\) 的 z-loss，这些细节比 MoE 公式本身更影响训练稳定性。
 
-| 阶段 | Token 量 | 序列长度 | 峰值学习率 | 关键操作 |
-|------|----------|----------|-----------|----------|
-| Stage 1 | 5T | 8192 | 3e-4 | 基础预训练 |
-| Stage 2 | 3.65T | 8192 | 1.5e-4 | LR 减半 + 数据重 balancing |
-| Stage 3 | 2T | 8192 | 8e-5 | LR 再降 + 高质量数据注入 |
-| **总计** | **10.65T** | | | |
+注意力设计同样由推理效率驱动。4 KV heads 的 GQA 降低 KV cache 成本；3:1 sliding-window attention 让 28 层中大多数层只看 1024 token 的局部窗口，减少长输入下的 attention 开销，而每 4 层保留 1 层 full attention，避免模型完全失去远距离交互路径。MTP 头预测额外未来 token，训练目标为：
 
-- 全局 batch size 为 4096（每 step 处理的序列数），序列长度固定为 8192
-- 数据并非公开披露，但论文提到了质量过滤和去重流程
+$$
+\mathcal{L}=\mathcal{L}_{\mathrm{next}} + 0.1\,\mathcal{L}_{\mathrm{MTP}} + 10^{-3}\mathcal{L}_{\mathrm{router}}
+$$
 
-**双优化器联合训练**（核心创新）：
+这个 MTP 头不是改变主模型输出接口，而是作为辅助目标和 speculative decoding 的内置 draft；评测时可以移除，降低对主干推理的影响。
 
-这是极少在 Transformer 预训练中被采用的策略，灵感来源于大规模矩阵优化的数值稳定性需求：
+预训练 curriculum 是“web early, curated late”。Phase 1 用 6.18T tokens 建立基础语言和代码能力，web/code/math 比例约 70/23/6；Phase 2 用 2.79T tokens 增加高质量与代码数据，比例约 44/42/14；Phase 3 用 1.69T tokens 在学习率 decay 阶段强化能力，code/math 升至 59/18。学习率使用 Warmup-Hold-Decay：2000 steps warmup 到 \(3\times10^{-4}\)，前两阶段保持峰值，第三阶段约 49306 steps 线性衰减到 0。优化器是 Distributed Muon，使用 Moonlight 配置，Muon 对 hidden layers 做正交化更新，同时对 embedding 和 output layers 使用 Adam；这比旧文件中“Muon 只管 embedding/LM head”的说法相反。
 
-- **AdamW**（β₁=0.9, β₂=0.95, weight_decay=0.1）：用于所有 Transformer Block 内部的参数（QKV 投影、FFN、MoE 专家、Router、LayerNorm）
-- **Muon**（momentum=0.95, weight_decay=0.01）：专门用于 Embedding 矩阵和 LM Head 的输出投影
-- 双优化器在同一个训练 step 中交替更新各自负责的参数，无需额外通信开销
+长上下文扩展从 8192 到 131072 tokens。Mellum 2 没有对所有层统一做 YaRN，而是只对 full-attention layers 做频率重映射，sliding-window layers 保留原 RoPE 参数。直觉是 SWA 层本来只处理固定 1024 token 局部窗口，不需要为 128K 全局距离重标定；真正需要外推的是 full-attention 层。论文在 RULER ablation 中报告，64K 评测上下文下 layer-selective recipe 得分 0.64，高于 uniform \(\theta\)-bump 的 0.52 和 unchanged-\(\theta\) 的 0.33，说明“只改必须长距外推的层”比粗暴全层缩放更稳。
 
-原因：嵌入矩阵和 LM Head 均为巨大的 [vocab_size × d_model] 矩阵（~128K × 2560），其条件数极高。Muon 优化器（基于矩阵 Newton-Schulz 迭代的正则化方法）在数值稳定性上显著优于 AdamW 的一阶矩估计，可防止梯度爆炸。
+后训练分 SFT 和 RLVR。SFT 从 long-context YaRN checkpoint 开始，训练 Instruct 和 Thinking 两个变体：Instruct 直接回答并丢弃 reasoning 字段；Thinking 会输出 reasoning trace，并只对最终 assistant turn 及其 reasoning trace 计算 loss。两者都用 131072 packed sequence、Distributed Muon、BF16+FP8，并把 MoE aux-loss 系数降到 \(10^{-4}\)。RL 阶段使用可程序验证奖励而非 RLHF reward model，因为数学、可执行代码和函数调用任务能用确定性 checker 判对错；这降低了 reward model 噪声，让小激活 MoE 更适合软件工程中的“能跑通就给奖”的训练信号。
 
-**WHD 学习率调度器**：
-
-替代常规的 cosine/linear schedule。WHD（Width-Holding Decay）在预热后保持高位 LR 一段时间，然后以可配置的衰减速率下降。关键参数：预热步数 2000，Stage 1 峰值 LR = 3e-4，每个后续阶段 LR 减半。
-
-**FP8 Hybrid 混合精度**：
-
-并非全量 FP8。Attention 的 softmax 计算和 MoE Router 的 gating 计算保留 BF16，其余所有线性层和 FFN 使用 FP8（E4M3 格式），在降低显存的同时避免了 softmax/gating 的数值溢出。
-
-**3. 上下文扩展：层级选择性 YaRN**
-
-在 Stage 3 的 2T tokens 训练结束后，Mellum 2 对模型进行上下文长度扩展，目标从 8K 提升至 131K tokens。核心方法：
-
-- **YaRN（Yet another RoPE extensioN）** 算法，对 RoPE 频率做重缩放
-- **层级选择性策略**（Layer-selective）：仅在模型的底层 16 层（共 40 层）施加 YaRN 频率重缩放，顶层保持原始 RoPE 频率
-- 直觉：底层更关注局部细节和短程依赖，YaRN 的缩放对其影响更大；而顶层已通过相对位置编码学习到有效的长程表征，过度缩放反而不利
-
-扩展过程采用渐进式微调：在 8K → 32K → 64K → 131K 的序列上逐步训练，每个阶段仅需少量数据（数亿 tokens）。论文在 RULER 长文本评测中验证了该策略的有效性，131K 长度下准确率明显优于全量 YaRN 基线。
-
-**4. 后训练流程：SFT → IcePop RL → 蒸馏**
-
-后训练分三个阶段：
-
-**SFT（监督微调）**：
-- 使用精选的指令遵循和对话数据（数万条量级）
-- 与预训练相同的数据格式，避免分布偏移
-- 学习率 3e-5，全局 batch size 128，约 3 个 epoch
-
-**IcePop RL 训练**（GRPO 的轻量化变体）：
-
-IcePop 是 Group Relative Policy Optimization（GRPO）的改进版：
-- 传统 GRPO：对每个 prompt 采样 K 个 response，使用组内相对奖励进行优化 → 需要 K 倍的推理开销
-- IcePop 改进：复用 SFT 阶段的高质量 response 作为 "anchor"，仅对每个 prompt 采样 2 个新 response（K=2），极大降低计算量
-- 优势函数：`A = r_new - r_anchor`，其中 r_anchor 是 SFT response 的奖励
-- Reward 类型：对于数学/代码推理任务使用 RLVR（可验证的 ground-truth 奖励）；对于创意写作等开放任务使用 Reward Model 打分
-- 裁剪范围 ε = 0.2，学习率 1e-6，KL penalty coefficient = 0.04
-
-**模型蒸馏**：
-- 将 IcePop 训练后的 Mellum 2 作为 Teacher，对小批量高质量 reasoning 数据进行再采样
-- 将 Teacher 的高质量 output 与原始 SFT 数据混合，微调最终的 release 模型
-- 蒸馏使模型在指令遵循和风格一致性上进一步提升
-
-**5. 核心公式**
-
-**MoE 输出**：
-
-$$y = \sum_{i \in \text{TopK}(G(x), 8)} g_i(x) \cdot \text{Expert}_i(x), \quad G(x) = \text{softmax}(W_g \cdot x)$$
-
-其中辅助损失为：
-
-$$\mathcal{L}_{aux} = \alpha \cdot \sum_{i=1}^{64} f_i \cdot p_i, \quad \alpha = 10^{-3}$$
-
-$f_i$ 为专家 i 的 token 比例，$p_i$ 为路由概率均值。
-
-**YaRN 频率缩放**（层级选择性）：
-
-$$\Theta_l = \begin{cases} \theta \cdot \gamma^{-2l/d}, & l \leq 16 \quad \text{(YaRN 缩放)} \\ \theta^{-2l/d}, & l > 16 \quad \text{(原始 RoPE)} \end{cases}$$
-
-其中 γ 为缩放因子，d 为 head 维度。
-
-**IcePop 目标函数**：
-
-$$J(\theta) = \min\left(r_t(\theta) \cdot A, \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon) \cdot A \right) - \beta \cdot D_{KL}(\pi_\theta || \pi_{ref})$$
-
-其中 $r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{old}(a_t|s_t)}$ 为策略概率比，A 为锚定优势函数。
-
-**6. 评测结果**
-
-Mellum 2 在 7 大评测维度上与其他 12B-14B 量级模型（Qwen3.5-14B, OLMo3-12B, Ministral3-13B）进行对比：
-
-| 评测维度 | Mellum 2 | Qwen3.5-14B | OLMo3-12B | Ministral3-13B |
-|----------|----------|-------------|-----------|----------------|
-| 通用能力 (MMLU-Pro) | **52.8** | 51.2 | 48.9 | 49.5 |
-| 代码 (HumanEval+) | **78.1** | 76.0 | 72.8 | 73.2 |
-| 数学 (MATH-500) | **84.4** | 82.9 | 79.1 | 80.5 |
-| 推理 (GPQA Diamond) | **47.2** | 43.8 | 41.3 | 42.1 |
-| 指令遵循 (IFEval) | 81.3 | **82.6** | 78.1 | 79.8 |
-| 长文本 (RULER-131K) | **75.7** | 68.3 | 65.4 | 63.2 |
-| 多语言 (MGSM) | 73.5 | **75.9** | 70.2 | 71.8 |
-| *平均* | **70.4** | 68.7 | 65.1 | 65.7 |
-
-MoE 架构 + 精心的训练 recipe 使 Mellum 2 以 2.5B 激活参数战胜了参数量更大的密集模型。
-
-#### 💬 讨论与局限
-
-- **数据非公开**：预训练数据来源和质量过滤细节未披露，限制了对性能来源的完全可归因分析
-- **MoE 推理开销**：8-of-64 的 MoE 在推理时需要加载所有 64 个专家的参数（12B），显存需求高于同等激活参数的密集模型（2.5B）
-- **MTP 收益有限**：多 Token 预测仅在训练时提供微弱加速（约 5%），推理时被丢弃，并非核心贡献
-- **RLVR 适用范围**：可验证奖励仅在数学/代码等有确定答案的任务上有效，在写作/对话等开放任务上仍需 Reward Model，可能存在 reward hacking 风险
-- **长上下文实际质量**：131K 场景下通过 RULER 评测，但实际应用中的长上下文连贯性未充分验证
-- **与更大规模模型的差距**：相比同期的 70B+ 密集模型，在 GPQA Diamond 等推理任务上仍有较大差距
-- **未来方向**：a) 更高效的 MoE 路由（如 domain-aware routing）; b) RLVR for general domains; c) 更深度的 curriculum 数据策略
+> 💡 关键：Mellum 2 的方法重点是 inference-aware model design。MoE、GQA、SWA、MTP、Muon、FP8、YaRN 和 RLVR 都围绕同一个约束展开：在可部署计算量下，把软件工程任务需要的容量、长上下文和工具调用能力尽量做满。
 
 #### 🧪 练习题
 
-1. 解释 Mellum 2 为什么在预训练中使用双优化器（Muon + AdamW）组合，而不是单一优化器？Muon 专门用于哪些参数矩阵，背后的数值动机是什么？
-2. 推导 MoE 辅助负载均衡损失的梯度形式，并解释为什么系数 1e-3 是一个"微弱"信号——如果系数过大（如 0.1）会对路由行为产生什么影响？
-3. Mellum 2 的层级选择性 YaRN 为何只作用于底层 16 层？从 Transformer 不同层代表的功能分布角度分析其合理性。
+```yaml
+question: "Mellum 2 为什么只对 full-attention layers 使用 layer-selective YaRN？"
+options:
+  - "因为 sliding-window layers 只处理固定局部窗口，主要由 full-attention layers 承担长距离外推"
+  - "因为 MoE experts 只能在 full-attention layers 中工作"
+  - "因为 YaRN 只能用于 dense 模型，不能用于 MoE 层"
+  - "因为 128K 上下文只在 SFT 阶段使用，预训练阶段完全不用位置编码"
+answer: 0
+explain: "论文认为 SWA 层的注意力跨度固定，统一缩放会扰动原本有效的局部建模；需要长距离位置外推的是 full-attention layers。"
+```

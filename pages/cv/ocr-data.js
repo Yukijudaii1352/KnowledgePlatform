@@ -1,5 +1,5 @@
 /**
- * ocr-data.js — 由 pipeline/build.py 于 2026-06-15 18:08:21 自动生成。
+ * ocr-data.js — 由 pipeline/build.py 于 2026-06-16 17:00:11 自动生成。
  * 源文件：content/cv/ocr.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "ocr",
     "topic_name": "OCR 技术演进图谱",
     "page_title": "OCR 技术演进图谱",
-    "page_subtitle": "2026-06-15 版",
+    "page_subtitle": "2026-06-16 版",
     "page_desc": "梳理从传统检测识别到端到端文档理解的技术演进，涵盖文本检测、识别、版面分析与视觉文档理解四大方向。",
     "page_icon": "📜",
     "hero_pills": [
@@ -443,13 +443,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "detection",
       "motivation": "渐进扩展分离粘连文本",
-      "summary": "PSENet 的核心目标是：渐进扩展分离粘连文本。",
+      "summary": "PSENet 提出从小文本核逐级扩展到完整文本区域的 Progressive Scale Expansion 方法，解决了分割式文本检测在相邻文本粘连时难以区分实例的问题。它把检测转化为多尺度文本核分割加实例扩张，在任意形状文本场景中兼顾检测精度和形状鲁棒性。",
       "keyPoints": [
-        "核心动机：渐进扩展分离粘连文本",
-        "演化来源：继承或改进自 east",
-        "代表机构：Nanjing University"
+        "预测多个尺度的文本实例分割图 <span class=\"kb-math kb-math-inline\">S_1,\\ldots,S_n</span>，其中 <span class=\"kb-math kb-math-inline\">S_1</span> 是最小文本核，<span class=\"kb-math kb-math-inline\">S_n</span> 是完整文本区域",
+        "先在最小核上做连通域标记，再按尺度从小到大执行 PSE 扩张，避免相邻文本在完整区域中直接粘连",
+        "使用 FPN 式多尺度特征融合，输出可为原图 <span class=\"kb-math kb-math-inline\">1/1</span> 或 <span class=\"kb-math kb-math-inline\">1/4</span> 分辨率以平衡速度和精度",
+        "标签生成通过 Vatti clipping 按比例收缩文本多边形，得到不同尺度的文本 kernel",
+        "损失函数由完整文本区域 Dice loss 和收缩文本核 Dice loss 组成，并用 OHEM 处理正负样本不均衡",
+        "在 CTW1500、Total-Text、ICDAR2015、ICDAR2017-MLT 等弯曲/多方向文本基准上取得强检测性能"
       ],
-      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"PSENet 整体流程\" src=\"https://ar5iv.labs.arxiv.org/html/1903.12473/assets/x3.png\" />\n<em>图：PSENet 使用 FPN 提取并融合多尺度特征，输出多个文本核分割图，再通过 Progressive Scale Expansion 得到最终文本实例。</em></p>\n<p><img alt=\"PSENet 渐进式扩展示意\" src=\"https://ar5iv.labs.arxiv.org/html/1903.12473/assets/x4.png\" />\n<em>图：PSE 先在最小尺度文本核上找到连通域，再逐级吸收更大尺度中的相邻像素，冲突像素保持先到先得的实例归属。</em></p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
+      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"PSENet 整体流程\" src=\"https://ar5iv.labs.arxiv.org/html/1903.12473/assets/x3.png\" />\n<em>图：PSENet 使用 FPN 提取并融合多尺度特征，输出多个文本核分割图，再通过 Progressive Scale Expansion 得到最终文本实例。</em></p>\n<p><img alt=\"PSENet 渐进式扩展示意\" src=\"https://ar5iv.labs.arxiv.org/html/1903.12473/assets/x4.png\" />\n<em>图：PSE 先在最小尺度文本核上找到连通域，再逐级吸收更大尺度中的相邻像素，冲突像素保持先到先得的实例归属。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># PSENet Progressive Scale Expansion 推理伪代码\ndef pse_inference(pred_maps, thresholds):\n    # pred_maps: [S1, S2, ..., Sn], S1 最小文本核, Sn 完整文本区域\n    kernels = [(sigmoid(S) &gt; t) for S, t in zip(pred_maps, thresholds)]\n\n    label = connected_components(kernels[0])  # 只在最小文本核上初始化实例\n    for k in range(1, len(kernels)):\n        queue = boundary_pixels(label)\n        while queue:\n            p = queue.pop(0)\n            for q in neighbors4(p):\n                if kernels[k][q] and label[q] == 0:\n                    label[q] = label[p]       # 从已标记 kernel 向外扩张\n                    queue.append(q)\n\n    polygons = contours_from_instance_map(label)\n    return polygons\n</code></pre>\n<h5>方法详解</h5>\n<p><strong>1. 动机与背景</strong></p>\n<p>EAST、TextBoxes 等回归式方法通常输出矩形或四边形，对弯曲文本和长文本行的边界表达能力有限。分割式方法能拟合任意形状，但如果直接预测完整文本区域，密集排版中的相邻文本会在概率图上粘连，后处理很容易把多个实例合成一个。</p>\n<p>PSENet 的核心思想是：完整文本区域容易粘连，但向内收缩后的文本核通常彼此分离。因此它不急着在完整区域上做实例划分，而是先在最小 kernel 上确定实例身份，再逐级向外扩展到完整文本区域。</p>\n<p><strong>2. 多尺度文本核预测</strong></p>\n<p>网络输出 <span class=\"kb-math kb-math-inline\">n</span> 张二值分割图：</p>\n<div class=\"kb-math kb-math-display\">S = \\{S_1, S_2, \\ldots, S_n\\}, \\quad S_1 \\subset S_2 \\subset \\cdots \\subset S_n</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">S_n</span> 表示完整文本区域，<span class=\"kb-math kb-math-inline\">S_1</span> 是最小收缩 kernel。小 kernel 用于分离实例，大 kernel 用于恢复完整边界。相比只预测一个文本区域，多个嵌套 kernel 给后处理提供了从“可靠实例种子”到“完整实例区域”的路径。</p>\n<p><strong>3. 标签生成</strong></p>\n<p>对文本多边形 <span class=\"kb-math kb-math-inline\">P_n</span> 逐级向内收缩。第 <span class=\"kb-math kb-math-inline\">i</span> 个 kernel 的缩放比例为：</p>\n<div class=\"kb-math kb-math-display\">r_i = 1 - \\frac{(1-m)(n-i)}{n-1}</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">m</span> 是最小 kernel 比例。收缩距离用多边形面积 <span class=\"kb-math kb-math-inline\">A</span> 和周长 <span class=\"kb-math kb-math-inline\">L</span> 估计：</p>\n<div class=\"kb-math kb-math-display\">d_i = \\frac{A(1-r_i^2)}{L}</div>\n<p>这个设计让不同尺度的文本区域保持拓扑嵌套关系，PSE 扩张时只需要在相邻尺度之间传播实例标签。</p>\n<p><strong>4. 损失函数</strong></p>\n<p>PSENet 使用 Dice loss 监督完整文本区域和各级 kernel：</p>\n<div class=\"kb-math kb-math-display\">L = L_c + \\lambda L_s</div>\n<p><span class=\"kb-math kb-math-inline\">L_c</span> 是完整文本区域 <span class=\"kb-math kb-math-inline\">S_n</span> 的损失，<span class=\"kb-math kb-math-inline\">L_s</span> 是所有小尺度 kernel 的平均损失。Dice loss 对前景稀疏的文本检测更稳定；OHEM 主要用于完整文本区域，避免大量背景像素淹没文本像素的梯度。</p>\n<p><strong>5. 与传统分割后处理的区别</strong></p>\n<p>普通语义分割通常在完整文本概率图上做连通域分析，这对密集文本很脆弱。PSENet 把连通域分析前移到最小 kernel，先得到高置信、低粘连的实例种子，再把这些种子作为标签源向外扩散。冲突像素只会被一个已有实例吸收，因此相邻文本即使在外层区域接触，也不容易被合并。</p>\n<div class=\"key-point\">💡 关键：PSENet 的“尺度”不是输入图像金字塔，而是同一个文本实例从内核到完整区域的形态尺度。它利用文本区域的形态收缩来制造天然实例间隔。</div>",
+      "quiz": {
+        "q": "PSENet 为什么要先在最小文本核上做连通域，而不是直接在完整文本区域上做连通域？",
+        "options": [
+          "最小文本核包含更多边界细节，能提升多边形拟合精度",
+          "最小文本核通常彼此分离，可作为可靠实例种子，避免相邻文本粘连",
+          "最小文本核可以减少网络输出通道数",
+          "完整文本区域只在训练阶段使用，推理阶段不会预测"
+        ],
+        "answer": 1,
+        "explain": "完整文本区域容易因相邻字符或文本行接触而粘连；收缩后的 kernel 更容易分离不同实例，PSE 再逐级恢复完整区域。"
+      }
     },
     {
       "id": "pan",
@@ -597,12 +611,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "recognition",
       "motivation": "CNN+RNN+CTC开创序列识别",
-      "summary": "CRNN 的核心目标是：CNN+RNN+CTC开创序列识别。",
+      "summary": "CRNN 将 CNN 特征提取、双向 RNN 序列建模和 CTC 无对齐转录合成一个端到端可训练框架，解决了图像文本识别中字符级对齐标注昂贵、文本长度可变的问题。它成为后续场景文字识别模型最基础的 CNN+序列解码范式。",
       "keyPoints": [
-        "核心动机：CNN+RNN+CTC开创序列识别",
-        "代表机构：Huazhong University of Science and Technology"
+        "三段式结构：卷积层提取视觉特征，循环层建模水平方向序列上下文，转录层用 CTC 输出可变长文本",
+        "将 CNN 最后一层特征图按列切成序列，每一列对应原图中的一个感受野",
+        "使用双向 LSTM 同时利用左右上下文，提升相邻字符形态相似时的判别能力",
+        "CTC 引入 blank 类并对所有合法对齐路径求和，不需要字符级切分标注",
+        "支持 lexicon-free 和 lexicon-based 两种转录；带词典时可用 CTC 条件概率选择最可能单词",
+        "同一框架可迁移到场景文字、印刷文字、乐谱等图像序列识别任务"
       ],
-      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"CRNN 网络架构\" src=\"https://ar5iv.labs.arxiv.org/html/1507.05717/assets/x1.png\" />\n<em>图：CRNN 由卷积层、循环层和转录层组成。卷积特征图按宽度方向展开为序列，RNN 输出每个时间步的字符分布，CTC 将分布折叠为最终字符串。</em></p>\n<p><img alt=\"CRNN 感受野到序列映射\" src=\"https://ar5iv.labs.arxiv.org/html/1507.05717/assets/x2.png\" />\n<em>图：特征序列中的每个向量对应输入图像上的一个局部感受野，文本识别由二维图像问题转化为一维序列标注问题。</em></p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
+      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"CRNN 网络架构\" src=\"https://ar5iv.labs.arxiv.org/html/1507.05717/assets/x1.png\" />\n<em>图：CRNN 由卷积层、循环层和转录层组成。卷积特征图按宽度方向展开为序列，RNN 输出每个时间步的字符分布，CTC 将分布折叠为最终字符串。</em></p>\n<p><img alt=\"CRNN 感受野到序列映射\" src=\"https://ar5iv.labs.arxiv.org/html/1507.05717/assets/x2.png\" />\n<em>图：特征序列中的每个向量对应输入图像上的一个局部感受野，文本识别由二维图像问题转化为一维序列标注问题。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># CRNN 训练与推理核心逻辑\ndef train_step(image, word_label):\n    feature_map = cnn(image)              # shape: C x H' x W'\n    sequence = collapse_height(feature_map)  # W' 个时间步，每步一个 C 维向量\n    logits = bidirectional_lstm(sequence)\n    log_probs = log_softmax(linear(logits))\n    loss = ctc_loss(log_probs, word_label)   # 无需字符级对齐\n    return loss\n\ndef recognize(image, lexicon=None):\n    log_probs = model(image)\n    if lexicon is None:\n        return ctc_best_path_decode(log_probs)\n    return max(lexicon, key=lambda word: ctc_sequence_probability(log_probs, word))\n</code></pre>\n<h5>方法详解</h5>\n<p><strong>1. 动机与背景</strong></p>\n<p>传统 OCR 往往依赖字符切分、手工特征和逐字符分类。自然场景文字存在透视、模糊、字体变化和字符间距不稳定，显式字符切分很容易失败。另一方面，直接把整词作为分类类别又会受词表规模限制，无法处理开放词表。</p>\n<p>CRNN 的切入点是把文字图像当作序列识别问题：图像宽度方向天然对应文本读取顺序，模型只需学习从图像列序列到字符序列的映射。这样既保留 CNN 的视觉表征能力，又利用 RNN 建模上下文，还通过 CTC 规避字符级对齐。</p>\n<p><strong>2. 从特征图到序列</strong></p>\n<p>输入图像先经过 CNN，得到特征图 <span class=\"kb-math kb-math-inline\">F \\in \\mathbb{R}^{C \\times H&#x27; \\times W&#x27;}</span>。由于文本图像通常被归一化到固定高度，CRNN 将每个宽度位置的整列特征作为一个时间步：</p>\n<div class=\"kb-math kb-math-display\">\\mathbf{x}_t = F[:, :, t], \\quad t=1,\\ldots,W&#x27;</div>\n<p>每个 <span class=\"kb-math kb-math-inline\">\\mathbf{x}_t</span> 对应输入图像中的一个局部感受野。这个转换保留了从左到右的读取顺序，使 RNN 可以像处理语音或手写轨迹一样处理文本图像。</p>\n<p><strong>3. 双向 LSTM 序列建模</strong></p>\n<p>单个字符的视觉外观可能不足以判别，例如 “l”“I”“1” 或相邻字符粘连。双向 LSTM 在每个时间步同时汇聚左侧和右侧上下文：</p>\n<div class=\"kb-math kb-math-display\">\\mathbf{h}_t = [\\overrightarrow{\\mathbf{h}}_t; \\overleftarrow{\\mathbf{h}}_t]</div>\n<p>随后线性层和 softmax 输出每个时间步属于字符集或 blank 的概率分布。RNN 的作用不是简单分类单列，而是让每个预测都看到较长范围的上下文。</p>\n<p><strong>4. CTC 转录层</strong></p>\n<p>CTC 定义折叠函数 <span class=\"kb-math kb-math-inline\">\\mathcal{B}</span>：先合并连续重复字符，再删除 blank。例如路径 <code>--s-tt-aa-r--</code> 会被折叠为 <code>star</code>。给定 RNN 输出 <span class=\"kb-math kb-math-inline\">y</span>，标签序列 <span class=\"kb-math kb-math-inline\">l</span> 的概率是所有可折叠到 <span class=\"kb-math kb-math-inline\">l</span> 的路径概率之和：</p>\n<div class=\"kb-math kb-math-display\">p(l|y) = \\sum_{\\pi:\\mathcal{B}(\\pi)=l} \\prod_{t=1}^{T} y^t_{\\pi_t}</div>\n<p>训练目标是最小化负对数似然：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L} = -\\sum_i \\log p(l_i|y_i)</div>\n<div class=\"key-point\">💡 关键：CTC 不要求知道每个字符对应图像中的哪一列，只要求整词标注，因此大幅降低了序列识别训练数据的标注成本。</div>\n<p><strong>5. 推理与词典约束</strong></p>\n<p>无词典模式下，CRNN 通常使用 best path decoding：每个时间步取最大概率字符，然后执行 CTC 折叠。带词典模式下，可以对候选词计算 <span class=\"kb-math kb-math-inline\">p(l|y)</span>，选取概率最高者。论文还讨论了用 BK-tree 等数据结构加速大词典搜索。</p>\n<p><strong>6. 与后续方法的关系</strong></p>\n<p>CRNN 的贡献不在于复杂网络，而在于给文字识别建立了稳定的端到端范式。后续 Attention OCR、ASTER、MASTER、PARSeq 等方法大多仍沿用“视觉特征序列 + 序列解码”的思想，只是把 RNN/CTC 替换为注意力解码器或 Transformer。</p>",
+      "quiz": {
+        "q": "CRNN 中 CTC 层的核心作用是什么？",
+        "options": [
+          "将输入图像裁剪成单字符小图",
+          "在不知道字符级位置对齐的情况下，对所有合法路径求和并训练整词序列",
+          "把整词映射到固定类别，实现闭集分类",
+          "替代 CNN 提取局部视觉特征"
+        ],
+        "answer": 1,
+        "explain": "CTC 通过 blank 和折叠函数定义序列概率，使模型只需整词标签即可端到端训练，不需要字符切分或逐字符对齐。"
+      }
     },
     {
       "id": "aster",
@@ -924,13 +953,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "e2e_spotting",
       "motivation": "SPN解决极端长宽比文本",
-      "summary": "Mask TextSpotter v3 的核心目标是：SPN解决极端长宽比文本。",
+      "summary": "Mask TextSpotter v3 用 Segmentation Proposal Network (SPN) 取代 RPN 生成任意形状多边形 proposal，解决了 RPN 锚框和轴对齐矩形在极端长宽比、弯曲文本和密集旋转文本中 proposal 不准的问题。它进一步用 hard RoI masking 去除邻近实例噪声，使检测和识别都更稳健。",
       "keyPoints": [
-        "核心动机：SPN解决极端长宽比文本",
-        "演化来源：继承或改进自 mask_textspotter",
-        "代表机构：Huazhong University of Science and Technology"
+        "提出 anchor-free 的 SPN：从融合特征图直接预测文本分割图，再由连通域/轮廓生成多边形 proposal",
+        "用多边形 proposal 替代 RPN 的轴对齐矩形 proposal，适配弯曲文本、长文本行和密集旋转文本",
+        "在 RoI 特征上执行 hard RoI masking，将 proposal 外的背景和邻近文本置零，降低识别分支污染",
+        "主干采用 ResNet-50，后续包含 Fast R-CNN proposal refine、文本实例分割、字符分割和空间注意力识别模块",
+        "标签生成沿用收缩多边形思想，SPN 分割标签由原始标注向内收缩得到",
+        "在 Rotated ICDAR2013、MSRA-TD500、Total-Text、ICDAR2015 上验证旋转、长宽比、形状和小文本鲁棒性"
       ],
-      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"Mask TextSpotter v3 总览\" src=\"https://ar5iv.labs.arxiv.org/html/2007.09482/assets/x2.png\" />\n<em>图：Mask TextSpotter v3 用 SPN 生成分割式 proposal，再送入 Fast R-CNN、文本实例分割、字符分割和空间注意力识别模块。</em></p>\n<p><img alt=\"RPN 与 SPN 对比\" src=\"https://ar5iv.labs.arxiv.org/html/2007.09482/assets/x1.png\" />\n<em>图：RPN 的矩形 RoI 往往包含多个相邻文本实例；SPN 的多边形 proposal 更贴合文本区域，能为识别分支提供更干净的 RoI 特征。</em></p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
+      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"Mask TextSpotter v3 总览\" src=\"https://ar5iv.labs.arxiv.org/html/2007.09482/assets/x2.png\" />\n<em>图：Mask TextSpotter v3 用 SPN 生成分割式 proposal，再送入 Fast R-CNN、文本实例分割、字符分割和空间注意力识别模块。</em></p>\n<p><img alt=\"RPN 与 SPN 对比\" src=\"https://ar5iv.labs.arxiv.org/html/2007.09482/assets/x1.png\" />\n<em>图：RPN 的矩形 RoI 往往包含多个相邻文本实例；SPN 的多边形 proposal 更贴合文本区域，能为识别分支提供更干净的 RoI 特征。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># Mask TextSpotter v3 推理核心流程\ndef inference(image):\n    features = resnet50_fpn(image)\n\n    # 1. SPN: anchor-free proposal generation\n    fused = unet_like_fusion(features)\n    text_score = sigmoid(seg_head(fused))\n    binary = text_score &gt; 0.5\n    polygon_proposals = contours(connected_components(binary))\n\n    # 2. proposal refinement and masked RoI feature\n    results = []\n    for poly in polygon_proposals:\n        roi_feat = roi_align(features, bounding_rect(poly))\n        mask = rasterize_polygon(poly, roi_feat.shape[-2:])\n        roi_feat = roi_feat * mask          # hard RoI masking\n\n        refined_box = fast_rcnn_head(roi_feat)\n        instance_mask = text_mask_head(roi_feat)\n        char_logits = char_seg_head(roi_feat)\n        text = spatial_attention_recognizer(roi_feat, char_logits)\n        results.append((instance_mask, refined_box, text))\n    return results\n</code></pre>\n<h5>方法详解</h5>\n<p><strong>1. 动机与背景</strong></p>\n<p>Mask TextSpotter v1/v2 已经证明了基于 Mask R-CNN 的端到端任意形状文本 spotting 可行，但其 proposal 仍依赖 RPN。RPN 的两个假设在文本中很脆弱：一是 anchor 需要预设尺度和长宽比，难覆盖极长文本行；二是 proposal 是轴对齐矩形，遇到弯曲或旋转文本时会包含大量背景和邻近文本。</p>\n<p>这些问题在端到端 spotting 中会被放大。检测阶段 proposal 不准会导致实例分割边界变差；识别阶段 RoI 特征中混入相邻文本，会让字符序列出现插入、替换或漏识别。Mask TextSpotter v3 因此把 proposal 生成改成分割式。</p>\n<p><strong>2. SPN：从分割图生成 proposal</strong></p>\n<p>SPN 采用 U-Net 风格的多尺度融合结构，生成大小为 <span class=\"kb-math kb-math-inline\">1 \\times H \\times W</span> 的文本分割概率图 <span class=\"kb-math kb-math-inline\">S</span>。与 FPN-RPN 在多个尺度上放置 anchor 不同，SPN 在融合特征图上直接预测文本区域：</p>\n<div class=\"kb-math kb-math-display\">S = \\sigma(f_{\\text{seg}}(F)), \\quad F \\in \\mathbb{R}^{C \\times H/4 \\times W/4}</div>\n<p>二值化后通过连通域和轮廓提取即可得到多边形 proposal。多边形 proposal 的几何形状来自分割区域本身，因此天然支持长文本、弯曲文本和不规则文本。</p>\n<p><strong>3. SPN 标签生成</strong></p>\n<p>为了避免相邻文本标注在训练时粘连，SPN 的分割标签由原始多边形向内收缩得到。收缩距离为：</p>\n<div class=\"kb-math kb-math-display\">D = \\frac{A(1-r^2)}{L}</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">A</span> 是文本多边形面积，<span class=\"kb-math kb-math-inline\">L</span> 是周长，论文中 <span class=\"kb-math kb-math-inline\">r</span> 经验设为 0.4。这个策略与 PSENet/DBNet 类似：用更保守的核心区域监督文本存在性，减少密集文本的边界歧义。</p>\n<p><strong>4. Hard RoI Masking</strong></p>\n<p>SPN 的 proposal 是多边形，但 RoIAlign 通常仍在其外接矩形中采样。为防止外接矩形内的背景和邻近文本影响后续模块，论文在 RoI 特征上乘以多边形掩码：</p>\n<div class=\"kb-math kb-math-display\">F_{\\text{masked}} = F_{\\text{roi}} \\odot M</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">M</span> 是将 proposal 多边形栅格化后的二值 mask。消融中 direct-hard masking 最有效，因为它直接、严格地把 proposal 外特征置零，而不是间接或软权重地削弱噪声。</p>\n<p><strong>5. 检测与识别流程</strong></p>\n<p>SPN 产生候选多边形后，Fast R-CNN 模块进一步 refine proposal；文本实例分割模块给出更精确的检测区域；字符分割模块和空间注意力识别模块负责识别。相比原始 Mask TextSpotter，v3 的核心变化不是识别器本身，而是 proposal 质量和 RoI 特征纯净度。</p>\n<div class=\"key-point\">💡 关键：SPN 不只是更换 proposal 生成器。它让 proposal 的表示从“矩形框”变为“贴合文本实例的多边形区域”，再通过 hard mask 把这个几何优势传递给识别分支。</div>\n<p><strong>6. 与 RPN 方案的区别</strong></p>\n<p>RPN 对普通目标检测有效，因为许多目标可由矩形近似；但文本行常常又细又长、方向变化大、实例密集。SPN 避免了 anchor 长宽比设计问题，也避免了矩形 RoI 同时覆盖多个文本行的问题，因此在旋转鲁棒性、长宽比鲁棒性和形状鲁棒性上都优于 v2。</p>",
+      "quiz": {
+        "q": "Mask TextSpotter v3 中 hard RoI masking 的主要目的是什么？",
+        "options": [
+          "把多边形 proposal 转换成固定长度字符序列",
+          "删除 RoI 中 proposal 外的背景和邻近文本特征，降低检测识别噪声",
+          "用 softmax 归一化 SPN 的分割概率",
+          "替代 Fast R-CNN 进行边界框回归"
+        ],
+        "answer": 1,
+        "explain": "SPN 生成的是多边形 proposal，但 RoI 特征仍可能来自外接矩形。hard RoI masking 用多边形 mask 过滤 RoI 特征，使识别分支更少受到邻近文本污染。"
+      }
     },
     {
       "id": "abcnet",
@@ -944,13 +987,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "e2e_spotting",
       "motivation": "贝塞尔曲线提速10倍",
-      "summary": "ABCNet 的核心目标是：贝塞尔曲线提速10倍。",
+      "summary": "ABCNet 用两条三次 Bezier 曲线参数化任意形状文本边界，并设计 BezierAlign 直接从曲线区域采样识别特征，解决了分割式端到端 spotting 后处理重、速度慢的问题。它把弯曲文本检测变成轻量回归问题，在保持任意形状表达能力的同时显著提升端到端速度。",
       "keyPoints": [
-        "核心动机：贝塞尔曲线提速10倍",
-        "演化来源：继承或改进自 mask_textspotter",
-        "代表机构：University of Adelaide"
+        "首次将文本上下边界表示为三次 Bezier 曲线，每条曲线 4 个控制点，共 8 个点描述任意形状文本实例",
+        "采用单阶段、anchor-free 检测框架，直接回归 Bezier 控制点和常规检测量",
+        "提出 BezierAlign：沿上下 Bezier 曲线构造规则采样网格，对弯曲文本 RoI 做精确特征对齐",
+        "识别分支轻量化：BezierAlign 后接 6 个卷积层、1 个 BiLSTM 和全连接层，并用 CTC loss 训练",
+        "Bezier 曲线检测相比普通 bounding box 检测几乎不增加计算量，避免复杂分割后处理",
+        "使用 Bezier 曲线合成数据和公开数据预训练，在 Total-Text、CTW1500 等任意形状文本基准上实现实时端到端 spotting"
       ],
-      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"ABCNet 框架\" src=\"https://ar5iv.labs.arxiv.org/html/2002.10200/assets/x2.png\" />\n<em>图：ABCNet 用检测分支回归文本的 Bezier 曲线控制点，再通过 BezierAlign 从共享特征中提取曲线对齐的序列特征，送入识别分支。</em></p>\n<p><img alt=\"ABCNet 方法概览\" src=\"https://ar5iv.labs.arxiv.org/html/2002.10200/assets/x1.png\" />\n<em>图：相比字符级或分割式方法，ABCNet 以参数化曲线直接表达任意形状文本，并自然连接识别分支。</em></p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
+      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"ABCNet 框架\" src=\"https://ar5iv.labs.arxiv.org/html/2002.10200/assets/x2.png\" />\n<em>图：ABCNet 用检测分支回归文本的 Bezier 曲线控制点，再通过 BezierAlign 从共享特征中提取曲线对齐的序列特征，送入识别分支。</em></p>\n<p><img alt=\"ABCNet 方法概览\" src=\"https://ar5iv.labs.arxiv.org/html/2002.10200/assets/x1.png\" />\n<em>图：相比字符级或分割式方法，ABCNet 以参数化曲线直接表达任意形状文本，并自然连接识别分支。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># ABCNet 检测 + BezierAlign + 识别伪代码\ndef forward(image):\n    pyramid = fpn_resnet50(image)\n\n    # anchor-free dense prediction\n    cls_score, box_reg, bezier_ctrl, centerness = detection_head(pyramid)\n    candidates = decode_and_nms(cls_score, box_reg, bezier_ctrl, centerness)\n\n    outputs = []\n    for inst in candidates:\n        top_curve, bottom_curve = split_to_two_cubic_beziers(inst.bezier_ctrl)\n        grid = []\n        for j in range(num_width_samples):\n            t = j / (num_width_samples - 1)\n            tp = cubic_bezier(top_curve, t)\n            bp = cubic_bezier(bottom_curve, t)\n            for i in range(num_height_samples):\n                alpha = i / (num_height_samples - 1)\n                grid.append((1 - alpha) * tp + alpha * bp)\n\n        roi_seq = bilinear_sample(pyramid, grid)  # BezierAlign\n        logits = recognition_branch(roi_seq)\n        text = ctc_decode(logits)\n        outputs.append((inst.bezier_ctrl, text))\n    return outputs\n</code></pre>\n<h5>方法详解</h5>\n<p><strong>1. 动机与背景</strong></p>\n<p>Mask TextSpotter 等分割式方法能处理弯曲文本，但端到端 spotting 往往需要 RoI 分割、字符分割或复杂 mask 后处理，速度受限。另一方面，传统回归式检测多用矩形或四边形，无法精确贴合弯曲文本边界。</p>\n<p>ABCNet 的关键判断是：大量场景文本虽然形状任意，但边界通常可由两条平滑曲线近似。用 Bezier 曲线参数化边界，比逐像素分割更轻，比矩形回归更 expressive，且易与识别分支对齐。</p>\n<p><strong>2. Bezier 曲线表示</strong></p>\n<p>Bezier 曲线定义为：</p>\n<div class=\"kb-math kb-math-display\">c(t)=\\sum_{i=0}^{n} b_i B_{i,n}(t), \\quad 0 \\leq t \\leq 1</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">b_i</span> 是控制点，Bernstein 基函数为：</p>\n<div class=\"kb-math kb-math-display\">B_{i,n}(t)=\\binom{n}{i}t^i(1-t)^{n-i}</div>\n<p>论文经验选择三次曲线 <span class=\"kb-math kb-math-inline\">n=3</span>。一个文本实例由上边界和下边界两条三次 Bezier 曲线描述，因此共有 <span class=\"kb-math kb-math-inline\">2 \\times 4</span> 个控制点。相比多边形顶点序列，这种表示固定长度、连续可导、便于直接回归。</p>\n<p><strong>3. Bezier 控制点标注</strong></p>\n<p>训练时需要把数据集中的多边形文本标注转换为 Bezier 控制点。ABCNet 在文本边界上采样，利用最小二乘拟合上下两条三次 Bezier 曲线。这样不同数据集的弯曲标注可以统一成固定维度回归目标。</p>\n<p><strong>4. BezierAlign</strong></p>\n<p>普通 RoIAlign 在矩形区域均匀采样，弯曲文本会被拉伸或包含大量背景。BezierAlign 先在上边界曲线得到点 <span class=\"kb-math kb-math-inline\">tp</span>，在下边界曲线得到对应点 <span class=\"kb-math kb-math-inline\">bp</span>，再沿垂直方向线性插值：</p>\n<div class=\"kb-math kb-math-display\">op = bp \\cdot \\frac{g_{ih}}{h_{out}} + tp \\cdot \\left(1-\\frac{g_{ih}}{h_{out}}\\right)</div>\n<p>采样点 <span class=\"kb-math kb-math-inline\">op</span> 通过双线性插值从 FPN 特征中取值。这样得到的特征网格沿文本走向展开，识别分支看到的是规整的文本序列，而不是弯曲或倾斜的原始区域。</p>\n<p><strong>5. 识别分支与损失</strong></p>\n<p>识别分支由轻量卷积、BiLSTM 和全连接层组成，输出字符类别序列，使用 CTC loss 进行无对齐训练。检测分支负责分类、边框/中心度以及 Bezier 控制点回归；识别分支训练时直接使用 GT Bezier 曲线采样，避免检测误差早期干扰识别学习。</p>\n<div class=\"key-point\">💡 关键：ABCNet 的速度来自“固定维度曲线回归 + 规则曲线采样”。它没有牺牲任意形状表达能力，却避开了像素级实例分割的重后处理。</div>\n<p><strong>6. 与 Mask TextSpotter 的区别</strong></p>\n<p>Mask TextSpotter 系列主要通过 mask 表达任意形状，几何表达能力强但计算和后处理成本较高。ABCNet 直接回归曲线控制点，检测输出天然是结构化边界；BezierAlign 又把检测结果转成识别可用的序列特征，因此整个 pipeline 更接近单阶段实时 spotting。</p>",
+      "quiz": {
+        "q": "ABCNet 中 BezierAlign 相比普通 RoIAlign 的关键优势是什么？",
+        "options": [
+          "它把所有文本都转换为水平矩形，提高检测召回率",
+          "它沿 Bezier 上下边界构造采样网格，使弯曲文本特征按阅读方向对齐",
+          "它不需要检测分支输出任何几何参数",
+          "它用字符级分割替代 CTC 识别"
+        ],
+        "answer": 1,
+        "explain": "BezierAlign 根据检测到的上下 Bezier 曲线插值采样，得到贴合弯曲文本的规整序列特征，普通矩形 RoIAlign 容易引入背景和几何畸变。"
+      }
     },
     {
       "id": "abcnet_v2",
@@ -1035,12 +1092,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "document_ai",
       "motivation": "融合文本版面图像预训练",
-      "summary": "LayoutLM 的核心目标是：融合文本版面图像预训练。",
+      "summary": "LayoutLM 在 BERT 文本预训练中加入二维版面坐标和图像外观特征，解决了传统语言模型忽略文档空间结构的问题。它开创了将 OCR 文本、布局位置和视觉特征联合建模的 Document AI 预训练范式。",
       "keyPoints": [
-        "核心动机：融合文本版面图像预训练",
-        "代表机构：Microsoft Research Asia"
+        "在 BERT 输入中加入 2D position embedding，编码每个 OCR token 的 <span class=\"kb-math kb-math-inline\">(x_0,y_0,x_1,y_1)</span> 文档坐标",
+        "结合文本 embedding、1D position embedding、segment embedding 和 2D layout embedding 建模文档序列",
+        "在下游任务中引入 Faster R-CNN 提取的 image embedding，用于补充字体、颜色、方向等视觉外观",
+        "预训练目标包括 Masked Visual-Language Model (MVLM) 和可选 Multi-label Document Classification (MDC)",
+        "预训练数据来自 IIT-CDIP，覆盖 600 万文档、1100 万扫描图像，适合大规模文档自监督学习",
+        "在 FUNSD 表单理解、SROIE 票据理解、RVL-CDIP 文档分类上显著优于纯文本 BERT/RoBERTa"
       ],
-      "detail": "<p>融合文本版面图像预训练</p>"
+      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"LayoutLM 架构\" src=\"https://ar5iv.labs.arxiv.org/html/1912.13318/assets/x1.png\" />\n<em>图：LayoutLM 在 BERT 文本输入基础上加入 2D layout embedding，并在下游任务中与 Faster R-CNN image embedding 融合。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># LayoutLM 预训练和微调伪代码\ndef build_layoutlm_input(words, boxes):\n    word_emb = WordEmbedding(words)\n    pos1d = PositionEmbedding(range(len(words)))\n    seg_emb = SegmentEmbedding(words)\n    layout_emb = (\n        XEmbedding(boxes.x0) + YEmbedding(boxes.y0) +\n        XEmbedding(boxes.x1) + YEmbedding(boxes.y1)\n    )\n    return word_emb + pos1d + seg_emb + layout_emb\n\ndef pretrain(document_image, ocr_words, boxes, doc_tags=None):\n    masked_words = mask_tokens(ocr_words)\n    h = Transformer(build_layoutlm_input(masked_words, boxes))\n    loss_mvlm = cross_entropy(predict_word(h[masked_positions]), ocr_words[masked_positions])\n    loss_mdc = multilabel_bce(predict_doc_tags(h[CLS]), doc_tags) if doc_tags else 0\n    return loss_mvlm + loss_mdc\n\ndef finetune_for_ie(document_image, ocr_words, boxes):\n    text_layout_h = Transformer(build_layoutlm_input(ocr_words, boxes))\n    image_h = faster_rcnn_roi_features(document_image, boxes)\n    return token_classifier(concat(text_layout_h, image_h))\n</code></pre>\n<h5>方法详解</h5>\n<p><strong>1. 动机与背景</strong></p>\n<p>普通 NLP 预训练模型把文档看作一维 token 序列，但真实商业文档的含义高度依赖版面。例如发票中的金额、日期、公司名常由空间邻近关系决定；表单中的 key-value 关系也不一定按阅读顺序连续出现。只使用文本序列会丢失这些二维结构。</p>\n<p>LayoutLM 的核心思想是把 OCR 给出的文本框坐标作为一种“版面语言”注入 Transformer。模型仍继承 BERT 的文本建模能力，但每个 token 还知道自己在页面上的空间位置。</p>\n<p><strong>2. 2D Layout Embedding</strong></p>\n<p>对每个 OCR token，LayoutLM 使用归一化到固定范围的 bounding box：</p>\n<div class=\"kb-math kb-math-display\">b_i = (x_0, y_0, x_1, y_1)</div>\n<p>输入表示由多种 embedding 相加：</p>\n<div class=\"kb-math kb-math-display\">\\mathbf{e}_i =\n\\mathbf{e}^{word}_i +\n\\mathbf{e}^{1D}_i +\n\\mathbf{e}^{seg}_i +\n\\mathbf{e}^{x_0}_i +\n\\mathbf{e}^{y_0}_i +\n\\mathbf{e}^{x_1}_i +\n\\mathbf{e}^{y_1}_i</div>\n<p>这种做法保持了 BERT 的结构，只是扩展了位置编码维度。二维坐标让注意力层可以学习“同一行”“上下邻近”“表格列对齐”等文档关系。</p>\n<p><strong>3. MVLM 预训练</strong></p>\n<p>MVLM 与 BERT MLM 类似，随机 mask 文本 token 并预测原词。区别在于：被 mask token 的 2D 坐标仍保留，模型必须利用上下文文本和空间位置共同恢复词：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{MVLM} = -\\sum_{i \\in \\mathcal{M}} \\log p(w_i | w_{\\setminus \\mathcal{M}}, b)</div>\n<div class=\"key-point\">💡 关键：保留被 mask 词的坐标很重要。模型不仅要学语言上下文，还会学到某些字段在页面中的典型位置和空间关系。</div>\n<p><strong>4. MDC 预训练</strong></p>\n<p>IIT-CDIP 中每个文档有多标签元数据。LayoutLM 可在 <code>[CLS]</code> 表示上加入多标签分类任务：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{MDC} = -\\sum_c y_c\\log p_c + (1-y_c)\\log(1-p_c)</div>\n<p>MDC 的作用是让模型获得文档级类别信息，改善 <code>[CLS]</code> 全局表示。论文也指出该任务依赖文档标签，因此是可选预训练目标。</p>\n<p><strong>5. 图像特征融合</strong></p>\n<p>LayoutLM 原始预训练主要依赖文本和布局；在下游任务中，论文使用 Faster R-CNN 为 OCR token 或整页图像提取 image embedding。图像特征补充字体、颜色、方向、表格线等视觉线索，尤其对文档分类和票据理解有帮助。</p>\n<p><strong>6. 与纯文本模型的区别</strong></p>\n<p>BERT/RoBERTa 只能看到 OCR 文本序列，无法区分两个相同词在不同页面区域的作用。LayoutLM 通过 2D 坐标把页面结构纳入自注意力，因而在表单/票据等结构化文档中提升显著。它的局限也很清楚：依赖外部 OCR，OCR 错误和框坐标噪声会直接传递给模型。</p>",
+      "quiz": {
+        "q": "LayoutLM 的 MVLM 与普通 BERT MLM 最大的区别是什么？",
+        "options": [
+          "MVLM 不预测被 mask 的词，只预测文档类别",
+          "MVLM 在预测被 mask 词时保留其 2D 坐标，使模型利用版面信息恢复文本",
+          "MVLM 只使用图像 patch，不使用 OCR 文本",
+          "MVLM 必须使用字符级标注进行训练"
+        ],
+        "answer": 1,
+        "explain": "LayoutLM mask 文本 token 时仍保留对应的 2D layout embedding，因此模型需要联合上下文和空间位置进行预测。"
+      }
     },
     {
       "id": "layoutlmv3",
@@ -1087,13 +1159,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "document_ai",
       "motivation": "海量无标注自监督预训练",
-      "summary": "DiT 的核心目标是：海量无标注自监督预训练。",
+      "summary": "DiT 将 BEiT 式 Masked Image Modeling 引入文档图像领域，用 4200 万无标注文档图像训练 ViT 主干，解决了文档视觉任务缺少 ImageNet 级监督预训练的问题。它为版面分析、表格检测、文档分类和 OCR 文本检测提供了文档专用视觉 backbone。",
       "keyPoints": [
-        "核心动机：海量无标注自监督预训练",
-        "演化来源：继承或改进自 layoutlm",
-        "代表机构：Microsoft Research Asia"
+        "使用纯视觉 Document Image Transformer，不依赖 OCR 文本输入，目标是学习通用文档图像表示",
+        "采用 ViT 架构：文档图像切成 patch，加 1D position embedding 后送入 Transformer encoder",
+        "使用 BEiT 风格 MIM：mask 部分图像 patch，根据上下文预测离散 visual token",
+        "重新在 IIT-CDIP 4200 万文档图像上训练 dVAE tokenizer，避免 DALL-E 自然图像 tokenizer 与文档域不匹配",
+        "预训练模型包括 DiT-B 和 DiT-L，并可接入 Mask R-CNN/Cascade R-CNN 等检测框架",
+        "在 RVL-CDIP、PubLayNet、ICDAR 2019 cTDaR、FUNSD 文本检测等视觉 Document AI 任务上刷新或接近 SOTA"
       ],
-      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"DiT MIM 预训练架构\" src=\"https://ar5iv.labs.arxiv.org/html/2203.02378/assets/x1.png\" />\n<em>图：DiT 将文档图像切分为 patch，随机 mask 后输入 ViT，并预测由文档 dVAE tokenizer 产生的离散 visual token。</em></p>\n<p><img alt=\"DiT 检测框架接入方式\" src=\"https://ar5iv.labs.arxiv.org/html/2203.02378/assets/x2.png\" />\n<em>图：DiT 作为 ViT backbone 接入检测框架时，通过分辨率调整模块产生多尺度特征，供 Mask R-CNN 或 Cascade R-CNN 使用。</em></p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
+      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"DiT MIM 预训练架构\" src=\"https://ar5iv.labs.arxiv.org/html/2203.02378/assets/x1.png\" />\n<em>图：DiT 将文档图像切分为 patch，随机 mask 后输入 ViT，并预测由文档 dVAE tokenizer 产生的离散 visual token。</em></p>\n<p><img alt=\"DiT 检测框架接入方式\" src=\"https://ar5iv.labs.arxiv.org/html/2203.02378/assets/x2.png\" />\n<em>图：DiT 作为 ViT backbone 接入检测框架时，通过分辨率调整模块产生多尺度特征，供 Mask R-CNN 或 Cascade R-CNN 使用。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># DiT 自监督预训练伪代码\ndef pretrain_dit(document_image):\n    image = resize(document_image, (224, 224))\n\n    # 1. patch view for Transformer input\n    patches = split_into_patches(image, patch_size=16)  # 14x14 patches\n    mask = random_mask(patches)\n    masked_patches = replace(patches, mask, token=&quot;[MASK]&quot;)\n\n    # 2. token view for supervision\n    # document-domain dVAE is trained on IIT-CDIP document images\n    visual_tokens = document_dvae_tokenizer(image)      # 14x14 token ids\n\n    # 3. masked image modeling\n    h = ViT(masked_patches + position_embedding)\n    logits = token_classifier(h[mask])\n    loss = cross_entropy(logits, visual_tokens[mask])\n    return loss\n</code></pre>\n<h5>方法详解</h5>\n<p><strong>1. 动机与背景</strong></p>\n<p>自然图像视觉模型有 ImageNet、COCO 等大规模监督数据支撑，文档图像却缺少同等规模的人工标注。直接把 ImageNet 预训练模型迁移到文档任务会遇到域差异：文档图像以文字、表格线、版面块和扫描噪声为主，视觉统计与自然图像完全不同。</p>\n<p>DiT 的目标是构建一个文档图像专用的自监督视觉 backbone。它不直接做文本理解，而是学习文档页面的视觉结构，为版面分析、表格检测、文档分类和 OCR 前置检测等任务提供初始化。</p>\n<p><strong>2. ViT 文档图像编码</strong></p>\n<p>DiT 遵循 ViT：输入图像被 resize 到固定大小并划分为不重叠 patch，每个 patch 线性投影为 token，再加入位置编码：</p>\n<div class=\"kb-math kb-math-display\">\\mathbf{x}_i = \\text{Linear}(\\text{patch}_i) + \\mathbf{p}_i</div>\n<p>这些 patch token 经过 Transformer encoder 输出上下文化视觉表示。由于文档图像包含长距离版面关系，Transformer 的全局注意力适合建模跨段落、跨表格和跨区域的结构。</p>\n<p><strong>3. 文档域 dVAE tokenizer</strong></p>\n<p>BEiT 使用 DALL-E dVAE tokenizer 生成 visual token，但 DALL-E tokenizer 训练在自然图像上，对黑白文档、细线和密集文字不够匹配。DiT 因此在 IIT-CDIP 的 4200 万文档图像上重新训练 dVAE tokenizer，codebook size 为 8192。</p>\n<p>给定图像，tokenizer 输出离散 token map，作为 MIM 的分类监督。论文展示文档 tokenizer 的重建更接近文档结构，而自然图像 tokenizer 容易丢失细粒度文本/线条。</p>\n<p><strong>4. Masked Image Modeling</strong></p>\n<p>DiT 随机 mask 一部分 patch，Transformer 根据未 mask 上下文预测被 mask 位置的 visual token：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{MIM} = -\\sum_{i \\in \\mathcal{M}} \\log p(z_i | \\mathbf{x}_{\\setminus \\mathcal{M}})</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">z_i</span> 是文档 dVAE 对第 <span class=\"kb-math kb-math-inline\">i</span> 个 patch 生成的离散 token。相比像素重建，离散 token 分类更强调语义/结构模式，而不是逐像素噪声。</p>\n<p><strong>5. 下游适配</strong></p>\n<p>分类任务中，DiT 对 patch 表示做平均池化后接线性分类器。检测任务中，ViT 原生单尺度输出不适合 FPN，因此论文在不同 Transformer block 输出处增加上采样/下采样模块，形成多尺度特征，接入 Mask R-CNN 或 Cascade R-CNN。</p>\n<div class=\"warn-box\">⚠️ 注意：DiT 与 LayoutLM 系列关注点不同。LayoutLM 以 OCR 文本和布局为核心，DiT 以原始文档图像为核心；DiT 可以作为后续多模态文档模型的视觉基础。</div>\n<p><strong>6. 结果意义</strong></p>\n<p>DiT 的实验证明，文档视觉任务需要文档域预训练。它在 RVL-CDIP 分类、PubLayNet 版面分析、cTDaR 表格检测和 FUNSD 文本检测上均优于同等规模的自然图像预训练 ViT/DeiT/BEiT/MAE，说明预训练数据域比单纯模型结构更关键。</p>",
+      "quiz": {
+        "q": "DiT 为什么要重新训练文档域 dVAE tokenizer，而不是直接使用 BEiT 的 DALL-E tokenizer？",
+        "options": [
+          "DALL-E tokenizer 只能输出连续像素，无法用于分类损失",
+          "自然图像 tokenizer 与文档图像域不匹配，容易丢失文字、线条和版面结构",
+          "DALL-E tokenizer 参数量太大，无法部署",
+          "文档域 tokenizer 可以替代 Transformer encoder"
+        ],
+        "answer": 1,
+        "explain": "文档图像的视觉统计与自然图像差异很大，DiT 在 IIT-CDIP 上训练 dVAE，使 MIM 预测目标更贴近文档结构。"
+      }
     },
     {
       "id": "donut",
@@ -1107,13 +1193,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "document_ai",
       "motivation": "OCR-Free直接生成结构化",
-      "summary": "Donut 的核心目标是：OCR-Free直接生成结构化。",
+      "summary": "Donut 提出 OCR-free 的文档理解 Transformer，直接把文档图像编码为视觉特征并自回归生成结构化文本，解决了 OCR 检测、识别、解析多阶段流水线误差累积和维护成本高的问题。它把文档分类、信息抽取和 DocVQA 统一成图像到序列生成任务。",
       "keyPoints": [
-        "核心动机：OCR-Free直接生成结构化",
-        "演化来源：继承或改进自 layoutlmv3",
-        "代表机构：NAVER CLOVA"
+        "完全去除外部 OCR：输入只需要文档图像，输出为 JSON、类别标签或问答答案等目标序列",
+        "架构为视觉 encoder + 文本 decoder，论文实现中使用 Swin Transformer encoder 和 Transformer/BART 式 decoder",
+        "训练目标是 teacher forcing 下的 next-token cross entropy，预训练学习“如何读”，微调学习“如何理解”",
+        "引入 SynthDoG 合成文档生成器，用多语言合成文档降低真实标注依赖",
+        "通过任务提示和特殊 token 将不同任务统一为结构化序列生成",
+        "在 RVL-CDIP、CORD、Ticket、DocVQA 等分类、信息抽取、视觉问答任务上展示 OCR-free 的速度和准确率优势"
       ],
-      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"Donut 流水线\" src=\"https://ar5iv.labs.arxiv.org/html/2111.15664/assets/x3.png\" />\n<em>图：Donut 的 encoder 将文档图像映射为视觉 embedding，decoder 根据视觉 embedding 和历史 token 生成结构化输出序列。</em></p>\n<p><img alt=\"Donut 训练格式\" src=\"https://ar5iv.labs.arxiv.org/html/2111.15664/assets/x14.png\" />\n<em>图：Donut 使用 teacher forcing 训练 decoder；推理时把上一步生成 token 作为下一步输入，直到输出结束标记。</em></p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
+      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"Donut 流水线\" src=\"https://ar5iv.labs.arxiv.org/html/2111.15664/assets/x3.png\" />\n<em>图：Donut 的 encoder 将文档图像映射为视觉 embedding，decoder 根据视觉 embedding 和历史 token 生成结构化输出序列。</em></p>\n<p><img alt=\"Donut 训练格式\" src=\"https://ar5iv.labs.arxiv.org/html/2111.15664/assets/x14.png\" />\n<em>图：Donut 使用 teacher forcing 训练 decoder；推理时把上一步生成 token 作为下一步输入，直到输出结束标记。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># Donut 预训练/微调统一为 image-to-text\ndef train_donut(image, target_sequence, task_prompt):\n    visual_tokens = swin_encoder(image)\n    decoder_input = [task_prompt] + target_sequence[:-1]\n    logits = text_decoder(decoder_input, cross_attend=visual_tokens)\n    loss = cross_entropy(logits, target_sequence)  # next-token prediction\n    return loss\n\ndef infer_donut(image, task_prompt):\n    visual_tokens = swin_encoder(image)\n    tokens = [task_prompt]\n    while tokens[-1] != &quot;&lt;eos&gt;&quot; and len(tokens) &lt; max_len:\n        logits = text_decoder(tokens, cross_attend=visual_tokens)\n        tokens.append(argmax(logits[-1]))\n    return parse_structured_output(tokens)\n</code></pre>\n<h5>方法详解</h5>\n<p><strong>1. 动机与背景</strong></p>\n<p>传统文档信息抽取通常分成文本检测、文本识别、版面解析和任务模型多个模块。这个 pipeline 的问题是误差会层层传递：OCR 漏检或识别错会直接成为后续模型的输入上限；不同语言、字体、低清扫描件还需要维护复杂的 OCR 子系统。</p>\n<p>Donut 的核心观点是：文档理解可以被视为图像到结构化文本的生成问题。模型不需要先显式输出 OCR 文本框，而是直接学习从像素到目标结构的映射。</p>\n<p><strong>2. 架构：视觉编码器 + 文本解码器</strong></p>\n<p>视觉编码器将文档图像 <span class=\"kb-math kb-math-inline\">I</span> 编码为视觉 token：</p>\n<div class=\"kb-math kb-math-display\">\\mathbf{V} = \\text{Encoder}(I)</div>\n<p>文本解码器自回归生成目标 token：</p>\n<div class=\"kb-math kb-math-display\">p(\\mathbf{y}|I) = \\prod_{t=1}^{T} p(y_t | y_{&lt;t}, \\mathbf{V})</div>\n<p>这里的 <span class=\"kb-math kb-math-inline\">\\mathbf{y}</span> 可以是类别字符串、JSON、键值结构或答案文本。统一的生成接口让 Donut 不需要为每个任务设计独立头部。</p>\n<p><strong>3. 训练目标</strong></p>\n<p>Donut 使用 teacher forcing，训练时 decoder 输入真实前缀，预测下一个 token：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L} = -\\sum_{t=1}^{T}\\log p(y_t | y_{&lt;t}, I)</div>\n<p>这个目标简单但有效。预训练阶段让模型学习文档图像中的文字读取能力；微调阶段通过任务特定序列格式，让模型学习输出结构化信息。</p>\n<p><strong>4. SynthDoG 合成预训练</strong></p>\n<p>真实文档图像和完整转录标注成本较高。Donut 提出 SynthDoG 生成合成文档：采样文本、字体、背景、版面模式和渲染扰动，生成多语言文档图像及其文本序列。合成数据让模型在没有 OCR 模块的情况下学习基本阅读能力。</p>\n<div class=\"key-point\">💡 关键：Donut 的 OCR-free 并不意味着模型不学习 OCR；它是把 OCR 能力内化到 encoder-decoder 的参数中，并让读取和理解在同一个生成目标下联合优化。</div>\n<p><strong>5. 结构化输出</strong></p>\n<p>文档信息抽取任务中，目标序列被组织成 JSON-like 格式。字段名、层级关系和结束标记都作为 token 参与训练。这样模型不仅要读出文本，还要生成字段之间的结构关系，例如收据中商品名、数量、价格的分组。</p>\n<p><strong>6. 与 LayoutLM 类模型的区别</strong></p>\n<p>LayoutLM 依赖 OCR 文本和坐标，优势是能显式利用版面 token；Donut 只看图像，优势是避免 OCR 错误上限和流水线成本。代价是生成模型对输入分辨率敏感，小字密集页面可能漏读，且结构化输出需要良好的序列格式约束。</p>",
+      "quiz": {
+        "q": "Donut 被称为 OCR-free 的主要原因是什么？",
+        "options": [
+          "它不处理文档中的文字，只做图像分类",
+          "它不依赖外部文本检测/识别模块，而是直接从图像生成目标结构化序列",
+          "它只使用 OCR 框坐标，不使用 OCR 文本",
+          "它用 CTC 替代了 Transformer decoder"
+        ],
+        "answer": 1,
+        "explain": "Donut 输入为文档图像，输出为 JSON、类别或答案等序列，读取和理解能力都由端到端 encoder-decoder 学习，不需要外部 OCR pipeline。"
+      }
     },
     {
       "id": "pix2struct",
@@ -1127,13 +1227,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "document_ai",
       "motivation": "截图解析预训练VLU",
-      "summary": "Pix2Struct 的核心目标是：截图解析预训练VLU。",
+      "summary": "Pix2Struct 提出用网页截图到简化 HTML 的 screenshot parsing 作为预训练任务，解决了视觉化语言理解长期依赖领域专用 OCR、表格解析或 UI 结构工具的问题。它把文档、图表、UI、信息图等任务统一为纯视觉输入到文本结构输出的 encoder-decoder 模型。",
       "keyPoints": [
-        "核心动机：截图解析预训练VLU",
-        "演化来源：继承或改进自 donut",
-        "代表机构：Google Research"
+        "预训练目标为 masked screenshot parsing：输入被遮挡的网页截图，输出遮挡区域对应的简化 HTML",
+        "仅使用像素输入，不依赖 OCR 文本、DOM 树、Android view hierarchy 或表格解析器等外部通道",
+        "采用 image-to-text Transformer 架构，视觉 encoder 编码 patch 序列，文本 decoder 生成 HTML、答案或描述",
+        "提出 variable-resolution input，在固定 patch budget 下保留原始纵横比，避免文档/表格/网页被拉伸",
+        "VQA 类任务将问题直接渲染到图像顶部，让模型通过同一视觉通道读取问题和内容",
+        "在 documents、illustrations、UIs、natural images 四类 9 个任务中，单任务模型在 6 个任务达到当时 SOTA"
       ],
-      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"Pix2Struct 预训练示例\" src=\"https://ar5iv.labs.arxiv.org/html/2210.03347/assets/figures/pretraining_example.png\" />\n<em>图：Pix2Struct 的预训练样本由网页截图和目标 HTML 片段构成，模型需要根据像素恢复结构化文本。</em></p>\n<p><img alt=\"Pix2Struct 可变分辨率输入\" src=\"https://ar5iv.labs.arxiv.org/html/2210.03347/assets/x1.png\" />\n<em>图：variable-resolution input 在固定 patch 数预算下保留图像纵横比，相比固定缩放或 padding 更适合长文档和宽表格。</em></p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
+      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"Pix2Struct 预训练示例\" src=\"https://ar5iv.labs.arxiv.org/html/2210.03347/assets/figures/pretraining_example.png\" />\n<em>图：Pix2Struct 的预训练样本由网页截图和目标 HTML 片段构成，模型需要根据像素恢复结构化文本。</em></p>\n<p><img alt=\"Pix2Struct 可变分辨率输入\" src=\"https://ar5iv.labs.arxiv.org/html/2210.03347/assets/x1.png\" />\n<em>图：variable-resolution input 在固定 patch 数预算下保留图像纵横比，相比固定缩放或 padding 更适合长文档和宽表格。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># Pix2Struct screenshot parsing 预训练伪代码\ndef pretrain_pix2struct(web_page):\n    screenshot, html = render_page_and_extract_simplified_html(web_page)\n    region = sample_mask_region(screenshot)\n    masked_screenshot = apply_visual_mask(screenshot, region)\n    target = html_for_region(html, region)\n\n    patches = variable_resolution_patchify(masked_screenshot, patch_budget=N)\n    visual_tokens = image_encoder(patches)\n    logits = text_decoder(prefix=target[:-1], cross_attend=visual_tokens)\n    loss = cross_entropy(logits, target)\n    return loss\n\ndef finetune_vqa(image, question, answer):\n    prompt_image = render_question_as_header(image, question)\n    patches = variable_resolution_patchify(prompt_image, patch_budget=N)\n    return seq2seq_loss(image_encoder(patches), answer)\n</code></pre>\n<h5>方法详解</h5>\n<p><strong>1. 动机与背景</strong></p>\n<p>视觉化语言理解覆盖文档问答、表格理解、图表推理、UI 描述和自然图像文字问答。过去方法通常为每个领域设计专用输入：文档用 OCR 文本和布局，图表用图表解析器，UI 用 view hierarchy。这些方案难共享架构和数据，而且外部工具错误会限制上限。</p>\n<p>Pix2Struct 借鉴 Donut 的 OCR-free 方向，但把预训练数据源从合成/文档扩展到整个 Web。网页天然具有“像素渲染”和“HTML 结构”两种视图，因此可以大规模构造从截图到结构的监督信号。</p>\n<p><strong>2. Screenshot Parsing 预训练</strong></p>\n<p>预训练时，模型看到的是被遮挡的网页截图 <span class=\"kb-math kb-math-inline\">I_{\\text{mask}}</span>，目标是生成对应区域的简化 HTML 序列 <span class=\"kb-math kb-math-inline\">y</span>：</p>\n<div class=\"kb-math kb-math-display\">p(y|I_{\\text{mask}})=\\prod_{t=1}^{T}p(y_t|y_{&lt;t}, I_{\\text{mask}})</div>\n<p>损失为标准自回归交叉熵：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}=-\\sum_{t=1}^{T}\\log p(y_t|y_{&lt;t},I_{\\text{mask}})</div>\n<p>HTML 目标不仅包含文字，还包含结构标签。模型因此学习到表格、列表、按钮、段落、布局层级等视觉结构，而不是只学习识别字符。</p>\n<p><strong>3. 纯视觉输入</strong></p>\n<p>Pix2Struct 刻意不把 OCR 文本、DOM 节点或布局框作为额外输入。即使在 DocVQA、ChartQA 等任务中，问题也被渲染到图像顶部作为像素。这个设计保持预训练和微调形式一致：所有信息都经视觉 encoder 进入模型。</p>\n<div class=\"key-point\">💡 关键：Pix2Struct 的“结构”不是人工定义的某个领域 schema，而是 HTML 这种 Web 原生监督。它让模型从网页截图中学习通用视觉语言结构。</div>\n<p><strong>4. Variable-Resolution Input</strong></p>\n<p>固定分辨率会拉伸长文档、宽表格或手机 UI，padding 又浪费 patch budget。Pix2Struct 在固定最大 patch 数下，根据原始图像纵横比选择 patch 网格尺寸，尽量保留有效像素：</p>\n<div class=\"kb-math kb-math-display\">N_h \\times N_w \\leq N_{\\max}, \\quad \\frac{N_w}{N_h} \\approx \\frac{W}{H}</div>\n<p>这样同一个模型可以处理不同宽高比输入，不需要为每个任务重建位置参数或改网络结构。</p>\n<p><strong>5. 微调与多任务</strong></p>\n<p>下游任务都被转成 image-to-text：DocVQA 输出答案，ChartQA 输出数值/文本答案，Screen2Words 输出 UI 描述，OCR-VQA 输出自然语言答案。论文还提出课程学习策略，将预训练和微调信号组合到单一模型中，使一个模型在多任务上接近或超过任务专用模型。</p>\n<p><strong>6. 与 Donut 的区别</strong></p>\n<p>Donut 主要面向文档理解，并用 SynthDoG/IIT-CDIP 等数据学习 OCR-free 文档读取。Pix2Struct 把预训练目标扩展到网页截图解析，覆盖 UI、表格、图文混排和文档等更广泛的 visually-situated language。它更强调跨领域统一，而不是只优化文档 OCR-free pipeline。</p>",
+      "quiz": {
+        "q": "Pix2Struct 使用网页截图到 HTML 的预训练任务，核心收益是什么？",
+        "options": [
+          "让模型只学习网页分类，不再需要文本 decoder",
+          "利用 Web 中像素渲染与 HTML 结构的天然对应关系，学习跨文档、UI、图表等领域的视觉语言结构",
+          "把所有输入先转换成 OCR token，提升 OCR 召回率",
+          "用固定分辨率强制统一所有任务的图像比例"
+        ],
+        "answer": 1,
+        "explain": "网页提供大规模截图和结构化 HTML 监督，Pix2Struct 通过 image-to-text 学到通用结构解析能力，并保持纯视觉输入。"
+      }
     },
     {
       "id": "got_ocr",
@@ -1147,13 +1261,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "document_ai",
       "motivation": "580M统一模型处理全类型",
-      "summary": "GOT-OCR2.0 的核心目标是：580M统一模型处理全类型。",
+      "summary": "GOT-OCR2.0 提出将文本、公式、表格、图表、乐谱、分子式和几何图形等人工光学信号统一视为“characters”的 OCR-2.0 范式，并用 580M 端到端模型生成 plain 或 formatted 结果。它将传统 OCR 从“文字识别”扩展为“通用光学符号解析”。",
       "keyPoints": [
-        "核心动机：580M统一模型处理全类型",
-        "演化来源：继承或改进自 donut",
-        "代表机构：StepFun"
+        "提出 General OCR Theory：把人造光学信号统一纳入 OCR 范畴，包括文本、数学/分子公式、表格、图表、乐谱、几何图形等",
+        "GOT 模型约 580M 参数，由高压缩视觉 encoder 和长上下文 decoder 构成",
+        "通过 prompt 控制输出格式，支持 plain OCR、formatted OCR、Markdown、TikZ、SMILES、Kern 等结构化结果",
+        "支持 scene/document、slice/whole-page 输入，并扩展到 dynamic resolution 与 multi-page OCR",
+        "支持交互式细粒度 OCR：可由坐标框或颜色提示指定区域识别",
+        "使用 LaTeX、Mathpix markdown-it、TikZ、Verovio、Matplotlib/Pyecharts 等渲染工具构造多类型 OCR-2.0 数据"
       ],
-      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"GOT-OCR2.0 框架\" src=\"https://arxiv.org/html/2409.01704v1/x2.png\" />\n<em>图：GOT 的三阶段训练框架。先用小语言模型适配视觉 encoder，再连接 Qwen-0.5B 注入通用 OCR-2.0 知识，最后扩展细粒度能力。</em></p>\n<p><img alt=\"GOT 数据引擎\" src=\"https://arxiv.org/html/2409.01704v1/x3.png\" />\n<em>图：GOT 使用多种渲染工具生成表格、公式、几何、乐谱、图表等训练数据，使统一模型覆盖更多“字符”类型。</em></p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
+      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"GOT-OCR2.0 框架\" src=\"https://arxiv.org/html/2409.01704v1/x2.png\" />\n<em>图：GOT 的三阶段训练框架。先用小语言模型适配视觉 encoder，再连接 Qwen-0.5B 注入通用 OCR-2.0 知识，最后扩展细粒度能力。</em></p>\n<p><img alt=\"GOT 数据引擎\" src=\"https://arxiv.org/html/2409.01704v1/x3.png\" />\n<em>图：GOT 使用多种渲染工具生成表格、公式、几何、乐谱、图表等训练数据，使统一模型覆盖更多“字符”类型。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># GOT-OCR2.0 统一 OCR 推理伪代码\ndef got_ocr(image_or_pages, mode=&quot;format&quot;, box=None, color=None):\n    prompt = build_prompt(mode=mode, box=box, color=color)\n\n    # dynamic resolution / multi-crop for high-resolution pages\n    crops = make_crops_if_needed(image_or_pages)\n    all_outputs = []\n    for crop in crops:\n        visual_tokens = high_compression_encoder(crop)\n        text = long_context_decoder.generate(\n            prompt=prompt,\n            visual_context=visual_tokens,\n            max_tokens=max_len,\n        )\n        all_outputs.append(text)\n\n    return merge_pages_or_crops(all_outputs)\n</code></pre>\n<h5>方法详解</h5>\n<p><strong>1. 动机与背景</strong></p>\n<p>传统 OCR-1.0 主要关注自然场景或文档中的文字识别，通常输出 plain text。但现代文档和人工视觉内容远不止文字：论文包含公式和表格，化学资料包含分子式，图表包含坐标与数值，乐谱包含音符结构。这些内容若拆成多个专用系统，工程复杂且输出格式不统一。</p>\n<p>GOT-OCR2.0 的理论主张是把所有人工设计的光学符号统一称为 characters，并训练一个端到端模型按 prompt 输出不同结构格式。这使 OCR 从文本检测/识别任务升级为通用文档/符号解析任务。</p>\n<p><strong>2. 模型结构</strong></p>\n<p>GOT 由高压缩视觉 encoder 和长上下文 decoder 组成。视觉 encoder 将整页或切片图像压缩成较短视觉 token，decoder 自回归生成目标格式：</p>\n<div class=\"kb-math kb-math-display\">p(\\mathbf{y}|I, q)=\\prod_{t=1}^{T}p(y_t|y_{&lt;t}, \\text{Enc}(I), q)</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">q</span> 是任务 prompt，例如 plain OCR、format OCR、区域 OCR 或指定输出格式。高压缩 encoder 是实用性的关键，因为 OCR 页面通常分辨率高、文字密集，视觉 token 过多会让 decoder 成本不可控。</p>\n<p><strong>3. 三阶段训练</strong></p>\n<p>第一阶段用较小的 OPT-125M decoder 预训练视觉 encoder，使其高效适配 OCR 任务。第二阶段将视觉 encoder 接到 Qwen-0.5B decoder，并注入更广泛的 OCR-2.0 数据。第三阶段不改视觉 encoder，继续定制区域级、颜色引导、动态分辨率、多页等能力。</p>\n<p>这种训练顺序的直觉是：先让视觉 encoder 学会读，再让语言 decoder 学会把读到的内容生成成目标结构，最后用 prompt 和特定数据扩展交互式能力。</p>\n<p><strong>4. 数据引擎与输出格式</strong></p>\n<p>GOT 的覆盖范围主要来自数据构造。论文使用多种渲染工具生成带标准答案的训练对：LaTeX/Markdown 用于表格和公式，TikZ 用于几何图形，Verovio 用于乐谱，Matplotlib/Pyecharts 用于图表。模型输出可由 prompt 控制为 Markdown、TikZ、SMILES、Kern 等格式。</p>\n<div class=\"key-point\">💡 关键：GOT 的统一性不只是多任务训练，而是把不同 OCR 目标都转成“图像 + prompt -&gt; 结构化文本”的生成问题。</div>\n<p><strong>5. 细粒度与高分辨率</strong></p>\n<p>GOT 支持两类交互式 OCR：坐标框指定区域、颜色指定区域。对于高分辨率或双页文档，模型使用 dynamic resolution/multi-crop，将页面切片识别后再合并输出；对于多页文档，则将多个页面结果组织为长上下文输出。</p>\n<p><strong>6. 与 Donut/Pix2Struct 的区别</strong></p>\n<p>Donut 强调 OCR-free 文档理解，Pix2Struct 强调截图到结构的视觉语言预训练；GOT 更进一步把 OCR 的对象范围扩展到所有人工光学符号，并围绕格式化输出、区域交互、高分辨率页面和多页文档做工程化扩展。它仍是生成式模型，因此格式稳定性和复杂长页的读序合并是关键挑战。</p>",
+      "quiz": {
+        "q": "GOT-OCR2.0 中 OCR-2.0 相比传统 OCR-1.0 的核心扩展是什么？",
+        "options": [
+          "只识别英文和中文纯文本",
+          "把公式、表格、图表、乐谱、分子式等人工光学信号统一纳入 OCR，并生成可控结构化格式",
+          "完全取消视觉编码器，只用语言模型补全文字",
+          "只做文本检测，不做识别"
+        ],
+        "answer": 1,
+        "explain": "GOT 将多种人工视觉符号都视为 characters，并通过 prompt 生成 Markdown、TikZ、SMILES、Kern 等格式化结果。"
+      }
     },
     {
       "id": "glm_ocr",
@@ -1167,13 +1295,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "document_ai",
       "motivation": "专用VLM文档解析领跑基准",
-      "summary": "GLM-OCR 的核心目标是：专用VLM文档解析领跑基准。",
+      "summary": "GLM-OCR 提出 0.9B 参数的专用多模态 OCR 模型，用 CogViT 视觉编码器、GLM 语言解码器、Multi-Token Prediction 和两阶段版面解析流水线，在文档解析、表格、公式和 KIE 上追求高精度与高吞吐的平衡。给定 metadata 中的 paper_url 是占位符，实际公开技术报告为 `https://arxiv.org/abs/2603.10910`。",
       "keyPoints": [
-        "核心动机：专用VLM文档解析领跑基准",
-        "演化来源：继承或改进自 got_ocr",
-        "代表机构：Zhipu AI"
+        "模型规模约 0.9B：0.4B CogViT visual encoder + 0.5B GLM language decoder",
+        "使用 lightweight cross-modal connector 和 token downsampling，将视觉特征高效接入语言解码器",
+        "引入 Multi-Token Prediction (MTP)，一次解码预测多个 token，提高确定性 OCR 任务的生成吞吐",
+        "系统采用两阶段 pipeline：PP-DocLayout-V3 做版面分析，GLM-OCR 对区域并行识别并生成 Markdown/JSON",
+        "训练包含多阶段 SFT、MTP loss 和稳定的全任务强化学习，用结构奖励提升格式和任务可靠性",
+        "在 OmniDocBench v1.5 报告 overall 94.62，并在表格解析、公式转写、文档解析、KIE 等任务上表现强"
       ],
-      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"GLM-OCR 架构与工作流\" src=\"https://arxiv.org/html/2603.10910v1/x3.png\" />\n<em>图：GLM-OCR 支持文档解析和 KIE 两类任务；文档解析模式先做 layout detection 和 region cropping，再并行执行区域级识别并输出 Markdown/JSON。</em></p>\n<p><img alt=\"GLM-OCR OmniDocBench 结果\" src=\"https://arxiv.org/html/2603.10910v1/x2.png\" />\n<em>图：GLM-OCR 在 OmniDocBench v1.5 上的整体表现，报告中强调 0.9B 专用模型对大规模通用 VLM 的效率优势。</em></p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
+      "detail": "<h5>核心架构图</h5>\n<p><img alt=\"GLM-OCR 架构与工作流\" src=\"https://arxiv.org/html/2603.10910v1/x3.png\" />\n<em>图：GLM-OCR 支持文档解析和 KIE 两类任务；文档解析模式先做 layout detection 和 region cropping，再并行执行区域级识别并输出 Markdown/JSON。</em></p>\n<p><img alt=\"GLM-OCR OmniDocBench 结果\" src=\"https://arxiv.org/html/2603.10910v1/x2.png\" />\n<em>图：GLM-OCR 在 OmniDocBench v1.5 上的整体表现，报告中强调 0.9B 专用模型对大规模通用 VLM 的效率优势。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># GLM-OCR 文档解析系统伪代码\ndef parse_document(page_image_or_pdf):\n    # Stage 1: layout-aware preprocessing\n    regions = pp_doclayout_v3_detect(page_image_or_pdf)\n    crops = crop_regions(page_image_or_pdf, regions)\n\n    # Stage 2: parallel region recognition\n    outputs = parallel_map(glm_ocr_region_recognize, crops)\n    markdown = assemble_reading_order(outputs, regions)\n    return markdown\n\ndef glm_ocr_region_recognize(crop, prompt=&quot;&lt;ocr&gt;&quot;):\n    v = cogvit_encoder(crop)\n    z = cross_modal_connector_downsample(v)\n    tokens = []\n    while not stop(tokens):\n        # MTP predicts several future tokens per decoding step\n        next_tokens = glm_decoder.mtp_generate(prompt, z, tokens)\n        tokens.extend(accept_tokens(next_tokens))\n    return structured_parse(tokens)\n</code></pre>\n<h5>方法详解</h5>\n<p><strong>1. 动机与背景</strong></p>\n<p>GOT-OCR2.0、Donut、Pix2Struct 等模型证明了生成式 OCR/文档解析可行，但生产场景还面临两个硬约束：一是文档解析需要稳定结构化输出和高吞吐，二是超大通用 VLM 成本高、延迟大，不适合大批量 PDF/票据/表格处理。</p>\n<p>GLM-OCR 的设计更工程化：不追求大模型通用能力，而是用小而专的 VLM 处理 OCR，并配合版面检测 pipeline 把复杂页面拆成可并行识别的区域。</p>\n<p><strong>2. 模型结构</strong></p>\n<p>GLM-OCR 基于 GLM-V encoder-decoder 架构。视觉侧是 CogViT encoder，语言侧是 GLM-0.5B decoder，中间通过轻量 connector 连接并下采样视觉 token：</p>\n<div class=\"kb-math kb-math-display\">\\mathbf{z} = \\text{Connector}(\\text{CogViT}(I))</div>\n<p>随后 decoder 生成目标序列：</p>\n<div class=\"kb-math kb-math-display\">p(\\mathbf{y}|I,q)=\\prod_t p(y_t|y_{&lt;t}, \\mathbf{z}, q)</div>\n<p>这种结构让模型保持生成式灵活性，同时把参数量控制在约 0.9B，便于本地部署和高并发服务。</p>\n<p><strong>3. Multi-Token Prediction</strong></p>\n<p>标准自回归 decoder 每步只预测一个 token，OCR 输出通常长且确定，逐 token 解码会成为吞吐瓶颈。GLM-OCR 引入 MTP：在同一隐藏状态上预测多个未来 token，并通过共享参数控制额外开销。简化表示为：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{MTP} = \\sum_{k=1}^{K} \\lambda_k \\cdot\n\\text{CE}(p(y_{t+k}|y_{\\le t}, I), y_{t+k})</div>\n<p>推理时可以一次接受多个高置信 token，减少 decoder 调用次数。报告中强调这对确定性 OCR 任务尤其适合，因为输出空间比开放式对话更可预测。</p>\n<p><strong>4. 两阶段系统 pipeline</strong></p>\n<p>文档解析模式先由 PP-DocLayout-V3 做版面分析，定位标题、正文、表格、公式、图片等区域；随后 GLM-OCR 对每个 crop 并行识别，最后按阅读顺序组装 Markdown。KIE 模式则可根据用户提供的 JSON schema 直接从视觉输入抽取结构化字段。</p>\n<div class=\"key-point\">💡 关键：GLM-OCR 不是完全端到端整页模型。它把 layout detection 外置为系统阶段，换取高分辨率复杂文档上的稳定读序、并行吞吐和格式控制。</div>\n<p><strong>5. 训练与奖励</strong></p>\n<p>公开资料描述 GLM-OCR 使用多阶段训练 recipe：先构建基础识别能力，再加入结构化文档解析、KIE、表格和公式等任务；MTP loss 提升解码效率；全任务强化学习通过格式、字段、表格结构等 reward 约束输出可靠性。对于 OCR，这类 reward 比开放聊天更容易定义，例如 JSON schema 合法性、表格结构匹配、公式语法正确性。</p>\n<p><strong>6. 结果与局限</strong></p>\n<p>技术报告称 GLM-OCR 在 OmniDocBench v1.5 overall 达到 94.62，并在表格 TEDS、文档解析、公式转写等指标上处于领先区间；吞吐对比中报告 PDF 输入约 1.86 pages/s。局限也来自两阶段架构：layout detector 出错会传递给识别阶段，跨页依赖、复杂多栏读序和极端低清/畸变文档仍可能失败。</p>",
+      "quiz": {
+        "q": "GLM-OCR 引入 Multi-Token Prediction (MTP) 的主要目的是什么？",
+        "options": [
+          "让视觉编码器直接输出 PDF 文件",
+          "一次预测多个未来 token，减少自回归 OCR 解码步数并提升吞吐",
+          "完全替代版面分析模型",
+          "把所有 OCR 任务改成闭集分类"
+        ],
+        "answer": 1,
+        "explain": "OCR 输出通常较确定且序列较长，MTP 通过多 token 预测降低逐 token 解码开销，在保持小模型规模的同时提升推理速度。"
+      }
     }
   ],
   "categories": {

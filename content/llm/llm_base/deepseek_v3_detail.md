@@ -1,160 +1,108 @@
-### DeepSeek-V3
+### DeepSeek-V3：大规模 MLA+MoE 语言模型
 
 ```yaml
 id: deepseek_v3
 name: DeepSeek-V3
-full_name: DeepSeek-V3: A 671B Mixture-of-Experts Language Model with Multi-head Latent Attention
-year: 2024
+full_name: 大规模 MLA+MoE 语言模型 (DeepSeek-V3)
+year: '2024.12'
 org: DeepSeek-AI
 paper_url: https://arxiv.org/abs/2412.19437
-category: architecture
-parent: DeepSeek-V2
-motivation: 通过多头潜在注意力(MLA)和DeepSeekMoE架构实现高效推理与训练，结合多Token预测(MTP)和FP8混合精度训练，以极低成本达到顶级性能
+category: sparse_moe
+parent: deepseek_v2
+motivation: 无辅助损失负载均衡
 ```
 
 #### 📝 一句话总结
-DeepSeek-V3 提出了多头潜在注意力（MLA）和 DeepSeekMoE 架构，结合无辅助损失的负载均衡策略与多 Token 预测（MTP）训练目标，在仅 14.8T tokens 上以约 $5.6M 的训练成本达到了与 GPT-4o 和 Claude-3.5-Sonnet 等顶级闭源模型相当的性能。
+DeepSeek-V3 在 DeepSeek-V2 的 MLA 和 DeepSeekMoE 基础上扩展到 671B 总参数，并提出无辅助损失的专家负载均衡策略，解决传统 MoE 依赖 auxiliary loss 时负载均衡信号与语言建模目标相互干扰的问题。
 
 #### 🎯 核心要点
-- **多头潜在注意力（MLA）**：将 KV 缓存压缩到极低维潜在空间（KV 压缩维 512，Query 压缩维 1536），大幅降低推理时的显存占用
-- **DeepSeekMoE 架构**：1 个共享专家 + 256 个路由专家，每个 Token 激活前 8 个专家（top-8 routing），总参数 671B，激活参数仅 37B
-- **无辅助损失的负载均衡**：引入动态偏置项（dynamic bias），在训练过程中自动调整专家选择倾向，避免了传统辅助损失对模型性能的损害
-- **多 Token 预测（MTP）**：每个位置同时预测未来 D=1 个 Token，提升数据效率与模型性能
-- **FP8 混合精度训练**：首次在超大规模 MoE 模型上验证 FP8 训练，提出细粒度量化策略（tile-wise 和 block-wise）和累加高精度提升机制
-- **极低训练成本**：完整预训练仅需 2.788M H800 GPU 小时（约 $5.576M），在 14.8T tokens 上完成
-- **61 层 Transformer**，hidden size 7168，128 个注意力头，128K 词表
-- **SFT + RL + 从 DeepSeek-R1 蒸馏**的对齐流水线
+- 671B 总参数、37B 每 token 激活参数，预训练 14.8T 高质量 tokens，完整训练约 2.788M H800 GPU hours。
+- 继续使用 MLA 压缩 KV cache，保持高效长上下文推理能力。
+- DeepSeekMoE 配置升级为每层 1 个共享专家、256 个路由专家，每个 token 激活 8 个路由专家。
+- 提出 auxiliary-loss-free load balancing：Top-K 选择时加入动态 bias，负载更新与主损失解耦。
+- 每个 token 最多路由到 4 个节点，并取消 token dropping，减少训练和推理行为不一致。
+- 加入 Multi-Token Prediction (MTP)，在 next-token 之外额外预测一个未来 token，训练后推理可直接丢弃 MTP 模块。
+- 支持 FP8 混合精度训练，激活使用 1x128 tile-wise 量化，权重使用 128x128 block-wise 量化，并用更高精度累加降低误差。
+- 训练系统采用 2048 张 H800、16-way pipeline parallelism、64-way expert parallelism、ZeRO-1 和 DualPipe 通信计算重叠。
 
 #### 🔬 深入细节
 
-##### 核心架构图
+![DeepSeek-V3 架构图](https://arxiv.org/html/2412.19437/x2.png)
+*图：DeepSeek-V3 的基础架构，沿用 MLA 与 DeepSeekMoE，并加入 MTP 训练目标。*
 
-![DeepSeek-V3 整体架构](https://arxiv.org/html/2412.19437v2/assets/x1.png)
-*图：DeepSeek-V3 的模型架构概览，展示了 MLA 注意力机制与 DeepSeekMoE FFN 层的集成，以及多 Token 预测的训练框架。*
+```python
+# DeepSeek-V3 MoE 层与无辅助损失负载均衡伪代码
+for step, batch in enumerate(pretraining_stream):
+    expert_load = zeros(num_routed_experts)
+    loss = 0
 
-##### 基础架构：Transformer 主干
+    for token in batch.tokens:
+        h = mla_attention(token.hidden, kv_latent_cache=True)
 
-DeepSeek-V3 采用 61 层 Transformer 架构，hidden size 为 7168。与标准 Transformer 的两点核心区别：
-1. **注意力层**使用多头潜在注意力（MLA）替代标准 Multi-Head Attention
-2. **FFN 层**使用 DeepSeekMoE 替代标准 FFN
+        # Sigmoid gating 得到原始专家亲和度；bias 只用于选择，不作为主损失梯度学习
+        affinity = sigmoid(router(h))              # shape: [256]
+        selection_score = affinity + balance_bias
+        selected = top_k(selection_score, k=8, node_limit=4)
 
-每个 Transformer Block 的结构为：`Input → MLA → Add&Norm → DeepSeekMoE → Add&Norm → Output`。
+        shared_out = shared_expert(h)
+        routed_out = 0
+        normalizer = sum(affinity[i] for i in selected)
+        for i in selected:
+            gate = affinity[i] / normalizer
+            routed_out += gate * routed_expert[i](h)
+            expert_load[i] += 1
 
-##### 1. 多头潜在注意力（MLA）
+        h = h + shared_out + routed_out
+        loss += next_token_ce(h, token.next_token)
+        loss += mtp_ce(h, token.future_token_2) * mtp_weight
 
-MLA 的核心动机是解决推理时的 KV 缓存灾难。在标准 MHA 中，每个 Token 需要缓存全部的 Key 和 Value 向量，当批量推理或长序列场景下显存占用巨大。
+    # 动态 bias 更新与反向传播解耦：过载专家降 bias，欠载专家升 bias
+    target = mean(expert_load)
+    for i in range(num_routed_experts):
+        if expert_load[i] > target:
+            balance_bias[i] -= gamma
+        elif expert_load[i] < target:
+            balance_bias[i] += gamma
 
-> **MLA 的创新**：引入低维潜在向量（latent vector）来压缩 Key 和 Value 的表示，将 KV 缓存从每个 Token 的 \(d_{model} \times n_{heads}\) 维压缩到仅需存储一个尺寸为 512 的潜在向量，解压缩矩阵则在计算时现场应用。
+    loss += tiny_sequence_balance_loss(batch)       # 防止单序列极端不均衡
+    optimizer.backward_and_step(loss)
+```
 
-**具体机制**：
-- 输入 hidden state 通过下投影矩阵 \(W^{DKV} \in \mathbb{R}^{d_{model} \times d_c}\) 压缩为维度 \(d_c = 512\) 的 KV 压缩潜在向量 \(c_t^{KV}\)
-- 从 \(c_t^{KV}\) 分别通过上投影矩阵恢复 Key 和 Value：
-  - \(k_t^C = W^{UK} c_t^{KV}\)，其中 \(W^{UK} \in \mathbb{R}^{d_c \times d_h n_h}\)
-  - \(v_t^C = W^{UV} c_t^{KV}\)，其中 \(W^{UV} \in \mathbb{R}^{d_c \times d_h n_h}\)
-- 对于 Query，同样引入压缩维度 \(d_c' = 1536\) 的潜在向量 \(c_t^Q\)，再通过上投影恢复
-- 注意力计算仍使用 RoPE（旋转位置编码），但 RoPE 施加在 Key 的解耦维度上，避免了与低秩压缩的矛盾
+DeepSeek-V3 的架构主线是“保留 V2 已验证的高效注意力和稀疏 FFN，同时把 MoE 负载均衡从损失函数里拿出来”。MLA 部分与 DeepSeek-V2 一致，用 \(c_t^{KV}=W^{DKV}h_t\) 压缩 KV，并用解耦 RoPE 保留位置编码可用性。这样 V3 在扩到 671B 参数后，推理时仍不需要为每个历史 token 缓存完整多头 \(K,V\)，否则 128K 级上下文和大 batch 服务会被显存限制。
 
-> **关键优势**：推理时每个 Token 仅需缓存一个 512 维的潜在向量，而非完整的 KV 矩阵。KV 缓存压缩比约为 \(2 \times n_h \times d_h / d_c\)，在 DeepSeek-V3 的配置（128 heads × 128 head dim）下，压缩比约 64 倍。
+MoE 规模比 V2 明显更大。每个 MoE 层有 1 个共享专家和 256 个路由专家，路由专家中每个 token 选 8 个，专家中间层维度为 2048。共享专家负责所有 token 都需要的通用能力，路由专家负责更细粒度的知识和模式。论文还限制每个 token 最多被发往 4 个节点，目的是在扩大专家数量时把跨节点 all-to-all 通信控制在可隐藏的范围内。
 
-##### 2. DeepSeekMoE 架构
+传统 MoE 常用辅助损失鼓励专家负载均匀，问题是这个损失会和语言建模目标竞争：模型可能为了均匀使用专家而降低本应出现的专家专化。DeepSeek-V3 的关键改动是为每个路由专家维护一个动态 bias \(b_i\)，Top-K 选择用 \(s_{i,t}+b_i\)，但门控权重仍来自原始亲和度 \(s_{i,t}\)。当某专家在当前 step 中过载，就降低它的 bias；低于平均负载，就提高它的 bias：
 
-DeepSeekMoE 在 DeepSeek-V2 的基础上进一步改进了专家路由设计：
+$$
+b_i \leftarrow b_i + \gamma\cdot\mathrm{sign}(T_{\mathrm{target}}-T_i)
+$$
 
-**专家配置**：
-- 1 个**共享专家**（Shared Expert），所有 Token 始终通过，捕获通用知识
-- 256 个**路由专家**（Routed Experts），每个 Token 通过门控机制选择 top-8 个激活
-- 每个专家的隐藏维度为 2048，总计 256 个路由专家 + 1 个共享专家
+这里的 bias 更新不通过反向传播进入语言模型损失，因此不会直接扭曲 token 到专家的语义匹配。论文在预训练配置中把 bias update speed \(\gamma\) 在前 14.3T tokens 设为 0.001，最后 500B tokens 设为 0。为了避免单条序列内部出现极端不均衡，V3 仍保留一个很小的 sequence-wise balance loss；但主要负载均衡压力由动态 bias 承担。
 
-**门控机制**：
-- 输入 hidden state 经过一个 sigmoid 门控网络，输出每个路由专家的亲和度得分
-- 选择得分最高的 8 个专家，计算加权组合：\(FFN_{MoE}(x) = \sum_{i \in TopK} g_i(x) \cdot E_i(x)\)，其中 \(g_i(x)\) 为 softmax 归一化后的专家权重
+V3 还取消了 V2 训练中的 token dropping。V2 需要在设备容量超限时丢弃低亲和度 token，以保证训练吞吐；V3 的辅助损失无关负载均衡和节点受限路由已经能把专家负载压住，因此可以让所有 token 都被处理。这个改变很重要，因为 token dropping 会制造训练和推理不一致：训练时某些 token 的专家计算缺失，推理时却不会缺失。
 
-> **总参数量**：671B 总参数，激活参数仅 37B（约 5.5%），使得单次前向计算的计算量仅相当于一个约 37B 的稠密模型。
+MTP 是另一个训练目标层面的改动。DeepSeek-V3 设置 prediction depth \(D=1\)，含义是除了主模型预测下一个 token，还通过一个顺序 MTP 模块额外预测再下一个 token。第 \(k\) 个 MTP 模块会把上一深度的 hidden state 与第 \(i+k\) 个 token 的 embedding 拼接、归一化、投影，再经过 Transformer block 输出预测分布。总损失可简化为：
 
-##### 3. 无辅助损失的负载均衡
+$$
+\mathcal{L}=\mathcal{L}_{\mathrm{next}}+\lambda\mathcal{L}_{\mathrm{MTP}}
+$$
 
-传统 MoE 模型通常引入辅助损失（auxiliary loss）来鼓励均匀的专家利用率，但这会引入一个与语言建模目标竞争的训练信号，损害模型性能。
+论文中 \(\lambda\) 在前 10T tokens 为 0.3，剩余 4.8T tokens 为 0.1。MTP 的好处是迫使 hidden state 携带更远一步的可预测信息，提升数据效率；推理时可以直接丢弃 MTP 模块，因此不增加主模型的常规生成成本，也可以把它改作 speculative decoding 的草稿模块。
 
-DeepSeek-V3 的创新方案：
+在系统层面，DeepSeek-V3 的 FP8 训练和 DualPipe 同样关键。FP8 让计算和存储更便宜，但大模型训练容易被量化误差毁掉。V3 对激活采用 1x128 tile-wise scaling，对权重采用 128x128 block-wise scaling，并把部分累加提升到更高精度，缓解 H800 Tensor Core FP8 GEMM 累加精度不足的问题。训练框架使用 16-way PP、64-way EP 和 ZeRO-1，不使用昂贵的 tensor parallelism；DualPipe 通过把 attention、all-to-all dispatch、MLP、all-to-all combine 以及反向计算重排，尽量隐藏跨节点专家并行带来的通信开销。
 
-> **动态偏置机制**：为每个路由专家维护一个可学习的偏置项 \(b_i\)，在 top-K 选择时，实际使用的得分为 \(g_i(x) + b_i\)。训练过程中动态调整偏置：对过载的专家降低偏置，对使用不足的专家提高偏置。这种调整与主损失函数完全解耦，避免了辅助损失对模型质量的负面影响。
-
-具体更新规则：
-- 监控每个 step 中各专家的 token 分配数
-- 当某专家处理的 token 数超过平衡值时，将其偏置降低一个小步长 \(\gamma\)
-- 当低于平衡值时，将其偏置提高同样步长
-- 加上约束 \(\sum b_i = 0\) 保证调整的零均值性
-
-##### 4. 多 Token 预测（MTP）
-
-MTP 是 DeepSeek-V3 训练的另一关键创新：
-
-> **核心思想**：除了预测下一个 token 外，模型还同时预测再下一个 token（即 D=1 深度）。这迫使模型学习更远期规划，提升对长程依赖的建模能力。
-
-**实现方式**：
-- 每个 Transformer Block 的 hidden state 额外输入到独立的 MTP 模块
-- MTP 模块使用一个简单的 Transformer 层（cross-attention 形式），以上一层的 hidden state 和当前 token 的 embedding 为输入
-- 输出预测下一个位置的 token
-- 额外的预测头与主预测头共享 embedding 层，减少参数冗余
-
-> **训练损失**：总损失为 \(L = L_{main} + \lambda L_{MTP}\)，其中 \(\lambda\) 为 MTP 损失的权重（通常设为 0.3）。
-
-##### 5. FP8 混合精度训练
-
-DeepSeek-V3 是**首个**在超大规模 MoE 模型上成功验证 FP8 混合精度训练的实践：
-
-**细粒度量化策略**：
-- 对**激活**采用 **1×128 tile-wise 量化**（沿 token 维度分组），以 token 为单位计算缩放因子
-- 对**权重**采用 **128×128 block-wise 量化**，以 block 为单位计算缩放因子
-- 这种细粒度策略显著减少了量化误差，特别是在异常值较多的激活中
-
-**累加高精度提升**：
-- 矩阵乘法（GEMM）在 FP8 精度下执行
-- 但累加器（accumulator）保留在更高精度（BF16 或 FP32），避免下溢
-- 通过 CUDA 定制 kernel 实现高效的 FP8 GEMM + FP32 累加
-
-> **训练效率**：FP8 混合精度使计算吞吐量提高约 2 倍（相比 BF16），显存占用降低约 40%。
-
-##### 6. 训练超参数与计算成本
-
-| 参数 | 值 |
-|------|-----|
-| 总参数量 | 671B |
-| 激活参数量 | 37B |
-| 层数 | 61 |
-| Hidden Size | 7168 |
-| 注意力头数 | 128 |
-| 注意力头维度 | 128 |
-| 词表大小 | 128,000 |
-| 预训练 Token 量 | 14.8T |
-| 优化器 | AdamW (β1=0.9, β2=0.95) |
-| 学习率调度 | Warmup + Cosine Decay |
-| 最大学习率 | 2.4e-4 |
-| 批次大小 | 3072 序列 / batch |
-| 序列长度 | 4K → 32K → 128K 逐步扩展 |
-| GPU | 2048 块 NVIDIA H800 |
-| 训练时间 | 约 3.7 周 |
-| 总 GPU 小时 | 2.788M H800 小时 |
-| 估计训练成本 | $5.576M |
-
-##### 7. 对齐训练与蒸馏
-
-预训练完成后，DeepSeek-V3 采用 SFT + RL 的对齐流水线：
-- **SFT 阶段**：在高质量指令数据上微调，包括代码、数学、写作、对话等
-- **RL 阶段**：使用基于人类反馈和 AI 反馈的奖励模型进行强化学习
-- **DeepSeek-R1 蒸馏**：从 DeepSeek-R1（推理专用模型）蒸馏推理能力到 V3，提升数学和代码任务的 Chain-of-Thought 性能
-
-> **核心创新**：V3 对齐阶段引入了"从推理模型中蒸馏"这一步骤，将 R1 的长链推理能力迁移至通用 V3 模型，同时保持了模型在一般对话任务上的泛化性。
+因此，DeepSeek-V3 的方法贡献可以概括为三层协同：MLA 解决推理 KV cache，DeepSeekMoE 解决参数规模和计算成本，auxiliary-loss-free balancing 解决大规模 MoE 的专家负载与模型质量冲突。再叠加 MTP、FP8 和 DualPipe，论文才得以用 14.8T tokens 训练 671B 参数模型，并把完整训练成本控制在约 2.788M H800 GPU hours。
 
 #### 🧪 练习题
 
 ```yaml
-question: "DeepSeek-V3 的 MLA 机制主要通过什么方式降低推理时的显存占用？"
+question: "DeepSeek-V3 的无辅助损失负载均衡为什么比传统 MoE auxiliary loss 更适合大规模模型？"
 options:
-  - "减少注意力头的数量"
-  - "将 KV 缓存压缩到低维潜在空间，仅存储压缩后的潜在向量"
-  - "使用更小的词表"
-  - "减少模型层数"
+  - "它把所有专家都改成 dense FFN，避免了路由问题"
+  - "它用动态 bias 调整 Top-K 选择，负载控制不直接通过主损失反向传播，从而减少对语言建模目标的干扰"
+  - "它只在推理阶段启用，因此不会影响训练"
+  - "它通过减少注意力头数降低 KV cache"
 answer: 1
-explain: "MLA 通过下投影矩阵将 KV 表示压缩为维度仅 512 的潜在向量，推理时仅需缓存该压缩向量，而非完整的多头 KV 矩阵，从而大幅降低 KV 缓存显存占用（压缩比约 64 倍）。"
+explain: "V3 的 balance bias 根据专家负载单独更新，用于影响路由选择，但不作为语言建模损失中的强辅助项优化，因此更少破坏专家专化和主任务性能。"
 ```

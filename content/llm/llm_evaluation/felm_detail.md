@@ -1,4 +1,4 @@
-### FELM
+### FELM：细粒度事实错误评测 (Factuality Evaluation of LLMs)
 
 ```yaml
 id: felm
@@ -13,77 +13,72 @@ motivation: 跨科学法律金融的细粒度事实检测
 ```
 
 #### 📝 一句话总结
-
-FELM 提出细粒度事实性评测基准，把 LLM 回复切分为语义片段并逐段标注真假、错误类型和参考链接，用来评估事实性检测器能否定位具体错误而非只给整段文本打分。
+FELM 提出了一个面向 LLM 长文本输出的细粒度事实性评测基准，用 segment 级标注、错误类型和参考链接解决传统事实性评测只看整体答案、只覆盖世界知识的问题。它不是训练一个新的事实检测器，而是给事实检测器本身提供跨领域、可定位、可解释的元评测标准。
 
 #### 🎯 核心要点
-
-- 包含 847 个实例、5 个领域和 4,427 个片段级标签
-- 覆盖 world knowledge、science/technology、writing/recommendation、reasoning、math 等多样任务
-- 每个回复被拆成 segment，标注 factuality label、错误原因、错误类型和支持/反驳链接
-- 评估对象是 factuality evaluator，包括普通 LLM、检索增强 LLM 和 CoT 辅助判断
-- 论文发现检索能提升事实判断，但现有 LLM 对细粒度错误检测仍远不可靠
-- 指标关注 F1 与 Balanced Accuracy，避免只偏向多数“正确片段”
+- 覆盖 5 类事实性场景：World Knowledge、Science and Technology、Writing/Recommendation、Reasoning、Math
+- 数据粒度采用 segment 而非整段 response：每个回答被切分为可直接高亮的文本片段
+- 标注内容不仅包含正确/错误标签，还包含错误类型、错误原因和支持或反驳该片段的 reference links
+- 数据构造流程为 Prompt Collection → ChatGPT Response Generation → Response Segmentation → Human Annotation/Verification
+- 错误类型包括 knowledge error、reasoning error、irrelevant error、fooled error，用于区分知识幻觉、推理链错误、答非所问和被问题前提误导
+- 评测对象包括 vanilla LLM judge、CoT judge、retrieval-link judge、retrieval-doc judge，以及 segment-based 与 claim-based 两种输出格式
+- 指标同时看 segment-level 与 response-level，避免只判断“整段是否有错”而无法定位具体错误
 
 #### 🔬 深入细节
 
-![FELM 各领域样例](https://raw.githubusercontent.com/hkust-nlp/felm/main/image/felm_examples.png)
-*图：FELM 官方仓库中的跨领域样例，展示回复片段、标签和参考证据。*
+![FELM 事实性评测示意图](https://hkust-nlp.github.io/felm/static/images/felm_examples.png)
+*图：FELM 的目标输出形式是直接在 LLM 回答中标出错误 span，并给出解释与参考来源。*
+
+FELM 的核心动机是：LLM 事实错误不再只发生在 Wikipedia 风格的实体问答中，也会出现在科学论文引用、数学计算、推荐理由、推理步骤和开放写作里。传统 factuality benchmark 常把任务简化为“给定 claim 和证据，判断 entailment”，或者只在 summarization / QA 中判断整段回答是否可信。FELM 把问题重新定义为面向用户的“错误定位”：用户真正需要知道的是哪个片段错、为什么错、有什么来源能证明它错，而不是只得到一个 response-level 的二分类标签。
+
+FELM 因此选择 segment 作为基本单位。一个回答先被拆成若干语义自洽的文本片段，片段拼接后必须还原原始回答；标注者再对每个片段给出 factual / non-factual 标签。segment 比 response 更可解释，因为它能直接映射回用户看到的文本；segment 又比 atomic claim 更贴近产品形态，因为 claim extraction 虽有利于自动判断，但抽出的原子事实常不能直接高亮原文。论文实验也指出 claim-based evaluator 往往更强，因此合理的检测器可以“内部抽 claim，外部映射回 segment”。
+
+数据构造上，FELM 从 TruthfulQA、MMLU、GSM8K、MATH、Quora、在线错误案例、ChatGPT 自生成问题和作者手写问题中收集 prompts，再用 ChatGPT 在 zero-shot 设置下生成回答。随后对回答做 segment 切分，并由人工标注每个 segment 的事实性、错误类型、错误解释和参考链接。论文表格统计的规模为 847 个样本、4,425 个 segment，整体错误率约三分之一；这种规模不追求海量，而强调跨场景覆盖和标注密度。
+
+FELM 的评测可抽象为 segment 集合上的二分类问题。给定问题 \(q\)、LLM 回答 \(r\)，切分器得到 \(S=\{s_1,\dots,s_n\}\)，人工标签为 \(y_i\in\{0,1\}\)，其中 \(1\) 表示该 segment 含事实错误。事实检测器 \(E\) 输出 \(\hat{y}_i=E(q,s_i,\mathcal{R})\)，\(\mathcal{R}\) 可以为空、reference links 或检索文档。segment-level F1 衡量错误片段定位能力：
+
+$$
+P=\frac{TP}{TP+FP},\quad R=\frac{TP}{TP+FN},\quad F1=\frac{2PR}{P+R}
+$$
+
+response-level 标签则由 segment 聚合得到：
+
+$$
+Y = \mathbb{1}\left[\sum_i y_i > 0\right],\qquad \hat{Y}=\mathbb{1}\left[\sum_i \hat{y}_i > 0\right]
+$$
+
+这组设计的关键是把“发现事实错误”和“定位事实错误”拆开。一个检测器可能 response-level 很强，只要知道整段有问题即可；但如果它不能指出哪个 segment 有错，在真实应用中仍难以帮助用户修正回答。FELM 用 segment-level F1/precision/recall 约束这种定位能力，同时用 response-level 指标保留传统风险告警能力。
 
 ```python
-# FELM 事实性检测评测伪代码
-for item in felm:
-    segments = item.segmented_response
-    for seg, gold_label, refs in zip(segments, item.labels, item.ref):
-        evidence = retrieve(seg) if evaluator_uses_retrieval else refs
-        pred_label = evaluator.judge(
-            prompt=item.prompt,
-            response_segment=seg,
-            context=evidence,
-            require_explanation=True,
-        )
-        update_confusion_matrix(pred_label, gold_label)
+# FELM 数据构造与评测伪代码
+for domain in ["world_knowledge", "science_tech", "writing_recommendation", "reasoning", "math"]:
+    prompts = collect_prompts(domain, sources=["benchmarks", "online", "ChatGPT", "manual"])
+    for q in prompts:
+        response = chatgpt_generate(q, setting="zero-shot")
+        segments = split_into_semantic_segments(response)
+        for s in segments:
+            label, error_type, reason, refs = human_annotate(q, s)
+            save(q, response, s, label, error_type, reason, refs)
 
-f1 = compute_f1(error_class="factual_error")
-balanced_acc = compute_balanced_accuracy()
-report_by_domain(f1, balanced_acc)
+# evaluator 可以是 vanilla LLM、CoT LLM、retrieval-link/doc LLM 或 claim-based pipeline
+for sample in FELM:
+    pred_error_segments = evaluator(sample.question, sample.segments, sample.references)
+    score_segment_level(pred_error_segments, sample.gold_error_segments)
+    score_response_level(any(pred_error_segments), any(sample.gold_error_segments))
 ```
 
-##### 动机与背景
+FELM 的实验设置也体现了它的“评测事实检测器”定位。论文比较了 Vicuna-33B、ChatGPT、GPT-4 等 LLM judge，并测试了四类增强：直接判断、加入 chain-of-thought、只给 reference links、给检索文档内容。结论很明确：检索增强通常能提升事实判断，CoT 不一定稳定有益，而当前 LLM 即使很强也远未达到可靠检测所有事实错误的水平。尤其在数学和推理场景中，错误可能来自中间步骤而非外部知识，reference retrieval 的帮助有限。
 
-幻觉检测常被简化为“整段回答是否有错”的二分类，但真实应用中的错误往往只出现在某个句子、数字、实体或推理步骤上。整段标签会掩盖这种局部性：一个回复可能大部分正确，只在关键数字上错；也可能整体方向错误但含有若干真实陈述。
-
-FELM 的核心改进是 segment-level annotation。标注者先把 ChatGPT 回复拆成可独立核查的语义片段，再判断每个片段是否事实正确，并记录支持或反驳证据。这样评估器必须指出具体哪一段错，不能靠笼统的“这段回答不可信”过关。
-
-##### 核心机制
-
-FELM 的一个数据点包含 prompt、response、segmented_response、labels、comment、type、ref 等字段。标签是片段级的布尔值，错误片段还带有错误类型和解释。评估器输出同样被映射为片段级预测，再计算 F1 和 Balanced Accuracy。
-
-这种设计对应一个细粒度判别函数：
-
-$$\hat{y}_i = f_\theta(q, s_i, e_i)$$
-
-其中 \(q\) 是原始问题，\(s_i\) 是第 \(i\) 个回复片段，\(e_i\) 是参考证据或检索结果。评估器不仅要理解片段，还要判断它是否被证据支持。
-
-##### 检索与 CoT 的作用
-
-FELM 特别比较了 vanilla LLM、retrieval-augmented LLM 和 CoT 设置。检索的作用是给模型外部证据，降低凭记忆判断的错误率；CoT 的作用是让模型显式比较陈述与证据。但如果检索返回噪声文档，或模型不能严格根据证据裁决，检测结果仍会不稳定。
-
-> 💡 关键：FELM 评估的是“事实性评估器”的能力，不是直接评估被生成回复的模型能力。
-
-##### 与 HaluEval 的区别
-
-HaluEval 主要测试模型能否识别样本整体是否幻觉，适合衡量二分类检测能力；FELM 更进一步要求定位到片段级，并给出错误类型与证据链。因此 FELM 更适合开发可解释的事实核查器、检索增强质检器和细粒度模型监控系统。
+> 💡 关键：FELM 的贡献不是“更大的幻觉数据集”，而是把事实评测输出规范化为可定位、可解释、可引用的细粒度结构。它要求检测器不仅说“有错”，还要说明“哪一段错、错在哪里、依据是什么”。
 
 #### 🧪 练习题
-
 ```yaml
-question: "FELM 相比整段幻觉检测基准的关键改进是什么？"
+question: "FELM 为什么优先采用 segment-level 标注，而不是只做 response-level 标注？"
 options:
-  - "只评测数学题"
-  - "把回复切分为片段并逐段标注事实性、错误类型和证据"
-  - "完全取消人工标注"
-  - "只用模型自评作为最终分数"
-answer: 1
-explain: "FELM 的核心是 segment-level factuality annotation，能定位局部事实错误并评估检测器的细粒度判断能力。"
+  - "因为 segment-level 可以直接定位并高亮具体事实错误"
+  - "因为 segment-level 可以完全避免人工标注"
+  - "因为 segment-level 不需要参考链接"
+  - "因为 segment-level 只适用于数学题"
+answer: 0
+explain: "FELM 的目标是构建可解释的事实性评测，segment-level 能把错误映射回原文片段，比 response-level 的整体二分类更适合用户理解和修正。"
 ```

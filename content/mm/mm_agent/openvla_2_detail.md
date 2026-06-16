@@ -3,81 +3,132 @@
 ```yaml
 id: openvla_2
 name: OpenVLA 2.0
-full_name: "开源VLA 2.0 (OpenVLA 2.0)"
-year: "2026"
-org: "Stanford"
-paper_url: "https://robotwale.com/openvla-2-released-with-improved-generalisation/"
-category: "frontier_2026"
-parent: "openvla"
-motivation: "自适应推理模块提升泛化性30%"
+full_name: 开源VLA 2.0 (OpenVLA 2.0)
+year: '2026'
+org: Stanford
+paper_url: https://robotwale.com/openvla-2-released-with-improved-generalisation/
+category: frontier_2026
+parent: openvla
+motivation: 自适应推理模块提升泛化性30%
 ```
 
 #### 📝 一句话总结
 
-OpenVLA 2.0 条目对应的 release 信息强调在 OpenVLA 基础上引入自适应推理、多机器人协作和低延迟边缘推理，以提升机器人跨任务泛化。由于清单链接是新闻稿而非正式论文，方法细节可用 OneTwoVLA 这类自适应推理 VLA 论文来理解其核心机制：统一模型在关键时刻显式推理，其余时刻直接输出动作。
+OpenVLA 2.0 条目描述的是在 OpenVLA 基础上加入自适应推理、低延迟动作生成和多机器人协作的升级方向，核心目标是在保留开源 VLA 泛化能力的同时，让机器人只在关键状态显式推理、在普通控制步快速输出动作。
 
 #### 🎯 核心要点
 
-- OpenVLA 2 release 信息声称相对 OpenVLA 1.0 有约 30% 任务泛化提升
-- 关键技术方向包括 Adaptive Reasoning、Multi-Robot Coordination、Low-Latency Inference
-- 自适应推理思想对应“什么时候需要想、什么时候直接做”的模式选择，而不是每一步都生成长推理
-- 可参考 OneTwoVLA 的统一 System One/System Two 模型：同一 VLA 同时具备 reasoning mode 和 acting mode
-- 使用特殊决策 token 在推理时选择进入 `[BOR]` reasoning 或 `[BOA]` action chunk 生成
-- 通过具身推理数据与机器人数据共同训练，提升长程规划、错误恢复、人机交互和开放世界视觉定位
+- 继承 OpenVLA 路线：视觉观测和语言指令进入 VLA backbone，模型输出机器人动作或动作块
+- 清单来源声称通过 Adaptive Reasoning 模块提升约 30% 泛化性，但给定链接是新闻页而非正式论文
+- 自适应推理的核心是 mode gate：在 plan/reason 与 act 两种模式之间动态切换
+- 低延迟执行依赖 action chunking 或并行动作解码，避免每个控制步都自回归生成长 token 序列
+- 泛化能力来自大规模视觉语言预训练、跨 embodiment 机器人轨迹和关键节点的显式任务状态更新
+- 多机器人协作可建模为共享高层任务计划、按机器人能力和局部观测分配子目标，再由各自动作头闭环执行
+- 与 OpenVLA 1.0 的主要差别在于：1.0 偏“指令+观测→动作 token”，2.0 条目强调“何时推理、何时动作、如何协调”
 
 #### 🔬 深入细节
 
 ##### 框架总览
 
-![自适应推理 VLA 总览](https://arxiv.org/html/2505.11917v2/x1.png)
-*图：OneTwoVLA 的统一 reasoning/acting 框架，可作为理解 OpenVLA 2.0 自适应推理模块的公开论文参照。*
+![OpenVLA-OFT 框架图](https://openvla-oft.github.io/static/images/openvla_oft_figure_1.jpeg)
+*图：OpenVLA-OFT 官方项目图展示了 OpenVLA 系列从基础 VLA 到高频控制策略的优化方向，包括连续动作表示、action chunking 和更快的动作解码。*
 
-清单给出的 `paper_url` 是新闻稿，不是可复现实验论文；RobotWale 页面提到 OpenVLA 2 引入 Adaptive Reasoning、Multi-Robot Coordination 和 Low-Latency Inference。为了满足论文精读的机制解释，下面以公开论文 OneTwoVLA 的自适应推理 VLA 设计作为方法参照，但 YAML 元信息保持清单原样。
+截至 2026-06-16，清单中的 OpenVLA 2.0 `paper_url` 不是 Stanford 官方论文链接；公开、可复现的 Stanford OpenVLA 系列论文包括 OpenVLA 和 OpenVLA-OFT。下面的精读保留清单元信息，并把“自适应推理模块”写成 OpenVLA 系列可落地的通用机制：在 OpenVLA/OFT 策略外加入 mode gate 和任务记忆，使模型在关键时刻生成推理，在普通控制步输出低延迟动作块。
 
-##### 自适应推理伪代码
+##### 自适应 VLA 伪代码
 
 ```python
-# Adaptive reasoning VLA 的通用推理流程
-reasoning_state = None
-history = []
+# OpenVLA 2.0 式自适应推理 + 动作块执行的抽象流程
+task_memory = None
+robot_states = init_robot_states()
 
-while not task_finished:
-    obs = capture_multiview_images()
-    prefix = build_prefix(obs, instruction, history, reasoning_state)
-    decision = vla.predict_decision_token(prefix)  # [BOR] or [BOA]
+while not all_tasks_done(robot_states):
+    observations = {r: capture_obs(r) for r in robots}
 
-    if decision == "[BOR]":
-        reasoning_state = vla.generate_text_reasoning(prefix)
-        history.append(("reason", reasoning_state))
+    # 高层门控：判断是否需要重新规划、纠错或协调
+    mode = vla.predict_mode(
+        instruction=user_instruction,
+        observations=observations,
+        task_memory=task_memory,
+        recent_failures=detect_failures(robot_states),
+    )
+
+    if mode == "reason":
+        task_memory = vla.generate_reasoning(
+            instruction=user_instruction,
+            observations=observations,
+            previous_memory=task_memory,
+        )
+        subgoals = coordinator.assign_subgoals(task_memory, robots)
     else:
-        action_chunk = vla.generate_action_chunk(prefix, proprioception)
-        execute_robot_actions(action_chunk)
-        history.append(("act", action_chunk))
+        for robot in robots:
+            action_chunk = vla.decode_action_chunk(
+                observation=observations[robot],
+                proprioception=robot_states[robot],
+                subgoal=subgoals[robot],
+                task_memory=task_memory,
+            )
+            execute(robot, action_chunk)
+            robot_states[robot] = update_state(robot)
 ```
 
 ##### 方法细节
 
-OpenVLA 一类 VLA 模型把视觉、语言和动作统一到一个策略里，但第一代模型通常更偏反应式：看当前观测和指令，直接输出动作。长程操作、错误恢复和开放世界物体泛化需要更强的显式推理；但如果每一步都调用大型推理模块，延迟又会显著上升，尤其不适合机器人闭环控制。
+OpenVLA 1.0 的核心范式是把机器人控制改写成视觉语言上下文中的动作预测：图像编码器提供空间和语义特征，语言模型接收指令和视觉 token，最后生成离散动作 token。这个设计开源、通用、可微调，但在长程任务中容易遇到两个瓶颈：一是每一步都直接反应式出动作时，策略可能忘记高层任务状态；二是如果每一步都让大模型长推理，又会拖慢闭环控制频率。
 
-自适应推理的核心是让策略学习模式切换。通常机器人任务中只有少数关键节点需要慢思考：开始任务时规划步骤，完成一个子任务后更新计划，检测到抓取失败时恢复，遇到人类插话或指令歧义时澄清。其余高频控制步骤应直接用最近一次推理结果生成 action chunk，以保持低延迟。
+自适应推理模块的目标就是解决这个权衡。设机器人在时刻 \(t\) 的观测为 \(o_t\)，语言指令为 \(x\)，历史任务记忆为 \(r_{<t}\)。模型先预测一个模式变量：
 
-OneTwoVLA 给出了一个清晰实现：同一模型既能输出自然语言 reasoning，也能输出连续动作 chunk。模型先预测决策 token，若为 `[BOR]` 就进入 reasoning mode，生成场景描述、历史摘要、任务计划和下一步指令；若为 `[BOA]` 就进入 acting mode，根据多视角图像、机器人本体状态和最新 reasoning 生成动作块。这样避免了 dual-system 中高层 VLM 与低层 VLA 互不了解、通信延迟和指令过期的问题。
+$$
+m_t\sim p_\theta(m\mid o_{\le t},x,r_{<t}),\qquad m_t\in\{\text{reason},\text{act}\}
+$$
 
-训练数据也要同时支持两种模式。轨迹被切成 reasoning intervals 和 acting intervals：reasoning intervals 出现在子任务完成、错误检测或人机交互等关键点，监督模型输出 `[BOR]` 和推理文本；acting intervals 则监督 `[BOA]` 和动作序列。具身推理中心的视觉语言数据还会和机器人数据共同训练，使模型能从互联网尺度图像/文本中获得物体属性、空间关系和语义目标的泛化能力。
+当 \(m_t=\text{reason}\) 时，模型更新任务记忆 \(r_t\)，例如生成子目标、错误解释、约束检查或多机器人分工；当 \(m_t=\text{act}\) 时，模型直接输出动作块：
 
-如果把它映射回 OpenVLA 2.0 release 的三项方向：Adaptive Reasoning 对应上述模式切换；Low-Latency Inference 对应多数时间处于 acting mode 并输出 action chunk；Multi-Robot Coordination 则可理解为多个机器人共享高层语言-视觉推理模型，但在各自硬件上执行低延迟动作头或适配器。
+$$
+\hat{A}_t=g_\theta(o_t,x,r_t,q_t)\in\mathbb{R}^{H\times d_a}
+$$
 
-> 💡 关键：自适应推理不是“给 VLA 加更多 CoT”这么简单，而是把推理当作稀疏触发的控制变量，在任务关键点提供计划更新，在普通控制步保持动作生成速度。
+其中 \(q_t\) 是机器人本体状态，\(H\) 是 action chunk 长度，\(d_a\) 是动作维度。这样，显式推理只在状态切换、失败恢复、指令歧义、跨机器人协调等关键节点触发，而不是在每个 20-50Hz 控制步都触发。
+
+训练目标可以写成一个混合损失：
+
+$$
+\mathcal{L}
+=\mathcal{L}_{mode}
++\lambda_r\mathbb{1}[m_t=\text{reason}]\mathcal{L}_{reason}
++\lambda_a\mathbb{1}[m_t=\text{act}]\lVert \hat{A}_t-A_t^\star\rVert_1
+$$
+
+其中 \(\mathcal{L}_{mode}\) 监督何时推理，\(\mathcal{L}_{reason}\) 监督高层推理文本或结构化计划，最后的 L1 项来自 OpenVLA-OFT 式连续动作学习。如果沿用 OpenVLA 1.0 的离散动作 token，也可以把动作项替换为动作 token 交叉熵：
+
+$$
+\mathcal{L}_{act}=-\sum_{h=1}^{H}\log p_\theta(a_{t+h}^\star\mid o_t,x,r_t,a_{<t+h}^\star)
+$$
+
+这种设计的直觉是：推理负责“任务状态”和“为什么这样做”，动作块负责“接下来几步怎么做”。对机器人来说，许多连续控制步只是沿着同一子目标移动夹爪或底盘，不需要重新思考；但一旦检测到抓取失败、目标物不在预期位置、另一个机器人占用了路径，就应重新进入 reason 模式。
+
+多机器人协作可以在同一框架中表示。给定全局任务 \(x\) 和机器人集合 \(\mathcal{R}\)，高层协调器根据机器人能力 \(c_i\)、局部观测 \(o_t^{(i)}\) 和当前任务记忆 \(r_t\) 分配子目标：
+
+$$
+\{g_t^{(i)}\}_{i\in\mathcal{R}}
+=\operatorname{Coord}_\theta(x,r_t,\{o_t^{(i)},c_i\}_{i\in\mathcal{R}})
+$$
+
+每个机器人再执行自己的条件策略 \(\pi_\theta(a^{(i)}\mid o_t^{(i)},g_t^{(i)},r_t)\)。这比让一个单体策略直接输出所有机器人动作更可扩展，因为高层语言计划可以共享，而底层动作头可以按 embodiment 适配。
+
+与 OpenVLA 1.0 相比，OpenVLA 2.0 条目强调的是系统层升级：从单步动作 token 预测，转向“任务记忆 + 稀疏推理 + 动作块 + 协调器”的闭环结构。它的收益主要来自两个方向：泛化上，reason 模式能显式检查语义约束和失败原因；效率上，act 模式能连续执行多个低层动作，减少大模型调用次数。
+
+> ⚠️ 注意：由于缺少正式 OpenVLA 2.0 论文，约 30% 泛化提升应视作发布页说法，而不是这里能独立复现实验表格的论文结论。可复现的技术支撑主要来自 OpenVLA 与 OpenVLA-OFT 的公开论文、代码和项目页。
 
 #### 🧪 练习题
 
 ```yaml
-question: "自适应推理 VLA 相比每一步都显式推理的主要优势是什么？"
+question: "自适应推理 VLA 为什么不在每个控制步都生成长推理？"
 options:
-  - "完全去掉视觉输入"
-  - "只在关键节点生成推理，其余步骤直接输出动作，从而兼顾长程规划和低延迟控制"
-  - "把所有动作都改成文本摘要"
-  - "不再需要机器人示范数据"
+  - "因为机器人任务不需要视觉输入"
+  - "因为多数控制步只需执行既定子目标，长推理会增加延迟；关键节点再推理可以兼顾规划和实时控制"
+  - "因为动作块不能表示连续动作"
+  - "因为多机器人协作只能由规则系统完成"
 answer: 1
-explain: "机器人闭环控制需要低延迟，但长程任务又需要规划；自适应推理通过模式切换把两者结合起来。"
+explain: "自适应推理的核心是稀疏触发：在失败恢复、子目标切换或协调时更新计划，在普通控制步快速输出动作块。"
 ```

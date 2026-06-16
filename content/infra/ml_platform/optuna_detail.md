@@ -14,58 +14,84 @@ motivation: Define-by-run接口，支持高效剪枝与超参搜索
 
 #### 📝 一句话总结
 
-Optuna 提出 define-by-run 的超参数优化框架，让搜索空间由普通 Python 控制流动态构造，并结合 pruning 和 sampler 高效探索复杂机器学习实验配置。
+Optuna 提出了面向超参数优化的 define-by-run 框架，让搜索空间在 Python 训练代码执行时动态生成，并用可插拔 sampler、pruner 与共享 storage 把单机调参扩展到异步分布式搜索。
 
 #### 🎯 核心要点
 
-- define-by-run API 允许在 objective 执行过程中按条件创建超参数搜索空间
-- Study/Trial 抽象记录每次实验参数、指标、中间值和状态
-- Sampler 支持 TPE、随机、CMA-ES 等策略，Pruner 可提前停止表现差的 trial
-- 支持关系型存储后端与分布式 worker 并行执行
-- 与任意训练框架解耦，只要求 objective 返回目标指标
+- define-by-run API：在 `objective(trial)` 的控制流中调用 `suggest_*`，自然表达条件搜索空间
+- Study/Trial 抽象：Study 管理优化方向和历史，Trial 记录参数、中间指标、最终值和状态
+- 可插拔 sampler：支持 TPE、随机、CMA-ES 等策略，并允许用户定制采样逻辑
+- 可插拔 pruner：通过 `report()` 与 `should_prune()` 利用学习曲线中间值提前终止低潜力 trial
+- 共享 storage 架构：内存、SQLite、RDB 等后端让多个 worker 以异步方式协同优化同一个 study
+- 与训练框架解耦：Optuna 不接管模型训练，只要求 objective 返回可最小化或最大化的目标值
 
 #### 🔬 深入细节
 
-![Optuna 核心示意图](https://optuna.org/assets/img/optuna-logo.png)
-*图：官方图标代表 Optuna 框架；方法核心是 study 调度 trial，trial 在 objective 中动态 suggest 参数并上报中间结果。*
+![Optuna 系统设计图](https://ar5iv.labs.arxiv.org/html/1907.10902/assets/fig/system_return.png)
+*图：Optuna 论文 Figure 4 的系统设计图；来源为 arXiv HTML 版本。每个 worker 独立执行 objective function，`suggest()`、`report()`、`should_prune()` 和最终 `return()` 都通过共享 storage 读写 study 历史。*
 
 ```python
-# Optuna define-by-run 伪代码
+# Optuna define-by-run 与剪枝流程伪代码
 import optuna
 
 def objective(trial):
-    lr = trial.suggest_float('lr', 1e-5, 1e-1, log=True)
-    depth = trial.suggest_int('depth', 2, 12)
-    if trial.suggest_categorical('model', ['mlp', 'cnn']) == 'cnn':
-        kernel = trial.suggest_int('kernel', 3, 7)
-    score = train_and_validate(lr=lr, depth=depth)
-    trial.report(score, step=epoch)
-    if trial.should_prune(): raise optuna.TrialPruned()
-    return score
+    model_type = trial.suggest_categorical("model", ["mlp", "cnn"])
+    lr = trial.suggest_float("lr", 1e-5, 1e-1, log=True)
 
-study = optuna.create_study(direction='maximize')
-study.optimize(objective, n_trials=100)
+    if model_type == "mlp":
+        n_layers = trial.suggest_int("n_layers", 1, 4)
+        hidden = [trial.suggest_int(f"hidden_{i}", 32, 512) for i in range(n_layers)]
+        model = build_mlp(hidden, lr)
+    else:
+        channels = trial.suggest_int("channels", 16, 128)
+        kernel = trial.suggest_int("kernel", 3, 7)
+        model = build_cnn(channels, kernel, lr)
+
+    for epoch in range(max_epochs):
+        train_one_epoch(model)
+        valid_loss = evaluate(model)
+        trial.report(valid_loss, step=epoch)
+        if trial.should_prune():
+            raise optuna.TrialPruned()
+
+    return evaluate(model)
+
+study = optuna.create_study(
+    direction="minimize",
+    sampler=optuna.samplers.TPESampler(),
+    pruner=optuna.pruners.SuccessiveHalvingPruner(),
+    storage="sqlite:///study.db",
+)
+study.optimize(objective, n_trials=200, n_jobs=8)
 ```
 
-传统超参搜索工具常要求用户预先声明静态搜索空间，但现代模型配置经常有条件结构：选择模型 A 才需要参数 x，选择优化器 B 才需要参数 y。Optuna 的 define-by-run 直接用 Python 表达这种动态性。
+Optuna 要解决的第一类问题是静态搜索空间难以表达真实模型配置。以多层 MLP 为例，层数本身是一个超参数，只有确定了 `n_layers` 后，才知道需要采样多少个 `hidden_i`；如果改成 CNN，又会出现 kernel、channels 等完全不同的分支。传统 define-and-run HPO 工具通常要求用户先写出完整的树状空间，复杂模型会变成嵌套很深的配置对象。Optuna 把搜索空间绑定到 `objective(trial)` 的运行过程：执行到哪个分支，就注册和采样哪个超参数，因此搜索空间是由普通 Python 控制流“运行出来”的。
 
-Trial 是一次实验运行，`suggest_*` 调用既采样参数也把搜索空间记录下来。Sampler 根据历史 trial 选择下一组参数；TPE 等贝叶斯方法会建模好/坏 trial 的参数分布，从而更集中地探索有希望区域。
+Sampler 的职责是根据历史 trial 选择下一组参数，而不是简单枚举。以 TPE 为例，Optuna 会把历史观测按目标值分成好样本集合与坏样本集合，分别估计条件密度 \(l(x)=p(x \mid y < y^*)\) 和 \(g(x)=p(x \mid y \ge y^*)\)，然后倾向选择使下式更大的候选：
 
-Pruner 使用中间指标提前停止明显较差的实验。例如训练到第 5 个 epoch 的验证损失已经远差于历史同阶段结果，就可以释放资源给新 trial。
+$$
+x^* = \arg\max_x \frac{l(x)}{g(x)}
+$$
 
-与 MLflow/W&B 的实验追踪不同，Optuna 的核心是“主动选择下一次实验”。它可以与追踪系统组合：Optuna 决定参数，MLflow/W&B 记录完整产物。
+直觉上，\(l(x)\) 高说明这个参数区域常出现在好 trial 中，\(g(x)\) 低说明它不常出现在差 trial 中；二者比值高，就代表候选参数更可能带来改进。Optuna 的贡献不是发明 TPE 本身，而是把 TPE、随机采样、CMA-ES 等策略放进统一 sampler 接口，使用户能在相同 Trial API 下替换优化算法。
 
-> 💡 关键：这类 ML 平台论文的贡献通常不在单个数学公式，而在把计算、状态、通信、调度和故障边界重新组织成可扩展的系统抽象。
+Pruner 解决的是资源浪费问题。很多训练任务在早期 epoch 就能看出趋势，如果某个 trial 的验证损失在相同 step 上明显落后，就不必训练到完整预算。Optuna 的 `trial.report(value, step)` 把学习曲线中间值写入 storage，`trial.should_prune()` 再由 pruner 读取同一 study 的历史中间值做决策。Successive Halving/ASHA 类机制可以理解为按资源 \(r, \eta r, \eta^2 r, ...\) 设置多个 rung：trial 只有在当前 rung 的表现排在前 \(1/\eta\) 左右时才晋级到下一档资源。
+
+分布式架构的关键是把 trial 状态外置到 storage，而不是让某个中心进程长期持有所有状态。多个 worker 只要连接到同一个 storage URL，就能异步领取 trial、查询历史、写入中间值和提交结果。由于剪枝和采样都通过 storage 获得可见的 study 历史，worker 之间不需要同步 barrier；慢 trial 不会阻塞快 trial，这也是论文强调异步剪枝适合分布式环境的原因。
+
+与 MLflow/W&B 这类 run-centric 追踪系统相比，Optuna 更主动：它不仅记录“发生了什么”，还决定“下一次该尝试什么”。在真实平台中常见的组合是 Optuna 负责 HPO 决策，训练脚本把 Optuna trial id、参数、指标和模型产物同步写入 MLflow 或 W&B，从而同时获得自动搜索和团队级实验审计。
+
+> 💡 关键：Optuna 的核心抽象是把超参数优化压缩成 `objective(trial) -> value`，再把搜索空间构造、采样、剪枝和分布式状态管理都挂在 Trial/Study 这两个对象上。
 
 #### 🧪 练习题
 
 ```yaml
-question: "Optuna define-by-run 的含义是什么？"
+question: "Optuna 的 define-by-run API 相比静态搜索空间声明，最核心的优势是什么？"
 options:
-  - "搜索空间在 objective 运行时由 Python 控制流动态定义"
-  - "只能读取静态 JSON 搜索空间"
-  - "每个 trial 必须人工启动"
-  - "只能优化一个整数参数"
+  - "搜索空间可以随 objective 的 Python 控制流动态生成，适合条件超参数"
+  - "不需要验证集即可优化模型"
+  - "所有 trial 都会使用完全相同的参数"
+  - "只能在单进程内执行，避免数据库开销"
 answer: 0
-explain: "define-by-run 让条件搜索空间自然嵌入普通 Python 训练代码。"
+explain: "define-by-run 让参数声明发生在 objective 执行期间，因此模型分支、层数变化等条件结构能直接用 Python 表达。"
 ```

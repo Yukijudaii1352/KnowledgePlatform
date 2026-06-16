@@ -1,10 +1,9 @@
-### API工具基准 (API-Bank)
-
+### API-Bank：API 工具基准 (API-Bank)
 ```yaml
 id: api_bank
 name: API-Bank
 full_name: API工具基准 (API-Bank)
-year: '2023'
+year: 2023
 org: 中科院/阿里巴巴
 paper_url: https://aclanthology.org/2023.emnlp-main.187/
 category: tool_use
@@ -13,80 +12,97 @@ motivation: 首个系统性工具增强LLM基准
 ```
 
 #### 📝 一句话总结
-
-API-Bank 提出面向工具增强 LLM 的系统性基准，围绕 API 调用、检索与多步规划三类能力构建可执行评测与训练数据，并用 Lynx 验证工具使用能力可以通过专门数据显著提升。
+API-Bank 提出了面向工具增强 LLM 的系统性基准，把工具使用能力拆成 Call、Retrieve+Call、Plan+Retrieve+Call 三个层级，并提供可运行 API 系统、人工评测集、自动构造训练集和 Lynx 微调模型来评估与提升 LLM 的真实 API 使用能力。
 
 #### 🎯 核心要点
-
-- **三层能力分级**：Call、Retrieve+Call、Plan+Retrieve+Call，分别考察调用、检索与多步规划能力
-- **可执行评测系统**：包含 73 个常用 API、314 段人工标注工具对话和 753 次 API 调用
-- **大规模训练集**：包含 2,138 个 API、1,888 段工具使用对话和 4,149 次 API 调用
-- **Multi-agent 数据生成**：用五个协作代理生成领域、API、用户需求、调用与返回结果，并做质量控制
-- **Lynx 模型**：在 Alpaca-7B 基础上用 API-Bank 训练集微调得到工具增强 LLM
-- **评测维度完整**：同时评估 API 规划、API 检索、API 调用准确性，而不是只看最终文本答案
-- **误差分析导向**：指出 GPT-4 与 Lynx 在 API 选择、参数构造、调用顺序等方面仍有明显失败模式
+- 定义三类工具使用能力：已知少量 API 下调用、未知大量 API 下检索后调用、多步规划后检索并调用多个 API。
+- 构建可运行评测系统，包含 73 个常用 API、314 条人工标注工具使用对话和 753 次 API 调用。
+- 提供训练集：1,888 条工具使用对话、2,138 个 API、覆盖 1,000 个领域，用于训练工具增强 LLM。
+- 提出 API Search 工具：在大量 API 池中用查询关键词和 API 元信息 embedding 的余弦相似度检索候选 API。
+- 提出五代理 Multi-agent 数据生成流程，将复杂数据构造拆成领域生成、API 生成、查询生成、调用/响应生成、测试过滤。
+- 训练 Lynx-7B：以 Alpaca 为初始化，经 API-Bank 数据微调后在工具使用正确率上显著超过 Alpaca，并接近 GPT-3.5。
+- 评测同时关注 API 调用正确性和最终响应质量，分别使用 correctness/accuracy 与 ROUGE-L。
 
 #### 🔬 深入细节
-
-##### 核心示意图
-
-![API-Bank 能力分级图](https://ar5iv.labs.arxiv.org/html/2304.08244/assets/x1.png)
-*图：API-Bank 将工具增强 LLM 的能力拆分为 Call、Retrieve+Call、Plan+Retrieve+Call 三个层级。图源：ar5iv 论文 HTML。*
-
-##### 算法伪代码
+![API-Bank 三层工具使用能力](https://ar5iv.labs.arxiv.org/html/2304.08244/assets/x1.png)
+*图：API-Bank Figure 1，将工具增强 LLM 的能力分为 Call、Retrieve+Call、Plan+Retrieve+Call，难度从已知 API 的单步调用逐步提升到未知 API 池中的多步计划与调用。*
 
 ```python
-# API-Bank 评测与训练数据生成伪代码
-def evaluate_api_bank(model, dialogue, api_pool):
-    state = init_dialogue_state(dialogue)
-    trace = []
-    for turn in dialogue.user_turns:
-        if len(api_pool) <= small_pool_threshold:
-            candidate_apis = api_pool
-        else:
-            candidate_apis = retrieve_apis(turn, api_pool)
+# API-Bank 评测与训练流程伪代码
 
-        plan = model.plan(turn, state, candidate_apis)
-        for step in plan:
-            api_name, params = model.call_api(step, candidate_apis, state)
-            response = execute_api(api_name, params)
-            trace.append((api_name, params, response))
-            state = update_state(state, response)
+def evaluate_tool_llm(model, dialogue, api_pool):
+    state = initialize_api_system(api_pool)
+    api_history = []
 
-    return score_trace(trace, dialogue.gold_calls)
+    for turn in dialogue.turns:
+        prompt = build_tool_prompt(turn, api_pool, api_history)
+        prediction = model.generate(prompt)
 
-def multi_agent_data_generation(seed_domains):
-    for domain in seed_domains:
-        api_specs = api_agent_generate(domain)
-        user_queries = query_agent_generate(api_specs)
-        call_traces = call_agent_generate(user_queries, api_specs)
-        verified = quality_agent_filter(call_traces)
-        yield build_dialogue(verified)
+        if prediction.calls_api_search:
+            candidates = api_search(prediction.keywords, api_pool)
+            prediction = model.generate(prompt_with(candidates))
+
+        call = parse_api_call(prediction)
+        result = execute_api(call, state)
+        api_history.append((call, result))
+
+    call_correct = compare_with_gold(api_history, dialogue.gold_calls)
+    response_score = rouge_l(prediction.final_response, dialogue.gold_response)
+    return call_correct, response_score
+
+
+def multi_agent_data_generation():
+    domain = agent_1_generate_domain()
+    apis = agent_2_generate_apis(domain, public_api_examples=True)
+    selected_apis, ability, query = agent_3_generate_query(apis)
+    calls, response = agent_4_simulate_calls_and_response(domain, selected_apis, query)
+    return agent_5_tester_filter(domain, apis, query, calls, response)
 ```
 
-##### 方法解读
+API-Bank 的核心动机是：当 LLM 被要求调用真实工具时，传统 NLP benchmark 只测回答文本是不够的。工具调用有严格格式、参数约束、状态变化和执行结果；一个模型即使能说出合理解释，也可能没有真正调用 API、调用了错误 API、参数缺失、格式不可解析，或者在多步任务中无法规划调用顺序。因此论文从用户需求出发，把工具使用能力拆成两个维度：API 池大小和每轮调用次数。少量 API 时，模型可以直接看到所有 API 文档；大量 API 时，模型必须先检索；复杂任务时，模型还必须规划多个 API 的顺序。
 
-API-Bank 的出发点是：早期工具增强论文通常展示若干 demo，但缺少统一、可执行、可分层的评测。论文通过用户访谈归纳出两个维度：API 池大小和调用步数。小 API 池可以直接把所有工具放入上下文，大 API 池必须先检索；单次调用只需选对一个 API，多次调用还要规划顺序和状态传递。
+三层能力的定义是 API-Bank 最重要的抽象。`Call` 表示模型已知候选 API 文档时，能根据用户请求填对 API 名和参数；`Retrieve+Call` 表示 API 池很大，模型不知道具体可用 API，需要先调用 API Search 检索再调用；`Plan+Retrieve+Call` 表示用户给出一个复合需求，模型需要拆解成多个步骤，并在每一步检索和调用合适 API。可以用难度递进表示为：
 
-因此，API-Bank 把能力拆成三层。Level 1 的 Call 能力考察模型在已知 API 集合中生成正确函数名和参数；Level 2 的 Retrieve+Call 额外要求从大规模 API 池中找出相关工具；Level 3 的 Plan+Retrieve+Call 要求模型先规划多步调用，再逐步执行。这种分层让错误可定位，例如失败到底来自检索漏召回、参数格式错误，还是调用顺序不合理。
+$$
+\text{Call} \subset \text{Retrieve+Call} \subset \text{Plan+Retrieve+Call}
+$$
 
-训练数据构建上，API-Bank 同时使用人工评测集和自动生成训练集。自动生成并不是单个 prompt 直接产出完整样本，而是用多个代理分工：先生成领域和 API 规格，再生成用户请求，再合成 API 调用和响应，最后进行一致性检查。论文报告这种 Multi-agent 流程显著降低标注成本，同时保持覆盖面。
+这个包含关系表达的是能力要求递增，而不是数据集合严格包含：后两者在前者基础上增加了检索与规划。论文的 Figure 1 正是围绕这三个层级组织评测。
 
-Lynx 的训练方式相对直接：以 Alpaca-7B 为初始化模型，把工具使用对话组织成指令微调数据，让模型学习在对话中选择 API、填充参数、读取 API 返回值并继续交互。它说明工具调用能力不是预训练模型自然稳定具备的能力，专门的工具数据能带来明显提升。
+API Search 是 API-Bank 中把“海量工具池”变成可操作环境的关键工具。模型在 Retrieve+Call 和 Plan+Retrieve+Call 设置中并不会预先看到所有 API，而是必须先把用户需求压缩成关键词，交给 API Search 检索相关 API。论文描述的检索机制可以写为：
 
-评测时，API-Bank 不只看最后回答是否像自然语言正确，而是检查每个 API 调用的名称、参数和顺序。若一个模型最终“猜对”答案但未正确调用工具，在该基准下仍不能被视为掌握工具使用。这使 API-Bank 更接近真实系统集成场景。
+$$
+a^* = \arg\max_{a\in\mathcal{A}} \frac{E(q)\cdot E(m_a)}{\|E(q)\|\,\|E(m_a)\|}
+$$
 
-> ⚠️ 注意：API-Bank 是基准和数据体系，不是单一 Agent 算法。它的核心价值在于把工具增强 LLM 的能力边界变成可执行、可复现、可诊断的评测协议。
+其中 \(q\) 是模型生成的检索关键词，\(m_a\) 是 API 的元信息文本，\(E(\cdot)\) 是句向量编码器。这个机制让模型面临两个层面的挑战：它既要理解用户需求并形成可检索关键词，又要在拿到 API 文档后生成正确调用。
+
+评测系统不是静态文本匹配，而是可执行环境。API-Bank 实现了 73 个 API，包括天气、数据库操作、AI 模型访问等常见工具；对需要外部信息的 API，论文把检索结果固定下来以保证可复现。评测时先初始化 API 系统和数据库状态，再比较模型预测 API 调用与人工标注调用是否一致。一致性不只是字符串完全相同，而是关注是否执行同样的查询或修改、是否得到相同返回结果。最终指标包含 API 调用 correctness/accuracy 和响应 ROUGE-L：
+
+$$
+\operatorname{Accuracy}=\frac{\#\text{correct API calls}}{\#\text{all API calls}}
+$$
+
+这使 API-Bank 能区分两类错误：工具调用链是否正确，以及模型基于工具输出给用户的自然语言回答是否好。
+
+训练集构造解决的是规模问题。人工评测集每条对话标注成本高，论文报告平均约 8 美元/对话；而工具增强训练数据又必须覆盖不同领域、真实 API、多轮对话、多调用和三类能力。单一 self-instruct 提示很难同时满足这些约束，ChatGPT 直接生成时可用率很低。API-Bank 因此提出五代理生成流程：第一个 agent 生成领域，第二个 agent 根据领域生成 API 并参考 Public APIs 保持真实性，第三个 agent 选择 API 和能力层级并生成 query，第四个 agent 生成 API 调用和响应，第五个 tester agent 检查数据是否符合设计原则并过滤错误样本。
+
+这个 Multi-agent 流程的本质是把一个过载指令拆成有依赖关系的子任务。数据元素之间存在清晰结构：domain 决定 API 功能，API 和 ability 决定 query 类型，domain/API/query/ability 共同决定 API call 与 response。因此五代理流程不是简单多样化采样，而是在模拟数据生成的因果链。论文报告最终训练集包含 1,888 条对话、2,138 个 API 和 1,000 个领域，成本约 0.1 美元/对话，相比人工标注节省约 98%。
+
+Lynx 是 API-Bank 对“如何提升工具使用能力”的验证。论文用 API-Bank 训练数据微调 Alpaca 得到 Lynx-7B，并在评测系统上与 Alpaca、ChatGLM、GPT-3、GPT-3.5、GPT-4 等模型比较。结果显示 Lynx 在 API call correctness 上比 Alpaca 提升超过 26 个百分点，并接近 GPT-3.5；但错误分析也暴露了工具增强 LLM 的难点：Alpaca 常见问题是没有 API 调用或格式错误，Lynx 微调后减少了这些问题，但更容易出现 API hallucination 或参数问题；GPT-4 在最难的规划任务上强，但 API Search 使用和输出格式仍可能不符合评测系统要求。
+
+与 Toolformer、APIBench、ToolAlpaca 等工作相比，API-Bank 的贡献不只是“又一个工具调用数据集”，而是把工具使用拆成可运行、可度量、可训练的完整闭环。它强调评测集人工构造和可执行 API 环境，避免只在模型自生成数据上评估；它同时测 API call 与 response，避免只看最终自然语言答案；它覆盖多领域、多轮、多调用和检索规划场景，更贴近真实 agent 系统会遇到的问题。
+
+> 💡 关键：API-Bank 的价值在于把“会不会用工具”从主观印象变成可执行评测：模型必须选对 API、传对参数、按顺序执行，并基于真实返回结果回答用户。
 
 #### 🧪 练习题
-
 ```yaml
-question: "API-Bank 中最难的 Plan+Retrieve+Call 层级额外考察了什么能力？"
+question: "API-Bank 中 `Plan+Retrieve+Call` 相比 `Retrieve+Call` 额外考察了什么能力？"
 options:
-  - "只在固定 API 列表中选择一个函数"
-  - "从大 API 池检索相关 API，并规划多步调用顺序"
-  - "把 API 文档压缩成向量索引"
-  - "用人工反馈训练奖励模型"
-answer: 1
-explain: "Plan+Retrieve+Call 同时要求检索、调用和多步规划，模型需要决定哪些 API 先后执行以及如何利用中间返回结果。"
+  - "只考察模型能否把 API 文档压缩进上下文"
+  - "考察模型在未知 API 池中先检索一个 API 后立即单步调用"
+  - "考察模型能否把复合需求拆成多步，并在每一步检索和调用合适 API"
+  - "只考察最终自然语言回答的 ROUGE-L 分数"
+answer: 2
+explain: "`Plan+Retrieve+Call` 要求模型先规划多个 API 调用步骤，再对每一步执行检索和调用，因此比单步 `Retrieve+Call` 更难。"
 ```

@@ -1,10 +1,9 @@
-### 数据受限规模定律
-
+### 数据受限规模定律 (Scaling Data-Constrained Language Models)
 ```yaml
 id: data_constrained_scaling
 name: 数据受限规模定律
 full_name: 数据受限规模定律 (Scaling Data-Constrained Language Models)
-year: '2023.05'
+year: "2023.05"
 org: HuggingFace
 paper_url: https://arxiv.org/abs/2305.16264
 category: scaling
@@ -13,68 +12,112 @@ motivation: 揭示数据重复训练的衰减幂律
 ```
 
 #### 📝 一句话总结
-
-数据受限规模定律研究当高质量唯一文本不足时，重复训练同一批数据如何影响语言模型 scaling。论文发现少量重复（约 4 个 epoch 内）与新数据差异很小，但更多重复的边际价值会逐渐衰减到零，因此需要用“有效数据量”而非原始 token 数规划训练。
+数据受限规模定律将 Chinchilla 的 \(L(N,D)\) 扩展到“有限唯一数据、多 epoch 重复训练”的场景，用有效数据量 \(D'\) 和有效参数量 \(N'\) 描述重复 token 与过量参数的边际价值衰减。它解决了高质量文本即将耗尽时，LLM 应如何在重复数据、扩大参数和继续增加 compute 之间分配预算的问题。
 
 #### 🎯 核心要点
-
-- 面向 Chinchilla 之后的问题：如果计算预算继续增长，但高质量唯一数据不够，应该重复数据、放大模型还是放宽数据来源
-- 训练 400 多个 GPT-2 风格 Transformer，规模最高约 9B 参数、900B 总训练 token，部分实验重复到上千 epoch
-- 经验结论：固定计算预算下，重复数据不超过约 4 个 epoch 时 loss 与使用唯一数据差别很小
-- 提出数据受限 scaling law，用 \(D_{\text{eff}}\) 描述重复 token 的折扣价值，并对“过量参数”也引入有效参数折扣
-- 当重复次数很大时，新增训练 token 的价值趋近于零，无法无限替代新数据
-- 缓解策略包括混入代码数据、重新评估过度过滤策略、针对噪声数据做选择性过滤
+- 针对 Chinchilla 默认“训练 token 足够且近似唯一”的限制，研究数据受限 regime 下的 compute allocation 与 return。
+- 训练 400+ 个模型，规模从 10M 到 9B 参数，总训练 token 最高约 900B，重复 epoch 最高达 1500。
+- 将总 token \(D\) 拆成唯一 token \(U_D\) 和重复次数 \(R_D\)，其中 \(U_D=\min(D_C,D)\)、\(R_D=D/U_D-1\)。
+- 用指数衰减定义有效数据 \(D'=U_D+U_D R_D^*(1-e^{-R_D/R_D^*})\)，刻画重复 token 价值逐步下降。
+- 对参数也引入对称的有效参数 \(N'=U_N+U_N R_N^*(1-e^{-R_N/R_N^*})\)，刻画数据受限时过量参数的收益递减。
+- 损失函数沿用 Chinchilla 结构：\(L=A/(N')^\alpha+B/(D')^\beta+E\)。
+- 实验发现最多约 4 epochs 的重复训练与使用新数据相比损失差异很小；约 16 epochs 后收益快速衰减。
+- 拟合得到 \(R_D^*\approx15.39\)、\(R_N^*\approx5.31\)，说明过量参数比重复数据更快进入收益递减，因此数据受限时应相对更快增加 epoch。
+- 补充研究代码数据混合、perplexity filtering、deduplication 等缓解数据稀缺的策略。
 
 #### 🔬 深入细节
 
-![数据受限缩放主图](https://ar5iv.labs.arxiv.org/html/2305.16264/assets/x1.png)
-*图：论文 Figure 1，展示重复数据时的回报衰减和计算最优资源分配变化。*
+![Data-Constrained Scaling Laws Figure 1](https://github.com/huggingface/datablations/raw/main/plotstables/return_alloc.png)
+*图：官方仓库中的 Figure 1 展示重复数据的 return 和 allocation。左图显示 4 epochs 内重复几乎像新数据一样有效，右图显示数据受限 frontier 会偏向更小模型与更多重复 token。*
 
 ```python
-# 数据受限规模定律训练规划伪代码
-def data_constrained_plan(unique_tokens, compute_budget):
-    best = None
-    for N in candidate_model_sizes:
-        total_tokens = compute_budget / (6 * N)
-        epochs = total_tokens / unique_tokens
+# Data-Constrained Scaling Laws 的核心拟合与决策伪代码
+def effective_data(unique_tokens, repeat_count, R_D_star):
+    # D' = U_D + U_D * R_D* * (1 - exp(-R_D / R_D*))
+    return unique_tokens + unique_tokens * R_D_star * (1 - exp(-repeat_count / R_D_star))
 
-        # 重复 token 不是按原始 token 数等价计入，而是折扣为有效数据量
-        D_eff = 0.0
-        for epoch in range(1, ceil(epochs) + 1):
-            fraction = min(1.0, max(0.0, epochs - (epoch - 1)))
-            D_eff += unique_tokens * fraction * repeat_discount(epoch)
+def effective_params(unique_params, param_repeat, R_N_star):
+    # N' = U_N + U_N * R_N* * (1 - exp(-R_N / R_N*))
+    return unique_params + unique_params * R_N_star * (1 - exp(-param_repeat / R_N_star))
 
-        N_eff = parameter_discount(N, unique_tokens)
-        loss = E + A / (N_eff ** alpha) + B / (D_eff ** beta)
-        best = min_by_loss(best, {"N": N, "epochs": epochs, "D_eff": D_eff, "loss": loss})
-    return best
+def data_constrained_loss(N, D, data_budget, chinchilla_fit, R_D_star, R_N_star):
+    U_D = min(data_budget, D)
+    R_D = D / U_D - 1
+
+    # U_N 是在 U_D 唯一 token 下的 Chinchilla compute-optimal 参数量上限
+    U_N = min(chinchilla_N_opt_for_tokens(U_D), N)
+    R_N = N / U_N - 1
+
+    D_eff = effective_data(U_D, R_D, R_D_star)
+    N_eff = effective_params(U_N, R_N, R_N_star)
+    return chinchilla_fit.E + chinchilla_fit.A / (N_eff ** chinchilla_fit.alpha) + chinchilla_fit.B / (D_eff ** chinchilla_fit.beta)
+
+for C in compute_budgets:
+    # 在 FLOPs(N,D) ≈ 6ND 且 U_D <= D_C 的约束下搜索最小预测 loss
+    best = argmin(lambda N, D: data_constrained_loss(N, D, D_C, fit, R_D_star, R_N_star),
+                  constraint=lambda N, D: close(6 * N * D, C))
 ```
 
-**动机与背景：Chinchilla 假设“数据可继续增加”，现实未必如此。** Chinchilla 说固定计算下应该增加训练 token，但它默认有足够多的新鲜高质量数据。现实中，英文高质量网页、书籍、代码和学术文本都存在版权、质量、语言覆盖和采集成本限制；对低资源语言来说，这个约束更早出现。数据受限规模定律要回答的问题是：当 \(D_{\text{unique}}\) 固定时，额外 FLOPs 花在重复数据上还有多少价值？
+这篇论文的动机来自 Chinchilla 的外推悖论：如果 compute-optimal 训练要求参数和 token 近似等比例增长，那么超大模型会需要数万亿乃至更多高质量 token；但真实世界中，高质量自然语言数据是有限的。问题不再是“给定 compute 训练多大模型”，而是“给定 compute 和唯一数据预算 \(D_C\)，重复数据是否仍有价值，以及该如何分配参数和 epoch”。
 
-**核心机制：重复 token 需要折扣成有效数据量。** 论文将 Chinchilla 的数据项从原始训练 token 数 \(D\) 改写为有效数据量 \(D_{\text{eff}}\)。直觉上，第 1 次看到一个 token 最有信息量，第 2 到第 4 次仍可帮助优化，但第 100 次看到同一分布样本时，新增泛化信息很少。因此可以写成：
+作者首先把数据项拆开。设总训练 token 为 \(D\)，可用唯一数据预算为 \(D_C\)，则：
 
 $$
-L(N,D_{\text{eff}})=E+\frac{A}{N_{\text{eff}}^\alpha}+\frac{B}{D_{\text{eff}}^\beta}
+U_D=\min\{D_C,D\},\quad R_D=\frac{D}{U_D}-1
 $$
 
-其中 \(D_{\text{eff}}\leq D_{\text{tokens}}\)，重复越多，折扣越重。论文还对 \(N\) 做了对称处理：当模型参数相对唯一数据过大时，额外参数也不能完全转化为有效能力，因此引入 \(N_{\text{eff}}\) 描述过量参数的收益衰减。
+其中 \(U_D\) 是实际用到的唯一 token 数，\(R_D\) 是重复次数，也就是 epochs 减 1。单 epoch 时 \(R_D=0\)，完全退化回 Chinchilla 的无限数据假设。数据受限优化目标变为：
 
-**训练流程：固定唯一数据、固定 FLOPs、参数化拟合三路实验。** 论文先在固定唯一数据量下扫描参数量和 epoch 数，观察计算分配；再在固定 FLOPs 下比较“更多唯一数据”和“更多重复数据”的差异；最后用所有训练 run 拟合参数化公式。实验显示，一次训练中重复到约 4 个 epoch 通常不会显著恶化 loss 或下游表现，这对现实工程很有用，因为数据去重和切分很难保证每个 token 只出现一次。但当重复次数继续升高，loss 改善速度会放缓，最终新增计算基本无法降低验证 loss。
+$$
+\operatorname*{argmin}_{N,D} L(N,D)\quad \text{s.t.}\quad \mathrm{FLOPs}(N,D)=C,\ U_D\le D_C
+$$
 
-**与 Chinchilla 的区别：最优策略转向更小模型加更多 epoch，但不能无限重复。** 如果生硬套用 Chinchilla，在数据不足时会预测继续按 20:1 关系扩大数据；但数据不存在时，只能复用已有数据。数据受限定律给出的结论更细：在唯一数据固定时，额外计算应同时增加参数和重复 epoch，且 epoch 增长可以略快；不过重复不是新数据的完美替代品。论文还发现，混入代码数据能在自然语言任务上提供有效 token 增益，而过滤策略对干净数据和噪声数据的价值不同，不能一概而论地“越严越好”。
+核心机制是“有效数据量”而不是原始 token 计数。重复 token 的价值不是 0，也不是与新 token 完全相同，而是随重复次数指数衰减：
 
-> ⚠️ 注意：这条定律并不鼓励无脑多 epoch 训练。它说明少量重复可接受，但当重复次数很大时，模型会进入数据回报枯竭区，继续加 FLOPs 不如获取新数据或拓展数据类型。
+$$
+D'=U_D+U_D R_D^*\left(1-e^{-R_D/R_D^*}\right)
+$$
+
+当 \(R_D=0\) 时，\(D'=U_D=D\)。当 \(R_D\ll R_D^*\) 时，\(1-e^{-R_D/R_D^*}\approx R_D/R_D^*\)，所以 \(D'\approx U_D(1+R_D)=D\)，重复数据近似等同新数据。随着 \(R_D\) 变大，第二项逐渐饱和在 \(U_D R_D^*\)，意味着无限重复同一批数据也不可能无限降低 loss。
+
+论文还为参数引入对称形式。给定唯一数据 \(U_D\)，先根据 Chinchilla frontier 计算适合这些唯一数据的“基础参数量” \(U_N\)，再把真实参数量 \(N\) 表示为 \(U_N\) 的重复/超额：
+
+$$
+R_N=\frac{N}{U_N}-1
+$$
+
+$$
+N'=U_N+U_N R_N^*\left(1-e^{-R_N/R_N^*}\right)
+$$
+
+这个项的直觉是：当数据非常有限时，继续扩大模型并不会像无限数据条件下那样有效，因为新增参数缺少足够多样的监督信号。最终损失函数延续 Chinchilla 的三项分解：
+
+$$
+L(N,D)=E+\frac{A}{(N')^\alpha}+\frac{B}{(D')^\beta}
+$$
+
+论文基于 C4 重新拟合 Chinchilla 型基础参数，给出一个用于计算的形式：
+
+$$
+L(N,D)=1.87+\frac{521}{N^{0.353}}+\frac{1488}{D^{0.353}}
+$$
+
+在重复数据扩展中，再把 \(N\) 与 \(D\) 替换成 \(N'\) 与 \(D'\)。作者用 LBFGS 在 182 个样本上拟合衰减常数，得到 \(R_D^*\approx15.3878\)、\(R_N^*\approx5.3097\)。这意味着重复数据的“半衰期”更长，而过量参数更快失去边际价值；因此在数据受限、继续增加 compute 时，efficient frontier 会偏向增加 epochs，而不是按 Chinchilla 假设同等增加参数。
+
+实验结论可以分成 return 和 allocation 两类。Return 问题问“重复数据还值不值”：4.2B 参数模型训练 4 epochs 时，最终验证损失只比单 epoch 唯一数据高约 0.5%，说明少量重复很安全；但重复次数继续增加后，loss 曲线逐渐变平，约 16 epochs 附近进入明显收益递减，40 epochs 左右重复几乎不再带来有效改进。Allocation 问题问“compute 怎么花”：在固定唯一数据预算下，单 epoch compute-optimal 模型会严重低估可从数据中榨取的信号，适当增加参数和 epoch 都有必要，但 epoch 应该增长得略快。
+
+与 Chinchilla 相比，这篇论文不是推翻“参数与数据平衡”，而是给平衡关系增加了数据约束条件。Chinchilla 假设每个 token 都是新信息；Data-Constrained Scaling 说如果 token 是重复的，就要先折算成 \(D'\)。这让 scaling law 能回答更实际的问题：低资源语言、垂直领域、小语料高质量数据、经过严格过滤的数据集，在无法继续收集同质量文本时仍能通过有限重复获得收益，但不能无限重复。
+
+> ⚠️ 注意：论文的结论不是“重复数据总是无害”。它强调的是全量数据重复、少量 epochs 时收益接近新数据；当重复过多或出现局部重复/记忆化时，收益会快速衰减甚至可能出现训练不稳定。
 
 #### 🧪 练习题
-
 ```yaml
-question: "数据受限规模定律中为什么要引入 D_eff？"
+question: "数据受限规模定律中，有效数据量 D' 的主要作用是什么？"
 options:
-  - "为了把训练 token 数换算成显存占用"
-  - "为了描述重复 token 的边际价值会低于新 token"
-  - "为了避免计算模型参数量"
-  - "为了只统计代码数据而忽略自然语言数据"
-answer: 1
-explain: "在数据重复训练时，后续 epoch 的 token 不能等价于新数据；D_eff 用折扣后的有效数据量刻画这种收益衰减。"
+  - "把重复 token 按指数衰减折算，避免把多 epoch 数据视为完全等价的新数据"
+  - "把所有重复 token 完全丢弃，只保留第一轮 epoch"
+  - "只统计 embedding 参数对应的 token"
+  - "强制所有模型都训练 exactly 20 tokens/parameter"
+answer: 0
+explain: "D'=U_D+U_D R_D^*(1-e^{-R_D/R_D^*}) 描述重复 token 的边际价值从近似新数据逐渐衰减到饱和。"
 ```

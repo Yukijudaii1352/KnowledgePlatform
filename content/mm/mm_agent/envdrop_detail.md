@@ -12,54 +12,92 @@ motivation: 环境特征随机丢弃提升未见环境泛化
 ```
 
 #### 📝 一句话总结
-EnvDrop 在 Speaker-Follower 的回译增强上加入“按环境语义一致丢弃视觉特征”的扰动，让导航器在训练时反复看到被部分移除的环境线索，从而提升未见房屋泛化。
+EnvDrop 在 Speaker-Follower 的回译式数据增强上加入“环境级视觉特征丢弃”，通过 view/viewpoint 一致的 mask 模拟未见环境，让 VLN agent 在训练时减少对训练房屋特定外观线索的依赖。
 
 #### 🎯 核心要点
-- **目标问题**：R2R seen/unseen 差距大，单纯在训练环境中回译生成新路线-指令对，仍然不能制造真正的新视觉环境。
-- **两阶段训练**：第一阶段用 imitation learning 与 reinforcement learning 混合训练导航器；第二阶段使用 speaker 回译生成新 triplet，并在环境丢弃后的视觉输入上继续训练。
-- **环境丢弃不是普通 dropout**：它不是独立随机清零每个激活，而是在同一环境中共享 mask，尽量模拟“某类视觉/语义线索在新环境中不存在”的情况。
-- **保留几何方向信息**：EnvDrop 主要扰动图像特征，不破坏 heading/elevation 等方向特征，避免把导航图几何也变成噪声。
-- **贡献位置**：它把 VLN 数据增强从“语言和路径组合更多”推进到“视觉环境分布更丰富”，成为 PREVALENT 等预训练方法前的重要泛化增强基线。
+- **核心问题**：R2R 模型在 seen 环境和 unseen 环境之间存在明显泛化落差，单纯 speaker 回译只能增加路线-语言对，不能增加真正的环境多样性。
+- **两阶段训练**：第一阶段用 imitation learning 和 reinforcement learning 的混合目标训练导航器；第二阶段用 environmental dropout 生成“伪未见环境”，再结合 speaker 回译生成新 triplet。
+- **环境级 dropout**：不同于逐元素独立 dropout，它对同一环境/同一视角结构共享 mask，使被删除的视觉线索在空间上保持一致。
+- **保留导航几何**：dropout 主要作用在图像视觉特征上，而不是 heading/elevation 等方向特征，因此扰动语义外观而不破坏基本可达图结构。
+- **相对 Speaker-Follower 的推进**：Speaker-Follower 扩充“路径-语言”组合，EnvDrop 进一步扩充“环境外观”分布，直接针对 unseen 泛化瓶颈。
 
 #### 🔬 深入细节
-论文：*Learning to Navigate Unseen Environments: Back Translation with Environmental Dropout*。核心图 Figure 2 展示了监督/RL 混合训练与使用回译和环境丢弃的半监督阶段，公开图源：https://ar5iv.labs.arxiv.org/html/1904.04195/assets/x2.png
+![EnvDrop 两阶段训练框架](https://ar5iv.labs.arxiv.org/html/1904.04195/assets/x2.png)
 
-EnvDrop 沿用全景 VLN 设置：每个位置有 36 个离散视角，导航器在可通行候选方向中选择下一步。第一阶段用人工标注路径训练基础 agent。IL 分支沿专家最短路径 teacher forcing，最小化
-\[
-\mathcal{L}^{\mathrm{IL}}=-\sum_t \log p_t(a_t^\star).
-\]
-RL 分支使用 A2C 风格采样策略，终点到达目标半径内给正奖励，失败给负奖励，中间步奖励由到目标距离变化塑形。混合目标通常写成
-\[
-\mathcal{L}^{\mathrm{MIX}}=\mathcal{L}^{\mathrm{RL}}+\lambda_{\mathrm{IL}}\mathcal{L}^{\mathrm{IL}}.
-\]
+*图：EnvDrop 的两阶段框架。左侧先用 IL+RL 训练基础导航器，右侧在环境丢弃后的视觉输入上做 speaker 回译和半监督微调。*
 
-第二阶段引入回译。先训练一个 speaker \(P_{\mathbf{E},\mathbf{R}\rightarrow\mathbf{I}}\)，给定环境 \(\mathbf{E}\) 和路线 \(\mathbf{R}\) 生成指令 \(\mathbf{I}\)。然后在训练环境中采样新路线 \(\mathbf{R}'\)，由 speaker 生成 \(\mathbf{I}'\)，得到伪标注 triplet \((\mathbf{E}',\mathbf{R}',\mathbf{I}')\)。这继承了 Speaker-Follower 的优势，但 EnvDrop 进一步将 \(\mathbf{E}'\) 做成“被扰动的环境”。
+EnvDrop 的出发点很具体：R2R 训练集中的房屋数量有限，模型即使用 speaker 生成更多路线和指令，也仍然在同一批 seen 房屋里学习。这样得到的增强数据会增加语言表达和路径组合，但无法回答“测试房屋的物体、纹理、布局与训练房屋不同怎么办”。论文因此把泛化瓶颈定位到环境多样性不足，并提出用视觉特征 mask 生成近似的“新环境”。
 
-环境丢弃的核心是对视觉特征施加环境级 mask：
-\[
-f'_{t,i}=f_{t,i}\odot \xi^{\mathbf{E}},\qquad
-\xi^{\mathbf{E}}_e\sim \frac{1}{1-p}\mathrm{Ber}(1-p).
-\]
-这里 \(f_{t,i}\) 是某位置第 \(i\) 个 view 的图像特征，\(\xi^{\mathbf{E}}\) 是在同一环境或同一类特征维度上共享的随机 mask。共享 mask 比逐元素 dropout 更重要，因为它维持了空间一致性：如果“椅子相关”的视觉维度被移除，就应当在多个视角中一起变弱，而不是在每张图上独立闪烁。
+第一阶段训练一个基础导航器，沿用全景 VLN 设置：每个位置有 36 个离散视角，动作是在可见可达邻居中选择下一步。IL 分支沿专家最短路径 teacher forcing，最小化专家动作负对数似然：
 
-这种扰动迫使导航器少依赖训练房屋中特定物体或纹理的偶然相关性。例如训练集中“走到沙发旁左转”可能总与某种颜色/布局共现，普通回译会强化这种偏差；EnvDrop 则让 agent 在沙发、墙面、局部纹理等线索被部分移除时仍要根据指令顺序、方位和剩余地标决策。因为方向特征不被破坏，模型仍可学习稳定的几何导航。
+$$
+\mathcal{L}^{\mathrm{IL}}=-\sum_{t=1}^{T}\log \pi_\theta(a_t^\star\mid s_t,x).
+$$
 
-```text
-Algorithm: EnvDrop training
-Input: human data D, train environments E, dropout rate p
-1. Train navigator with mixed IL/RL on D.
-2. Train speaker on route-instruction pairs.
-3. For each sampled route R' in a train environment:
-   a. Sample an environment-level visual mask xi^E.
-   b. Apply the mask to image features, keep orientation features.
-   c. Use speaker to generate instruction I' for route R'.
-   d. Add (masked environment E', route R', instruction I') to augmented data.
-4. Continue training navigator on human and augmented triplets with IL/RL.
-5. Evaluate without dropout in seen and unseen environments.
+RL 分支使用 Advantage Actor-Critic 风格的在线采样，奖励包含终点成功信号和距离目标的 shaping 项。论文实现中直接奖励可理解为到目标距离的变化：
+
+$$
+r_t=d_{t-1}-d_t,
+$$
+
+其中 \(d_t\) 是第 \(t\) 步后到目标的距离。混合训练把 off-policy 的稳定专家监督和 on-policy 的自采样纠错结合起来，目标可概括为：
+
+$$
+\mathcal{L}^{\mathrm{mix}}=\mathcal{L}^{\mathrm{IL}}+\alpha\,\mathcal{L}^{\mathrm{RL}}.
+$$
+
+第二阶段是 back translation。给定环境 \(\mathbf{E}\)、路线 \(\mathbf{R}\)、指令 \(\mathbf{I}\)，导航器是 forward model \(P_{\mathbf{E},\mathbf{I}\rightarrow\mathbf{R}}\)，speaker 是 backward model \(P_{\mathbf{E},\mathbf{R}\rightarrow\mathbf{I}}\)。EnvDrop 先在被 mask 的环境中采样或收集新路线，再由 speaker 为路线生成伪指令，得到新的 \((\mathbf{E}',\mathbf{R}',\mathbf{I}')\) triplet，用于继续训练导航器。
+
+环境丢弃的关键不是“加噪声”这么简单，而是 mask 的共享方式。普通 feature dropout 会让每个视角、每个位置的特征维度独立闪烁；EnvDrop 则使用 view-consistent 和 viewpoint-consistent 的 mask，让同一类视觉特征在一个环境中以更稳定的方式消失。简化写法如下：
+
+$$
+\tilde f_{t,i}=f_{t,i}\odot \xi^{(E)},\qquad
+\xi^{(E)}_k\sim \frac{1}{1-p}\mathrm{Bernoulli}(1-p),
+$$
+
+其中 \(f_{t,i}\) 是第 \(t\) 个位置第 \(i\) 个 view 的视觉特征，\(\xi^{(E)}\) 是环境级或批内共享的 dropout mask，\(\frac{1}{1-p}\) 保持特征期望尺度。因为方向特征不被同样丢弃，agent 仍然知道候选方向和可达关系；被扰动的是“沙发、墙面纹理、门框外观”等语义和外观线索。
+
+```python
+def train_envdrop(human_data, train_envs, dropout_rate):
+    navigator = train_with_mixed_il_rl(human_data)
+    speaker = train_speaker(human_data)
+
+    augmented = []
+    for env in train_envs:
+        mask = sample_environment_mask(rate=dropout_rate)
+        dropped_env = apply_mask_to_visual_features(
+            env,
+            mask=mask,
+            keep_orientation_features=True,
+        )
+
+        for route in sample_routes(dropped_env):
+            instruction = speaker.generate(dropped_env, route)
+            augmented.append((dropped_env, route, instruction))
+
+    # 半监督阶段通常混合人工 batch 和伪标注 batch，避免伪数据漂移。
+    navigator = finetune_with_il_rl(
+        navigator,
+        supervised=human_data,
+        pseudo_labeled=augmented,
+    )
+    return navigator
 ```
 
-EnvDrop 的实质不是追求更强的噪声正则化，而是把 dropout 的单位从神经元提升到环境语义线索。它对未见环境特别有效，是因为测试时房屋的物体组合、纹理和布局会变化；训练时主动制造这些变化，可以让策略更依赖指令-几何对齐，而不是训练环境的捷径。
+为什么 view/viewpoint 一致性重要？如果每张图独立随机删特征，模型看到的是不真实的闪烁噪声，可能学到“任何局部视觉证据都不可信”。而未见环境的真实变化通常是结构化的：某类家具、纹理或对象组合在整个房屋中都不同。EnvDrop 用共享 mask 模拟这种结构化缺失，迫使 agent 更多依赖指令顺序、方向和剩余稳定地标。
+
+论文还强调 tied mask 的必要性：speaker 生成指令时看到的被丢弃环境，应该与 follower 训练时看到的环境一致。若 speaker 和 follower 使用不同 mask，speaker 可能在指令中描述 follower 输入中已被删除或弱化的线索，伪标注 triplet 就会出现跨模态不一致，训练收益下降。
+
+从方法谱系看，EnvDrop 没有推翻 Speaker-Follower，而是补上了它的主要短板。Speaker-Follower 的合成数据主要增加“同一环境内的新路线和新说法”，EnvDrop 则通过视觉特征扰动增加“同一路线在不同外观条件下如何导航”的训练经验，因此对 unseen split 尤其有效。
 
 #### 🧪 练习题
-1. 为什么对方向特征做 dropout 可能伤害导航学习？请和图像语义特征 dropout 对比。
-2. 如果把环境 mask 改成每个视角独立采样，模型可能学到什么不合理的鲁棒性？
+```yaml
+question: "EnvDrop 中 environmental dropout 相比普通 feature dropout 的关键区别是什么？"
+options:
+  - "它只丢弃语言 token，不处理视觉特征"
+  - "它用空间一致的视觉特征 mask 模拟新环境，而不是让每个激活独立随机清零"
+  - "它取消 speaker，只用强化学习训练导航器"
+  - "它把全景 36 个视角压缩成单张图片"
+answer: 1
+explain: "EnvDrop 的重点是环境级、view/viewpoint 一致的视觉扰动，用结构化缺失模拟未见房屋外观变化；普通独立 dropout 更像神经元噪声。"
+```

@@ -14,66 +14,97 @@ motivation: HPC场景高并发I/O首选
 
 #### 📝 一句话总结
 
-Lustre 通过将元数据服务和对象数据服务分离，并把大文件条带化到多个 Object Storage Target 上，为 HPC 和大型训练集群提供 POSIX 兼容的高并发共享文件系统。
+Lustre 通过分离元数据服务与对象数据服务，并将文件数据条带化到多个 OST 上，为 HPC、科学计算和大规模训练集群提供 POSIX 兼容的高并发共享文件系统。
 
 #### 🎯 核心要点
 
-- Client 暴露 POSIX 文件系统接口，应用无需显式感知底层对象条带
-- MDS/MDT 处理目录、inode、权限、文件布局等元数据
-- OSS/OST 存储文件数据对象，多个 OST 并行承载一个大文件的条带
-- MGS 保存全局配置，Lustre 网络层支持高速互连和多种传输
-- 可通过 stripe count、stripe size、pool 等参数适配大文件和并发作业
-- 常以 HA building block 部署，MDS/OSS 结合共享存储或故障转移提升可用性
+- Lustre Client 挂载后向应用暴露单一全局命名空间和 POSIX 文件接口
+- MDS/MDT 处理目录、权限、文件布局、open/close/create/unlink/rename 等元数据操作
+- OSS/OST 存储文件数据对象，客户端拿到 layout 后直接向多个 OST 并行读写
+- MGS/MGT 保存集群与文件系统配置，客户端和服务器启动时从 MGS 获取配置日志
+- LNet 支持 Ethernet、InfiniBand、Omni-Path、RDMA、routing 和 multi-rail 等高速互连能力
+- Normal/RAID0 layout 使用 stripe count 与 stripe size 将大文件轮转分布到多个 OST
+- DNE、striped directory、PFL、DoM、SEL、FLR 等机制扩展元数据和文件布局能力
+- 不在 Lustre 服务器间默认复制用户数据，通常依赖 RAID/ZFS、共享存储和 HA building block 提供可靠性
+- 面向在线并行 I/O，而非 HDFS 式数据本地性批处理，核心目标是聚合带宽和多客户端共享访问
 
 #### 🔬 深入细节
 
-**核心示意图说明**：Lustre 官方 Wiki 将系统拆为 Client、MDS/MDT、OSS/OST 和 MGS 四类组件，并强调文件系统可随 OSS/OST building block 线性扩展。ACM 任务链接为综述/论文页，稳定方法说明可参考 https://wiki.lustre.org/Introduction_to_Lustre。
+![Lustre 文件系统架构图](https://wiki.lustre.org/images/thumb/a/a3/Lustre_File_System_Overview_%28DNE%29_lowres_v1.png/512px-Lustre_File_System_Overview_%28DNE%29_lowres_v1.png)
+*图源：Lustre Wiki Introduction to Lustre。图中客户端经 LNet 访问 MGS、MDS/MDT 与多个 OSS/OST，体现元数据与数据服务分离。*
 
-```text
-Application
-  -> Lustre Client
-     |-- namespace RPC --> MDS -> MDT
-     `-- parallel I/O --> OSS0 -> OST0
-                       --> OSS1 -> OST1
-                       --> OSSN -> OSTN
-MGS: cluster configuration registry
-```
+![Lustre 文件条带化图](https://wiki.lustre.org/images/thumb/1/16/File_striping.png/500px-File_striping.png)
+*图源：Lustre Wiki Understanding Lustre Internals。文件可按 stripe count/stripe size 轮转分布到多个 OST，以并行叠加吞吐。*
 
 ```python
-# Lustre 条带化写入伪代码
-def write_file(path, data, stripe_count, stripe_size):
-    layout = mds.create(path, stripe_count=stripe_count, stripe_size=stripe_size)
-    for logical_offset, chunk in split(data, stripe_size):
-        stripe_id = (logical_offset // stripe_size) % stripe_count
-        ost = layout.osts[stripe_id]
-        object_offset = compute_object_offset(logical_offset, stripe_count, stripe_size)
-        ost.write(layout.object_id[stripe_id], object_offset, chunk)
-    mds.commit_size(path, len(data))
+# Lustre 典型 open/write/read 流程伪代码
+def lustre_open_for_write(path, stripe_count, stripe_size, ost_pool=None):
+    # create/open 等命名空间操作走 MDS/MDT
+    fid = mds.create_or_lookup(path)
+    layout = mds.allocate_layout(
+        fid=fid,
+        stripe_count=stripe_count,
+        stripe_size=stripe_size,
+        ost_pool=ost_pool,
+    )
+    return fid, layout
+
+def lustre_write(fid, layout, offset, data):
+    # 客户端根据 layout 直接向 OSS/OST 发 RPC；MDS 不参与数据面 I/O
+    for logical_offset, chunk in split_by_stripe(offset, data, layout.stripe_size):
+        stripe_no = logical_offset // layout.stripe_size
+        ost_index = stripe_no % layout.stripe_count
+        object_offset = (stripe_no // layout.stripe_count) * layout.stripe_size
+        object_offset += logical_offset % layout.stripe_size
+        osc = client.osc_for(layout.osts[ost_index])
+        osc.write(layout.object_fids[ost_index], object_offset, chunk)
+
+def lustre_read(fid, layout, offset, length):
+    for request in plan_parallel_extents(layout, offset, length):
+        yield client.osc_for(request.ost).read(request.object_fid, request.object_offset, request.size)
 ```
 
-Lustre 的动机来自 HPC：许多计算节点需要同时读写同一个全局命名空间，单个 NFS 服务器或单机文件系统无法提供足够的聚合带宽。Lustre 保留 POSIX 接口，让 MPI-IO、检查点、科学模拟和训练数据加载可以像访问本地文件一样访问集群存储，但内部把元数据与数据路径分离。
+Lustre 的核心动机来自 HPC 的共享并行 I/O：成百上千个计算节点需要在同一命名空间中读写输入数据、检查点、模拟结果和中间文件。NFS 或单机文件服务器会在元数据、网络和磁盘层都形成瓶颈；HDFS 虽然能吞吐大文件，但它偏向批处理数据本地性和弱 POSIX 语义。Lustre 的选择是保留应用熟悉的 POSIX 接口，把复杂性放到客户端、MDS、OSS、锁和高速网络协议里，让 MPI-IO、科学模拟、AI 训练数据加载器无需改成对象存储模型。
 
-数据并行性的关键是条带化。一个大文件可以被拆成固定大小的 stripes，并轮转写入多个 OST。若 stripe_count 为 \(n\)，理想情况下单文件吞吐近似为：
+组件分工是 Lustre 的第一层扩展性来源。MDS 通过 MDT 保存 namespace metadata、权限、文件布局扩展属性和目录信息；OSS 通过 OST 保存用户文件内容对应的数据对象；MGS 保存配置。客户端挂载后会同时拥有 MDC 与多个 OSC：MDC 面向 MDT 发元数据 RPC，OSC 面向 OST 发读写 RPC。打开文件时，MDS 返回 Layout EA，里面包含 stripe 参数、OST 列表和对象 FID；之后数据路径直接从客户端到 OST，避免 MDS 参与每次 read/write。
+
+条带化是 Lustre 大文件吞吐的核心机制。若 `stripe_size = S`、`stripe_count = C`，逻辑偏移 \(x\) 会映射到：
 
 $$
-BW_{file}\approx \sum_{i=1}^{n} BW_{OST_i}
+ost(x)=\left\lfloor \frac{x}{S} \right\rfloor \bmod C
 $$
 
-这让单个大检查点或大数据文件不再受限于一块磁盘或一个存储节点。不过，过高的 stripe_count 会增加元数据和锁管理开销，小文件反而不适合跨太多 OST。
+对应对象内偏移近似为：
 
-元数据路径由 MDS/MDT 承担，目录遍历、create、unlink、chmod 等操作不会走 OST。现代 Lustre 支持 DNE 等分布式命名空间能力，以缓解单 MDT 热点。数据路径则由客户端直接向多个 OSS 发起并行 I/O，这与 GFS/HDFS 的“元数据控制、数据直连”一脉相承，但 Lustre 更强调 POSIX 兼容与低延迟并发。
+$$
+obj\_off(x)=\left\lfloor \frac{x}{S\cdot C} \right\rfloor S + (x \bmod S)
+$$
 
-与 HDFS 不同，Lustre 面向在线 HPC 作业而非批处理数据本地性。HDFS 倾向把计算调度到数据所在节点，Lustre 则提供一个高性能共享存储层，让计算节点通过高速网络并行访问远端 OST。代价是集群设计和调优更复杂，需要根据应用 I/O 模式配置 stripe、OST pool、锁和 HA。
+因此，一个大文件可以同时落在多个 OST 上，理想吞吐接近这些 OST 可用带宽之和：
+
+$$
+BW_{file}\approx \sum_{i=1}^{C} BW_{OST_i}
+$$
+
+这对 TB 级检查点、顺序扫描和并行写出很有效；但对大量小文件或随机元数据密集工作负载，过大的 `stripe_count` 会增加对象数、锁数量和布局管理成本，反而降低效率。
+
+Lustre 的 POSIX 兼容依赖客户端缓存与分布式锁管理。客户端可缓存 metadata 和 file extent，但在并发读写、truncate、rename 等操作中必须通过锁保持一致视图。对象数据锁通常按 extent 授权：多个客户端可以持有不重叠写锁或共享读锁，从而允许同一文件不同区域并行 I/O。这个设计与 HDFS 单写者模型完全不同，换来更强的通用文件系统语义，也带来更复杂的锁撤销、恢复和尾延迟问题。
+
+元数据扩展是 Lustre 现代化的另一个重点。早期单 MDT 容易在 `create/stat/unlink/readdir` 密集场景中成为瓶颈；DNE 允许一个文件系统包含多个 MDT，Remote Directories 可把子树放到不同 MDT，Striped Directories 可用哈希方式把一个大目录分布到多个 MDT。直觉上，文件数据用 OST 条带扩展，目录项元数据则用 MDT 分布扩展，两者分别解决“单大文件吞吐”和“单大目录元数据 QPS”的不同瓶颈。
+
+可靠性上，Lustre 与 HDFS/Tectonic 有明显差异。HDFS 默认通过跨节点 block 副本提供容错；Tectonic 可按 block 使用复制或 RS 编码；Lustre 通常不在文件系统层自动把用户数据复制到多个 OSS，而是依赖 RAID、ZFS、共享存储、双控/多控磁盘柜和 HA failover。一个典型 building block 会让两台服务器连接同一组 MDT/OST，故障时由存活节点接管 target。这样做减少数据路径复制开销，保留 HPC 所需吞吐，但要求存储硬件、网络和运维配置更专业。
+
+与 HDFS 相比，Lustre 的“计算靠近数据”不是核心假设。HPC 集群通常把计算节点视为无状态客户端，通过 InfiniBand/RDMA 等高速网络访问远端共享存储；任务调度器不需要知道每个文件块在哪台计算节点本地，因为数据本来就服务于全局共享。它的优势是 POSIX、并行读写和聚合带宽，代价是部署调优复杂，需要根据应用 I/O 模式设置 stripe、OST pool、目录分布、客户端缓存、锁策略和 HA 拓扑。
 
 #### 🧪 练习题
 
 ```yaml
-question: "Lustre 对大文件高吞吐最核心的机制是什么？"
+question: "Lustre 中 stripe count 和 stripe size 主要控制什么？"
 options:
-  - "将所有数据集中写入一个 MDS"
-  - "把文件数据按 stripe 分散到多个 OST 并由客户端并行访问"
-  - "只允许单个客户端访问一个文件"
-  - "用 NameNode 调度计算到本地磁盘"
+  - "NameNode 的 block report 周期"
+  - "一个文件的数据如何按固定大小片段轮转分布到多个 OST"
+  - "TrafficGroup 的资源借用优先级"
+  - "MGS 是否保存用户文件内容"
 answer: 1
-explain: "Lustre 将元数据与数据分离，并把文件对象条带化到多个 OST，使单文件和多客户端 I/O 可以叠加多个存储目标的带宽。"
+explain: "stripe size 决定每段连续数据大小，stripe count 决定参与承载该文件的 OST 数量；客户端据此把不同偏移映射到不同 OST 并行访问。"
 ```

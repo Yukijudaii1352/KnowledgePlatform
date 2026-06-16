@@ -1,5 +1,5 @@
 /**
- * text2image-data.js — 由 pipeline/build.py 于 2026-06-15 18:08:20 自动生成。
+ * text2image-data.js — 由 pipeline/build.py 于 2026-06-16 17:00:09 自动生成。
  * 源文件：content/aigc/text2image.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "text2image",
     "topic_name": "文生图技术演进",
     "page_title": "文生图技术演进",
-    "page_subtitle": "2026-06-15 版",
+    "page_subtitle": "2026-06-16 版",
     "page_desc": "从GAN到扩散模型，从Stable Diffusion到FLUX.1的文生图技术全景演进",
     "page_icon": "🎨",
     "hero_pills": [

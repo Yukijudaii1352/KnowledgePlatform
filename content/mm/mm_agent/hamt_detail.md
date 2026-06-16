@@ -22,7 +22,10 @@ HAMT 不再把历史压成一个循环状态，而是用层次化视觉 Transfor
 - **适合长程导航**：在 R4R、R2R-Back、CVDN 等长轨迹或需要回忆过去的任务上，显式历史比单向递推状态更有优势。
 
 #### 🔬 深入细节
-论文：*History Aware Multimodal Transformer for Vision-and-Language Navigation*。核心图 Figure 1 展示了 HAMT 同时编码文本、完整历史和当前观测再预测下一动作的架构，公开图源：https://ar5iv.labs.arxiv.org/html/2110.13309/assets/figures/model_architecture.png
+论文：*History Aware Multimodal Transformer for Vision-and-Language Navigation*。核心图 Figure 1 展示了 HAMT 同时编码文本、完整历史和当前观测再预测下一动作的架构。
+
+![HAMT 文本历史当前观测联合编码架构图](https://ar5iv.labs.arxiv.org/html/2110.13309/assets/figures/model_architecture.png)
+*图：HAMT 用 unimodal Transformer 分别编码指令、历史观测和当前观测，再用跨模态 Transformer 融合三路信息预测下一步动作。*
 
 HAMT 将 VLN 写成部分可观测决策问题。给定指令 \(\mathcal{W}\)、历史 \(\mathcal{H}_t=([\mathcal{O}_1;a^h_1],\dots,[\mathcal{O}_{t-1};a^h_{t-1}])\)、当前 panorama \(\mathcal{O}_t\) 和候选动作集合 \(\mathcal{O}^c_t\)，学习策略
 \[
@@ -77,5 +80,13 @@ Input: instruction W, history panoramas H_t, current panorama O_t
 HAMT 的工程成本高于 VLN-BERT，因为它显式保留了更多历史 token；但它把“记忆”从不可解释的单向状态变成可注意的历史序列。在需要回到起点的 R2R-Back 或长指令 R4R 中，这种差异特别明显：模型能重新查看过去看到过的 panorama，而不是依赖一个被连续覆盖的 hidden state。
 
 #### 🧪 练习题
-1. HAMT 为什么要先做 panorama 内空间编码，再做时间编码？如果顺序反过来会有什么问题？
-2. SPREL 不使用语言标签也能帮助 VLN，原因是什么？
+```yaml
+question: "HAMT 采用层次化历史编码的核心原因是什么？"
+options:
+  - "先保留每个 panorama 内的空间关系，再建模跨时间历史，同时避免把所有 view 展平造成过高注意力复杂度"
+  - "完全丢弃过去观察，只保留当前候选动作以降低计算量"
+  - "把文本指令替换为历史图像序列，从而不再需要语言 Transformer"
+  - "让每个历史 view 都直接作为动作分类标签，跳过跨模态融合"
+answer: 0
+explain: "HAMT 的历史包含多个 36-view panorama；层次化编码将复杂度从全展平的二次增长拆成 panorama 内空间建模和跨时间建模，兼顾信息量与效率。"
+```

@@ -1,116 +1,105 @@
-### LiveBench — 面向 LLM 的抗污染动态评测基准
-
+### LiveBench: 实时动态基准 (LiveBench)
 ```yaml
 id: livebench
 name: LiveBench
-full_name: "LiveBench: A Challenging, Contamination-Free LLM Benchmark"
+full_name: 实时动态基准 (LiveBench)
 year: "2024"
-venue: "ICLR 2025"
-org: "Abacus.AI, CMU, UIUC 等"
-paper_url: "https://arxiv.org/abs/2406.19314"
-category: "llm_evaluation"
-parent: "—"
-motivation: "现有 LLM 基准面临数据污染、LLM-judge 偏差和题目饱和三大问题，LiveBench 通过月度更新题目、客观自动评分和多样化高难度任务来解决"
+org: Abacus.AI
+paper_url: https://arxiv.org/abs/2406.19314
+category: frontier_2026
+parent: opencompass
+motivation: 月度更新半年刷新防数据污染
 ```
 
 #### 📝 一句话总结
-
-LiveBench 提出了一个按月更新、使用客观 ground-truth 自动评分（无需 LLM judge）的 LLM 评测基准，涵盖数学、编程、推理、语言理解、指令遵循和数据分析 6 大类 18 个子任务，有效缓解了数据污染和评分偏差问题。
+LiveBench 提出了一个持续更新、客观打分、覆盖六类能力的 LLM 基准，用近期信息源和可验证答案缓解测试集污染，并避免 LLM-as-a-judge 与人工偏好评测的主观偏差。
 
 #### 🎯 核心要点
-
-- **三大设计原则**：(1) 从不断更新的信息源获取题目以限制污染；(2) 使用客观、可验证的 ground-truth 自动评分，完全避免 LLM judge 偏差；(3) 涵盖多样化且足够困难的任务，最强模型准确率不超过 65%
-- **6 大评测类别、18 个子任务**：Math（AMC/AIME 竞赛题、奥赛题、AMPS_Hard）、Coding（LeetCode/Codeforces 代码生成与补全）、Reasoning（Web of Lies v2、Zebra Puzzle、Spatial）、Language（Connections 词谜、Typos 纠错、Plot Unscrambling 情节排序）、Instruction Following（基于 Guardian 新闻的改写/摘要/故事生成 + 可验证约束）、Data Analysis（列类型标注 CTA、表格重格式化、表格连接）
-- **月度更新机制**：每月从 AMC/AIME 竞赛、Codeforces/LeetCode 新题、IMDb 新电影、Guardian 新闻、Kaggle/Socrata 新数据集等动态来源获取新题，并逐步增加难度
-- **评分方式**：所有任务均有确定性正确答案，使用精确匹配、编辑距离、代码测试用例通过率等客观指标，无需人工或 LLM 评判
-- **实验规模**：评测了 40+ 个模型（含 GPT-4o、Claude-3.5、o1-preview、Llama-3.1-405B 等），与 ChatBot Arena 相关系数 0.91，与 Arena-Hard 相关系数 0.88
-- **关键发现**：o1-preview 综合最强；月度更新后排名 Spearman 相关 > 0.997 表明排名稳定；LLM judge 在困难数学/推理题上准确率仅约 50%，远不如 ground-truth 评分
+- 采用月度更新机制，问题来自近期数学竞赛、arXiv 论文、新闻、IMDb/Wikipedia 电影梗概、Kaggle/Socrata 数据集和近期编程题。
+- 强制选择有客观 ground truth 的任务，自动评分，不依赖 LLM judge 或人工偏好投票。
+- 覆盖 6 大类别、18 个任务：Math、Coding、Reasoning、Language Comprehension、Instruction Following、Data Analysis。
+- 每个任务约 40-100 个问题，难度从容易到很难，并刻意让强模型也保持区分度，论文报告当前模型最高仍低于 70%。
+- 任务分为两类：使用新近信息源生成的新问题，以及对 BBH、AMPS、IFEval 等旧任务的更难、更抗污染版本。
+- 评分器按任务定制：数学精确答案、代码单元测试、表格转换/连接 F1、指令满足率、拼写修正精确比对、电影情节排序等。
+- 论文实验证明 GPT-4-Turbo 作为 judge 在困难数学和逻辑题上错误率可达约 21%-46%，支撑 LiveBench 放弃主观 judge 的设计。
 
 #### 🔬 深入细节
 
-![LiveBench 任务类别与评分总览（论文 Figure 1 所在页面）](assets/livebench_fig1_overview.png)
-*图 1：LiveBench 的 6 大类别及其子任务概览。每个类别包含 2-3 个子任务，题目来源于不断更新的外部数据源。*
-
-**动机与背景：为什么需要 LiveBench？**
-
-当前 LLM 评测面临三个核心挑战。第一，**数据污染**（data contamination）：随着 LLM 训练数据规模爆炸式增长，MMLU、GSM8K 等经典基准的题目极有可能已被纳入训练集，导致评测分数虚高。研究表明，部分模型在被污染的基准上得分可提升 10% 以上。第二，**LLM judge 偏差**：AlpacaEval、MT-Bench 等基准使用 GPT-4 作为裁判，但 LLM judge 存在系统性偏差——偏好冗长回答、偏好与自身风格相似的输出，且在困难推理题上判断准确率仅约 50%。第三，**题目饱和**：静态基准一旦发布就不再更新，模型性能逐渐趋近满分，失去区分能力。LiveBench 通过动态更新 + 客观评分的组合方案，同时解决了这三个问题。
-
-**核心机制：六大类别的任务设计**
-
-LiveBench 的任务设计遵循"从动态来源获取新鲜题目 + 程序化生成变体"的原则。以下逐一说明各类别的关键设计：
-
-**数学类（Math）** 包含三个子任务：(1) **Math Competitions**——从 AMC 10/12 和 AIME 等数学竞赛中提取最新题目，将原始多选题改为开放式作答以增加难度，并对数值和选项进行扰动以防止记忆；(2) **Olympiad**——来自 USAMO、IMO 等奥赛的证明题，要求模型给出最终数值答案；(3) **AMPS_Hard**——基于 Khan Academy 和 MIT 课程的程序化生成数学题，每月生成新实例。
-
-**编程类（Coding）** 包含两个子任务：(1) **LCB Generation**——来自 LiveCodeBench 的 78 道竞赛编程题（源自 Codeforces/LeetCode 近期题目），要求模型从零编写完整解答，通过测试用例评分；(2) **Completion**——给出 LeetCode 题目的部分正确解法（删除最后 15%-70% 的代码），要求模型补全，测试代码理解与续写能力。
-
-**推理类（Reasoning）** 包含三个子任务：(1) **Web of Lies v2**——在 Big-Bench Hard 原版基础上大幅增加难度，加入额外推理步骤和多种干扰项（red herrings），要求评估自然语言表述的布尔函数真值；(2) **Zebra Puzzle**——程序化生成的逻辑约束推理题，给定一组约束条件，推断特定属性值；(3) **Spatial**——50 道手写的 2D/3D 空间推理题，测试模型对几何形状交叉和方向关系的推断能力。
-
-**语言理解类（Language）** 包含：(1) **Connections**——类似 NYT 词谜游戏，将 8/12/16 个词分成若干组，每组 4 个词有共同联系；(2) **Typos**——在最新 ArXiv 摘要中程序化注入常见拼写错误，要求模型仅修复拼写而保留其他风格；(3) **Plot Unscrambling**——将 IMDb/Wikipedia 上近期电影的情节摘要打乱句序，要求模型恢复原始顺序。
-
-**指令遵循类（Instruction Following）** 基于 IFEval 的 16 种可验证指令（如字数限制、特定短语包含等），结合 Guardian 新闻文章，要求模型在完成改写/摘要/简化/故事生成任务的同时严格遵守多个随机抽取的约束条件。评分仅考察指令遵守程度。
-
-**数据分析类（Data Analysis）** 使用 Kaggle/Socrata 最新数据集，包含：(1) **CTA（Column Type Annotation）**——给定表格列的样本值和所有列名，预测该列的正确列名；(2) **TableReformat**——在 JSON/CSV/XML/TSV 等格式间转换表格；(3) **TableJoin**——给定两个部分重叠的表格，预测正确的列映射关系。
+![LiveBench 结果与六类能力雷达图](https://github.com/LiveBench/LiveBench/raw/main/assets/livebench-2024-09-30.png)
+*图：LiveBench 同时给出总体分数和六个类别的分项表现，显示不同强模型在 Coding、Math、Reasoning、Instruction Following 等维度的排序并不一致。*
 
 ```python
-# LiveBench 评测流程伪代码
-def livebench_evaluate(model, month):
-    """每月评测一个模型的完整流程"""
-    scores = {}
-    
-    # 1. 从动态来源获取/生成当月新题
-    questions = {}
-    questions['math'] = fetch_recent_competitions(AMC, AIME) + generate_AMPS(month)
-    questions['coding'] = fetch_LiveCodeBench(after=month) + create_completions(LeetCode)
-    questions['reasoning'] = generate_web_of_lies_v2() + generate_zebra_puzzles()
-    questions['language'] = fetch_NYT_connections() + inject_typos(recent_arxiv)
-    questions['IF'] = combine(Guardian_articles, sample_instructions(k=16))
-    questions['data_analysis'] = sample_tables(Kaggle, Socrata)
-    
-    # 2. 单轮推理，temperature=0
-    for category, qs in questions.items():
-        task_scores = []
-        for q in qs:
-            response = model.generate(q.prompt, temperature=0)
-            # 3. 客观评分：精确匹配 / 编辑距离 / 测试用例
-            score = objective_score(response, q.ground_truth, q.metric)
-            task_scores.append(score)  # score ∈ [0, 1]
-        scores[category] = mean(task_scores)
-    
-    # 4. 最终分数 = 6 个类别的平均
-    return mean(scores.values())
+# LiveBench 构建与评测伪代码
+for release_month in monthly_schedule:
+    candidate_questions = []
+
+    candidate_questions += harvest_recent_math_competitions(release_month)
+    candidate_questions += harvest_recent_arxiv_typos(release_month)
+    candidate_questions += harvest_recent_news_instruction_tasks(release_month)
+    candidate_questions += harvest_recent_kaggle_socrata_tables(release_month)
+    candidate_questions += harvest_recent_lcb_coding(release_month)
+    candidate_questions += generate_harder_bbh_ifeval_amps_variants(seed=release_month)
+
+    questions = filter(lambda q: has_objective_ground_truth(q), candidate_questions)
+    publish_public_subset_after_delay(questions)
+
+    for model in evaluated_models:
+        answers = model.generate(questions, prompt_style="parseable_final_answer")
+        scores = [task_specific_scorer(q, a) for q, a in zip(questions, answers)]
+        leaderboard.update(model, aggregate_by_category(scores))
 ```
 
-> 💡 **关键设计**：LiveBench 的评分完全不依赖 LLM judge。论文在附录中对比了 GPT-4 作为 judge 在困难数学题上的表现，发现其判断准确率仅约 46-62%，甚至不如随机猜测可靠，这有力地证明了客观评分的必要性。
+LiveBench 的核心问题意识是：传统 LLM 基准一旦公开，就可能被后续模型训练语料吸收，导致分数越来越像“是否见过题”而不是“是否具备能力”。常见补救方案是让人类或 LLM 不断写新题、再用人类或 LLM 判断回答好坏，但这又引入两个新问题：问题质量和覆盖面受出题者偏好影响；LLM judge 在复杂数学、逻辑和代码题上会犯错，并且会偏好特定输出风格。LiveBench 的取舍是只收录可客观验证的问题，用时间新鲜度和自动评分同时降低污染和主观性。
 
-**月度更新与抗污染验证**
+其时间机制可以概括为：问题发布时间 \(t_q\) 尽量晚于模型训练截止时间 \(t_{\text{train}}\)，并持续引入新题；同时保留可复现的公开数据与答案，便于社区核验。
 
-LiveBench 的核心创新之一是月度更新机制。每月从竞赛网站、新闻源、数据平台等获取新题，同时逐步提升难度（平均每月难度增加约 1.2%）。论文通过计算相邻月份模型排名的 Spearman 相关系数来验证更新的有效性：相关系数始终 > 0.997，说明虽然题目完全更换，但模型的相对能力排序高度稳定，证明了评测的信度。
+$$
+\text{contamination\_risk}(q,m) \downarrow \quad \text{when} \quad t_q > t_{\text{train}}(m)
+$$
 
-![LiveBench 类别间相关性与模型表现分析（论文 Figure 2-3）](assets/livebench_fig2_correlations.png)
-*图 2：左图为 6 大类别间的 Pearson 相关系数热力图；右图为各子任务间的相关性。Math Competitions 与整体表现相关性最高，Instruction Following 与其他类别相关性最低。*
+论文并不声称时间新鲜度能完全消灭污染，因为模型训练截止时间不总是公开，网页内容也可能被提前转载；因此最新版本更谨慎地称为 contamination-limited。它通过近期来源、月度发布、问题难度升级和部分延迟公开来降低污染概率，而不是依赖“私有题库永远不泄露”。这种设计比静态 MMLU/GSM8K 更适合追踪快速迭代的前沿模型。
 
-**与现有基准的对比**
+评分机制是 LiveBench 的第二个关键。总体分数不是一个 LLM 偏好票，而是各任务客观 scorer 的聚合。对于类别 \(c\) 下的问题集合 \(Q_c\)，可以写成：
 
-LiveBench 与 ChatBot Arena（人类投票排名）的相关系数为 0.91，与 Arena-Hard（GPT-4 judge）的相关系数为 0.88，表明 LiveBench 的排名与社区公认的模型能力排序高度一致。但 LiveBench 能揭示一些有趣差异：例如 GPT-4-turbo 在 Arena-Hard 上表现异常好（因为 Arena-Hard 使用 GPT-4 自身作为 judge，存在自我偏好偏差），而 Gemini-1.5 系列在 ChatBot Arena 上排名偏高（可能因为输出风格受人类偏好）。这些差异恰好体现了客观评分的优势。
+$$
+S_c(m)=\frac{1}{|Q_c|}\sum_{q\in Q_c}\text{score}_q\big(f_m(q), y_q\big),\quad
+S(m)=\frac{1}{6}\sum_{c=1}^{6}S_c(m)
+$$
 
-![LiveBench 与其他基准的模型排名对比（论文 Figure 4 所在页面）](assets/livebench_fig3_comparison.png)
-*图 3：LiveBench 与 ChatBot Arena、Arena-Hard 的模型得分对比。*
+不同任务的 \(\text{score}_q\) 具体实现不同。数学题通常抽取最终答案并与标准答案匹配；编程题运行测试；表格连接任务用列映射的 precision/recall/F1；表格重排比较目标格式和内容；拼写修正要求只修错别字、不改写风格；指令遵循则同时看整条 prompt 是否全部满足和每条约束是否满足。
 
-**与传统评测方法的区别**
+$$
+S_{\text{IF}}=\frac{1}{2}\left(\mathbf{1}[\forall k, c_k(\hat{y})=1]+\frac{1}{K}\sum_{k=1}^{K}\mathbf{1}[c_k(\hat{y})=1]\right)
+$$
 
-与 MMLU、HumanEval 等静态基准相比，LiveBench 通过月度更新从根本上解决了污染问题。与 AlpacaEval、MT-Bench 等 LLM-judge 基准相比，LiveBench 使用客观 ground-truth 评分，消除了评判偏差。与 ChatBot Arena 的人类投票相比，LiveBench 完全自动化且可复现，成本极低。LiveBench 的独特定位是：**同时满足抗污染、客观评分和高区分度三个要求的唯一基准**。
+LiveBench 的 6 类任务覆盖面很有针对性。Math 使用近期竞赛题和更难的 AMPS 变体；Coding 使用 LiveCodeBench 的近期 LeetCode/AtCoder 代码生成，并加入代码补全；Reasoning 包含更难的 Web of Lies、Zebra Puzzles 和空间推理；Language Comprehension 包含 Connections、arXiv 摘要 typos 修复、近期电影剧情排序；Instruction Following 使用 Guardian 新闻文章并叠加可验证约束；Data Analysis 使用近期 Kaggle/Socrata 表格做列类型标注、表连接和格式转换。
 
-> ⚠️ **注意**：LiveBench 的局限性在于：(1) 仅覆盖可客观评分的任务，无法评测开放式创意写作等主观能力；(2) 月度更新需要持续的人力维护；(3) 部分任务（如 Spatial）依赖手写题目，规模有限。
+```text
+LiveBench task taxonomy:
+- Math: competitions, olympiad fill-in-the-blank, AMPS_Hard
+- Coding: LiveCodeBench generation, code completion
+- Reasoning: Web of Lies v2, Zebra Puzzles, spatial reasoning
+- Language: Connections, Typos, Plot Unscrambling
+- Instruction Following: paraphrase, simplify, summarize, story generation with constraints
+- Data Analysis: table reformatting, table join, column type annotation
+```
+
+一个容易忽视的细节是提示格式。论文通常要求模型使用 zero-shot chain-of-thought、在不知道时也给出最佳猜测，并把最终答案放在 XML 标签或 `**double asterisks**` 等易解析格式中。这并不是为了测试格式技巧，而是为了让自动 scorer 稳定抽取最终答案。论文也承认这会引入一定 instruction-following 成分，因此 LiveBench 的设计需要在“容易评分”和“不过度奖励格式服从”之间折中。
+
+> 💡 关键：LiveBench 的“live”不只是排行榜实时刷新，而是数据源、题目版本、难度和模型答案都进入持续发布循环，使评测不断追上模型迭代。
+
+与 ChatBot Arena、MT-Bench、Arena-Hard 等偏主观评测相比，LiveBench 牺牲了一部分开放式创意任务，例如“写一封邮件”或“做旅行攻略”很难定义唯一 ground truth；但它换来了困难任务上的可靠判分。论文对比 ground-truth 与 GPT-4-Turbo judge，发现后者在 AMC/AIME/SMC/Zebra 等任务上的错误率高到不适合作为严肃判分器。这解释了 LiveBench 为什么宁愿限制任务类型，也要坚持可验证答案。
+
+LiveBench 的局限也来自同一设计：只选择客观题会低估对话风格、创意写作、开放式规划等能力；近期来源不能保证所有模型训练截止都在题目之前；自动解析最终答案可能受输出格式影响。但作为前沿模型横向比较工具，它的贡献非常清晰：把“新题”“客观评分”“多能力覆盖”合在同一个可复现基准中，让分数更接近真实能力变化，而不是训练集记忆或 judge 偏好的变化。
 
 #### 🧪 练习题
-
 ```yaml
-question: "LiveBench 为什么不使用 LLM（如 GPT-4）作为评分裁判？"
+question: "LiveBench 避免使用 LLM-as-a-judge 的主要原因是什么？"
 options:
-  - "因为 LLM judge 的 API 调用成本太高"
-  - "因为 LLM judge 在困难推理题上准确率低且存在系统性偏差（如偏好冗长输出）"
-  - "因为 LLM judge 的推理速度太慢，无法支持月度更新"
-  - "因为 OpenAI 不允许将 GPT-4 用作评测裁判"
+  - "LLM judge 无法读取任何文本输入"
+  - "LLM judge 在困难数学、逻辑等任务上错误率较高且存在输出风格偏差"
+  - "LLM judge 只能评价代码题，不能评价语言题"
+  - "LLM judge 会让所有模型得分恒为 0"
 answer: 1
-explain: "论文实验表明 GPT-4 作为 judge 在困难数学/推理题上准确率仅约 46-62%，且存在偏好自身风格输出的系统性偏差，因此 LiveBench 选择使用客观 ground-truth 自动评分。"
+explain: "论文实验证明 GPT-4-Turbo judge 在困难数学和推理题上会产生显著误判，因此 LiveBench 优先选择有客观 ground truth 的自动评分任务。"
 ```

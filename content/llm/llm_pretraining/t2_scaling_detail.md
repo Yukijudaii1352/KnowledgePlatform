@@ -1,10 +1,9 @@
-### T²缩放定律
-
+### T²缩放定律 (Train-to-Test Scaling Laws)
 ```yaml
 id: t2_scaling
 name: T²缩放定律
 full_name: T²缩放定律 (Train-to-Test Scaling Laws)
-year: '2026'
+year: "2026"
 org: 多机构
 paper_url: https://www.machinelearningplus.com/llm/llm-scaling-laws/
 category: scaling
@@ -13,74 +12,112 @@ motivation: 推理最优的过度训练策略
 ```
 
 #### 📝 一句话总结
-
-T²（Train-to-Test）缩放定律把预训练规模 \(N,D\) 和测试时采样次数 \(k\) 放到同一个端到端计算预算里联合优化，解决了 Chinchilla 只考虑训练 FLOPs、不考虑部署推理成本的问题。结论是：当推理时需要 repeated sampling 或 pass@k 时，计算最优模型会明显转向“小模型、更多训练 token、更多测试样本”的过度训练区域。
+T² 缩放定律把模型参数量 \(N\)、预训练 token 数 \(D\) 和测试时重复采样次数 \(k\) 放进同一个端到端算力约束中联合优化，解决了 Chinchilla 只优化训练而忽略推理成本的问题。它的核心结论是：当部署阶段会使用 pass@k 或重复采样时，更小但训练更久的过度训练模型往往比 Chinchilla 最优模型更符合总成本最优。
 
 #### 🎯 核心要点
-
-- manifest 给出的 `paper_url` 是 scaling laws 综述页；方法细节可由公开论文 *Test-Time Scaling Makes Overtraining Compute-Optimal* 补足
-- 将训练预算 \(6ND\) 与推理预算 \(2Nk\) 联合建模，优化变量从 Chinchilla 的 \(N,D\) 扩展到 \(N,D,k\)
-- 用 pass@k / repeated sampling 描述测试时缩放：同一个模型生成多个候选答案，成功率随 \(k\) 上升
-- 发现纳入推理成本后，计算最优前沿显著偏离 20 tokens/parameter，进入更小模型、更高 tokens/parameter 的过度训练区
-- 在 8 个下游任务和大量小模型训练实验上验证预测，额外训练的过度训练模型优于仅按预训练 loss 规划的模型
-- 结果在后训练阶段仍有意义，说明推理成本应进入现代 LLM 的训练决策
+- 将预训练缩放和测试时缩放合并为一个联合决策问题：同时选择 \(N\)、\(D\)、\(k\)。
+- 显式计入两类成本：训练成本近似为 \(6ND\)，重复采样推理成本近似为 \(2Nk\)。
+- 用 pass@k 描述测试时重复采样收益：采样越多，至少一次答对的概率以非线性方式上升。
+- 提出两条互补建模路线：基于 NLL/任务损失的 Approach 1，以及直接建模 pass@k 准确率的 Approach 2。
+- 在超过 100 个模型检查点、12 个训练算力层级和 8 个任务上拟合缩放关系，并额外训练 21 个重度过度训练检查点做外推验证。
+- 结论稳定指向小模型高 token/parameter 比例：在固定推理预算下，较小模型能获得更多 \(k\)，因此总性能-成本前沿向过度训练区域移动。
+- 后训练后趋势仍然存在：FT/SFT 会削弱一部分过度训练收益，但不会把最优点拉回 Chinchilla 的约 20 tokens/parameter 规则。
 
 #### 🔬 深入细节
 
-![Train-to-Test Scaling 主图](https://ar5iv.labs.arxiv.org/html/2604.01411/assets/x1.png)
-*图：T² 论文主图，展示将训练和测试时采样联合考虑后，计算最优区域向过度训练小模型移动。*
+![T² 缩放定律框架图](https://arxiv.org/html/2604.01411v1/x1.png)
+*图：T² 将 Chinchilla 训练缩放和 pass@k 测试时缩放组合起来，在给定训练预算和推理预算下寻找新的预训练最优配置。*
+
+任务 JSON 给出的 `paper_url` 是缩放定律综述页；这里的精读对象是其中对应的原始论文 *Test-Time Scaling Makes Overtraining Compute-Optimal*，arXiv 链接为 `https://arxiv.org/abs/2604.01411`。论文要回答的问题非常具体：如果一个模型上线后会被重复采样很多次，那么训练时还应该继续遵循 Chinchilla 的“训练算力最优”比例吗？T² 的答案是否定的，因为 Chinchilla 默认每个模型只被查询一次，完全没有把小模型单次推理更便宜、因此可以多采样的事实放入优化目标。
 
 ```python
-# T² 端到端计算预算优化伪代码
-def train_to_test_scaling(total_budget, query_count):
-    best = None
-    for N in candidate_model_sizes:
-        for D in candidate_training_tokens:
-            train_cost = 6 * N * D
-            if train_cost >= total_budget:
-                continue
+# T² 联合训练-测试缩放伪代码
+# 输入：候选模型尺寸 N_grid、训练 token D_grid、训练预算 C_train、推理预算 C_inf
+# 输出：在端到端预算下最优的 N, D, k
 
-            # 剩余预算用于测试时 repeated sampling
-            max_k = int((total_budget - train_cost) / (query_count * 2 * N))
-            for k in range(1, max_k + 1):
-                base_acc = predict_single_sample_accuracy(N, D)
-                pass_at_k = 1 - (1 - base_acc) ** k
-                score = utility(pass_at_k, cost=train_cost + query_count * 2 * N * k)
-                best = max_by_score(best, {"N": N, "D": D, "k": k, "score": score})
-    return best
+fit_chinchilla_or_task_model(checkpoints)  # 从缩放检查点拟合 N,D -> loss/accuracy
+fit_passk_model(eval_samples)              # 从多次采样结果拟合 k -> pass@k
+
+best = None
+for N in N_grid:
+    for D in D_grid:
+        if 6 * N * D > C_train:
+            continue
+
+        # 关键推理成本修正：小模型单次采样更便宜，所以 k 更大
+        k = floor(C_inf / (2 * N))
+        if k < 1:
+            continue
+
+        # Approach 1: 预测 NLL 或任务损失，越低越好
+        loss_score = predict_loss(N, D, k)
+
+        # Approach 2: 预测 pass@k accuracy，越高越好
+        acc_score = predict_passk_accuracy(N, D, k)
+
+        candidate = combine_or_compare(loss_score, acc_score)
+        best = arg_optimal(best, candidate, N, D, k)
+
+return best.N, best.D, best.k
 ```
 
-**动机与背景：Chinchilla 只优化训练，不优化服务期总成本。** Chinchilla 的预算约束是 \(C_{\text{train}}\approx 6ND\)，适合规划一次预训练 run。但现代 LLM 的许多能力来自测试时扩展：多次采样、best-of-N、自一致性投票、代码/数学任务的 pass@k，以及更复杂的推理搜索。部署时，如果一个模型要被调用很多次，推理成本会累计到训练成本同一量级，甚至更高。T² 的核心问题是：如果未来使用模型时还要花大量 inference FLOPs，预训练时还应按 20:1 训练吗？
-
-**核心机制：把 \(N,D,k\) 放进同一个优化问题。** T² 将端到端预算写成训练成本加推理成本：
+传统 Chinchilla 缩放律把预训练损失写成参数量和数据量的可加幂律：
 
 $$
-B \approx 6ND + Q \cdot 2Nk
+L(N,D)=E+\frac{A}{N^{\alpha}}+\frac{B}{D^{\beta}}.
 $$
 
-其中 \(Q\) 是预计查询数，\(k\) 是每题采样次数。大模型提高单次采样质量，但每次采样更贵；小模型单次质量较低，但可以用相同预算采更多次。若任务指标接近 pass@k：
+在只考虑训练预算 \(C_{\text{train}}\approx 6ND\) 时，最优解通常让模型规模和训练 token 数随预算以相近指数增长，即直觉上的“模型和数据一起变大”。T² 的关键改动是把推理也变成约束：
 
 $$
-\text{pass@}k = 1 - (1-p(N,D))^k
+\min_{N,D,k} L(N,D,k)\quad \text{s.t.}\quad 6ND\le C_{\text{train}},\quad 2Nk\le C_{\text{inf}}.
 $$
 
-那么最佳选择不一定是单次最强模型，而可能是一个训练更充分的小模型配合更大的 \(k\)。这正是 T² 所说的 train-to-test tradeoff。
+如果直接优化准确率，则相应写成：
 
-**方法流程：先拟合预训练到任务表现，再联立测试时缩放。** 论文使用两类建模路线交叉验证：一类先建模 \(N,D\) 对任务 loss 的影响，再映射到测试表现；另一类直接建模任务准确率或 pass@k 对 \(N,D,k\) 的响应。随后在固定总预算下搜索最优组合，并额外训练落在预测最优区域的过度训练模型。实验结论一致：当推理采样成为预算的一部分时，传统 Chinchilla 前沿会选择过大的模型和过少的训练 token。
+$$
+\max_{N,D,k}\;\text{Acc}(N,D,k)\quad \text{s.t.}\quad 6ND\le C_{\text{train}},\quad 2Nk\le C_{\text{inf}}.
+$$
 
-**与传统预训练规模定律的区别：过度训练从“浪费”变成“部署最优”。** 在只看训练 loss 的视角下，小模型训练远超 20 tokens/parameter 可能被认为不经济，因为继续训练的 loss 回报递减。但若这个小模型未来要被多次采样，降低每次推理成本会带来复利：更小的 \(N\) 让同样预算支持更大的 \(k\)，更多训练 token 又提高每个样本的基础质量。T² 因此把“过度训练”重新定义为在端到端预算下合理的资源转移。
+这里的 \(2Nk\) 是简化的单 token 前向推理成本乘以采样数。它改变了最优点的方向：当 \(C_{\text{inf}}\) 固定时，\(k=\lfloor C_{\text{inf}}/(2N)\rfloor\)，所以小模型天然能被采样更多次。小模型单次正确率较低，但 pass@k 的收益不是线性的，重复采样可能补回甚至超过单次质量差距。
 
-> 💡 关键：T² 的核心不是说所有模型都应该更小，而是说如果任务依赖测试时缩放，训练规划必须提前纳入预计推理次数和采样策略。
+pass@k 的基本机制是：对同一题采样 \(k\) 次，只要有一次正确就算成功。如果第 \(i\) 个问题单次采样正确率是 \(p_i\)，那么：
+
+$$
+\text{pass@}k_i = 1-(1-p_i)^k.
+$$
+
+在包含 \(M\) 个问题的基准 \(\mathcal{D}\) 上，期望 pass@k 为：
+
+$$
+\text{pass@}k_{\mathcal{D}}=\frac{1}{M}\sum_{i=1}^{M}\left[1-(1-p_i)^k\right].
+$$
+
+这条公式解释了为什么 T² 会偏好过度训练。对一个大模型，\(p_i\) 可能更高，但 \(k\) 很小；对一个小模型，\(p_i\) 较低，但 \(k\) 可以大很多。只要任务存在“多试几次能找到正确轨迹”的空间，后者就可能在相同推理 FLOPs 下占优。
+
+论文使用两种建模方式来避免单一指标带来的偏差。Approach 1 从损失角度建模，把 repeated sampling 对负对数 pass@k 的改善并入 \(L(N,D,k)\)，可以理解为在 Chinchilla 的 \(N,D\) 幂律上增加一个随 \(k\) 改善的测试时缩放项。Approach 2 则直接建模准确率，先拟合 \(N,D\) 对单次能力的影响，再用 Beta 分布刻画题目难度和单题成功概率的分布：
+
+$$
+p\sim \text{Beta}(a_{N,D}, b_{N,D}),\qquad
+\mathbb{E}[\text{pass@}k]=1-\frac{\mathrm{B}(a_{N,D}, b_{N,D}+k)}{\mathrm{B}(a_{N,D}, b_{N,D})}.
+$$
+
+两个路线虽然拟合对象不同，一个偏连续损失，一个偏离散成功率，但都给出相同方向的建议：一旦加入推理预算，最优预训练配置会比 Chinchilla 更小、更久训、更高 tokens/parameter。
+
+实验上，论文先用常规 Chinchilla 缩放检查点拟合模型，再向过度训练区域外推。为了验证不是曲线拟合幻觉，作者额外训练了 21 个超出标准缩放套件的过度训练检查点。结果显示，在固定 \(C_{\text{train}}=2.56\times10^{19}\) 且 \(C_{\text{inf}}=2\times10^9\) FLOPs 的比较下，小型过度训练模型在 8 个任务上都优于经验上的 Chinchilla 最优检查点。例如 LAMBADA 上 37M 过度训练模型优于 455M Chinchilla 检查点，Simple Reasoning 上 37M 过度训练模型也显著优于 901M 检查点。
+
+> 💡 关键：T² 中的“过度训练”不是训练集过拟合的意思，而是相对 Chinchilla 推荐的 token/parameter 比例训练更久。它牺牲了一部分训练阶段的单次最优性，换取部署阶段更低的单样本成本和更多测试时采样机会。
+
+与传统缩放律相比，T² 的主要创新不是发明新的模型结构，而是把“训练什么模型”和“部署时怎么用模型”合并成一个优化问题。Chinchilla 适合一次查询或推理预算可忽略的场景；T² 适合推理密集、会做 self-consistency、best-of-N、生成-验证或 pass@k 的场景。对于推理模型、代码模型、数学模型和 agent 任务，测试时采样往往是主性能杠杆，因此 T² 给出的是更接近真实部署成本的训练规划方法。
 
 #### 🧪 练习题
-
 ```yaml
-question: "T² 缩放定律为什么会偏向过度训练的小模型？"
+question: "T² 缩放定律为什么会推荐比 Chinchilla 更小但训练更久的模型？"
 options:
-  - "小模型的单次输出一定比大模型更准确"
-  - "小模型推理更便宜，可在同一端到端预算下支持更多采样次数 k"
-  - "过度训练可以消除所有数据噪声"
-  - "T² 假设训练计算不占预算"
+  - "因为小模型的单次输出准确率一定高于大模型"
+  - "因为在固定推理预算下，小模型单次采样更便宜，可以获得更大的 k，并通过 pass@k 弥补单次质量差距"
+  - "因为 T² 完全不考虑训练成本，只优化推理成本"
+  - "因为过度训练会减少模型参数量"
 answer: 1
-explain: "T² 同时计算训练和推理成本；当 pass@k 重要时，较小但训练更充分的模型可用更低推理成本换取更多采样。"
+explain: "T² 同时约束训练成本 6ND 和推理成本 2Nk；当 N 变小时，同一推理预算能支持更多采样，pass@k 的非线性收益会把最优点推向小模型过度训练区域。"
 ```

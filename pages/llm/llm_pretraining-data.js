@@ -1,5 +1,5 @@
 /**
- * llm_pretraining-data.js — 由 pipeline/build.py 于 2026-06-15 18:08:25 自动生成。
+ * llm_pretraining-data.js — 由 pipeline/build.py 于 2026-06-16 17:00:16 自动生成。
  * 源文件：content/llm/llm_pretraining.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "llm_pretraining",
     "topic_name": "LLM预训练",
     "page_title": "LLM预训练算法总结",
-    "page_subtitle": "2026-06-15 版",
+    "page_subtitle": "2026-06-16 版",
     "page_desc": "系统梳理从Scaling Laws理论奠基、数据工程精炼到分布式训练优化的大语言模型预训练技术演进脉络",
     "page_icon": "⚡",
     "hero_pills": [
@@ -354,12 +354,29 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "scaling",
       "motivation": "幂律公式揭示模型性能与N/D/C关系",
-      "summary": "OpenAI Scaling Laws 的核心目标是：幂律公式揭示模型性能与N/D/C关系。",
+      "summary": "Kaplan Scaling Laws 提出用幂律统一描述 Transformer 语言模型损失与参数量 \\(N\\)、数据量 \\(D\\)、训练计算量 \\(C\\) 的关系，解决了“大模型训练预算如何分配”的经验预测问题。论文的核心结论是：性能主要由规模决定，架构形状影响较弱；在固定计算预算下，OpenAI 2020 的估计倾向于把更多新增计算投入模型参数，而不是把模型训练到完全收敛。",
       "keyPoints": [
-        "核心动机：幂律公式揭示模型性能与N/D/C关系",
-        "代表机构：OpenAI"
+        "将语言模型交叉熵损失建模为参数量、数据量、计算量的幂律函数，覆盖多数量级实验范围。",
+        "实验对象是自回归 Transformer，主要在 WebText2 上以 1024-token 上下文训练并评估测试损失。",
+        "区分非 embedding 参数 <span class=\"kb-math kb-math-inline\">N</span>、数据 token 数 <span class=\"kb-math kb-math-inline\">D</span>、训练 compute <span class=\"kb-math kb-math-inline\">C</span>、最小 compute <span class=\"kb-math kb-math-inline\">C_{\\min}</span>、临界 batch size <span class=\"kb-math kb-math-inline\">B_{crit}</span>。",
+        "提出单变量规模律：<span class=\"kb-math kb-math-inline\">L(N)</span>、<span class=\"kb-math kb-math-inline\">L(D)</span>、<span class=\"kb-math kb-math-inline\">L(C_{\\min})</span> 均近似服从幂律下降。",
+        "提出联合模型-数据公式 <span class=\"kb-math kb-math-inline\">L(N,D)</span>，解释过拟合与数据不足时的收益递减。",
+        "发现模型形状如深度、宽度、attention heads 在合理范围内影响较弱，非 embedding 参数规模更关键。",
+        "得到固定 compute 下的分配建议：<span class=\"kb-math kb-math-inline\">N\\propto C_{\\min}^{0.73}</span>、<span class=\"kb-math kb-math-inline\">B\\propto C_{\\min}^{0.24}</span>、<span class=\"kb-math kb-math-inline\">S\\propto C_{\\min}^{0.03}</span>，数据需求约随 <span class=\"kb-math kb-math-inline\">C^{0.27}</span> 缓慢增长。",
+        "强调大模型更 sample-efficient，计算最优训练通常应早停，而不是把较小模型训练到收敛。"
       ],
-      "detail": "<p>幂律公式揭示模型性能与N/D/C关系</p>"
+      "detail": "<p><img alt=\"Kaplan Scaling Laws Figure 1\" src=\"https://ar5iv.labs.arxiv.org/html/2001.08361/assets/x1.png\" />\n<em>图：论文 Figure 1 展示测试损失随训练 compute、数据集大小、非 embedding 参数量平滑下降，并可被幂律拟合。</em></p>\n<pre><code class=\"language-python\"># Kaplan Scaling Laws 的经验拟合流程伪代码\nruns = []\nfor N in model_sizes:                  # 非 embedding 参数量，从小模型到十亿级模型\n    for D in dataset_sizes:            # WebText2 子集 token 数\n        for schedule in train_settings:\n            model = Transformer(params=N, context=1024)\n            curve = train_autoregressive_lm(model, tokens=D, schedule=schedule)\n            runs.append({&quot;N&quot;: N, &quot;D&quot;: D, &quot;C&quot;: estimate_flops(curve), &quot;loss&quot;: test_loss(curve)})\n\n# 1. 在数据充足时拟合 L(N)\nfit_power_law(x=[r.N for r in converged_large_data_runs], y=[r.loss for r in runs])\n\n# 2. 在模型足够大、早停时拟合 L(D)\nfit_power_law(x=[r.D for r in dataset_limited_runs], y=[r.loss for r in runs])\n\n# 3. 在每个 compute 预算下取最优模型，拟合 L(C_min)\nfrontier = lower_envelope(runs, key=&quot;C&quot;, value=&quot;loss&quot;)\nfit_power_law(x=[p.C_min for p in frontier], y=[p.loss for p in frontier])\n\n# 4. 用联合公式预测过拟合边界和 compute-optimal 分配\nfor C_budget in budgets:\n    choose N, batch_size, steps to minimize predicted_loss(N, D, C_budget)\n</code></pre>\n<p>论文的出发点不是提出一个新网络结构，而是把语言模型训练看成一个可预测的工程系统。作者把性能指标固定为自回归语言模型的 token 平均交叉熵 <span class=\"kb-math kb-math-inline\">L</span>，把模型规模固定为不含词表和位置 embedding 的参数量 <span class=\"kb-math kb-math-inline\">N</span>，把数据规模固定为训练语料 token 数 <span class=\"kb-math kb-math-inline\">D</span>，再用近似 <span class=\"kb-math kb-math-inline\">C\\approx 6NBS</span> 估计非 embedding 训练计算量。这样做的关键好处是消除 embedding 参数、context 相关项、深宽比例等二阶因素，让不同深度和宽度的 Transformer 能落到同一条主趋势线上。</p>\n<p>单变量规模律是整篇论文的入口。在其他因素不成为瓶颈时，测试损失可写成：</p>\n<div class=\"kb-math kb-math-display\">L(N)=\\left(\\frac{N_c}{N}\\right)^{\\alpha_N},\\quad \\alpha_N\\approx 0.076,\\quad N_c\\approx 8.8\\times 10^{13}</div>\n<div class=\"kb-math kb-math-display\">L(D)=\\left(\\frac{D_c}{D}\\right)^{\\alpha_D},\\quad \\alpha_D\\approx 0.095,\\quad D_c\\approx 5.4\\times 10^{13}</div>\n<div class=\"kb-math kb-math-display\">L(C_{\\min})=\\left(\\frac{C_c^{\\min}}{C_{\\min}}\\right)^{\\alpha_C^{\\min}},\\quad \\alpha_C^{\\min}\\approx 0.050,\\quad C_c^{\\min}\\approx 3.1\\times 10^8\\ \\text{PF-days}</div>\n<p>这些指数都很小，直觉上意味着 scale 的收益稳定但有强烈边际递减：参数、数据或 compute 翻倍时，loss 只会按一个小指数下降。论文重要的工程价值也来自这里：如果早期训练曲线已经落在幂律上，就可以外推更大模型或更长训练后的损失，而不必完整训练所有候选模型。</p>\n<p>为了刻画“模型太大但数据不够”或“数据很多但模型太小”的瓶颈，论文把 <span class=\"kb-math kb-math-inline\">L(N)</span> 和 <span class=\"kb-math kb-math-inline\">L(D)</span> 合成联合公式：</p>\n<div class=\"kb-math kb-math-display\">L(N,D)=\\left[\\left(\\frac{N_c}{N}\\right)^{\\alpha_N/\\alpha_D}+\\frac{D_c}{D}\\right]^{\\alpha_D}</div>\n<p>当 <span class=\"kb-math kb-math-inline\">D\\to\\infty</span> 时，第二项消失，公式退化为模型受限的 <span class=\"kb-math kb-math-inline\">L(N)</span>；当 <span class=\"kb-math kb-math-inline\">N\\to\\infty</span> 时，第一项消失，公式退化为数据受限的 <span class=\"kb-math kb-math-inline\">L(D)</span>。这也是“过拟合程度主要由 <span class=\"kb-math kb-math-inline\">N^{0.74}/D</span> 之类比例控制”的来源：因为 <span class=\"kb-math kb-math-inline\">\\alpha_N/\\alpha_D\\approx 0.8</span>，模型变大时数据也要增长，但可低于线性增长。</p>\n<p>训练动态部分进一步说明，大模型并不只是最终 loss 更低，它们在达到同一 loss 时需要更少样本。论文用临界 batch size <span class=\"kb-math kb-math-inline\">B_{crit}</span> 和最小训练步数 <span class=\"kb-math kb-math-inline\">S_{\\min}</span> 描述时间与计算效率的折中：batch 太小会浪费并行性，batch 太大会出现收益递减。由学习曲线公式和 <span class=\"kb-math kb-math-inline\">B_{crit}</span> 公式推导，固定 compute 下最优策略近似满足：</p>\n<div class=\"kb-math kb-math-display\">N\\propto C_{\\min}^{0.73},\\quad B\\propto C_{\\min}^{0.24},\\quad S\\propto C_{\\min}^{0.03},\\quad D=B\\cdot S\\propto C_{\\min}^{0.27}</div>\n<p>这组指数后来成为 Chinchilla 论文重点修正的对象。Kaplan 结论认为新增预算主要应扩大模型，数据和串行训练步数增长较慢，因此会得到“训练很大的模型但远未收敛”的计算最优方案。它在 2020 年极大推动了大模型预训练的可预测化，但也因为实验中 token 数和学习率 schedule 的处理方式，低估了增加训练 token 的价值。</p>\n<p>与传统调参经验相比，这篇论文的创新在于把“大模型越大越好”转化为可用于预算规划的幂律方程。传统做法往往只比较几个模型大小的最终指标，无法回答“给定 10 倍 compute 应该增大模型、数据还是训练步数”。Kaplan Scaling Laws 给出的答案虽然后来被 Chinchilla 修正，但它奠定了 scaling-law 研究的基本语言：先拟合 loss surface，再沿 compute 约束求最优 frontier。</p>\n<div class=\"key-point\">💡 关键：Kaplan Scaling Laws 的贡献不是某个单独公式，而是证明 LLM 预训练损失在 <span class=\"kb-math kb-math-inline\">N,D,C</span> 上具有稳定、可外推的幂律结构，从而让“大规模训练”从经验赌博变成预算优化问题。</div>",
+      "quiz": {
+        "q": "Kaplan Scaling Laws 中，固定 compute 下最核心的预算分配结论是什么？",
+        "options": [
+          "主要增加模型参数，并较早停止训练，而不是把小模型训练到完全收敛",
+          "主要增加训练 epoch，模型参数保持不变",
+          "只要增大 batch size，模型大小和数据量都不重要",
+          "embedding 参数数量比非 embedding 参数更能预测损失"
+        ],
+        "answer": 0,
+        "explain": "论文推导出 N 随 compute 的指数约为 0.73，远高于训练步数的约 0.03，因此其计算最优建议偏向训练更大的模型并早停。"
+      }
     },
     {
       "id": "chinchilla_law",
@@ -373,13 +390,29 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "scaling",
       "motivation": "提出20:1数据参数比的计算最优原则",
-      "summary": "Chinchilla Laws 的核心目标是：提出20:1数据参数比的计算最优原则。",
+      "summary": "Chinchilla Laws 重新估计了固定训练 FLOPs 下参数量 \\(N\\) 与训练 token 数 \\(D\\) 的最优分配，指出当时许多大模型“参数过大、数据训练不足”。它提出 compute-optimal LLM 应大致等比例扩大参数和数据，经验上接近每个参数约 20 个训练 token 的原则。",
       "keyPoints": [
-        "核心动机：提出20:1数据参数比的计算最优原则",
-        "演化来源：继承或改进自 kaplan_scaling",
-        "代表机构：DeepMind"
+        "用 400 多个语言模型实验重新估计 <span class=\"kb-math kb-math-inline\">N_{opt}(C)</span> 与 <span class=\"kb-math kb-math-inline\">D_{opt}(C)</span>，模型规模从约 70M 到 16B+ 参数，训练 token 从 5B 到 500B+。",
+        "明确优化目标：在 <span class=\"kb-math kb-math-inline\">\\mathrm{FLOPs}(N,D)=C</span> 约束下最小化最终预训练损失 <span class=\"kb-math kb-math-inline\">L(N,D)</span>。",
+        "提出三种互相验证的方法：固定模型大小扫 token、IsoFLOP 曲线、参数化损失函数拟合。",
+        "参数化损失采用 <span class=\"kb-math kb-math-inline\">\\hat L(N,D)=E+A/N^\\alpha+B/D^\\beta</span>，把模型容量不足和数据/优化不足分解为两个幂律项。",
+        "三种方法均得到接近等比例的 scaling：<span class=\"kb-math kb-math-inline\">N_{opt}\\propto C^{0.46\\sim0.50}</span>，<span class=\"kb-math kb-math-inline\">D_{opt}\\propto C^{0.50\\sim0.54}</span>。",
+        "与 Kaplan 2020 的 <span class=\"kb-math kb-math-inline\">N\\propto C^{0.73},D\\propto C^{0.27}</span> 明显不同，Chinchilla 大幅提高了训练数据的重要性。",
+        "用 Gopher 相同计算预算训练 70B Chinchilla、1.4T tokens，相比 280B Gopher 用 4 倍更少参数和约 4 倍更多数据取得更好下游性能。",
+        "给出现代预训练常用启发式：compute-optimal 模型大约训练 20 tokens/parameter。"
       ],
-      "detail": "<p>提出20:1数据参数比的计算最优原则</p>"
+      "detail": "<p><img alt=\"Chinchilla compute-optimal frontier\" src=\"https://ar5iv.labs.arxiv.org/html/2203.15556/assets/x1.png\" />\n<em>图：论文 Figure 1 对比三种方法预测的最优参数量与 FLOPs 关系，并标出 Chinchilla、Gopher、GPT-3、MT-NLG；三种方法都认为当时大模型普遍应更小但训练更久。</em></p>\n<pre><code class=\"language-python\"># Chinchilla Laws 的核心估计流程伪代码\nruns = []\nfor N in model_sizes:                       # 约 70M 到 16B+ 参数\n    for D in token_budgets:                 # 约 5B 到 500B+ tokens\n        model = train_lm(params=N, tokens=D, lr_schedule=&quot;cosine_matched_to_D&quot;)\n        runs.append({&quot;N&quot;: N, &quot;D&quot;: D, &quot;C&quot;: flops(N, D), &quot;loss&quot;: smoothed_train_loss(model)})\n\n# Approach 1: 对每个 compute 预算，从训练曲线 envelope 中取最低 loss\nfrontier_1 = lower_envelope_over_training_curves(runs)\nfit N_opt ~ C**a, D_opt ~ C**b\n\n# Approach 2: 固定 FLOPs，扫描参数量，找到每条 IsoFLOP 曲线的 loss valley\nfor C in flops_budgets:\n    candidates = [r for r in runs if close(r.C, C)]\n    N_star = argmin_by_parabolic_fit(candidates, x=&quot;N&quot;, y=&quot;loss&quot;)\n    D_star = C / (6 * N_star)\nfit N_opt ~ C**a, D_opt ~ C**b\n\n# Approach 3: 直接拟合参数化损失，再在 compute 约束下求闭式 frontier\nfit E, A, B, alpha, beta in L_hat(N, D) = E + A/N**alpha + B/D**beta\nfor C in target_budgets:\n    choose N, D to minimize L_hat(N, D) subject to C ≈ 6*N*D\n</code></pre>\n<p>Chinchilla 的问题设置非常直接：训练预算通常先由硬件数量和训练时长确定，因此真正要优化的是“同样 FLOPs 下该用多大模型、看多少 token”。论文将目标写成：</p>\n<div class=\"kb-math kb-math-display\">N_{opt}(C),D_{opt}(C)=\\operatorname*{argmin}_{N,D\\ \\text{s.t.}\\ \\mathrm{FLOPs}(N,D)=C} L(N,D)</div>\n<p>并使用常见近似 <span class=\"kb-math kb-math-inline\">C\\approx 6ND</span>。这里 <span class=\"kb-math kb-math-inline\">N</span> 是参数量，<span class=\"kb-math kb-math-inline\">D</span> 是训练 token 数。相比 Kaplan，Chinchilla 的关键修正是让学习率 schedule 与训练 token 数匹配，并显式扫过更多 token budget；否则短训练阶段的 loss 会被高估，进而错误地认为“增加数据不如增加参数”。</p>\n<p>三种估计方法分别从不同角度避免偏差。第一种方法把训练曲线视作连续函数，对每个 FLOPs 点取所有 run 中最低 loss 的 envelope，再拟合 <span class=\"kb-math kb-math-inline\">N_{opt}\\propto C^a</span>、<span class=\"kb-math kb-math-inline\">D_{opt}\\propto C^b</span>。第二种方法在固定 FLOPs 下改变模型大小，因为 <span class=\"kb-math kb-math-inline\">D=C/(6N)</span>，每条 IsoFLOP 曲线都会出现一个 U 形谷底：模型太小会容量不足，模型太大则 token 不够、训练不足。第三种方法直接拟合损失曲面：</p>\n<div class=\"kb-math kb-math-display\">\\hat L(N,D)=E+\\frac{A}{N^\\alpha}+\\frac{B}{D^\\beta}</div>\n<p>论文在附录中给出一组拟合值：<span class=\"kb-math kb-math-inline\">E=1.69</span>、<span class=\"kb-math kb-math-inline\">A=406.4</span>、<span class=\"kb-math kb-math-inline\">B=410.7</span>、<span class=\"kb-math kb-math-inline\">\\alpha=0.34</span>、<span class=\"kb-math kb-math-inline\">\\beta=0.28</span>。其中 <span class=\"kb-math kb-math-inline\">E</span> 可理解为理想生成过程的不可约熵，<span class=\"kb-math kb-math-inline\">A/N^\\alpha</span> 是有限模型容量带来的 excess loss，<span class=\"kb-math kb-math-inline\">B/D^\\beta</span> 是有限训练数据/优化步数带来的 excess loss。</p>\n<p>在 <span class=\"kb-math kb-math-inline\">C\\approx 6ND</span> 约束下，参数化公式可推出闭式最优 frontier：</p>\n<div class=\"kb-math kb-math-display\">N_{opt}(C)=G\\left(\\frac{C}{6}\\right)^a,\n\\quad\nD_{opt}(C)=G^{-1}\\left(\\frac{C}{6}\\right)^b</div>\n<div class=\"kb-math kb-math-display\">G=\\left(\\frac{\\alpha A}{\\beta B}\\right)^{1/(\\alpha+\\beta)},\n\\quad\na=\\frac{\\beta}{\\alpha+\\beta},\n\\quad\nb=\\frac{\\alpha}{\\alpha+\\beta}</div>\n<p>因为 <span class=\"kb-math kb-math-inline\">\\alpha</span> 与 <span class=\"kb-math kb-math-inline\">\\beta</span> 接近，<span class=\"kb-math kb-math-inline\">a</span> 与 <span class=\"kb-math kb-math-inline\">b</span> 都接近 0.5。论文 Table 2 中三种方法的指数分别约为：Approach 1 为 <span class=\"kb-math kb-math-inline\">(0.50,0.50)</span>，Approach 2 为 <span class=\"kb-math kb-math-inline\">(0.49,0.51)</span>，Approach 3 为 <span class=\"kb-math kb-math-inline\">(0.46,0.54)</span>。这与 Kaplan 的 <span class=\"kb-math kb-math-inline\">(0.73,0.27)</span> 形成鲜明对比，也解释了为什么 GPT-3、Gopher、MT-NLG 这类约 300B token 训练的大模型在 Chinchilla 视角下是 undertrained。</p>\n<p>最有说服力的验证是 Chinchilla 本身。DeepMind 用与 Gopher 近似相同的计算预算，不训练 280B 参数模型，而是训练 70B 参数模型并使用 1.4T tokens。也就是说，它把预算从“更多参数”转移到“更多 token”。结果 Chinchilla 在许多语言建模、阅读理解、MMLU、BIG-bench 等评测上系统性超过 Gopher，同时参数量更小，推理和微调成本也更低。这个实验把 scaling law 从拟合曲线变成了可操作训练策略。</p>\n<p>从机制上看，Chinchilla 的直觉是平衡两种 excess loss。如果模型太小，<span class=\"kb-math kb-math-inline\">A/N^\\alpha</span> 是瓶颈；如果模型太大但 token 太少，<span class=\"kb-math kb-math-inline\">B/D^\\beta</span> 是瓶颈。compute-optimal 点不是最大模型，也不是最多 token，而是在二者边际收益相当的位置。经验上的 20 tokens/parameter 并不是硬编码常数，而是这些拟合参数、FLOPs 近似和当时数据分布共同导出的可用规则。</p>\n<div class=\"key-point\">💡 关键：Chinchilla Laws 的工程影响在于把“更大模型”改写为“参数和数据同步扩张”，直接改变了后续 LLM 预训练的预算规划、数据工程优先级和 overtraining 策略。</div>",
+      "quiz": {
+        "q": "Chinchilla Laws 相比 Kaplan Scaling Laws 的主要修正是什么？",
+        "options": [
+          "认为参数量和训练 token 数应随 compute 近似等比例增长",
+          "认为 embedding 参数应计入主要规模律",
+          "认为训练数据越少越能提升泛化",
+          "认为固定 300B token 对所有模型都是 compute-optimal"
+        ],
+        "answer": 0,
+        "explain": "Chinchilla 的三种估计方法都得到接近 0.5/0.5 的参数与数据 scaling 指数，说明许多旧模型参数过大、训练 token 不足。"
+      }
     },
     {
       "id": "mup",
@@ -428,13 +461,30 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "scaling",
       "motivation": "揭示数据重复训练的衰减幂律",
-      "summary": "数据受限规模定律 的核心目标是：揭示数据重复训练的衰减幂律。",
+      "summary": "数据受限规模定律将 Chinchilla 的 \\(L(N,D)\\) 扩展到“有限唯一数据、多 epoch 重复训练”的场景，用有效数据量 \\(D'\\) 和有效参数量 \\(N'\\) 描述重复 token 与过量参数的边际价值衰减。它解决了高质量文本即将耗尽时，LLM 应如何在重复数据、扩大参数和继续增加 compute 之间分配预算的问题。",
       "keyPoints": [
-        "核心动机：揭示数据重复训练的衰减幂律",
-        "演化来源：继承或改进自 chinchilla_law",
-        "代表机构：HuggingFace"
+        "针对 Chinchilla 默认“训练 token 足够且近似唯一”的限制，研究数据受限 regime 下的 compute allocation 与 return。",
+        "训练 400+ 个模型，规模从 10M 到 9B 参数，总训练 token 最高约 900B，重复 epoch 最高达 1500。",
+        "将总 token <span class=\"kb-math kb-math-inline\">D</span> 拆成唯一 token <span class=\"kb-math kb-math-inline\">U_D</span> 和重复次数 <span class=\"kb-math kb-math-inline\">R_D</span>，其中 <span class=\"kb-math kb-math-inline\">U_D=\\min(D_C,D)</span>、<span class=\"kb-math kb-math-inline\">R_D=D/U_D-1</span>。",
+        "用指数衰减定义有效数据 <span class=\"kb-math kb-math-inline\">D&#x27;=U_D+U_D R_D^*(1-e^{-R_D/R_D^*})</span>，刻画重复 token 价值逐步下降。",
+        "对参数也引入对称的有效参数 <span class=\"kb-math kb-math-inline\">N&#x27;=U_N+U_N R_N^*(1-e^{-R_N/R_N^*})</span>，刻画数据受限时过量参数的收益递减。",
+        "损失函数沿用 Chinchilla 结构：<span class=\"kb-math kb-math-inline\">L=A/(N&#x27;)^\\alpha+B/(D&#x27;)^\\beta+E</span>。",
+        "实验发现最多约 4 epochs 的重复训练与使用新数据相比损失差异很小；约 16 epochs 后收益快速衰减。",
+        "拟合得到 <span class=\"kb-math kb-math-inline\">R_D^*\\approx15.39</span>、<span class=\"kb-math kb-math-inline\">R_N^*\\approx5.31</span>，说明过量参数比重复数据更快进入收益递减，因此数据受限时应相对更快增加 epoch。",
+        "补充研究代码数据混合、perplexity filtering、deduplication 等缓解数据稀缺的策略。"
       ],
-      "detail": "<p>揭示数据重复训练的衰减幂律</p>"
+      "detail": "<p><img alt=\"Data-Constrained Scaling Laws Figure 1\" src=\"https://github.com/huggingface/datablations/raw/main/plotstables/return_alloc.png\" />\n<em>图：官方仓库中的 Figure 1 展示重复数据的 return 和 allocation。左图显示 4 epochs 内重复几乎像新数据一样有效，右图显示数据受限 frontier 会偏向更小模型与更多重复 token。</em></p>\n<pre><code class=\"language-python\"># Data-Constrained Scaling Laws 的核心拟合与决策伪代码\ndef effective_data(unique_tokens, repeat_count, R_D_star):\n    # D' = U_D + U_D * R_D* * (1 - exp(-R_D / R_D*))\n    return unique_tokens + unique_tokens * R_D_star * (1 - exp(-repeat_count / R_D_star))\n\ndef effective_params(unique_params, param_repeat, R_N_star):\n    # N' = U_N + U_N * R_N* * (1 - exp(-R_N / R_N*))\n    return unique_params + unique_params * R_N_star * (1 - exp(-param_repeat / R_N_star))\n\ndef data_constrained_loss(N, D, data_budget, chinchilla_fit, R_D_star, R_N_star):\n    U_D = min(data_budget, D)\n    R_D = D / U_D - 1\n\n    # U_N 是在 U_D 唯一 token 下的 Chinchilla compute-optimal 参数量上限\n    U_N = min(chinchilla_N_opt_for_tokens(U_D), N)\n    R_N = N / U_N - 1\n\n    D_eff = effective_data(U_D, R_D, R_D_star)\n    N_eff = effective_params(U_N, R_N, R_N_star)\n    return chinchilla_fit.E + chinchilla_fit.A / (N_eff ** chinchilla_fit.alpha) + chinchilla_fit.B / (D_eff ** chinchilla_fit.beta)\n\nfor C in compute_budgets:\n    # 在 FLOPs(N,D) ≈ 6ND 且 U_D &lt;= D_C 的约束下搜索最小预测 loss\n    best = argmin(lambda N, D: data_constrained_loss(N, D, D_C, fit, R_D_star, R_N_star),\n                  constraint=lambda N, D: close(6 * N * D, C))\n</code></pre>\n<p>这篇论文的动机来自 Chinchilla 的外推悖论：如果 compute-optimal 训练要求参数和 token 近似等比例增长，那么超大模型会需要数万亿乃至更多高质量 token；但真实世界中，高质量自然语言数据是有限的。问题不再是“给定 compute 训练多大模型”，而是“给定 compute 和唯一数据预算 <span class=\"kb-math kb-math-inline\">D_C</span>，重复数据是否仍有价值，以及该如何分配参数和 epoch”。</p>\n<p>作者首先把数据项拆开。设总训练 token 为 <span class=\"kb-math kb-math-inline\">D</span>，可用唯一数据预算为 <span class=\"kb-math kb-math-inline\">D_C</span>，则：</p>\n<div class=\"kb-math kb-math-display\">U_D=\\min\\{D_C,D\\},\\quad R_D=\\frac{D}{U_D}-1</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">U_D</span> 是实际用到的唯一 token 数，<span class=\"kb-math kb-math-inline\">R_D</span> 是重复次数，也就是 epochs 减 1。单 epoch 时 <span class=\"kb-math kb-math-inline\">R_D=0</span>，完全退化回 Chinchilla 的无限数据假设。数据受限优化目标变为：</p>\n<div class=\"kb-math kb-math-display\">\\operatorname*{argmin}_{N,D} L(N,D)\\quad \\text{s.t.}\\quad \\mathrm{FLOPs}(N,D)=C,\\ U_D\\le D_C</div>\n<p>核心机制是“有效数据量”而不是原始 token 计数。重复 token 的价值不是 0，也不是与新 token 完全相同，而是随重复次数指数衰减：</p>\n<div class=\"kb-math kb-math-display\">D&#x27;=U_D+U_D R_D^*\\left(1-e^{-R_D/R_D^*}\\right)</div>\n<p>当 <span class=\"kb-math kb-math-inline\">R_D=0</span> 时，<span class=\"kb-math kb-math-inline\">D&#x27;=U_D=D</span>。当 <span class=\"kb-math kb-math-inline\">R_D\\ll R_D^*</span> 时，<span class=\"kb-math kb-math-inline\">1-e^{-R_D/R_D^*}\\approx R_D/R_D^*</span>，所以 <span class=\"kb-math kb-math-inline\">D&#x27;\\approx U_D(1+R_D)=D</span>，重复数据近似等同新数据。随着 <span class=\"kb-math kb-math-inline\">R_D</span> 变大，第二项逐渐饱和在 <span class=\"kb-math kb-math-inline\">U_D R_D^*</span>，意味着无限重复同一批数据也不可能无限降低 loss。</p>\n<p>论文还为参数引入对称形式。给定唯一数据 <span class=\"kb-math kb-math-inline\">U_D</span>，先根据 Chinchilla frontier 计算适合这些唯一数据的“基础参数量” <span class=\"kb-math kb-math-inline\">U_N</span>，再把真实参数量 <span class=\"kb-math kb-math-inline\">N</span> 表示为 <span class=\"kb-math kb-math-inline\">U_N</span> 的重复/超额：</p>\n<div class=\"kb-math kb-math-display\">R_N=\\frac{N}{U_N}-1</div>\n<div class=\"kb-math kb-math-display\">N&#x27;=U_N+U_N R_N^*\\left(1-e^{-R_N/R_N^*}\\right)</div>\n<p>这个项的直觉是：当数据非常有限时，继续扩大模型并不会像无限数据条件下那样有效，因为新增参数缺少足够多样的监督信号。最终损失函数延续 Chinchilla 的三项分解：</p>\n<div class=\"kb-math kb-math-display\">L(N,D)=E+\\frac{A}{(N&#x27;)^\\alpha}+\\frac{B}{(D&#x27;)^\\beta}</div>\n<p>论文基于 C4 重新拟合 Chinchilla 型基础参数，给出一个用于计算的形式：</p>\n<div class=\"kb-math kb-math-display\">L(N,D)=1.87+\\frac{521}{N^{0.353}}+\\frac{1488}{D^{0.353}}</div>\n<p>在重复数据扩展中，再把 <span class=\"kb-math kb-math-inline\">N</span> 与 <span class=\"kb-math kb-math-inline\">D</span> 替换成 <span class=\"kb-math kb-math-inline\">N&#x27;</span> 与 <span class=\"kb-math kb-math-inline\">D&#x27;</span>。作者用 LBFGS 在 182 个样本上拟合衰减常数，得到 <span class=\"kb-math kb-math-inline\">R_D^*\\approx15.3878</span>、<span class=\"kb-math kb-math-inline\">R_N^*\\approx5.3097</span>。这意味着重复数据的“半衰期”更长，而过量参数更快失去边际价值；因此在数据受限、继续增加 compute 时，efficient frontier 会偏向增加 epochs，而不是按 Chinchilla 假设同等增加参数。</p>\n<p>实验结论可以分成 return 和 allocation 两类。Return 问题问“重复数据还值不值”：4.2B 参数模型训练 4 epochs 时，最终验证损失只比单 epoch 唯一数据高约 0.5%，说明少量重复很安全；但重复次数继续增加后，loss 曲线逐渐变平，约 16 epochs 附近进入明显收益递减，40 epochs 左右重复几乎不再带来有效改进。Allocation 问题问“compute 怎么花”：在固定唯一数据预算下，单 epoch compute-optimal 模型会严重低估可从数据中榨取的信号，适当增加参数和 epoch 都有必要，但 epoch 应该增长得略快。</p>\n<p>与 Chinchilla 相比，这篇论文不是推翻“参数与数据平衡”，而是给平衡关系增加了数据约束条件。Chinchilla 假设每个 token 都是新信息；Data-Constrained Scaling 说如果 token 是重复的，就要先折算成 <span class=\"kb-math kb-math-inline\">D&#x27;</span>。这让 scaling law 能回答更实际的问题：低资源语言、垂直领域、小语料高质量数据、经过严格过滤的数据集，在无法继续收集同质量文本时仍能通过有限重复获得收益，但不能无限重复。</p>\n<div class=\"warn-box\">⚠️ 注意：论文的结论不是“重复数据总是无害”。它强调的是全量数据重复、少量 epochs 时收益接近新数据；当重复过多或出现局部重复/记忆化时，收益会快速衰减甚至可能出现训练不稳定。</div>",
+      "quiz": {
+        "q": "数据受限规模定律中，有效数据量 D' 的主要作用是什么？",
+        "options": [
+          "把重复 token 按指数衰减折算，避免把多 epoch 数据视为完全等价的新数据",
+          "把所有重复 token 完全丢弃，只保留第一轮 epoch",
+          "只统计 embedding 参数对应的 token",
+          "强制所有模型都训练 exactly 20 tokens/parameter"
+        ],
+        "answer": 0,
+        "explain": "D'=U_D+U_D R_D^*(1-e^{-R_D/R_D^*}) 描述重复 token 的边际价值从近似新数据逐渐衰减到饱和。"
+      }
     },
     {
       "id": "t2_scaling",
@@ -448,13 +498,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "scaling",
       "motivation": "推理最优的过度训练策略",
-      "summary": "T²缩放定律 的核心目标是：推理最优的过度训练策略。",
+      "summary": "T² 缩放定律把模型参数量 \\(N\\)、预训练 token 数 \\(D\\) 和测试时重复采样次数 \\(k\\) 放进同一个端到端算力约束中联合优化，解决了 Chinchilla 只优化训练而忽略推理成本的问题。它的核心结论是：当部署阶段会使用 pass@k 或重复采样时，更小但训练更久的过度训练模型往往比 Chinchilla 最优模型更符合总成本最优。",
       "keyPoints": [
-        "核心动机：推理最优的过度训练策略",
-        "演化来源：继承或改进自 chinchilla_law",
-        "代表机构：多机构"
+        "将预训练缩放和测试时缩放合并为一个联合决策问题：同时选择 <span class=\"kb-math kb-math-inline\">N</span>、<span class=\"kb-math kb-math-inline\">D</span>、<span class=\"kb-math kb-math-inline\">k</span>。",
+        "显式计入两类成本：训练成本近似为 <span class=\"kb-math kb-math-inline\">6ND</span>，重复采样推理成本近似为 <span class=\"kb-math kb-math-inline\">2Nk</span>。",
+        "用 pass@k 描述测试时重复采样收益：采样越多，至少一次答对的概率以非线性方式上升。",
+        "提出两条互补建模路线：基于 NLL/任务损失的 Approach 1，以及直接建模 pass@k 准确率的 Approach 2。",
+        "在超过 100 个模型检查点、12 个训练算力层级和 8 个任务上拟合缩放关系，并额外训练 21 个重度过度训练检查点做外推验证。",
+        "结论稳定指向小模型高 token/parameter 比例：在固定推理预算下，较小模型能获得更多 <span class=\"kb-math kb-math-inline\">k</span>，因此总性能-成本前沿向过度训练区域移动。",
+        "后训练后趋势仍然存在：FT/SFT 会削弱一部分过度训练收益，但不会把最优点拉回 Chinchilla 的约 20 tokens/parameter 规则。"
       ],
-      "detail": "<p>推理最优的过度训练策略</p>"
+      "detail": "<p><img alt=\"T² 缩放定律框架图\" src=\"https://arxiv.org/html/2604.01411v1/x1.png\" />\n<em>图：T² 将 Chinchilla 训练缩放和 pass@k 测试时缩放组合起来，在给定训练预算和推理预算下寻找新的预训练最优配置。</em></p>\n<p>任务 JSON 给出的 <code>paper_url</code> 是缩放定律综述页；这里的精读对象是其中对应的原始论文 <em>Test-Time Scaling Makes Overtraining Compute-Optimal</em>，arXiv 链接为 <code>https://arxiv.org/abs/2604.01411</code>。论文要回答的问题非常具体：如果一个模型上线后会被重复采样很多次，那么训练时还应该继续遵循 Chinchilla 的“训练算力最优”比例吗？T² 的答案是否定的，因为 Chinchilla 默认每个模型只被查询一次，完全没有把小模型单次推理更便宜、因此可以多采样的事实放入优化目标。</p>\n<pre><code class=\"language-python\"># T² 联合训练-测试缩放伪代码\n# 输入：候选模型尺寸 N_grid、训练 token D_grid、训练预算 C_train、推理预算 C_inf\n# 输出：在端到端预算下最优的 N, D, k\n\nfit_chinchilla_or_task_model(checkpoints)  # 从缩放检查点拟合 N,D -&gt; loss/accuracy\nfit_passk_model(eval_samples)              # 从多次采样结果拟合 k -&gt; pass@k\n\nbest = None\nfor N in N_grid:\n    for D in D_grid:\n        if 6 * N * D &gt; C_train:\n            continue\n\n        # 关键推理成本修正：小模型单次采样更便宜，所以 k 更大\n        k = floor(C_inf / (2 * N))\n        if k &lt; 1:\n            continue\n\n        # Approach 1: 预测 NLL 或任务损失，越低越好\n        loss_score = predict_loss(N, D, k)\n\n        # Approach 2: 预测 pass@k accuracy，越高越好\n        acc_score = predict_passk_accuracy(N, D, k)\n\n        candidate = combine_or_compare(loss_score, acc_score)\n        best = arg_optimal(best, candidate, N, D, k)\n\nreturn best.N, best.D, best.k\n</code></pre>\n<p>传统 Chinchilla 缩放律把预训练损失写成参数量和数据量的可加幂律：</p>\n<div class=\"kb-math kb-math-display\">L(N,D)=E+\\frac{A}{N^{\\alpha}}+\\frac{B}{D^{\\beta}}.</div>\n<p>在只考虑训练预算 <span class=\"kb-math kb-math-inline\">C_{\\text{train}}\\approx 6ND</span> 时，最优解通常让模型规模和训练 token 数随预算以相近指数增长，即直觉上的“模型和数据一起变大”。T² 的关键改动是把推理也变成约束：</p>\n<div class=\"kb-math kb-math-display\">\\min_{N,D,k} L(N,D,k)\\quad \\text{s.t.}\\quad 6ND\\le C_{\\text{train}},\\quad 2Nk\\le C_{\\text{inf}}.</div>\n<p>如果直接优化准确率，则相应写成：</p>\n<div class=\"kb-math kb-math-display\">\\max_{N,D,k}\\;\\text{Acc}(N,D,k)\\quad \\text{s.t.}\\quad 6ND\\le C_{\\text{train}},\\quad 2Nk\\le C_{\\text{inf}}.</div>\n<p>这里的 <span class=\"kb-math kb-math-inline\">2Nk</span> 是简化的单 token 前向推理成本乘以采样数。它改变了最优点的方向：当 <span class=\"kb-math kb-math-inline\">C_{\\text{inf}}</span> 固定时，<span class=\"kb-math kb-math-inline\">k=\\lfloor C_{\\text{inf}}/(2N)\\rfloor</span>，所以小模型天然能被采样更多次。小模型单次正确率较低，但 pass@k 的收益不是线性的，重复采样可能补回甚至超过单次质量差距。</p>\n<p>pass@k 的基本机制是：对同一题采样 <span class=\"kb-math kb-math-inline\">k</span> 次，只要有一次正确就算成功。如果第 <span class=\"kb-math kb-math-inline\">i</span> 个问题单次采样正确率是 <span class=\"kb-math kb-math-inline\">p_i</span>，那么：</p>\n<div class=\"kb-math kb-math-display\">\\text{pass@}k_i = 1-(1-p_i)^k.</div>\n<p>在包含 <span class=\"kb-math kb-math-inline\">M</span> 个问题的基准 <span class=\"kb-math kb-math-inline\">\\mathcal{D}</span> 上，期望 pass@k 为：</p>\n<div class=\"kb-math kb-math-display\">\\text{pass@}k_{\\mathcal{D}}=\\frac{1}{M}\\sum_{i=1}^{M}\\left[1-(1-p_i)^k\\right].</div>\n<p>这条公式解释了为什么 T² 会偏好过度训练。对一个大模型，<span class=\"kb-math kb-math-inline\">p_i</span> 可能更高，但 <span class=\"kb-math kb-math-inline\">k</span> 很小；对一个小模型，<span class=\"kb-math kb-math-inline\">p_i</span> 较低，但 <span class=\"kb-math kb-math-inline\">k</span> 可以大很多。只要任务存在“多试几次能找到正确轨迹”的空间，后者就可能在相同推理 FLOPs 下占优。</p>\n<p>论文使用两种建模方式来避免单一指标带来的偏差。Approach 1 从损失角度建模，把 repeated sampling 对负对数 pass@k 的改善并入 <span class=\"kb-math kb-math-inline\">L(N,D,k)</span>，可以理解为在 Chinchilla 的 <span class=\"kb-math kb-math-inline\">N,D</span> 幂律上增加一个随 <span class=\"kb-math kb-math-inline\">k</span> 改善的测试时缩放项。Approach 2 则直接建模准确率，先拟合 <span class=\"kb-math kb-math-inline\">N,D</span> 对单次能力的影响，再用 Beta 分布刻画题目难度和单题成功概率的分布：</p>\n<div class=\"kb-math kb-math-display\">p\\sim \\text{Beta}(a_{N,D}, b_{N,D}),\\qquad\n\\mathbb{E}[\\text{pass@}k]=1-\\frac{\\mathrm{B}(a_{N,D}, b_{N,D}+k)}{\\mathrm{B}(a_{N,D}, b_{N,D})}.</div>\n<p>两个路线虽然拟合对象不同，一个偏连续损失，一个偏离散成功率，但都给出相同方向的建议：一旦加入推理预算，最优预训练配置会比 Chinchilla 更小、更久训、更高 tokens/parameter。</p>\n<p>实验上，论文先用常规 Chinchilla 缩放检查点拟合模型，再向过度训练区域外推。为了验证不是曲线拟合幻觉，作者额外训练了 21 个超出标准缩放套件的过度训练检查点。结果显示，在固定 <span class=\"kb-math kb-math-inline\">C_{\\text{train}}=2.56\\times10^{19}</span> 且 <span class=\"kb-math kb-math-inline\">C_{\\text{inf}}=2\\times10^9</span> FLOPs 的比较下，小型过度训练模型在 8 个任务上都优于经验上的 Chinchilla 最优检查点。例如 LAMBADA 上 37M 过度训练模型优于 455M Chinchilla 检查点，Simple Reasoning 上 37M 过度训练模型也显著优于 901M 检查点。</p>\n<div class=\"key-point\">💡 关键：T² 中的“过度训练”不是训练集过拟合的意思，而是相对 Chinchilla 推荐的 token/parameter 比例训练更久。它牺牲了一部分训练阶段的单次最优性，换取部署阶段更低的单样本成本和更多测试时采样机会。</div>\n<p>与传统缩放律相比，T² 的主要创新不是发明新的模型结构，而是把“训练什么模型”和“部署时怎么用模型”合并成一个优化问题。Chinchilla 适合一次查询或推理预算可忽略的场景；T² 适合推理密集、会做 self-consistency、best-of-N、生成-验证或 pass@k 的场景。对于推理模型、代码模型、数学模型和 agent 任务，测试时采样往往是主性能杠杆，因此 T² 给出的是更接近真实部署成本的训练规划方法。</p>",
+      "quiz": {
+        "q": "T² 缩放定律为什么会推荐比 Chinchilla 更小但训练更久的模型？",
+        "options": [
+          "因为小模型的单次输出准确率一定高于大模型",
+          "因为在固定推理预算下，小模型单次采样更便宜，可以获得更大的 k，并通过 pass@k 弥补单次质量差距",
+          "因为 T² 完全不考虑训练成本，只优化推理成本",
+          "因为过度训练会减少模型参数量"
+        ],
+        "answer": 1,
+        "explain": "T² 同时约束训练成本 6ND 和推理成本 2Nk；当 N 变小时，同一推理预算能支持更多采样，pass@k 的非线性收益会把最优点推向小模型过度训练区域。"
+      }
     },
     {
       "id": "u_mup",
@@ -504,13 +569,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "scaling",
       "motivation": "强化学习阶段能力-计算量预测",
-      "summary": "RL Scaling Laws 的核心目标是：强化学习阶段能力-计算量预测。",
+      "summary": "RL Scaling Laws 将 LLM 强化学习后训练的验证奖励随 GPU 小时增长的轨迹拟合为可外推的饱和 S 曲线，并据此提出 ScaleRL 配方来预测和筛选真正能在大算力下继续提升的 RL 方法。它解决了 RL 后训练长期依赖经验试错、缺少类似预训练缩放律的能力-算力预测框架的问题。",
       "keyPoints": [
-        "核心动机：强化学习阶段能力-计算量预测",
-        "演化来源：继承或改进自 kaplan_scaling",
-        "代表机构：多机构"
+        "将 RL 后训练性能建模为验证集期望奖励 <span class=\"kb-math kb-math-inline\">R_C</span> 与训练算力 <span class=\"kb-math kb-math-inline\">C</span> 之间的 sigmoid-like 饱和曲线。",
+        "曲线参数可解释：<span class=\"kb-math kb-math-inline\">A</span> 表示大算力极限下的性能上限，<span class=\"kb-math kb-math-inline\">B</span> 表示计算效率/上升斜率，<span class=\"kb-math kb-math-inline\">C_{\\text{mid}}</span> 表示达到一半收益所需的中点算力。",
+        "通过早期训练段拟合曲线，外推更长训练后的表现，从而避免每个候选 RL recipe 都跑到极大算力。",
+        "系统消融异步 RL、off-policy 程度、损失函数、logit 精度、loss aggregation、advantage normalization、prompt filtering 和长度控制等设计轴。",
+        "提出 ScaleRL 配方：PipelineRL-8、CISPO 截断重要性采样、prompt-level loss aggregation、batch-level advantage normalization、FP32 logits、zero-variance filtering、No-Positive-Resampling 和 interruption-based length control。",
+        "在超过 400,000 GPU-hours 的研究预算下验证，并展示 8B dense 与 17B x 16 MoE 规模上可用早期曲线预测 100k GPU-hours 级别训练。",
+        "与 GRPO/DAPO、DeepSeek-style、Qwen-style、Magistral、MiniMax-M1 等常见 recipe 相比，ScaleRL 在论文实验中同时具备更好的可扩展性和更高的渐近奖励。"
       ],
-      "detail": "<p>强化学习阶段能力-计算量预测</p>"
+      "detail": "<p><img alt=\"ScaleRL 100k GPU-hours 可预测缩放曲线\" src=\"https://arxiv.org/html/2510.13786v1/paper_figs/100k.png\" />\n<em>图：论文用早期验证集 pass rate 拟合 sigmoid 曲线，并外推到更长的 RL 训练预算，展示 ScaleRL 在 8B dense 与 MoE 模型上的预测能力。</em></p>\n<p>任务 JSON 给出的 <code>paper_url</code> 是缩放律综述页；这里的精读对象是其中对应的 ICLR 2026 论文 <em>The Art of Scaling Reinforcement Learning Compute for LLMs</em>，arXiv 链接为 <code>https://arxiv.org/abs/2510.13786</code>。这篇论文关注的不是传统 RL 环境中的 sample complexity，而是现代 LLM 在 SFT 之后继续用 verifiable reward 或偏好信号做 RL post-training 时，怎样判断一个训练 recipe 是否值得放大到数万甚至十万 GPU 小时。</p>\n<pre><code class=\"language-python\"># ScaleRL / RL Scaling Laws 核心伪代码\n# 目标：用早期 RL 曲线预测大算力表现，并选择可扩展 recipe\n\nfor recipe in candidate_rl_recipes:\n    initialize_policy_from_sft_or_base_model()\n    C, validation_rewards = [], []\n\n    while gpu_hours &lt; small_or_medium_budget:\n        # PipelineRL: generators 持续采样，trainers 异步更新\n        prompts = sample_training_prompts()\n        rollouts = generate_G_responses(policy_old, prompts)\n        rewards = verifier_or_rule_reward(rollouts)\n\n        # 过滤无梯度或已过易样本\n        rollouts = drop_zero_variance_prompts(rollouts, rewards)\n        prompts = drop_prompts_with_historical_pass_rate_ge_0_9(prompts)\n\n        # 计算 batch-level normalized advantages\n        advantages = normalize_advantages_across_batch(rewards)\n\n        # CISPO / truncated importance sampling policy gradient\n        rho = pi_train_theta(rollouts) / pi_gen_old(rollouts)\n        loss = -mean(stop_grad(min(rho, epsilon)) * advantages * logprob_theta(rollouts))\n        update_policy(loss, fp32_logits=True)\n\n        if step % eval_interval == 0:\n            R_C = evaluate_mean_at_16_on_iid_validation(policy)\n            C.append(current_gpu_hours())\n            validation_rewards.append(R_C)\n\n    # 用早期曲线拟合 A, B, C_mid，再外推到大预算\n    params = fit_sigmoid_scaling_law(C, validation_rewards)\n    predicted_large_scale_reward = predict_reward(params, target_gpu_hours)\n    rank_recipe(recipe, predicted_large_scale_reward, params.A, params.B)\n</code></pre>\n<p>论文的核心缩放公式是一个饱和 S 曲线，而不是预训练中常见的幂律损失下降。设 <span class=\"kb-math kb-math-inline\">R_0</span> 是起始策略的验证奖励，<span class=\"kb-math kb-math-inline\">R_C</span> 是消耗训练算力 <span class=\"kb-math kb-math-inline\">C</span> 后的验证奖励，公式为：</p>\n<div class=\"kb-math kb-math-display\">R_C - R_0 = (A-R_0)\\times \\frac{1}{1+(C_{\\text{mid}}/C)^B}.</div>\n<p>等价地：</p>\n<div class=\"kb-math kb-math-display\">R_C = R_0 + \\frac{A-R_0}{1+(C_{\\text{mid}}/C)^B}.</div>\n<p>这个形式非常适合 RL 后训练，因为验证 reward 或 pass rate 是有上界的。预训练 NLL 可以在很宽范围内用幂律持续下降，而 RL reward 往往经历三个阶段：初期变化慢或不稳定，中期快速上升，后期接近任务和 recipe 允许的性能上限。参数 <span class=\"kb-math kb-math-inline\">A</span> 衡量“最终天花板”，<span class=\"kb-math kb-math-inline\">B</span> 和 <span class=\"kb-math kb-math-inline\">C_{\\text{mid}}</span> 衡量“多快接近天花板”。因此两个方法在小预算下谁更强并不一定重要，更重要的是拟合出来的 <span class=\"kb-math kb-math-inline\">A</span> 和效率参数是否能支撑大预算外推。</p>\n<p>ScaleRL 的训练目标来自 off-policy policy-gradient 家族。生成器用旧策略 <span class=\"kb-math kb-math-inline\">\\pi^{\\theta_{old}}_{gen}</span> 产生回答，训练器用当前策略 <span class=\"kb-math kb-math-inline\">\\pi^\\theta_{train}</span> 更新，因此每个 token 都有重要性采样比率：</p>\n<div class=\"kb-math kb-math-display\">\\rho_{i,t}(\\theta)=\\frac{\\pi^\\theta_{train}(y_{i,t}\\mid x,y_{i,&lt;t})}{\\pi^{\\theta_{old}}_{gen}(y_{i,t}\\mid x,y_{i,&lt;t})}.</div>\n<p>论文最终采用 CISPO 思路，把重要性采样比率截断后放入 REINFORCE 风格目标。简化写法如下：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{J}_{\\text{ScaleRL}}(\\theta)=\\mathbb{E}\\left[\\frac{1}{\\sum_g |y_g|}\\sum_{i=1}^{G}\\sum_{t=1}^{|y_i|}\\text{sg}(\\min(\\rho_{i,t},\\epsilon))\\hat{A}^{\\text{norm}}_i\\log \\pi^\\theta_{train}(y_{i,t})\\right].</div>\n<p>这里 <span class=\"kb-math kb-math-inline\">\\text{sg}</span> 是 stop-gradient，<span class=\"kb-math kb-math-inline\">\\hat{A}^{\\text{norm}}_i</span> 是 batch-level 标准化后的优势。直觉上，CISPO 保留了“好的回答增加概率、坏的回答降低概率”的策略梯度方向，但用截断 <span class=\"kb-math kb-math-inline\">\\min(\\rho,\\epsilon)</span> 避免 off-policy 采样比率爆炸。论文发现 GSPO/CISPO 相比 DAPO 能提高渐近 pass rate，其中 CISPO 后期略优，因此被纳入 ScaleRL。</p>\n<p>ScaleRL 的工程配方同样关键。PipelineRL-8 让生成器和训练器异步流水工作，减少等待，并允许最多 8 steps 的 off-policyness；FP32 logits 修复生成端和训练端 kernel 数值差异，因为微小概率误差会直接放大到 <span class=\"kb-math kb-math-inline\">\\rho</span>；prompt-level loss aggregation 让每个 prompt 而不是每个 rollout 或 token 主导梯度权重；batch-level advantage normalization 让不同 prompt 的奖励尺度更稳定；zero-variance filtering 丢弃同一 prompt 所有样本全对或全错的批内样本，因为这些样本优势为零，不贡献有效策略梯度；No-Positive-Resampling 则把历史 pass rate <span class=\"kb-math kb-math-inline\">\\ge 0.9</span> 的过易 prompt 从后续 epoch 中移除，避免把 RL 算力浪费在已经学会的题目上。</p>\n<div class=\"key-point\">💡 关键：这篇论文中的“scaling law”不是直接告诉你参数量和 token 数如何配比，而是告诉你一个 RL recipe 的 reward-算力曲线是否可预测、上限多高、到达上限多快。它更像一个大规模 RL 方法筛选器。</div>\n<p>与预训练缩放律相比，RL scaling 的困难在于算法选择会改变曲线形状。预训练中很多配置差异最后可以折算成 loss 曲线的平移，但 RL 中一个不稳定 recipe 可能早期看起来很好，放大后却撞到低天花板。论文强调“small compute winner”并不一定是“large compute winner”，所以要用早期曲线拟合 <span class=\"kb-math kb-math-inline\">A,B,C_{\\text{mid}}</span> 后再比较。这个框架允许研究者用较小预算消融设计，再把最有前途的 recipe 放大到 100k GPU-hours，而不是靠一次性赌博式大训练。</p>\n<p>实验部分显示，ScaleRL 在 iid validation 上的曲线可以从较早阶段外推到更长训练，并且下游 AIME-24 等评估也呈现一致增长趋势。论文还分析了模型规模、生成长度、global batch size、每 prompt 生成数、数学与代码多任务等轴，发现 sigmoid compute-performance 关系不只适用于单一设置。限制也很明确：这仍主要在可验证数学/代码类任务上建立，未来需要把模型大小、预训练 compute、RL 数据量、奖励模型质量和多轮 agent 环境纳入统一更高维的 RL 缩放律。</p>",
+      "quiz": {
+        "q": "在 RL Scaling Laws 中，参数 A 的主要含义是什么？",
+        "options": [
+          "当前 batch 的平均 advantage",
+          "训练曲线在大算力极限下可达到的渐近 reward/pass rate",
+          "每次 rollout 的最大生成长度",
+          "训练数据中 prompt 的数量"
+        ],
+        "answer": 1,
+        "explain": "论文用 sigmoid 曲线拟合 reward-算力关系，A 表示大算力极限下的性能上限；B 和 C_mid 更侧重描述接近该上限的效率。"
+      }
     },
     {
       "id": "c4",
@@ -524,12 +604,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "data",
       "motivation": "T5基石数据集启发式规则清洗",
-      "summary": "C4 的核心目标是：T5基石数据集启发式规则清洗。",
+      "summary": "C4 从 Common Crawl 的网页抽取文本中通过启发式规则清洗出大规模英文自然文本，解决了早期 NLP 预训练缺少公开、干净、可复现实验语料的问题。它作为 T5 的核心预训练数据集，把“数据清洗策略”提升为影响迁移学习效果的关键算法组件。",
       "keyPoints": [
-        "核心动机：T5基石数据集启发式规则清洗",
-        "代表机构：Google"
+        "数据来源是 Common Crawl 的 web extracted text，T5 论文使用 April 2019 dump 构建基础 C4。",
+        "清洗目标是去掉菜单、样板页、错误消息、脏词、占位文本、源码、重复片段和非英文网页。",
+        "关键过滤规则包括句末标点、最少句子数、最少词数、坏词列表、Javascript 行、lorem ipsum、花括号代码页、Wikipedia citation markers、隐私/ cookie 模板行。",
+        "使用 langdetect 只保留英文概率至少 0.99 的页面，贴合 T5 主要英文下游任务设置。",
+        "使用三句 span 级去重，丢弃重复出现的三句窗口，只保留一个副本。",
+        "产物约 750GB，显著大于 Wikipedia、Toronto Books Corpus、WebText-like 等对照语料。",
+        "论文在 T5 框架中比较 C4、Unfiltered C4、RealNews-like、WebText-like、Wikipedia、Wikipedia+TBC 等数据源，证明预训练语料的清洁度、规模和领域覆盖都会影响迁移效果。"
       ],
-      "detail": "<p>T5基石数据集启发式规则清洗</p>"
+      "detail": "<p><img alt=\"T5 text-to-text 框架图\" src=\"https://arxiv.org/html/1910.10683/x1.png\" />\n<em>图：T5 将所有任务统一为 text-to-text 形式，C4 是该框架中用于无监督预训练的核心大规模语料来源。</em></p>\n<p>C4 不是一个模型结构算法，而是一个数据构建算法。T5 论文的主线是“统一的 text-to-text Transformer + 系统性迁移学习实验”，但 C4 是其中非常关键的一环：如果预训练数据太小，模型很快受限于覆盖度；如果直接使用 Common Crawl，又会被网页模板、导航、广告、错误页、代码和重复内容污染。C4 的贡献在于给出一套可复现的启发式过滤流水线，把每月约 20TB 级别的网页抽取文本变成约 750GB 的相对干净英文语料。</p>\n<pre><code class=\"language-python\"># C4 数据清洗算法伪代码\n# 输入：Common Crawl web extracted text pages\n# 输出：C4 clean English text corpus\n\nclean_pages = []\nseen_three_sentence_spans = set()\n\nfor page in common_crawl_april_2019:\n    lines = extract_text_lines(page)\n\n    # 页面级过滤\n    if langdetect(page).language != &quot;en&quot; or langdetect(page).prob &lt; 0.99:\n        continue\n    if count_sentences(page) &lt; 3:\n        continue\n    if contains_bad_word(page):\n        continue\n    if contains_phrase(page, &quot;lorem ipsum&quot;):\n        continue\n    if contains_character(page, &quot;{&quot;):\n        continue\n\n    kept_lines = []\n    for line in lines:\n        if word_count(line) &lt; 5:\n            continue\n        if not ends_with_terminal_punctuation(line):\n            continue\n        if contains_case_insensitive(line, &quot;javascript&quot;):\n            continue\n        if contains_policy_boilerplate(line):\n            continue\n        line = remove_wikipedia_citation_markers(line)\n        kept_lines.append(line)\n\n    sentences = split_into_sentences(join_lines(kept_lines))\n    deduped = []\n    for span in sliding_window(sentences, size=3):\n        key = normalize(span)\n        if key in seen_three_sentence_spans:\n            continue\n        seen_three_sentence_spans.add(key)\n        deduped.extend(new_sentences_from(span))\n\n    if deduped:\n        clean_pages.append(join_sentences(deduped))\n\nreturn clean_pages\n</code></pre>\n<p>C4 的过滤器可以形式化为一个谓词组合。设原始网页集合为 <span class=\"kb-math kb-math-inline\">\\mathcal{W}</span>，页面 <span class=\"kb-math kb-math-inline\">w</span> 的语言检测概率为 <span class=\"kb-math kb-math-inline\">P_{\\text{en}}(w)</span>，文本行集合为 <span class=\"kb-math kb-math-inline\">\\ell(w)</span>，过滤后语料可以写作：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{C4}=\\operatorname{Dedup}_{3\\text{-sent}}\\left(\\{\\ell\\in w:\\; w\\in\\mathcal{W},\\;P_{\\text{en}}(w)\\ge 0.99,\\;F_{page}(w)=1,\\;F_{line}(\\ell)=1\\}\\right).</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">F_{page}</span> 覆盖页面级规则，例如至少 3 句、没有坏词、没有 <code>lorem ipsum</code>、没有花括号代码痕迹；<span class=\"kb-math kb-math-inline\">F_{line}</span> 覆盖行级规则，例如至少 5 个词、以终止标点结尾、不包含 Javascript 和 policy boilerplate。最后的 <span class=\"kb-math kb-math-inline\">\\operatorname{Dedup}_{3\\text{-sent}}</span> 表示三句窗口去重，它比简单逐行去重更适合网页语料，因为许多网页模板和转载内容会以短段落形式重复。</p>\n<p>C4 的动机来自 Common Crawl 的双重属性：规模巨大但噪声巨大。Common Crawl 的 web extracted text 已经移除了 HTML 标记，但并不等于自然语言语料。网页抽取文本会包含导航菜单、cookie 声明、隐私政策、404 页面、脚本提示、版权页脚、自动生成列表、论坛模板和重复转载。直接拿这些内容训练语言模型，会把 token 预算浪费在非任务相关模式上，并可能让模型学习到不自然的文本分布。C4 的启发式规则看起来朴素，但每条都对应一种高频网页污染源。</p>\n<p>句末标点和最少词数规则主要过滤碎片化文本。网页菜单常见的 “Home”、“Contact”、“Read more” 等短行虽然是英文，却不是完整自然句；要求以句号、问号、感叹号或结束引号结尾，可以提高保留行的叙述性。页面至少 3 句则避免把极短页面或抽取失败页面误认为高质量文档。坏词列表和 <code>lorem ipsum</code> 规则处理内容安全与占位模板；花括号规则处理网页源码或代码片段；Javascript 与 cookie/policy 字符串规则处理浏览器提示和法律模板；Wikipedia citation marker 清理则减少百科页面抽取残留。</p>\n<p>去重是 C4 中特别重要的机制。网页语料的重复不只是整页重复，还包括相同新闻稿、产品说明、版权段落、模板段落在不同站点或同一站点多次出现。三句 span 去重相当于用较长上下文作为指纹，比单句去重更不容易误删常见短句，又能捕捉大段重复内容。对预训练而言，去重降低了模型在重复样本上的过拟合，也让固定 token 预算覆盖更多独立语言现象。</p>\n<p>C4 与 T5 的关系还体现在预训练目标上。T5 最终采用 span corruption 式 denoising objective：从 C4 文本中采样连续 span，用 sentinel tokens 替换输入中的被污染片段，并让模型在输出端恢复这些 span。简化损失为：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{\\text{denoise}}(\\theta)=-\\sum_{t=1}^{|y|}\\log p_{\\theta}(y_t\\mid y_{&lt;t},\\tilde{x}),</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">\\tilde{x}</span> 是被 sentinel tokens corruption 后的输入，<span class=\"kb-math kb-math-inline\">y</span> 是按顺序拼接的被遮盖 span。C4 的清洁度直接影响这个目标的有效性：如果输入中大量是菜单、样板和乱码，模型就会把容量用于复原网页噪声；如果输入是相对自然的英文段落，denoising 才更接近学习通用语言知识。</p>\n<p>论文在数据集实验中把 C4 与多个替代语料比较。Unfiltered C4 保留了更多 Common Crawl 噪声，规模更大但质量更差；RealNews-like 更像新闻域，规模较小且领域偏窄；WebText-like 借鉴 Reddit upvote 过滤，但从同一时期 Common Crawl 可得到的内容有限；Wikipedia 和 Wikipedia+TBC 较干净但规模和领域覆盖不足。这个对照说明，预训练数据不是“越大越好”的单变量问题，而是规模、清洁度、领域多样性和可复现性之间的折中。</p>\n<div class=\"key-point\">💡 关键：C4 的算法价值在于把网页清洗变成可复现实验条件。T5 不是只靠模型架构取胜，C4 让不同预训练目标、架构和迁移策略能在统一的大规模干净语料上被系统比较。</div>\n<p>从后续 LLM 发展看，C4 也暴露出启发式清洗的局限：规则简单、英文中心、对质量的定义依赖表面模式，且不能充分处理事实质量、版权、毒性、PII、跨语言覆盖和数据混入 benchmark 等问题。但在 2020 年的背景下，C4 的意义非常明确：它提供了一个公开、足够大、相对干净、可通过 TensorFlow Datasets 使用的预训练基准语料，成为 T5 以及许多后续数据工程研究的参照点。</p>",
+      "quiz": {
+        "q": "C4 构建流程中，三句 span 去重的主要作用是什么？",
+        "options": [
+          "把所有英文网页翻译成多语言语料",
+          "删除重复出现的长片段，减少网页模板和转载内容对预训练的污染",
+          "把文本转换成 T5 的 sentinel token 格式",
+          "提高 langdetect 的英文概率阈值"
+        ],
+        "answer": 1,
+        "explain": "C4 使用三句窗口作为较稳定的重复指纹，能去掉模板、转载和重复段落，让固定 token 预算覆盖更多独立自然文本。"
+      }
     },
     {
       "id": "the_pile",
@@ -543,13 +639,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "data",
       "motivation": "825GB多源数据集强调多样性",
-      "summary": "The Pile 的核心目标是：825GB多源数据集强调多样性。",
+      "summary": "The Pile 提出了一个由 22 个高质量、多领域英文子语料按权重混合而成的 825GiB 语言模型预训练数据集，解决了单纯依赖 Common Crawl 时领域覆盖窄、学术/代码/法律/医学等专业知识不足的问题。它的核心不是新模型结构，而是把“数据多样性、可复现构建、评测切分、文档化审计”作为大语言模型预训练质量的主要机制。",
       "keyPoints": [
-        "核心动机：825GB多源数据集强调多样性",
-        "演化来源：继承或改进自 c4",
-        "代表机构：EleutherAI"
+        "825.18GiB 英文文本语料，由 Pile-CC、PubMed Central、Books3、OpenWebText2、ArXiv、GitHub、FreeLaw、Stack Exchange 等 22 个子数据集构成。",
+        "采用“有效大小”而非单纯原始大小来混合数据，对学术、医学、数学、法律、代码等高质量或稀缺来源进行多 epoch 上采样。",
+        "将 The Pile 同时设计为预训练语料和跨领域语言模型评测集，验证模型是否只擅长网页文本还是能泛化到专业文本。",
+        "使用 bits per UTF-8 encoded byte（bpb）作为主要评测指标，避免不同 tokenizer 下字符/词级困惑度不可比的问题。",
+        "对 OpenWebText2 与 Pile-CC 执行文档级 MinHash LSH 去重，并从训练集中移除与 held-out 数据完全相同的样本以降低验证/测试泄漏。",
+        "训练 1.3B 参数对照模型表明，在控制 40GB 数据规模且去污染后，Pile 模型在 Pile 各子域上显著优于 CC-100 与 Raw Common Crawl。",
+        "附带 datasheet、data statement、主题分布、语言比例、冒犯性内容、偏见共现等数据文档化分析，把数据集风险显式暴露给使用者。"
       ],
-      "detail": "<p>825GB多源数据集强调多样性</p>"
+      "detail": "<p><img alt=\"The Pile 组成树图\" src=\"https://ar5iv.labs.arxiv.org/html/2101.00027/assets/pile_chart2.png\" />\n<em>图：The Pile 的 22 个组成部分按有效大小绘制的 treemap，颜色区分 Academic、Internet、Prose、Dialogue 和 Misc 等类别。</em></p>\n<pre><code class=\"language-python\"># The Pile 构建流程伪代码：把多源语料变成可训练的预训练 corpus\nsources = [PileCC, PubMedCentral, Books3, OpenWebText2, ArXiv, GitHub,\n           FreeLaw, StackExchange, USPTO, PubMedAbstracts, PG19,\n           OpenSubtitles, Wikipedia, DMMath, UbuntuIRC, BookCorpus2,\n           EuroParl, HackerNews, YouTubeSubtitles, PhilPapers,\n           NIHExporter, EnronEmails]\n\nfor source in sources:\n    docs = collect_or_download(source)\n    docs = source_specific_cleaning(docs)      # HTML/PDF/LaTeX/邮件/字幕等各自解析\n    docs = normalize_text(docs)\n    docs = discard_low_quality_or_empty(docs)\n\n# 只对最容易重复的网页来源做文档级 MinHash LSH 去重\nOpenWebText2 = minhash_lsh_dedup(OpenWebText2, num_perm=10, jaccard_threshold=0.5)\nPileCC = minhash_lsh_dedup(PileCC, num_perm=10, jaccard_threshold=0.5)\n\nheldout = sample_heldout(sources, total_size_gib=10)  # 其中约 2GiB 用于 val/test\ntrain_sources = remove_exact_matches_against_heldout(sources, heldout)\n\n# 按“文档数 × epoch 权重”混合，高质量或小规模语料可被重复采样\nfor output_shard in range(30):\n    while shard_not_full(output_shard):\n        source = weighted_sample(train_sources, weight=lambda s: len(s.docs) * s.epochs)\n        write_next_document(output_shard, random_document(source))\n</code></pre>\n<p>The Pile 的动机来自一个很具体的数据瓶颈：GPT-3、T5、CC-100/C4 等路线证明了 Common Crawl 规模足够大，但网页抓取语料天然偏向网页模板、新闻、论坛、SEO 文本和通用百科，难以覆盖论文、专利、医学全文、代码、法律文书、数学推理、哲学论文等高价值领域。论文因此把语料建设目标从“尽可能多的网页”改为“用一个大规模网页底座，加上大量专业、小众但高质量的数据源”。这解释了为什么 Pile-CC 虽然仍是最大单项来源之一，但 PubMed Central、Books3、ArXiv、GitHub、FreeLaw 等也被赋予很高有效权重。</p>\n<p>数据混合的关键机制是 effective size。设第 <span class=\"kb-math kb-math-inline\">c</span> 个数据源有 <span class=\"kb-math kb-math-inline\">N_c</span> 个文档，设定 epoch 权重为 <span class=\"kb-math kb-math-inline\">e_c</span>，则抽样近似服从：</p>\n<div class=\"kb-math kb-math-display\">p(c)=\\frac{N_c e_c}{\\sum_{c&#x27;} N_{c&#x27;} e_{c&#x27;}}</div>\n<p>这意味着 The Pile 并不是把 22 份数据简单拼接一次，而是在最终训练流中让某些高质量数据“出现多次”。例如 Wikipedia、PG-19、EuroParl、DM Mathematics 等相对小但质量高的来源会被上采样；PubMed Central、ArXiv、FreeLaw 等学术/专业文本也被赋予更高影响力。这样做的直觉是，大模型的梯度预算有限，如果所有 token 都来自网页，模型会把容量花在网页分布上；如果让专业语料在训练中被更频繁看到，模型更可能学习到跨领域表达、术语和推理模式。</p>\n<p>The Pile 对“评测指标”也做了专门设计。论文倾向使用 bits per UTF-8 byte（bpb）而不是单纯 perplexity，因为不同数据源的字符集、数学公式、代码符号、tokenizer 切分都会显著影响 token 数。若令 <span class=\"kb-math kb-math-inline\">B</span> 为 UTF-8 字节数、<span class=\"kb-math kb-math-inline\">\\mathcal{L}</span> 为整份数据的负对数似然，则可以写作：</p>\n<div class=\"kb-math kb-math-display\">\\mathrm{bpb}=\\frac{\\mathcal{L}}{B\\log 2}</div>\n<p>bpb 的直觉是“每个原始字节需要多少比特才能被模型压缩/预测”，因此更适合比较 GitHub、ArXiv、DM Mathematics、普通网页等 tokenization 难度差异很大的子语料。论文还强调按文档独立评估，而不是把所有文档串接后评估，避免模型利用跨文档上下文获得不真实优势。</p>\n<p>去重与泄漏控制是 The Pile 的另一个工程重点，但它采取的是务实折中。论文说明由于内存约束没有做全 Pile 级别去重，而是在最容易重复的 OpenWebText2 与 Pile-CC 上执行文档级 MinHash LSH：每个文档构造 MinHash 签名，用近似 Jaccard 相似度 0.5 作为重复阈值，OpenWebText2 和 Common Crawl 分别得到约 28% 与 26% 的重复率。与此同时，论文从训练集中移除与 held-out 数据完全相同的元素，以避免验证/测试样本被训练集直接包含。</p>\n<p>与 C4/CC-100 的区别在于，The Pile 不把“强过滤 Common Crawl”作为唯一数据质量来源。CC-100 的英文部分主要依靠网页过滤，C4 也以 Common Crawl 为底座；The Pile 则明确承认 Common Crawl 有覆盖面优势但专业性不足，因此引入学术论文、医学全文、开源代码、专利、法律、邮件、字幕、论坛问答等多模态文本。实验中，在控制每个训练集约 40GB 并做 13-gram 去污染后，Pile 训练的 1.3B 模型在 Pile 各组件 bpb 上显著优于 CC-100 与 Raw CC，尤其在 ArXiv、PubMed Central、FreeLaw、GitHub、Stack Exchange、DM Mathematics 等专业域上优势明显。</p>\n<div class=\"key-point\">💡 关键：The Pile 的核心贡献不是“更大”，而是“以可复现方式把网页、书籍、学术、代码、法律、医学和对话语料组织成一个可训练分布”，并用 bpb 与分组件评测证明这种多样性会转化为跨领域语言建模收益。</div>",
+      "quiz": {
+        "q": "The Pile 相比只使用 Common Crawl/C4 的核心改进是什么？",
+        "options": [
+          "把所有网页文本按困惑度过滤到最接近 Wikipedia 的分布",
+          "用 22 个多领域高质量子语料按有效权重混合，增强跨领域覆盖",
+          "只保留英文 Wikipedia 和新闻文本，减少噪声来源",
+          "通过更深的 Transformer 架构提升模型容量"
+        ],
+        "answer": 1,
+        "explain": "The Pile 的主要贡献是数据构成和构建流程：用多源语料及权重混合覆盖学术、代码、法律、医学等领域，而不是提出新模型结构。"
+      }
     },
     {
       "id": "minhash_dedup",
@@ -563,12 +674,29 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "data",
       "motivation": "局部敏感哈希实现文档级去重",
-      "summary": "MinHash LSH 的核心目标是：局部敏感哈希实现文档级去重。",
+      "summary": "MinHash LSH 去重用 n-gram 集合的 Jaccard 相似度近似来发现大规模语料中的近重复文档，解决网页预训练数据里模板化、轻微改写、字段替换导致的“非精确但高度重复”问题。论文中的 NearDup 方法先用 MinHash 快速召回候选文档对，再用编辑相似度和连通分量聚类决定要删除的重复样本。",
       "keyPoints": [
-        "核心动机：局部敏感哈希实现文档级去重",
-        "代表机构：学术界"
+        "目标是文档级近重复去重：处理“主体相同但城市、日期、URL、商品名等字段略有变化”的网页模板文本。",
+        "将文档表示为 5-gram 集合，用 Jaccard 相似度衡量两个文档的 n-gram 重叠程度。",
+        "使用 MinHash 签名近似 Jaccard，相比全量文档两两比较，将候选召回扩展到 C4、RealNews、Wiki-40B、LM1B 等大规模语料。",
+        "论文实现中使用 5-gram、9000 维签名，并按论文记号设置 <span class=\"kb-math kb-math-inline\">b=20,r=450</span> 控制相似文档发生碰撞的概率曲线。",
+        "对 MinHash 召回的候选对再计算 edit similarity，只有编辑相似度大于 0.8 才判定为重复。",
+        "将重复文档对构成图，边表示一对近重复文档，再用连通分量形成重复簇，每簇只保留一个代表文档。",
+        "发现 C4、RealNews 等网页语料中存在大量近重复；C4 中 3.04% 训练样本被 NearDup 标记为近重复，最大近重复簇可达 250,933 个样本。",
+        "去重后模型无提示生成中复制训练文本的 token 比例下降约一个数量级，并且在若干验证集上不损害甚至改善困惑度。"
       ],
-      "detail": "<p>局部敏感哈希实现文档级去重</p>"
+      "detail": "<p><img alt=\"NearDup 在 C4 上发现的近重复簇规模分布\" src=\"https://ar5iv.labs.arxiv.org/html/2107.06499/assets/x1.png\" />\n<em>图：NearDup 在 C4 上得到的近重复簇规模分布；绝大多数簇很小，但也存在数千甚至数十万样本的大簇，说明网页模板重复会形成长尾风险。</em></p>\n<pre><code class=\"language-python\"># NearDup / MinHash LSH 文档级近重复去重伪代码\nfor doc_id, text in corpus:\n    tokens = bpe_tokenize(text)\n    shingles = set(ngrams(tokens, n=5))\n    signature[doc_id] = minhash(shingles, signature_size=9000)\n\ncandidate_pairs = set()\nfor bucket in lsh_buckets(signature, b=20, r=450):\n    for doc_i, doc_j in all_pairs(bucket):\n        candidate_pairs.add((doc_i, doc_j))\n\ngraph = UnionFind()\nfor doc_i, doc_j in candidate_pairs:\n    jaccard = exact_jaccard(ngrams(doc_i, 5), ngrams(doc_j, 5))\n    if jaccard &lt; 0.8:\n        continue\n    sim = 1 - edit_distance(tokens(doc_i), tokens(doc_j)) / max(len(doc_i), len(doc_j))\n    if sim &gt; 0.8:\n        graph.union(doc_i, doc_j)\n\nfor cluster in graph.connected_components():\n    keep = choose_representative(cluster, prefer_validation_or_test=True)\n    remove_all_except(cluster, keep)\n</code></pre>\n<p>MinHash LSH 的动机是，精确哈希只能删除完全相同的段落或文档，却无法捕捉网页语料中更常见的“近重复”：广告页、旅游页、商品页、新闻聚合页往往共享大段模板，只替换地点、日期、价格或标题。论文给出的 C4 例子中，两段航班广告文本结构几乎相同，但出发地、目的地和月份不同；如果只做字符串完全匹配，这类重复会留在训练集中，模型会反复看到同一种模板，从而更容易记忆模板化文本并污染验证集。</p>\n<p>形式化地，每个文档 <span class=\"kb-math kb-math-inline\">x_i</span> 被转为 n-gram 集合 <span class=\"kb-math kb-math-inline\">d_i</span>。两个文档的真实相似度可用 Jaccard 指数表示：</p>\n<div class=\"kb-math kb-math-display\">J(d_i,d_j)=\\frac{|d_i\\cap d_j|}{|d_i\\cup d_j|}</div>\n<p>如果对所有文档对都精确计算 <span class=\"kb-math kb-math-inline\">J</span>，复杂度接近 <span class=\"kb-math kb-math-inline\">O(N^2)</span>，在数亿文档规模上不可行。MinHash 的关键性质是：对集合应用随机哈希并取最小哈希值时，两个集合得到相同最小哈希的概率等于它们的 Jaccard 相似度。多个 hash 组成签名后，签名相同/部分相同的概率就能作为 Jaccard 的近似筛选器。</p>\n<p>论文的 NearDup 采用 5-gram 与 9000 个 MinHash 值，并给出候选召回概率：</p>\n<div class=\"kb-math kb-math-display\">\\Pr(d_i,d_j\\mid J(d_i,d_j)=s_{ij})=1-(1-s_{ij}^{b})^{r}</div>\n<p>其中按论文记号 <span class=\"kb-math kb-math-inline\">b=20,r=450</span>。这个函数的作用是形成一条陡峭的 S 型过滤曲线：当 <span class=\"kb-math kb-math-inline\">s_{ij}</span> 接近 0.8 时，文档对很可能进入候选集；当相似度明显低于阈值时，碰撞概率迅速下降。这样可以用局部敏感哈希把“可能重复”的对召回出来，而不是枚举所有文档对。</p>\n<p>召回候选后，NearDup 不直接删除，而是再做精确过滤。论文要求候选对的实际 Jaccard 足够高，并计算 token 序列的编辑相似度：</p>\n<div class=\"kb-math kb-math-display\">\\operatorname{EditSim}(x_i,x_j)=1-\\frac{\\operatorname{EditDistance}(x_i,x_j)}{\\max(|x_i|,|x_j|)}</div>\n<p>只有当 <span class=\"kb-math kb-math-inline\">\\operatorname{EditSim}&gt;0.8</span> 时，这对文档才被连边。这个二阶段设计很重要：MinHash 负责高召回、低成本地缩小搜索空间，edit similarity 负责减少误删，避免仅共享大量常见 n-gram 的不同文档被错误合并。</p>\n<p>最后，NearDup 把所有判定重复的文档对构成图，图中的连通分量就是近重复簇。删除策略不是按边逐对删除，而是按簇保留一个代表，其余移除；当重复跨越 train/validation/test 时，论文优先保留测试或验证样本，从训练集中移除重叠内容，以降低评测泄漏。这个策略解决了一个常见陷阱：如果 A 近似 B、B 近似 C，即使 A 和 C 未直接比较成重复，它们也应被视为同一模板族。</p>\n<p>实验层面，NearDup 在网页数据上的影响很大：论文报告 C4 有 3.04% 训练样本被标记为近重复，RealNews 达到 13.63%，而人工整理程度更高的 Wiki-40B 只有 0.39%。去重不仅减少数据体积，还显著降低模型生成训练集原文的比例；无提示生成中，原始 C4 训练的 XL 模型有超过 1% token 属于 50-token 训练集拷贝片段，而 NearDup/ExactSubstr 去重模型下降到约十分之一量级。</p>\n<div class=\"key-point\">💡 关键：MinHash LSH 去重的价值在于“近似召回 + 精确复核 + 簇级删除”，它不是为了找完全相同文档，而是为了在数亿网页文档中高效发现模板化近重复。</div>",
+      "quiz": {
+        "q": "NearDup 为什么在 MinHash 候选召回后还要计算 edit similarity？",
+        "options": [
+          "因为 MinHash 只能处理图片，不能处理文本",
+          "为了在高召回候选中进一步过滤，降低共享常见 n-gram 导致的误删",
+          "为了把文档转换成 UTF-8 字节并训练 tokenizer",
+          "为了让所有文档长度完全一致"
+        ],
+        "answer": 1,
+        "explain": "MinHash 用于快速找到可能相似的文档对，但候选中仍可能有假阳性；edit similarity > 0.8 是更严格的复核条件。"
+      }
     },
     {
       "id": "suffix_array_dedup",
@@ -582,13 +710,29 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "data",
       "motivation": "后缀数组子串去重防重复生成",
-      "summary": "Suffix Array去重 的核心目标是：后缀数组子串去重防重复生成。",
+      "summary": "Suffix Array Deduplication 使用后缀数组在线性扫描中发现跨文档重复的长精确子串，解决文档整体不相似但局部大段文本被重复复制的问题。论文中的 ExactSubstr 方法选择 50 个 BPE token 作为重复阈值，从训练数据中删除重复片段，从而降低语言模型直接背诵训练文本的概率。",
       "keyPoints": [
-        "核心动机：后缀数组子串去重防重复生成",
-        "演化来源：继承或改进自 minhash_dedup",
-        "代表机构：Google"
+        "目标是子串级精确去重：不是删除整篇近重复文档，而是删除跨样本重复出现的长 verbatim span。",
+        "将整个语料的 BPE token 字节序列拼接成一个大序列 <span class=\"kb-math kb-math-inline\">S</span>，在 <span class=\"kb-math kb-math-inline\">S</span> 上构建后缀数组 <span class=\"kb-math kb-math-inline\">A(S)</span>。",
+        "后缀数组按字典序排列所有后缀，因此共享长前缀的重复片段会在数组中相邻出现。",
+        "线性扫描相邻后缀，计算 longest common prefix（LCP），当公共前缀长度 <span class=\"kb-math kb-math-inline\">\\ge 50</span> BPE tokens 且来自不同样本时记录重复 span。",
+        "选择 50-token 阈值是保守策略：论文观察到 10 token 左右是重复概率曲线拐点，人工检查 25-token 匹配无明显误报，因此翻倍为 50。",
+        "与 MinHash/NearDup 互补：MinHash 删除近重复整文档，ExactSubstr 删除跨文档共享的精确片段；前者处理模板化改写，后者处理长引用、复制段落和训练/验证泄漏。",
+        "工程实现采用并行 SA-IS、分块构建、partial suffix array merge 与磁盘流式输出，支持 C4 这类数百 GB 语料。",
+        "在 C4 上构建 350GB 语料后缀数组耗时约 12 小时，后续去重不到 1 小时；后缀数组约需 8 倍空间，350GB C4 的后缀数组约 1.5TB。"
       ],
-      "detail": "<p>后缀数组子串去重防重复生成</p>"
+      "detail": "<p><img alt=\"ExactSubstr 的重复长度阈值分析\" src=\"https://ar5iv.labs.arxiv.org/html/2107.06499/assets/x6.png\" />\n<em>图：不同长度 <span class=\"kb-math kb-math-inline\">k</span> 的精确重复子串出现概率；论文观察到 10 token 以下重复很常见，最终选用 50 BPE token 作为保守阈值。</em></p>\n<pre><code class=\"language-python\"># ExactSubstr / Suffix Array 子串级去重伪代码\nS = []\nowner = []  # 每个 token 位置属于哪个文档/数据切分\nfor doc_id, text in corpus:\n    tokens = bpe_tokenize_to_bytes(text)\n    S.extend(tokens + [DOC_SEPARATOR])\n    owner.extend([doc_id] * (len(tokens) + 1))\n\nA = suffix_array(S)  # A 中每个元素是某个后缀的起始位置，按后缀字典序排列\nspans_to_remove = []\n\nfor t in range(len(A) - 1):\n    i, j = A[t], A[t + 1]\n    if owner[i] == owner[j]:\n        continue\n    lcp = longest_common_prefix_length(S, i, j)\n    if lcp &gt;= 50:\n        # 重复片段出现在两个不同样本中；优先保留 validation/test 或先出现代表\n        loser_span = choose_training_span_to_remove(i, j, lcp, owner)\n        spans_to_remove.append(loser_span)\n\ncorpus = delete_spans(corpus, spans_to_remove)\n</code></pre>\n<p>ExactSubstr 的动机与 NearDup 不同。NearDup 关注“整篇文档是否近似重复”，但很多训练集泄漏和模型记忆并不表现为整篇文档重复：一篇网页可能只复制了一个长免责声明、一段诗、一段新闻模板、一段论坛签名，或者验证集中的一个长句子被嵌入到训练文档里。整篇文档的 Jaccard 可能不高，但那段局部文本足够长，语言模型多次看到后就可能逐字复现。因此 ExactSubstr 直接寻找跨样本共享的长连续 token 片段。</p>\n<p>后缀数组提供了规模化解决方案。对总序列 <span class=\"kb-math kb-math-inline\">S</span> 的所有后缀按字典序排序，得到：</p>\n<div class=\"kb-math kb-math-display\">A(S)=\\operatorname{argsort}(\\operatorname{all\\_suffixes}(S))</div>\n<p>如果一个片段 <span class=\"kb-math kb-math-inline\">s</span> 在位置 <span class=\"kb-math kb-math-inline\">i</span> 和 <span class=\"kb-math kb-math-inline\">j</span> 处重复出现，即：</p>\n<div class=\"kb-math kb-math-display\">S_{i:i+k}=S_{j:j+k},\\quad k\\ge 50</div>\n<p>那么从 <span class=\"kb-math kb-math-inline\">i</span> 与 <span class=\"kb-math kb-math-inline\">j</span> 开始的两个后缀会共享至少 <span class=\"kb-math kb-math-inline\">k</span> 个 token 的公共前缀。由于所有后缀按字典序排列，共享长前缀的后缀会聚在一起；因此不需要做所有位置两两比较，只要扫描后缀数组中的相邻元素并计算 LCP，就能找出候选重复片段。</p>\n<p>论文将文本先经过 BPE tokenization，再在 token 的字节表示上构造大序列。这样做有两个好处：第一，重复判定与语言模型实际训练 token 更一致，50 个 BPE token 大致对应足够长的可记忆片段；第二，字节序列避免了复杂 Unicode 字符边界问题，也便于后缀数组库处理。后缀数组相比后缀树更节省内存，论文引用的经验是 10-100 倍更省，实际实现仍需要约 8 bytes per input token 的空间开销。</p>\n<p>50-token 阈值不是任意设置。论文定义不同长度 <span class=\"kb-math kb-math-inline\">k</span> 的重复概率：</p>\n<div class=\"kb-math kb-math-display\">m(k)=\\Pr_{i\\in[N]}\\left[\\exists j\\ne i: S_{i:i+k}=S_{j:j+k}\\right]</div>\n<p>图中显示，长度小于 10 的重复很常见，且这些短重复覆盖了大量 token；这类重复多为常用短语、HTML 片段或普通搭配，删除会产生大量误报。论文观察到曲线在约 10 token 附近出现拐点，人工检查 25-token 匹配没有明显 false positive，于是进一步加倍到 50 token，以更保守地只删除几乎可以确定为复制的长片段。</p>\n<p>工程上，ExactSubstr 的难点不在理论，而在 C4 这种 350GB 语料无法轻松放入普通内存。论文实现了并行后缀数组构建：先把数据切成多个 split，各自用 SA-IS 构建 partial suffix array，再通过比较跨 split 后缀前缀并用 min-heap/merge sort 合并为全局后缀数组。为了降低内存压力，后缀数组可从磁盘流式处理，不要求整个数组常驻内存；但语料本身仍需支持随机索引，因为计算 LCP 时需要访问任意位置。</p>\n<p>与 MinHash LSH 的关系是互补而非替代。MinHash/NearDup 适合删除高度相似的整篇网页模板，但如果两篇文档只有一段 80-token 引文相同，整体 Jaccard 可能不够高；后缀数组会直接命中这段精确重复。反过来，如果两篇网页大体相同但字段交错不同，ExactSubstr 可能只能删除若干片段，而 NearDup 会把整篇文档归为同一簇并删除冗余样本。论文结果也显示，两者删除的内容高度相关但不完全相同，组合使用才能同时降低训练数据浪费、评测泄漏和生成式记忆。</p>\n<div class=\"warn-box\">⚠️ 注意：Suffix Array 去重只处理“完全相同的长连续片段”。它不会发现轻微改写、同义替换或模板字段变化，这些情况仍需要 MinHash LSH、SimHash 或 embedding-based dedup 等近似方法补充。</div>",
+      "quiz": {
+        "q": "ExactSubstr 为什么选择后缀数组而不是对所有文档片段两两比较？",
+        "options": [
+          "后缀数组能按字典序聚集共享长前缀的后缀，使重复子串可通过线性扫描发现",
+          "后缀数组会自动训练一个语言模型来预测重复内容",
+          "后缀数组只能用于删除整篇近重复文档，不能处理子串",
+          "后缀数组要求所有文档长度相同，因此更容易批处理"
+        ],
+        "answer": 0,
+        "explain": "重复子串对应共享长前缀的后缀；后缀数组排序后这些后缀相邻，扫描 LCP 即可避免二次复杂度的全量比较。"
+      }
     },
     {
       "id": "refinedweb",
@@ -602,13 +746,29 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "data",
       "motivation": "5T纯网页数据MDR方法论",
-      "summary": "RefinedWeb 的核心目标是：5T纯网页数据MDR方法论。",
+      "summary": "RefinedWeb 提出了 MacroData Refinement（MDR）数据处理流程，用严格过滤、行级清理、MinHash 近重复去重和精确子串去重，把 CommonCrawl 纯网页数据加工成约 5T tokens 的高质量英文预训练语料。它解决了“大模型必须依赖人工策划语料混合”的假设，证明充分清洗和去重的网页数据也能训练出与 curated corpora 相当甚至更强的语言模型。",
       "keyPoints": [
-        "核心动机：5T纯网页数据MDR方法论",
-        "演化来源：继承或改进自 c4",
-        "代表机构：TII"
+        "提出 MDR：面向 CommonCrawl 的大规模“文档准备 → 过滤 → 去重”流水线。",
+        "目标数据规模为 3T 到 6T tokens，最终得到约 5T tokens 的英文 RefinedWeb。",
+        "数据源坚持 web-only，不依赖书籍、Wikipedia、arXiv、社交媒体等人工精选语料。",
+        "文档准备使用 WARC 原始 HTML、<code>warcio</code>、<code>trafilatura</code> 和 fastText/CCNet 语言识别。",
+        "过滤阶段组合 URL blocklist、URL scoring、重复片段检测、文档级质量规则和行级 corrections。",
+        "去重阶段组合 MinHash 近似文档去重、ExactSubstr 精确子串去重、跨 CommonCrawl dump 的 URL 去重。",
+        "论文释放约 600B tokens 公共子集，并训练 1.3B/7.5B 级别模型验证数据质量。",
+        "核心实证结论是：RefinedWeb-only 模型可超过 The Pile 训练模型，并在论文评测设置中接近 GPT-3 系列表现。"
       ],
-      "detail": "<p>5T纯网页数据MDR方法论</p>"
+      "detail": "<p><img alt=\"RefinedWeb MDR 流水线\" src=\"https://ar5iv.labs.arxiv.org/html/2306.01116/assets/x2.png\" />\n<em>图：论文 Figure 2 展示 MDR 从 CommonCrawl 到 RW 的主要阶段，以及每一步过滤或去重后保留的数据比例。</em></p>\n<pre><code class=\"language-python\"># MacroData Refinement (MDR) 简化伪代码\nfor dump in common_crawl_dumps:\n    for page in read_warc_with_warcio(dump):\n        if blocked_by_domain_or_url_score(page.url):\n            continue\n\n        text = trafilatura_extract_main_content(page.html)\n        text = normalize_newlines_and_remove_urls(text)\n\n        lang, score = fasttext_ccnet_language_id(text)\n        if lang != &quot;en&quot; or score &lt; 0.65:\n            continue\n\n        if has_excessive_repetition(text):\n            continue\n        if violates_document_quality_rules(text):\n            continue\n\n        text = remove_bad_lines(text)  # navigation, call-to-action, counters\n        if removed_line_fraction(text) &gt; 0.05:\n            continue\n\n        emit_to_rw_filtered(text, metadata={&quot;url&quot;: page.url, &quot;dump&quot;: dump})\n\n# 为了可扩展性，将过滤后的语料分片后去重\nfor shard in split_rw_filtered_into_100_parts():\n    clusters = minhash_lsh_clusters(shard, ngram=5, hashes=9000)\n    keep_one_document_per_cluster(clusters)\n    remove_exact_substrings_longer_than_50_tokens(shard)\n    drop_urls_seen_in_previous_dumps(shard)\n\nwrite_refinedweb()\n</code></pre>\n<p>RefinedWeb 的动机不是“再做一个 CommonCrawl 清洗版”，而是挑战一个当时很强的经验判断：强 LLM 需要把网页、书籍、论文、代码、Wikipedia、论坛等人工策划语料混在一起训练。论文指出，Chinchilla 式 scaling law 会把数据需求推到数万亿 tokens，人工精选源既难以扩展，也带来授权和覆盖范围问题。因此 MDR 的设计原则是 scale first：从 CommonCrawl 这种可持续增量的数据源出发，不靠人工挑选高价值站点，而靠可复现的处理规则把低质量网页剔除出去。</p>\n<p>MDR 的第一段是文档准备。作者没有直接用 CommonCrawl WET，因为 WET 会保留大量菜单、广告、页脚和站点模板文本；他们从 WARC 原始 HTML 开始，用 <code>trafilatura</code> 提取正文，再用正则清理 URL 和过多换行。语言识别使用 CCNet 的 fastText 分类器，保留 top language score 不低于 0.65 的英文文档。这个阈值的直觉是：如果最高语言概率仍然很低，文本通常不是正常自然语言，而是混杂、模板、乱码或抽取失败的页面。</p>\n<p>第二段是过滤。RefinedWeb 避免在质量过滤上依赖“像 Wikipedia 才是好文本”的 ML 分类器，因为这会把公开网页中合法但风格不同的群体语言、方言、医学法律内容误删。相反，论文使用相对中性的启发式规则：URL 层面用 4.6M 量级域名 blocklist 和 URL 词项打分过滤欺诈、成人、赌博等站点；文档层面移除重复行、重复段落、异常符号比例、过短或过长等低质量样本；行级 corrections 则删除“subscribe”、“click here”、社交计数、导航按钮等被正文抽取器漏进来的 boilerplate。若行级清理删掉超过 5% 的文档内容，整篇文档会被认为页面结构污染严重而丢弃。</p>\n<p>去重是 MDR 的核心质量杠杆。网页数据的重复不是简单的整篇复制，还包括许可证模板、页脚、隐私声明、SEO 伪原创、同一网页跨月份重复抓取，以及不同站点之间的转载。RefinedWeb 先做文档级 MinHash 近似去重，再做 token 序列级 ExactSubstr 精确子串去重。MinHash 把文档看成 5-gram 集合，用 sketch 近似 Jaccard 相似度；若两个文档的 n-gram 集合相似度为 <span class=\"kb-math kb-math-inline\">s</span>，LSH 至少命中一个 bucket 的概率可写为：</p>\n<div class=\"kb-math kb-math-display\">P(\\text{match} \\mid s) = 1 - (1 - s^b)^r</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">b</span> 是每个 bucket 中的哈希数，<span class=\"kb-math kb-math-inline\">r</span> 是 bucket 数。这个公式的作用是把“所有文档两两比较”的不可行问题变成“只比较落在同一 bucket 的候选文档”。RefinedWeb 使用大量哈希来提高召回，目的是尽可能发现模板化近重复，而不是只抓完全相同的网页。</p>\n<p>ExactSubstr 处理的是 MinHash 不擅长的局部重复。一个文档可能整体并不相似，但其中包含 100 tokens 的免责声明、引用、页脚或转载段落；文档级 MinHash 可能认为它们不重复，但语言模型仍会反复看到这些片段并产生记忆化。论文采用 Lee et al. 的 suffix array 实现，在拼接后的长 token 序列上查找超过 50 连续 tokens 的精确重复，并删除重复片段。可以把最终保留语料理解成：</p>\n<div class=\"kb-math kb-math-display\">D_{\\text{RW}} = \\operatorname{ExactSubstr}\\bigl(\\operatorname{MinHash}(\\operatorname{Filter}(\\operatorname{Extract}(D_{\\text{CC}})))\\bigr)</div>\n<p>这里每个算子都不是独立追求“删得越多越好”，而是服务于最终预训练质量。论文通过 ablation 发现，raw → filtered → deduplicated 的每个阶段都带来下游 zero-shot 提升，尤其去重对网页语料非常关键。相比 The Pile 这类混合 curated corpus，RefinedWeb 的优势来自规模、统一处理和低重复率，而不是人工选择“高端文本”。</p>\n<p>训练与验证流程也体现了数据集论文的评价方法。作者用相同预训练设置比较 C4、OSCAR、The Pile 和 RefinedWeb，并训练 1B/3B 小规模模型到近似最优 tokens，再扩展到 1B/7B 模型在 350B tokens 上训练。评测聚合了常识、推理、问答等 zero-shot 任务，结论是 RefinedWeb-only 模型显著优于 The Pile-only 对照，甚至在论文的评测环境中接近 GPT-3 相关点位。这意味着 MDR 的关键贡献不是某一个过滤规则，而是一个可规模化、可复现、以去重为中心的网页数据工程方法论。</p>\n<div class=\"key-point\">💡 关键：RefinedWeb 的“纯网页”并不等于“原始网页”。它把 CommonCrawl 当作原矿，MDR 的抽取、过滤和去重才是把网页数据变成预训练燃料的冶炼过程。</div>",
+      "quiz": {
+        "q": "RefinedWeb 中同时使用 MinHash 和 ExactSubstr 的主要原因是什么？",
+        "options": [
+          "MinHash 负责语言识别，ExactSubstr 负责去除非英文文本",
+          "MinHash 找文档级近重复，ExactSubstr 找局部精确重复片段",
+          "MinHash 用于压缩模型参数，ExactSubstr 用于提升推理速度",
+          "二者都是 URL blocklist 的不同实现"
+        ],
+        "answer": 1,
+        "explain": "网页重复既有整篇或模板化近重复，也有局部免责声明、页脚等精确重复片段；两种去重粒度互补。"
+      }
     },
     {
       "id": "dolma",
@@ -659,12 +819,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "data",
       "motivation": "极小极大优化自动确定数据配比",
-      "summary": "DoReMi 的核心目标是：极小极大优化自动确定数据配比。",
+      "summary": "DoReMi 用小型代理模型和 Group DRO 极小极大优化自动学习预训练数据的领域采样权重，避免靠人工直觉或下游任务网格搜索确定数据配比。它先训练 reference model，再训练 DRO proxy model 产生 domain weights，最后用这些权重训练大模型，从而加速预训练并提升多域表现。",
       "keyPoints": [
-        "核心动机：极小极大优化自动确定数据配比",
-        "代表机构：Stanford"
+        "全名 Domain Reweighting with Minimax Optimization，目标是自动优化多域预训练数据 mixture proportions",
+        "输入是一组领域数据，如 Wikipedia、Books、Web、GitHub、ArXiv 等，以及初始 reference weights",
+        "先按参考权重训练小 reference model，用于估计每个样本/领域的基线难度",
+        "再训练小 proxy model，用 Group DRO 最小化最坏领域的 excess loss",
+        "excess loss 是 proxy loss 相对 reference loss 的差值，用来强调“可学但当前学得不够好”的领域",
+        "训练过程中用 exponentiated gradient 更新领域权重，最终取平均权重作为大模型数据配比",
+        "在 The Pile 上用 280M proxy 为 8B 模型定权重，平均 few-shot 准确率提升 6.5 个百分点，并以 2.6x 更少步数达到基线"
       ],
-      "detail": "<p>极小极大优化自动确定数据配比</p>"
+      "detail": "<p><img alt=\"DoReMi 三阶段流程\" src=\"https://ar5iv.labs.arxiv.org/html/2305.10429/assets/x1.png\" />\n<em>图：DoReMi 论文 Figure 1，先训练 reference model，再用 Group DRO 训练 proxy model 得到领域权重，最后训练大模型。</em></p>\n<pre><code class=\"language-python\"># DoReMi 数据配比优化伪代码\ndef doremi(domain_datasets, reference_weights):\n    # Step 1: 训练小 reference model\n    ref_model = train_lm(domain_datasets, domain_weights=reference_weights, size=&quot;small&quot;)\n\n    # Step 2: 用 Group DRO 训练 proxy，并在线更新领域权重\n    q = uniform_weights(domain_datasets)\n    proxy = init_model(size=&quot;small&quot;)\n    q_history = []\n    for step in range(T):\n        batch = sample_domains(domain_datasets, weights=uniform_weights(domain_datasets))\n        excess = {}\n        for domain, examples in batch.by_domain().items():\n            proxy_loss = token_nll(proxy, examples)\n            ref_loss = token_nll(ref_model, examples)\n            excess[domain] = mean(max(proxy_loss - ref_loss, 0.0))\n\n        q = q * exp(eta * vector(excess))\n        q = smooth_and_normalize(q, epsilon=1e-3)\n        proxy = optimizer_step(proxy, weighted_loss(batch, q))\n        q_history.append(q)\n\n    optimized_weights = average(q_history)\n\n    # Step 3: 用优化后的权重训练大模型\n    large_model = train_lm(domain_datasets, domain_weights=optimized_weights, size=&quot;large&quot;)\n    return optimized_weights, large_model\n</code></pre>\n<p><strong>动机与背景：数据配比是 LLM 训练里昂贵但关键的超参数。</strong> 预训练语料通常由许多领域组成：网页、百科、书籍、论文、代码、对话、法律等。不同权重会显著影响模型能力，但直接在大模型上搜索配比代价极高，而且用下游任务调权重容易过拟合某个 benchmark。DoReMi 的目标是用小模型、无下游任务标签的方式，找到对所有领域都更稳健的采样比例。</p>\n<p><strong>核心机制：优化最坏领域的 excess loss。</strong> DoReMi 不直接最大化某个下游指标，而是使用 Group DRO：</p>\n<div class=\"kb-math kb-math-display\">\\min_\\theta \\max_{q\\in \\Delta_m} \\sum_{i=1}^{m} q_i \\cdot \\ell_i^{\\text{excess}}(\\theta)</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">q_i</span> 是第 <span class=\"kb-math kb-math-inline\">i</span> 个领域的权重，<span class=\"kb-math kb-math-inline\">\\ell_i^{\\text{excess}}</span> 是 proxy model 相对 reference model 的额外损失。reference loss 的作用是校准领域难度：如果某个领域本身熵很高，原始 loss 高不一定代表应该加权；只有 reference 已经能较好处理、但 proxy 仍落后的领域，才更值得上调。</p>\n<p><strong>训练流程：小模型调权，大模型受益。</strong> DoReMi 分三步：先训练 reference model；再训练 DRO proxy model，同时根据每个领域的 excess loss 用 exponentiated gradient 调整领域权重；最后把平均后的权重用于训练更大的主模型。论文实验中，280M proxy/reference 的额外成本只占训练 8B 模型的一小部分，但能显著改善 The Pile 上所有领域的 perplexity，并提升 few-shot 下游准确率。</p>\n<p><strong>与人工配比和下游网格搜索的区别。</strong> 人工配比依赖经验，例如上采样 Wikipedia、代码或论文；下游调权需要训练许多候选模型，且会绑定到某组任务。DoReMi 则把数据配比转化为训练时可优化的问题：谁的 excess loss 高，谁就被加权；谁已经相对 reference 学得足够好，就不再盲目增加。这样得到的权重不是“哪个领域最干净”，而是“哪个领域对当前模型训练最有边际价值”。</p>\n<div class=\"key-point\">💡 关键：DoReMi 的 domain weights 是小模型训练动态的产物，而不是静态数据统计；它优化的是跨领域稳健性和学习效率。</div>",
+      "quiz": {
+        "q": "DoReMi 为什么要使用 reference model 的 loss？",
+        "options": [
+          "为了估计样本/领域本身的难度，避免只因高熵领域 loss 高就过度加权",
+          "为了替代 proxy model，不再训练代理模型",
+          "为了把所有领域权重固定为相同值",
+          "为了只优化下游任务准确率"
+        ],
+        "answer": 0,
+        "explain": "excess loss = proxy loss - reference loss，可突出 reference 已能处理但 proxy 仍学得不足的领域，减少对天然高难度/高熵领域的误加权。"
+      }
     },
     {
       "id": "fineweb",
@@ -678,13 +854,30 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "data",
       "motivation": "15T最高质量开源网页语料",
-      "summary": "FineWeb 的核心目标是：15T最高质量开源网页语料。",
+      "summary": "FineWeb 提出了一个完全公开、可复现、以实验消融选择规则的网页预训练数据构建流程，把 96 个 CommonCrawl 快照加工成论文版本约 15T tokens 的高质量英文语料。它解决了 RefinedWeb 之后“配方公开但全量数据和设计选择仍不够透明”的问题，用小模型预训练评测来决定抽取、过滤、去重和自定义启发式规则。",
       "keyPoints": [
-        "核心动机：15T最高质量开源网页语料",
-        "演化来源：继承或改进自 refinedweb",
-        "代表机构：HuggingFace"
+        "发布 FineWeb：论文版本为 15T tokens，来自 96 个 CommonCrawl snapshots 的英文网页数据。",
+        "Hugging Face 数据集页后续版本继续追加快照，当前数据卡描述为超过 18.5T tokens。",
+        "使用 <code>datatrove</code> 作为可复现的大规模数据处理库，并公开完整处理脚本。",
+        "方法核心不是单条过滤规则，而是训练 1.82B ablation models 来验证每个数据处理选择。",
+        "文本抽取从 WARC 原始 HTML 出发，使用 <code>trafilatura</code>，避免 WET 中残留的菜单和 boilerplate。",
+        "基础过滤包括 URL 过滤、fastText 英文识别、Gopher repetition、Gopher quality、C4 quality 和 FineWeb 自定义质量规则。",
+        "去重采用 per-crawl MinHash，而不是把所有 dump 合并后做全局去重。",
+        "MinHash 配置采用 5-grams、14 buckets、8 hashes per bucket，并对每个 CommonCrawl dump 独立去重。",
+        "公开 sample-10BT、sample-100BT、sample-350BT、代码、评测配置和 ablation checkpoints，强调数据集科学的可审计性。"
       ],
-      "detail": "<p>15T最高质量开源网页语料</p>"
+      "detail": "<p><img alt=\"FineWeb 处理步骤带来的性能提升\" src=\"https://arxiv.org/html/2406.17557v1/x9.png\" />\n<em>图：论文 Figure 9 展示 FineWeb 从 base filtering 到 per-crawl MinHash、C4 filters、自定义 filters 的逐步性能收益。</em></p>\n<pre><code class=\"language-python\"># FineWeb / datatrove 简化伪代码\nfor dump in common_crawl_snapshots_96:\n    raw_docs = WarcReader(f&quot;s3://commoncrawl/crawl-data/{dump}/segments/*/warc/*&quot;)\n\n    filtered = []\n    for doc in raw_docs:\n        if URLFilter(doc.url):\n            continue\n\n        text = Trafilatura(favour_precision=True)(doc.html)\n        if LanguageFilter(language=&quot;en&quot;, min_score=0.65)(text):\n            continue\n        if GopherRepetitionFilter(text):\n            continue\n        if GopherQualityFilter(text):\n            continue\n        if C4QualityFilter(selected_rules=True)(text):\n            continue\n        if FineWebQualityFilter(text):\n            continue\n\n        text = PIIFormatter.replace_email_and_public_ip(text)\n        filtered.append(text)\n\n    # 论文和数据卡强调每个 crawl 独立 MinHash 去重\n    signatures = MinhashDedupSignature(\n        filtered,\n        n_grams=5,\n        num_buckets=14,\n        hashes_per_bucket=8,\n        hash_fc=&quot;sha1&quot;,\n        precision=64,\n    )\n    clusters = MinhashDedupBuckets(signatures)\n    deduped = MinhashDedupFilter(filtered, clusters)\n    write_parquet(deduped, dump=dump)\n</code></pre>\n<p>FineWeb 的出发点是：数据处理规则本身需要像模型结构一样被实验验证。过去网页数据集常给出一套经验规则，例如“删掉不以标点结尾的行”或“用某个 bad-word list”，但这些规则是否真正提升预训练模型并不总是清楚。FineWeb 论文把数据构建变成一系列可控消融：固定模型规模、架构、训练 tokens 和评测任务，只替换训练数据版本，然后比较下游 benchmark 聚合分数。作者使用 1.82B Llama-style ablation models、2048 context、约 2M tokens global batch，并在 CommonSenseQA、HellaSwag、OpenBookQA、PIQA、SIQA、WinoGrande、ARC、MMLU 等任务上验证早期训练信号。</p>\n<p>文本抽取阶段继承但强化了 RefinedWeb 的经验。CommonCrawl 提供 WARC 和 WET 两类数据，WET 虽然已经是纯文本，但通常保留菜单、导航、广告、页脚和模板文本。FineWeb 选择从 WARC 原始 HTML 重新抽取，用 <code>trafilatura</code> 获取正文，牺牲一部分处理成本换取更干净的训练样本。这个选择通过 ablation 验证，而不是只凭直觉决定；如果抽取器让模型反复学习网页框架文本，预训练损失可能仍下降，但下游能力会被无意义 token 消耗掉。</p>\n<p>基础过滤由多类启发式构成。URL 过滤删除恶意、NSFW 和低可信来源；fastText 语言过滤保留英文分数足够高的文档；Gopher repetition 和 Gopher quality 针对重复段落、异常字符比例、过短或过长文档等低质量模式；C4 filters 提供一组传统网页清洗规则；FineWeb 自定义 filters 则针对 list-like documents、重复行、疑似错误换行等在消融中暴露出来的问题。可以把过滤器组合写成：</p>\n<div class=\"kb-math kb-math-display\">D_{\\text{base}} = \\{d \\in D_{\\text{WARC}} : f_i(d)=0,\\ \\forall f_i \\in \\mathcal{F}_{\\text{url,lang,gopher,c4,fineweb}}\\}</div>\n<p>这里 <span class=\"kb-math kb-math-inline\">f_i(d)=1</span> 表示某个过滤器判定文档应删除。关键点在于，FineWeb 不把“过滤比例”当作目标，而把“同样 token 预算训练出的模型表现”当作目标。论文中自定义过滤规则合计会删除相当数量 tokens，但只有当 28B 或 350B token ablation 显示性能提升时才被纳入最终配方。</p>\n<p>FineWeb 最值得注意的差异是去重策略。RefinedWeb 强调大规模严格去重，而 FineWeb 发现“全局跨 dump 去重”并不一定产生最好的训练数据；在他们的实验中，对每个 crawl/snapshot 独立做 MinHash 去重，再从多个 dump 采样训练，效果优于把所有 dump 合起来做一次全局去重。直觉上，跨 dump 重复可能代表网页在不同时间的稳定内容，也可能保留时间分布和域分布；过度全局去重会削弱这种分布结构。FineWeb 的 MinHash LSH 命中概率可写为：</p>\n<div class=\"kb-math kb-math-display\">P(\\text{duplicate} \\mid s)=1-(1-s^8)^{14}</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">s</span> 是两个文档 5-gram 集合的 Jaccard 相似度，8 是每个 bucket 的哈希数，14 是 bucket 数。这个配置让高相似文档更容易聚到同一候选桶，同时避免对所有文档做平方级比较。与 RefinedWeb 的“MinHash + ExactSubstr”相比，FineWeb 更强调配方在完整训练评价上的收益，并把 per-crawl 作为一个经验证有效的工程选择。</p>\n<p>FineWeb 的另一个贡献是公开性。数据集页不仅提供全量数据和不同大小 sample，还给出 <code>datatrove</code> 处理脚本、ablation checkpoints、评测结果和 benchmark 定义。这样做的价值是把“数据质量”从黑箱口碑变成可重复实验：研究者可以替换某个过滤器、改 MinHash 参数、只处理一个 dump，或用 sample-100BT 快速训练代理模型。对于 LLM 预训练来说，这种公开 pipeline 比单纯发布一个大文件更重要，因为后续模型开发者需要知道数据为什么长这样、哪些规则可以迁移到其他语言、哪些规则只对英文网页成立。</p>\n<p>训练流程上，FineWeb 的最终 15T tokens 足以支持 Chinchilla-optimal 级别的大模型数据需求。论文同时提出 FineWeb-Edu 作为教育内容子集，用 Llama-3-70B-Instruct 产生 0 到 5 的教育质量标注，再训练轻量分类器扩展到全量 FineWeb；虽然本条目关注 FineWeb 本体，但 FineWeb-Edu 说明同一开放数据底座还能继续派生任务导向的数据切片。FineWeb 因此不是一个静态语料，而是一套“CommonCrawl → 可复现处理 → 小模型消融 → 发布数据与证据”的开放数据工程范式。</p>\n<div class=\"key-point\">💡 关键：FineWeb 的核心创新不是“比 RefinedWeb 多几个过滤器”，而是用代理模型训练结果来选择过滤和去重策略，避免把看似合理但伤害模型表现的清洗规则固化进数据集。</div>",
+      "quiz": {
+        "q": "FineWeb 为什么选择 per-crawl MinHash 去重，而不是简单地把所有 CommonCrawl dump 合并后全局去重？",
+        "options": [
+          "因为 per-crawl 去重在实验中带来更好的模型表现，并保留跨时间快照的有用分布信息",
+          "因为全局去重无法计算任何 MinHash 签名",
+          "因为 FineWeb 完全不需要去重",
+          "因为 per-crawl 去重只适用于非英文数据"
+        ],
+        "answer": 0,
+        "explain": "论文的消融显示，独立 crawl 去重的采样训练效果优于全局去重；这说明重复删除强度和时间分布保留之间存在质量权衡。"
+      }
     },
     {
       "id": "common_corpus",
@@ -698,13 +891,30 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "data",
       "motivation": "2T完全合规多语言数据集",
-      "summary": "Common Corpus 的核心目标是：2T完全合规多语言数据集。",
+      "summary": "Common Corpus 提出了一个约 2T tokens、517M 文档量级的多语言开放许可预训练数据集，通过 provenance 记录、许可过滤、OCR 修复、PII 替换和毒性检测，解决大规模 LLM 训练数据难以公开审计和法律合规的问题。它证明不依赖未授权网页抓取，也可以构建覆盖政府、文化、科学、代码、开放网页和语义数据的可训练语料基础设施。",
       "keyPoints": [
-        "核心动机：2T完全合规多语言数据集",
-        "演化来源：继承或改进自 dolma",
-        "代表机构：ICLR社区"
+        "ICLR 2026 Oral 论文，OpenReview submission number 为 25369，对应公开页面题名为 Common Corpus: The Largest Collection of Ethical Data for LLM Pre-Training。",
+        "数据总量为 1,998,647,168,282 tokens，约 517,033,648 documents。",
+        "数据均来自 public domain 或开放许可来源，并在元数据中记录 source URL、license、language、collection/domain 等字段。",
+        "六大 collection 为 Open Government、Open Culture、Open Science、Open Code、Open Web、Open Semantic。",
+        "不是传统 web-only corpus，包含法律金融行政文本、文化遗产、科学出版、开源代码、Creative Commons 网页和 Wikidata 语义数据。",
+        "多语言覆盖强，英语约 969B tokens，法语约 275B tokens，德语约 112B tokens，并有至少九种语言超过 10B tokens。",
+        "清洗工具链包括 Segmentext 文本分段、OCRoscope/OCRerrcr OCR 错误检测、OCRonos OCR 修复、Presidio PII 替换、Celadon 多语言毒性分类器。",
+        "设计目标是“fully open and auditable LLMs”，让训练数据本身也能被发布、检查、过滤和复现。",
+        "作者训练 Pleias 系列小模型验证 Common Corpus 可用于多语言预训练，并指出其仍受开放数据可见性不足的 open data paradox 限制。"
       ],
-      "detail": "<p>2T完全合规多语言数据集</p>"
+      "detail": "<p><img alt=\"Common Corpus 时间与语义分布概览\" src=\"https://arxiv.org/html/2506.01732v1/x2.png\" />\n<em>图：论文 Figure 2a 展示 Common Corpus 主要 collection 的历史时间覆盖，体现它不只是现代网页抓取数据。</em></p>\n<pre><code class=\"language-python\"># Common Corpus 简化构建流程\nallowed_licenses = {\n    &quot;Public Domain&quot;, &quot;CC-By&quot;, &quot;CC-By-SA&quot;, &quot;CC0-1.0&quot;,\n    &quot;MIT&quot;, &quot;Apache-2.0&quot;, &quot;BSD-2-Clause&quot;, &quot;BSD-3-Clause&quot;,\n    &quot;Open license&quot;,\n}\n\ncollections = [\n    &quot;Open Government&quot;, &quot;Open Culture&quot;, &quot;Open Science&quot;,\n    &quot;Open Code&quot;, &quot;Open Web&quot;, &quot;Open Semantic&quot;,\n]\n\nfor source in registered_open_sources(collections):\n    assert source.license in allowed_licenses\n    raw_docs = ingest(source)\n\n    for doc in raw_docs:\n        doc = attach_metadata(\n            doc,\n            source_url=source.url,\n            license=source.license,\n            collection=source.collection,\n        )\n\n        segments = Segmentext(doc.text)\n        ocr_quality = OCRoscope(segments)\n        if ocr_quality &lt; source.min_quality:\n            segments = OCRonos.correct(segments)\n\n        segments = Presidio.detect_and_replace_with_realistic_fake_values(segments)\n\n        toxicity = Celadon.score(segments)\n        if toxicity.above_threshold():\n            segments = remove_or_rewrite_harmful_spans(segments)\n\n        language = fasttext_language_id(segments)\n        write_parquet(segments, metadata={**doc.metadata, &quot;language&quot;: language})\n</code></pre>\n<p>Common Corpus 的核心问题设定和 FineWeb/RefinedWeb 不同。后两者主要问“如何把 CommonCrawl 变成高质量训练数据”，Common Corpus 问的是“如果必须公开训练数据本身，并且不能依赖版权或 ToS 不明确的内容，能否仍然构建万亿 token 规模语料”。论文把 open 定义得很强：不仅数据可下载，还要允许任意目的使用，且提供 provenance、处理流程和内容信息。这个目标直接面向欧盟等严格监管环境下的 LLM 研发：如果训练语料不能被发布、审计或按许可证过滤，就很难称为真正开放的模型基础。</p>\n<p>数据组成上，Common Corpus 是多域聚合而非网页清洗。Open Government 覆盖金融、法律、行政文本；Open Culture 聚合公共领域文化遗产、期刊和书籍；Open Science 包含开放科学出版物；Open Code 来自开源代码；Open Web 收集许可明确的开放网页；Open Semantic 将 Wikidata 结构化三元组转成自然语言式序列。论文表格给出的 collection token 量显示，Open Culture 约 886B tokens，Open Government 约 407B tokens，Open Code 约 283B tokens，Open Science 约 281B tokens，Open Web 约 73B tokens，Open Semantic 约 68B tokens。这个分布说明它的差异化价值不是抓取更多网页，而是把过去不容易进入 LLM 预训练的数据源纳入同一可审计框架。</p>\n<p>许可过滤可以形式化为一个集合选择问题。设 <span class=\"kb-math kb-math-inline\">S_s</span> 是每个来源的原始文档集合，<span class=\"kb-math kb-math-inline\">\\mathcal{L}_{open}</span> 是允许任意使用的许可集合，Common Corpus 的第一层约束是：</p>\n<div class=\"kb-math kb-math-display\">D_{\\text{license}} = \\{d \\in \\bigcup_s S_s : \\operatorname{license}(d) \\in \\mathcal{L}_{open}\\}</div>\n<p>这一步和常见网页数据集的“抓到再过滤质量”不同，它先限定数据权利边界，再做清洗。每个文档保留 license、source URL、language、collection/domain 等元数据，因此下游用户可以根据商业用途、署名要求、语言或领域再筛选。对 LLM 训练来说，这种 metadata-rich corpus 的价值在于可追责：模型出问题时可以回溯数据来源，部署前也可以按组织政策移除某些许可证类型。</p>\n<p>清洗流程的难点来自历史和多语言数据。Open Culture 与 Open Government 中大量文本来自扫描件和 OCR，错误类型包括断词、粘连、乱码、版面顺序错乱和古旧拼写。论文为此开发 Segmentext 做抗噪文本分段，用 OCRoscope 统计无法识别的 7-gram 比例作为 OCR 质量信号，用更重的 OCRerrcr 做高精度错误检测，再用 OCRonos 修复严重损坏文本。OCR 质量可以写成：</p>\n<div class=\"kb-math kb-math-display\">q_{\\text{ocr}}(d)=1-\\frac{\\#\\text{unknown 7-grams}(d)}{\\#\\text{all 7-grams}(d)}</div>\n<p>当 <span class=\"kb-math kb-math-inline\">q_{\\text{ocr}}</span> 太低时，文档不是简单丢弃，而可能进入 OCRonos 修复。这个选择很重要，因为公共领域文化遗产常常是高价值但低可用性的文本，如果只按现代网页规则过滤，许多低资源语言和历史材料会被误删。</p>\n<p>PII 和毒性处理体现了“合规”不只等于“有开放许可证”。论文使用 Microsoft Presidio 检测个人可识别信息，并通过自定义正则把电话识别准确率提升到更高水平；处理方式不是简单替换成 <code>[PHONE]</code> 这类标签，而是换成虚构但格式真实的值，避免破坏模型学习真实文本格式。毒性处理则用 Celadon，一个从 2M 标注样本训练的 DeBERTa-v3-small 多语言分类器，检测 race/origin、gender/sexuality、religion、ability、violence/abuse 等维度的有害内容。对公共领域历史文本而言，即便没有版权风险，也可能包含过时歧视性表达，因此需要删除或合成改写。</p>\n<p>整体目标可以写成一个多约束筛选与修复过程：</p>\n<div class=\"kb-math kb-math-display\">D_{\\text{CC}} = \\{\\operatorname{clean}(d): d \\in D_{\\text{license}},\\ q_{\\text{ocr}}(d) &gt; \\gamma,\\ \\operatorname{pii}(d)=\\varnothing,\\ \\operatorname{tox}(d)&lt;\\tau\\}</div>\n<p>这里的 <span class=\"kb-math kb-math-inline\">\\operatorname{clean}</span> 不是单一函数，而是分段、OCR 修复、PII 替换、毒性删除或改写、语言识别和元数据写入的组合。对于 Wikidata，论文还把 RDF triples 转成自然语言式序列，例如把实体和属性 ID 展开为“Franz Liszt country of citizenship Kingdom of Hungary”一类文本，使结构化知识也能进入自回归语言模型训练。</p>\n<p>与 Dolma、FineWeb、C4、ROOTS 等数据集相比，Common Corpus 的创新点在四个条件同时满足：多域、超越网页抓取、多语言、开放数据。论文指出，FineWeb 这类高质量网页语料在性能上很强，但主要仍是 web crawl；Common Corpus 与其 top domains 的重叠很低，提供的是互补内容。它的局限也很明确：2T tokens 对中小模型预训练已经有价值，但对 frontier-scale 大模型仍不够；同时开放数据本身存在 open data paradox，即许多合法开放资源并不容易被搜索引擎和 CommonCrawl 抓到，需要专门的社区、机构和工具去整理。</p>\n<div class=\"key-point\">💡 关键：Common Corpus 的“算法”不是一个新模型结构，而是一套可审计数据治理流水线；它把许可证、来源、语言、OCR 质量、PII 和毒性都变成预训练语料构建中的显式约束。</div>",
+      "quiz": {
+        "q": "Common Corpus 与 FineWeb/RefinedWeb 的最核心区别是什么？",
+        "options": [
+          "Common Corpus 只包含英文网页，FineWeb/RefinedWeb 主要包含代码",
+          "Common Corpus 优先保证开放许可、provenance 和多域多语言合规性，而不只是清洗 CommonCrawl 网页",
+          "Common Corpus 不做任何文本清洗或 PII 处理",
+          "Common Corpus 的主要创新是更大的 Transformer 架构"
+        ],
+        "answer": 1,
+        "explain": "Common Corpus 的核心贡献是构建可发布、可审计、许可明确的多语言多域预训练数据，并配套 OCR、PII、毒性等治理流程。"
+      }
     },
     {
       "id": "essential_web",
@@ -718,13 +928,29 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "data",
       "motivation": "24T带12类文档分类标签",
-      "summary": "Essential-Web 的核心目标是：24T带12类文档分类标签。",
+      "summary": "Essential-Web 提出一个 24T token、23.6B 文档级标注的网页预训练数据集，用 12 类 taxonomy 把 Common Crawl 从“只能按粗糙质量分数筛选”的语料池改造成可用 SQL 风格条件组合的数据索引。它解决的是开放预训练数据难以审计、难以按领域快速重组的问题，使数学、代码、STEM、医学等子集可以通过标签过滤而不是重新训练专用分类器获得。",
       "keyPoints": [
-        "核心动机：24T带12类文档分类标签",
-        "演化来源：继承或改进自 fineweb",
-        "代表机构：学术界"
+        "数据规模：覆盖 23.6B 个去重并启发式过滤后的 Common Crawl 文档，总量约 24T tokens。",
+        "标注结构：每个网页获得 12 个类别标签，横跨 FDC 主题层级、Bloom 教育目标、Document Type、Content Quality、Extraction 五个逻辑组。",
+        "教师模型：选择 <code>Qwen2.5-32B-Instruct</code> 作为合成标注教师，在速度和 annotator <span class=\"kb-math kb-math-inline\">\\kappa</span> 之间取得平衡。",
+        "学生模型：用 82B token 的教师标注数据微调 <code>Qwen2.5-0.5B-Instruct</code>，得到 <code>EAI-Distill-0.5b</code> 文档分类器。",
+        "推理优化：通过输出格式压缩、context distillation 和小模型蒸馏，将生成式长输出分类转化为高吞吐短标签预测。",
+        "标签质量评估：用 inter-category NMI 衡量类别正交性，用 annotator <span class=\"kb-math kb-math-inline\">\\kappa</span> 衡量标签正确性，用 domain-recall 衡量领域召回。",
+        "下游使用方式：研究者通过 SQL-like filters 组合主题、网页类型、推理深度、技术正确性、抽取质量等字段，快速构造领域预训练子集。",
+        "下游效果：无领域专用训练的 taxonomy 过滤在数学上接近 SOTA，在 web code、STEM、medical 上报告相对 SOTA 的明显提升。"
       ],
-      "detail": "<p><img alt=\"Essential-Web 五阶段方法图\" src=\"https://ar5iv.labs.arxiv.org/html/2506.14111/assets/x2.png\" />\n<em>图：Essential-Web v1.0 论文 Figure 2，展示 taxonomy 设计、合成标注、蒸馏分类器、全量推理和下游过滤验证的流程。Manifest 中 paper_url 指向了不相关论文，正文方法依据公开论文 arXiv:2506.14111 与数据集卡补足。</em></p>\n<p>```python</p>"
+      "detail": "<p><img alt=\"Essential-Web 数据处理管线图\" src=\"https://www.eventual.ai/blog/assets/essential.png\" />\n<em>图：Essential-Web 构建流程中的大规模网页处理与过滤管线示意。论文首页的核心思想是把一次性大规模标注成本摊销为后续可复用的语义索引。</em></p>\n<pre><code class=\"language-python\"># Essential-Web / EAI-Taxonomy 简化构建流程\ncommon_crawl = load_deduplicated_filtered_common_crawl()\n\n# 1. 用强教师模型生成文档级 taxonomy 标签\nteacher = &quot;Qwen2.5-32B-Instruct&quot;\nseed_docs = sample(common_crawl, n=104_600_000)\nteacher_labels = teacher_annotate(seed_docs, taxonomy=EAI_TAXONOMY_12_CATEGORIES)\n\n# 2. 蒸馏为高吞吐学生分类器\nstudent = finetune(\n    base_model=&quot;Qwen2.5-0.5B-Instruct&quot;,\n    inputs=seed_docs,\n    targets=condense_labels(teacher_labels),\n    loss_mask=&quot;completion_only&quot;,\n    tokens=&quot;82B&quot;,\n)\n\n# 3. 在全量网页上推理，形成文档级语义索引\nfor shard in stream(common_crawl):\n    labels = student.predict(shard)\n    write_parquet(shard.document_id, shard.text, labels)\n\n# 4. 用 SQL-like filters 直接构造领域数据集\nmath_docs = sql_filter(\n    subject_fdc=&quot;51 - Mathematics&quot;,\n    reasoning_depth=[&quot;intermediate&quot;, &quot;advanced&quot;],\n    technical_correctness=&quot;high&quot;,\n    document_type_not_in=[&quot;ad&quot;, &quot;product_listing&quot;],\n    extraction_artifacts=&quot;low&quot;,\n)\n</code></pre>\n<p>Essential-Web 的核心不是再提出一个单一质量分数，而是把网页内容映射到一个多轴坐标系。论文把 taxonomy 定义为有限类别集合 <span class=\"kb-math kb-math-inline\">T=\\{C_1,\\dots,C_k\\}</span>，每个类别 <span class=\"kb-math kb-math-inline\">C_i</span> 有固定标签集合 <span class=\"kb-math kb-math-inline\">L_i</span>。对单个文档 <span class=\"kb-math kb-math-inline\">d</span>，分类器输出可理解为：</p>\n<div class=\"kb-math kb-math-display\">f(d)=\\left((\\lambda_1,\\mu_1),\\dots,(\\lambda_{12},\\mu_{12})\\right),\\qquad\n\\lambda_i\\in L_i,\\ \\mu_i\\in L_i\\cup\\{\\bot\\},\\ \\mu_i\\ne\\lambda_i</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">\\lambda_i</span> 是主标签，<span class=\"kb-math kb-math-inline\">\\mu_i</span> 是可选副标签，<span class=\"kb-math kb-math-inline\">\\bot</span> 表示没有副标签。这个设计比单标签主题分类更适合网页，因为一个页面可能同时是“数学教程”和“代码文档”，也可能主题正确但抽取质量很差。固定 12 个类别意味着后续不需要为每个新领域重新定义模型输出，只需要在已有列上组合查询条件。</p>\n<p>12 个类别被组织为五组。FDC 提供三级主题标签，例如 Level 1 的 Science、Level 2 的 Mathematics、Level 3 的 Algebra；Bloom 组提供 Cognitive Process 和 Knowledge Domain，用于刻画学习目标与知识抽象层次；Document Type 包含 broad V1 和 fine V2 两套网页类型；Content Quality 包含 Reasoning Depth、Educational Level、Technical Correctness；Extraction 组包含 Extraction Artifacts 和 Missing Content。论文报告全量 23.6B 文档上有 14.1M 种主标签组合，以及 1.2B 种主/副标签组合，这说明 taxonomy 的组合空间足以表达细粒度网页差异。</p>\n<div class=\"key-point\">💡 关键：Essential-Web 把“数据集构造”从训练一个新的二分类器，改写为在一个统一标签表上做组合查询。一次昂贵标注换来许多后续廉价数据切片。</div>\n<p>教师模型选择是方法的第一层工程权衡。论文比较 <code>DeepSeek-V3</code>、<code>Qwen2.5-72B-Instruct</code> 和 <code>Qwen2.5-32B-Instruct</code>，用 annotator <span class=\"kb-math kb-math-inline\">\\kappa</span>、NMI 与 domain-recall 评估。虽然 <code>DeepSeek-V3</code> 的平均 <span class=\"kb-math kb-math-inline\">\\kappa</span> 更高，但 671B MoE 服务成本过高；<code>Qwen2.5-32B-Instruct</code> 在 random 与 STEM 集上整体 <span class=\"kb-math kb-math-inline\">\\kappa</span> 约 0.74，明显快于更大模型，并且平均 inter-category NMI 在 random/STEM 上约 0.079/0.083，说明标签之间冗余较低。因此论文选择 32B Qwen 作为标注教师，而不是盲目追求最大模型。</p>\n<p>学生模型 <code>EAI-Distill-0.5b</code> 是 Essential-Web 能扩展到 23.6B 文档的关键。论文不是直接让 0.5B 模型复现教师的长自然语言解释，而是先把教师输出程序化压缩为短标签格式，将平均 generation tokens 从约 791 降到 51；再通过 context distillation 移除推理时的大提示词开销；最后只在教师 completion token 上计算损失，屏蔽输入文档、chat template 和 system prompt。这使学生模型相对原始 <code>Qwen2.5-32B</code> prompting 获得约 50 倍推理吞吐提升，同时平均 annotator <span class=\"kb-math kb-math-inline\">\\kappa</span> 只从 0.74 降到约 0.72，论文称相对下降小于 3%。</p>\n<p>标签质量有三个互补指标。类别正交性用 normalized mutual information：</p>\n<div class=\"kb-math kb-math-display\">\\mathrm{NMI}(X,Y)=\\frac{2I(X;Y)}{H(X)+H(Y)},\\qquad\nI(X;Y)=\\sum_{x,y}p_{xy}\\log\\frac{p_{xy}}{p_xp_y}</div>\n<p>如果 NMI 接近 0，说明两个类别提供的信息基本独立；如果接近 1，说明两个类别几乎重复。标签正确性用 Cohen-style <span class=\"kb-math kb-math-inline\">\\kappa</span>：</p>\n<div class=\"kb-math kb-math-display\">\\kappa=\\frac{P_o-P_e}{1-P_e}</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">P_o</span> 是模型与 gold annotators 的实际一致率，<span class=\"kb-math kb-math-inline\">P_e</span> 是按经验标签分布估计的随机一致率。领域可表达性用 domain-recall：</p>\n<div class=\"kb-math kb-math-display\">\\mathrm{Recall}=\\frac{|\\widehat{D}\\cap D^+|}{|D^+|}</div>\n<p>这里 <span class=\"kb-math kb-math-inline\">D^+</span> 是人工验证的领域 URL 集合扩展出的正例文档，<span class=\"kb-math kb-math-inline\">\\widehat{D}</span> 是过滤器返回的文档。这个指标直接回答“简单标签过滤能召回多少真实领域网页”。</p>\n<p>下游构造体现了 taxonomy 的实用价值。数学数据集可以只用 <code>FDC == 51 - Mathematics</code>、reasoning depth、technical correctness、document type 等条件组合得到 29B token 的 <code>EAI-Taxonomy Top Math</code>，也可以先用 FDC 高召回 116M 数学文档，再只在这个小集合上运行 FineMath classifier，得到 34B token 的 <code>Math w/ FM</code>。这种设计把昂贵专用分类器从全 Common Crawl 扫描缩小到高密度候选集。代码数据集也类似，用 FDC <code>004/005</code>、代码相关 document type、技术正确性与 DCLM 分数构造 web code 子集。</p>\n<p>与 FineWeb/DCLM 这类基线相比，Essential-Web 的区别在于可解释字段数量和重组方式。FineWeb/DCLM 主要给出质量过滤、启发式清洗或一个整体分类器分数，用户想得到新领域往往要重新收集正负例、训练高召回分类器并扫全量数据。Essential-Web 则把主题、网页形式、难度、技术正确性和抽取缺陷拆成列，使“高质量医学教材”“包含高级推理的数学页面”“不是广告的 API 文档”等复杂集合可以被声明式表达。代价是初始标注很昂贵，论文估计全量推理约需 90k AMD MI300x GPU-hours；收益是该成本被后续无限次过滤和审计摊销。</p>",
+      "quiz": {
+        "q": "Essential-Web 相比只给网页一个质量分数的数据集，最核心的方法优势是什么？",
+        "options": [
+          "用 12 类文档级 taxonomy 把网页变成可组合查询的语义索引",
+          "完全取消了 Common Crawl 的去重和启发式过滤",
+          "只保留数学网页，因此提高了 GSM8K 分数",
+          "用更大的教师模型直接训练所有下游模型"
+        ],
+        "answer": 0,
+        "explain": "论文的关键贡献是为 23.6B 文档生成多轴标签，使数据子集能通过 SQL-like filters 重组，而不是为每个领域重新训练分类器。"
+      }
     },
     {
       "id": "fed_dedup",
@@ -738,13 +964,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "data",
       "motivation": "GPU加速MinHash快107倍",
-      "summary": "FED框架 的核心目标是：GPU加速MinHash快107倍。",
+      "summary": "FED/SEDD 类 GPU 去重框架把 MinHash LSH 的签名生成、分桶和候选相似度验证搬到多 GPU 流水线上，解决了万亿 token 级语料去重中 CPU MinHash 过慢、GPU 数据搬移过重的问题。其核心贡献是用可复用 rolling hash、流式通信和硬件感知参数选择显著提高端到端吞吐。",
       "keyPoints": [
-        "核心动机：GPU加速MinHash快107倍",
-        "演化来源：继承或改进自 minhash_dedup",
-        "代表机构：学术界"
+        "公开可读的对应实现论文为 SEDD: Scalable and Efficient Dataset Deduplication with GPUs",
+        "沿用 MinHash LSH 的文档级近重复检测思想，目标是保持与标准 MinHash 高相似的重复集合",
+        "用部分可复用哈希函数加速 n-gram MinHash 签名生成，减少重复计算",
+        "用 GPU kernel 并行完成 MinHash 生成、bucket 扫描和 pairwise similarity verification",
+        "用 streaming-based approach 替代物理数据 shuffle，降低多 GPU/多节点通信瓶颈",
+        "在 30M 文档上相对 CPU SlimPajama 工具最高 158×，相对 NeMo Curator GPU baseline 最高 7.8×",
+        "在 8 节点 32 GPU V100 集群上完成 1.2T tokens 去重约 3 小时，并保持与标准 MinHash 重复集合 Jaccard 相似度大于 0.95"
       ],
-      "detail": "<p><img alt=\"SEDD GPU 去重框架总览\" src=\"https://ar5iv.labs.arxiv.org/html/2501.01046/assets/x3.png\" />\n<em>图：SEDD 论文 Figure 3，展示多 GPU 文档加载、MinHash 生成、按 band 分配 bucket、GPU 候选验证和流式通信。Manifest 中 paper_url 指向不相关论文，正文依据公开论文 arXiv:2501.01046 补足。</em></p>\n<p>```python</p>"
+      "detail": "<p><img alt=\"SEDD GPU 去重框架总览\" src=\"https://ar5iv.labs.arxiv.org/html/2501.01046/assets/x3.png\" />\n<em>图：SEDD 论文 Figure 3，展示多 GPU 文档加载、MinHash 生成、按 band 分配 bucket、GPU 候选验证和流式通信。Manifest 中 paper_url 指向不相关论文，正文依据公开论文 arXiv:2501.01046 补足。</em></p>\n<pre><code class=\"language-python\"># GPU 加速 MinHash LSH 去重伪代码\ndef gpu_fed_dedup(documents, num_hashes=128, bands=16, threshold=0.8):\n    gpu_streams = init_gpu_streams()\n    duplicate_edges = []\n\n    for batch in stream_documents(documents):\n        tokens = tokenize_on_cpu(batch)\n        shingles = build_ngrams(tokens, n=5)\n\n        # GPU 上用可复用 rolling hash 生成 MinHash 签名\n        signatures = gpu_minhash(shingles, num_hashes, reusable_hash=True)\n        band_keys = gpu_split_and_hash_bands(signatures, bands)\n\n        # 不做全量物理 shuffle，而是按 band/rank 流式派发候选桶\n        for rank, bucket_stream in stream_buckets_by_rank(band_keys):\n            candidates = gpu_collect_candidate_pairs(bucket_stream)\n            verified = gpu_verify_similarity(candidates, signatures, threshold)\n            duplicate_edges.extend(verified)\n\n    clusters = union_find(duplicate_edges)\n    return keep_representatives(documents, clusters)\n</code></pre>\n<p><strong>动机与背景：MinHash LSH 可扩展，但传统实现不是硬件友好的。</strong> 文档级近重复去重通常先把每篇文档转成 n-gram 集合，再生成 MinHash 签名，通过 LSH bands 找候选重复对。算法复杂度比全量两两比较低很多，但在 C4、SlimPajama、Common Crawl 级规模上，签名生成和分桶仍会消耗大量 CPU 时间；朴素 GPU 版本又容易被数据 shuffle、bucket 不均衡和 GPU occupancy 不足拖慢。</p>\n<p><strong>核心机制一：复用哈希计算。</strong> 标准 MinHash 对每个 shingle 施加多个 hash permutation，生成 <span class=\"kb-math kb-math-inline\">H</span> 个最小值。SEDD/FED 的关键优化是把相邻 n-gram 的哈希计算改成部分可复用形式，类似 rolling hash：当窗口从 <span class=\"kb-math kb-math-inline\">g_t</span> 滑到 <span class=\"kb-math kb-math-inline\">g_{t+1}</span> 时，只更新离开和进入窗口的 token 贡献。这样 MinHash signature generation 不再重复处理大部分相邻上下文。</p>\n<div class=\"kb-math kb-math-display\">\\text{sig}_h(d)=\\min_{s\\in \\text{shingles}(d)} h(s)</div>\n<p><strong>核心机制二：分桶和验证都围绕 GPU 占用率设计。</strong> MinHash LSH 会把签名切成 <span class=\"kb-math kb-math-inline\">b</span> 个 band，每个 band 产生 bucket key。传统分布式实现常把同一 bucket 的文档物理 shuffle 到同一 worker；SEDD/FED 则让 GPU process 负责特定 band 子集，通过流式方式读入 bucket 并立刻验证候选对。这样避免大规模中间状态落盘或跨节点搬移，同时让 bucket 内 pairwise comparison 在 GPU 上以较大 batch 执行。</p>\n<p><strong>训练数据管线中的作用：快，但不牺牲重复集合质量。</strong> 论文不是用启发式精确哈希替代 MinHash，而是尽量保持 MinHash LSH 的候选召回和判定逻辑。实验用标准 MinHash 或 exact MinHash 近似作为 oracle，报告重复集合 Jaccard overlap 通常在 0.95 以上。这一点很重要，因为预训练去重错误会改变数据分布：过度去重会丢内容，漏去重会增加记忆化和评测污染。</p>\n<p><strong>与 CPU MinHash 和 NeMo Curator 的区别：端到端瓶颈不同。</strong> CPU baseline 的瓶颈主要是签名生成；早期 GPU baseline 虽然加速了部分 kernel，但物理 shuffle 和小 bucket 使 GPU 利用率低。SEDD/FED 的设计把 hash、bucket、candidate verification 和通信方式一起改，因而端到端收益高于单个 CUDA kernel 的局部优化。</p>\n<div class=\"warn-box\">⚠️ 注意：该类框架仍是 MinHash LSH 去重，不会发现语义等价但 n-gram 不相似的文档；它优化的是网页级近重复去重的工程吞吐。</div>",
+      "quiz": {
+        "q": "FED/SEDD 加速 MinHash 去重的主要瓶颈改造是什么？",
+        "options": [
+          "把所有文档翻译成英文",
+          "用 GPU 并行 MinHash/候选验证，并用流式分桶降低通信开销",
+          "只做 MD5 精确去重",
+          "训练一个语言模型判断重复"
+        ],
+        "answer": 1,
+        "explain": "框架保留 MinHash LSH 逻辑，但把签名生成、分桶和候选验证做成 GPU 友好流水线。"
+      }
     },
     {
       "id": "lshbloom",
@@ -758,13 +999,30 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "data",
       "motivation": "Bloom Filter节省18倍空间",
-      "summary": "LSHBloom 的核心目标是：Bloom Filter节省18倍空间。",
+      "summary": "LSHBloom 用一组 Bloom filters 替代传统 MinHashLSH 的树或哈希表索引，解决互联网规模文本近重复去重时索引过大、插入查询过慢的问题。它保留 MinHashLSH 基于 Jaccard 相似度的近重复判定框架，同时把额外误差限制为可解析控制的 Bloom false positive 开销。",
       "keyPoints": [
-        "核心动机：Bloom Filter节省18倍空间",
-        "演化来源：继承或改进自 fed_dedup",
-        "代表机构：学术界"
+        "目标场景：面向 LLM 预训练、RAG、全文搜索等持续数据摄入流程中的大规模文本近重复去重。",
+        "基线问题：传统 MinHashLSH 需要存储每个 band 的签名索引，规模上升后磁盘、内存和随机访问成为瓶颈。",
+        "核心结构：为 MinHash signature matrix 的每个 band 建一个 Bloom filter，而不是保存完整 band 签名到 prefix tree/hashmap。",
+        "插入方式：文档先计算 MinHash 签名，再按 <span class=\"kb-math kb-math-inline\">b</span> 个 bands、每 band <span class=\"kb-math kb-math-inline\">r</span> 行分组，最后把每个 band 压缩成一个整数写入对应 Bloom filter。",
+        "查询方式：新文档只要在任一 band 的 Bloom filter 中命中，就被判为候选重复或重复。",
+        "误差控制：Bloom filter 不产生 false negative，只增加可设定的 false positive overhead <span class=\"kb-math kb-math-inline\">p_{\\text{effective}}=1-(1-p)^b</span>。",
+        "空间收益：在 peS2o 全量实验中，LSHBloom 约 11GB 磁盘，MinHashLSH 超过 200GB，约 18 倍节省。",
+        "扩展估计：处理 5B 文档时，MinHashLSH 估计需要约 277TB 索引，而保守 Bloom FP 设置下 LSHBloom 约 15.5TB。",
+        "工程优化：用 Rust/128-bit arithmetic 优化 band 向量哈希，替换 Python 大整数逻辑，端到端墙钟时间提升约 11 倍。"
       ],
-      "detail": "<p><img alt=\"LSHBloom 与 MinHashLSH 时间分解\" src=\"https://ar5iv.labs.arxiv.org/html/2411.04257/assets/x1.png\" />\n<em>图：LSHBloom 论文 Figure 1，对比传统 MinHashLSH 与 LSHBloom 在 peS2o 子集上的 wall-clock time breakdown。Manifest 中 paper_url 指向不相关论文，正文依据 arXiv:2411.04257 补足。</em></p>\n<p>```python</p>"
+      "detail": "<p><img alt=\"LSHBloom 运行时间分解\" src=\"https://arxiv.org/html/2411.04257v3/figs/scaling2/breakdown_time.jpg\" />\n<em>图：LSHBloom 与其他去重方法在 peS2o 扩展实验中的时间分解。论文指出 MinHashing 是主要时间来源，而 Bloom filter 索引显著降低插入/查询索引的成本。</em></p>\n<pre><code class=\"language-python\"># LSHBloom 近重复去重伪代码\nclass LSHBloomIndex:\n    def __init__(self, num_bands, rows_per_band, bloom_fpr):\n        self.b = num_bands\n        self.r = rows_per_band\n        self.filters = [BloomFilter(false_positive_rate=bloom_fpr) for _ in range(num_bands)]\n\n    def band_hash(self, band_values, modulus):\n        # 论文使用通用哈希思想：把 r 个 MinHash 值压缩成一个整数\n        return sum(hash_i(x) for hash_i, x in zip(universal_hashes, band_values)) % modulus\n\n    def query(self, document):\n        sig = minhash(document)              # length ~= b * r\n        for j in range(self.b):\n            band = sig[j * self.r : (j + 1) * self.r]\n            key = self.band_hash(band, N)\n            if key in self.filters[j]:       # 任一 band 命中即视作重复\n                return True\n        return False\n\n    def insert_if_new(self, document):\n        if self.query(document):\n            return &quot;duplicate&quot;\n        sig = minhash(document)\n        for j in range(self.b):\n            band = sig[j * self.r : (j + 1) * self.r]\n            key = self.band_hash(band, N)\n            self.filters[j].add(key)\n        return &quot;inserted&quot;\n</code></pre>\n<p>传统 MinHashLSH 的基本思想是避免 <span class=\"kb-math kb-math-inline\">O(n^2)</span> 文档两两比较。先把文档表示为 n-gram 集合，两个文档的相似度用 Jaccard：</p>\n<div class=\"kb-math kb-math-display\">J(A,B)=\\frac{|A\\cap B|}{|A\\cup B|}</div>\n<p>MinHash 的性质是 <span class=\"kb-math kb-math-inline\">\\Pr[h_{\\min}(A)=h_{\\min}(B)] = J(A,B)</span>，因此多个随机排列产生的签名可以近似估计 Jaccard。LSH 再把签名矩阵切成 <span class=\"kb-math kb-math-inline\">b</span> 个 band，每个 band 有 <span class=\"kb-math kb-math-inline\">r</span> 行；如果两个文档在任一 band 完全相同，就把它们作为相似候选。给定真实相似度 <span class=\"kb-math kb-math-inline\">t</span>，至少一个 band 命中的概率是：</p>\n<div class=\"kb-math kb-math-display\">P_{\\mathrm{candidate}}(t)=1-(1-t^r)^b</div>\n<p>这会形成一个 S 型曲线，<span class=\"kb-math kb-math-inline\">b,r</span> 控制阈值 <span class=\"kb-math kb-math-inline\">T</span> 附近的 false positive / false negative trade-off。</p>\n<p>MinHashLSH 的瓶颈不在 MinHash 数学本身，而在索引。传统实现需要把每个 band 的签名作为 key 存入 prefix tree 或 hashmap，并维护 key 到文档 ID 的映射。随着文档数、MinHash 位宽和 permutations 增加，索引线性膨胀，而且随机访问和 pointer chasing 会拖慢吞吐。论文给出的典型例子是 peS2o 仅 39M 学术文档，MinHashLSH 就需要超过 200GB 磁盘；扩展到数十亿文档时，索引会进入 TB 甚至 PB 级难以操作。</p>\n<p>LSHBloom 的关键替换是：不再保存“谁和谁匹配”的完整倒排索引，而只回答“这个 band 值之前是否出现过”。每个 band 对应一个 Bloom filter，插入文档时把该 band 的 <span class=\"kb-math kb-math-inline\">r</span> 个 MinHash 值压缩成一个整数。论文使用通用哈希式的向量哈希：</p>\n<div class=\"kb-math kb-math-display\">h(\\bar{x})=\\left(\\sum_{i=1}^{r} h_i(x_i)\\right)\\bmod N</div>\n<p>这里 <span class=\"kb-math kb-math-inline\">\\bar{x}</span> 是某个 band 的 <span class=\"kb-math kb-math-inline\">r</span> 个签名值，<span class=\"kb-math kb-math-inline\">N</span> 是哈希值空间大小。然后把 <span class=\"kb-math kb-math-inline\">h(\\bar{x})</span> 写入对应 Bloom filter。查询时重复同样过程，只要任一 Bloom filter 报告“可能存在”，就判为重复。这使索引变成连续 bit arrays，空间由预计文档数和目标 false positive rate 决定，而不再随原始 band key 的存储开销线性爆炸。</p>\n<div class=\"key-point\">💡 关键：LSHBloom 牺牲的是“返回所有匹配文档 ID”的能力，换来“在线判断是否重复”的极低空间索引。对预训练数据摄入来说，常见需求正是保留或丢弃当前文档，而不是枚举所有重复对。</div>\n<p>误差分析说明了为什么 Bloom 替换是可控的。若每个 Bloom filter 的 false positive rate 是 <span class=\"kb-math kb-math-inline\">p</span>，共有 <span class=\"kb-math kb-math-inline\">b</span> 个 bands，则任一 filter 误报的有效概率为：</p>\n<div class=\"kb-math kb-math-display\">p_{\\text{effective}}=1-(1-p)^b</div>\n<p>如果用户想指定整体额外误报率 <span class=\"kb-math kb-math-inline\">p_{\\text{effective}}</span>，可以反推单个 Bloom filter 的 <span class=\"kb-math kb-math-inline\">p</span>：</p>\n<div class=\"kb-math kb-math-display\">p=1-(1-p_{\\text{effective}})^{1/b}</div>\n<p>Bloom filter 不会 false negative，因此 LSHBloom 的 false negative 主要来自 MinHashLSH 本身；Bloom 的额外 false positive 还会把一小部分原本的 LSH false negatives 变为 positives。论文给出的整体 false positive 近似为：</p>\n<div class=\"kb-math kb-math-display\">FP_{\\mathrm{bloom}}=FP_{\\mathrm{lsh}}+(1-FP_{\\mathrm{lsh}})(p_{\\mathrm{effective}}+b/N)</div>\n<p>false negative 则为：</p>\n<div class=\"kb-math kb-math-display\">FN_{\\mathrm{bloom}}=(1-(p_{\\mathrm{effective}}+b/N))FN_{\\mathrm{lsh}}</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">b/N</span> 是把 band 向量压缩成整数时的哈希碰撞项。由于 <span class=\"kb-math kb-math-inline\">p_{\\text{effective}}</span> 可以通过分配更多 bit 降到很小，LSHBloom 的额外误差在实际设置中可以近似忽略。</p>\n<p>Bloom filter 的空间公式解释了 18 倍节省的来源。若预计插入 <span class=\"kb-math kb-math-inline\">n</span> 个元素，单个 Bloom filter 目标 false positive rate 为 <span class=\"kb-math kb-math-inline\">p</span>，最优 bit 数为：</p>\n<div class=\"kb-math kb-math-display\">m=-\\frac{n\\log p}{(\\log 2)^2}\\ \\text{bits}</div>\n<p>LSHBloom 需要 <span class=\"kb-math kb-math-inline\">b</span> 个这样的 filters，但其大小只依赖 <span class=\"kb-math kb-math-inline\">n,b,p</span>，不依赖 MinHash hashvalue 是 32-bit、64-bit 还是 128-bit。相反，传统 MinHashLSH 需要存储签名 key，hashvalue 位宽和 permutations 增加都会线性推高索引。论文举例：<span class=\"kb-math kb-math-inline\">T=0.8</span>、128 permutations、9 bands、10B 文档、<span class=\"kb-math kb-math-inline\">p_{\\text{effective}}=10^{-10}</span> 时，LSHBloom 约 590GB，而传统 MinHashLSH 约 46TB，近 80 倍差距。</p>\n<p>工程部分同样重要。论文 profiling 发现原始 LSHBloom 中，对 band 整数向量做哈希占插入/查询时间超过 90%，原因是 Python extended-precision integer 表示低效。由于 64-bit MinHash 值累加最多需要约 71-bit 无符号精度，作者改用 Rust 和 128-bit arithmetic，实现无溢出的向量化累加，并用硬件 <code>adc</code>/carry 机制降低成本。这个函数比 Python 版本快 94% 以上，带来约 11 倍端到端墙钟提升。最终系统还利用 <code>/dev/shm</code> 的 node-local shared memory 放置 Bloom filters，减少网络文件系统 I/O。</p>\n<p>与 DOLMA/CCNet 这类段落级 exact-ish Bloom 去重相比，LSHBloom 仍保留 MinHashLSH 对近重复的敏感性；与传统 MinHashLSH 相比，它不再保存重复对映射，因而更适合在线摄入。这个取舍非常贴合 LLM 数据管线：如果目标是“当前文档是否应被丢弃”，Bloom membership 足够；如果目标是构建完整重复簇、做可解释数据溯源，则可能仍需要传统索引或后处理来恢复文档对。</p>",
+      "quiz": {
+        "q": "LSHBloom 为什么能比传统 MinHashLSH 显著节省索引空间？",
+        "options": [
+          "它完全不计算 MinHash，直接按字符串精确匹配",
+          "它用每个 band 一个 Bloom filter 的近似 membership 结构替代树或哈希表索引",
+          "它降低 Jaccard 阈值，因此保留更少文档",
+          "它只处理短文档，跳过长文档"
+        ],
+        "answer": 1,
+        "explain": "LSHBloom 仍使用 MinHashLSH 的 banding 逻辑，但把 band key 是否出现过存入 Bloom filters，不再存储完整 key 到文档 ID 的索引。"
+      }
     },
     {
       "id": "data_mixing_agent",
@@ -778,13 +1036,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "data",
       "motivation": "强化学习动态数据加权",
-      "summary": "Data Mixing Agent 的核心目标是：强化学习动态数据加权。",
+      "summary": "Data Mixing Agent 将持续预训练中的领域配比更新建模为 MDP，并用大量数据混合轨迹和 CQL 离线强化学习训练一个轻量代理来动态输出下一阶段领域权重。它解决的是 DoReMi/RegMix 等静态或代理模型方法难以随训练状态变化、且难以跨领域泛化的问题。",
       "keyPoints": [
-        "核心动机：强化学习动态数据加权",
-        "演化来源：继承或改进自 doremi",
-        "代表机构：学术界"
+        "正确方法论文为 Data Mixing Agent: Learning to Re-weight Domains for Continual Pre-training, arXiv:2507.15640",
+        "将 domain re-weighting step 形式化为 MDP：状态包含历史混合轨迹、环境反馈和训练进度，动作是概率 simplex 上的领域分布",
+        "先随机采样大量 data mixing trajectories，每条轨迹含多次固定 budget 的领域重加权步骤",
+        "对每个轨迹训练小型 proxy model，并通过评测环境获得 reward/feedback",
+        "用监督学习初始化 agent，再用 Conservative Q-Learning (CQL) 做离线 off-policy 强化学习",
+        "目标训练时无需重新采样轨迹，agent 根据历史状态在线预测下一阶段混合比例",
+        "实验显示 agent 可跨 source fields、target models 和 domain spaces 泛化，并在数学推理/代码等持续预训练中优于静态和动态 baselines"
       ],
-      "detail": "<p><img alt=\"Data Mixing Agent 总览\" src=\"https://ar5iv.labs.arxiv.org/html/2507.15640/assets/x2.png\" />\n<em>图：Data Mixing Agent 论文 Figure 2，展示轨迹采样、proxy model 环境反馈、CQL 训练 agent，以及目标模型持续预训练时在线预测混合比例的流程。Manifest 的 paper_url 是 data mixing survey，正文用具体方法论文补足。</em></p>\n<p>```python</p>"
+      "detail": "<p><img alt=\"Data Mixing Agent 总览\" src=\"https://ar5iv.labs.arxiv.org/html/2507.15640/assets/x2.png\" />\n<em>图：Data Mixing Agent 论文 Figure 2，展示轨迹采样、proxy model 环境反馈、CQL 训练 agent，以及目标模型持续预训练时在线预测混合比例的流程。Manifest 的 paper_url 是 data mixing survey，正文用具体方法论文补足。</em></p>\n<pre><code class=\"language-python\"># Data Mixing Agent 训练与使用伪代码\ndef train_data_mixing_agent(domain_space, proxy_model, eval_env):\n    replay = []\n    for traj_id in range(num_trajectories):\n        trajectory = sample_random_mixing_trajectory(domain_space, steps=T)\n        ckpts = train_proxy_with_trajectory(proxy_model, trajectory)\n        feedback = [eval_env.evaluate(ckpt) for ckpt in ckpts]\n        replay.extend(to_transitions(trajectory, feedback))\n\n    agent = supervised_warm_start(replay)  # imitate good observed actions\n    agent = conservative_q_learning(agent, replay)  # offline actor-critic\n    return agent\n\ndef continual_pretrain_with_agent(target_model, agent, domains, budget):\n    history = []\n    while budget.remaining_tokens &gt; 0:\n        state = encode_state(history, validation_feedback(target_model))\n        weights = agent.predict_distribution(state)  # action on simplex\n        batch_stream = sample_domains(domains, weights)\n        target_model.train_for_one_stage(batch_stream)\n        history.append((weights, validation_feedback(target_model)))\n    return target_model\n</code></pre>\n<p><strong>动机与背景：数据混合不是一次性超参数。</strong> DoReMi 用 proxy model 和 group DRO 思想找静态领域权重，RegMix 等方法从候选混合中拟合性能预测器；这些方法能减少人工调配，但通常把“混合比例”当成训练前确定的 recipe。持续预训练不同：模型在不同阶段的短板会变化，早期需要补基础分布，后期可能需要更多目标领域或互补领域。Data Mixing Agent 因此把配比看成序列决策，而不是单点优化。</p>\n<p><strong>MDP 表述：动作是整个 domain distribution。</strong> 在第 <span class=\"kb-math kb-math-inline\">t</span> 个 re-weighting step，agent 观察历史混合比例、阶段评测反馈、目标领域表现等状态 <span class=\"kb-math kb-math-inline\">s_t</span>，输出动作 <span class=\"kb-math kb-math-inline\">a_t\\in \\Delta^K</span>，即 <span class=\"kb-math kb-math-inline\">K</span> 个领域上的采样概率。环境用该动作训练 proxy 或 target model 一段 token budget 后返回 reward。优化目标是最大化整条轨迹的累计收益：</p>\n<div class=\"kb-math kb-math-display\">\\max_\\pi \\mathbb{E}_{a_t\\sim \\pi(\\cdot|s_t)}\\left[\\sum_{t=1}^{T}\\gamma^{t-1} r(s_t,a_t)\\right]</div>\n<p><strong>为什么用 CQL：离线轨迹不能随意外推。</strong> 采样一条真实预训练轨迹很贵，因此 agent 主要在离线 replay buffer 上学习。如果普通 Q-learning 对未见过动作过度乐观，agent 可能输出训练数据里没有覆盖的极端配比。Conservative Q-Learning 通过惩罚 out-of-distribution action 的 Q 值，降低离线 RL 的过估计风险，使连续 simplex 动作空间中的策略更稳。</p>\n<p><strong>使用方式：小 agent 替代大规模反复搜索。</strong> 训练完后，agent 被直接插入目标模型持续预训练循环。每经过一个阶段，系统把当前反馈和历史轨迹编码给 agent，agent 预测下一阶段领域权重。论文强调泛化性：一个在数学 reasoning 轨迹上训练的 agent，可以迁移到不同 target model、不同 domain classifier 定义，甚至代码生成目标，而不必每次重新跑昂贵轨迹采样。</p>\n<p><strong>与 DoReMi 的区别：静态 minimax 配比 vs. 状态条件策略。</strong> DoReMi 学到的是一组或若干组固定权重，适合训练前做数据配比优化；Data Mixing Agent 学到的是 <span class=\"kb-math kb-math-inline\">s_t\\mapsto a_t</span> 的策略函数，能根据训练反馈调整。代价是需要构建离线轨迹和评测环境，但收益是可以把经验压缩进一个小模型，并在新场景复用。</p>\n<div class=\"key-point\">💡 关键：Data Mixing Agent 的“agent”含义不是聊天代理，而是一个根据训练状态输出下一阶段数据配比的策略模型。</div>",
+      "quiz": {
+        "q": "Data Mixing Agent 中的动作 action 表示什么？",
+        "options": [
+          "下一个 token 的词表分布",
+          "下一阶段各数据领域的采样概率分布",
+          "模型层数和隐藏维度",
+          "去重阈值"
+        ],
+        "answer": 1,
+        "explain": "该方法把领域重加权建模为 MDP，动作是在 domain simplex 上的混合权重。"
+      }
     },
     {
       "id": "mixed_precision",
@@ -798,12 +1071,29 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "training",
       "motivation": "FP16计算FP32存储Loss Scaling",
-      "summary": "混合精度训练 的核心目标是：FP16计算FP32存储Loss Scaling。",
+      "summary": "混合精度训练提出用 FP16 存储与计算前向/反向主路径，同时保留 FP32 master weights、loss scaling 和 FP32 accumulation，从而解决纯 FP16 训练梯度下溢与权重更新丢失的问题。它让深度网络在不改超参数、不损失精度的前提下降低显存和带宽压力，并利用 Tensor Cores 获得更高吞吐。",
       "keyPoints": [
-        "核心动机：FP16计算FP32存储Loss Scaling",
-        "代表机构：NVIDIA"
+        "训练主路径：前向、反向中的权重、激活和梯度大多以 FP16 存储，降低显存占用和内存带宽。",
+        "FP32 master weights：优化器更新维护一份 FP32 权重主副本，避免小更新在 FP16 加法中被舍入为 0。",
+        "Loss scaling：先把 loss 乘以缩放因子 <span class=\"kb-math kb-math-inline\">S</span>，反向传播得到放大的梯度，再在 optimizer 前除以 <span class=\"kb-math kb-math-inline\">S</span>，减少 FP16 梯度下溢。",
+        "FP32 accumulation：矩阵乘、卷积、循环层 dot product 使用 FP16 乘法但以 FP32 累加，写回前再转换。",
+        "特殊算子处理：大 reduction、batch norm 统计、softmax 等对精度敏感的归约通常用 FP32 执行。",
+        "动态安全性：如果 unscale 后发现 <code>inf</code> 或 <code>NaN</code>，可以跳过该步更新并调整 loss scale。",
+        "实验覆盖：CNN 分类、检测、语音识别、Seq2Seq、语言模型、GAN 等任务可匹配 FP32 baseline。",
+        "硬件背景：NVIDIA Volta Tensor Cores 支持 FP16 输入和 FP32 累加，使混合精度同时带来显存与算力收益。"
       ],
-      "detail": "<p>FP16计算FP32存储Loss Scaling</p>"
+      "detail": "<p><img alt=\"Mixed Precision 单层训练迭代图\" src=\"https://ar5iv.labs.arxiv.org/html/1710.03740/assets/x1.png\" />\n<em>图：论文 Figure 1 的混合精度训练迭代。FP32 master weights 被转换成 FP16 参与前向/反向，梯度再用于更新 FP32 主副本。</em></p>\n<pre><code class=\"language-python\"># Mixed Precision Training 简化伪代码\nmaster_params = fp32_copy(model.parameters())\nloss_scale = S\n\nfor x, y in dataloader:\n    # 1. 用 FP32 master weights 派生 FP16 训练权重\n    fp16_params = cast(master_params, dtype=&quot;float16&quot;)\n    model.load(fp16_params)\n\n    # 2. 前向和反向主路径使用 FP16；GEMM/conv 可用 FP32 accumulation\n    logits = model.forward(x.astype(&quot;float16&quot;))\n    loss = criterion(logits, y)\n    scaled_loss = loss * loss_scale\n    scaled_loss.backward()\n\n    # 3. 梯度恢复到原尺度，再做裁剪、权重衰减等梯度相关操作\n    grads = [p.grad.astype(&quot;float32&quot;) / loss_scale for p in model.parameters()]\n\n    # 4. 如果溢出，跳过更新；否则用 FP32 优化器更新 master weights\n    if has_inf_or_nan(grads):\n        loss_scale = adjust_down(loss_scale)\n        continue\n    master_params = optimizer_step(master_params, grads)\n</code></pre>\n<p>这篇论文要解决的不是“能否把神经网络量化到 16 位”，而是“训练时如何让 FP16 既快又不破坏收敛”。FP16 的指数和尾数都比 FP32 少，normalized exponent 大致覆盖 <span class=\"kb-math kb-math-inline\">[-14,15]</span>，含 denormal 的最小量级约到 <span class=\"kb-math kb-math-inline\">2^{-24}</span>。训练中的梯度常常集中在很小的负指数区间，一旦小于可表示范围就会下溢为 0；即使梯度本身可表示，乘以学习率后的权重更新也可能小到在加到权重时被舍入消失。因此纯 FP16 训练经常不是稍微变差，而是某些网络直接发散或出现显著精度损失。</p>\n<p>FP32 master copy 是第一条保险。训练时使用 FP16 权重 <span class=\"kb-math kb-math-inline\">W_{16}</span> 做 forward/backward，但优化器维护 FP32 主权重 <span class=\"kb-math kb-math-inline\">W_{32}</span>。更新公式可以写成：</p>\n<div class=\"kb-math kb-math-display\">W_{32}^{(t+1)} = W_{32}^{(t)} - \\eta\\,g_{32}^{(t)},\\qquad\nW_{16}^{(t+1)} = \\mathrm{cast}_{16}(W_{32}^{(t+1)})</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">g_{32}^{(t)}</span> 是 unscale 后以 FP32 表示的梯度。这样做的直觉是：训练计算可以低精度，但权重历史状态和小更新累积必须有足够分辨率。论文用 Mandarin speech recognition 示例说明，如果没有 FP32 master copy，伪 FP16 更新会造成约 80% 相对精度损失；使用 FP32 主副本后可以恢复 FP32 baseline。</p>\n<p>Loss scaling 是第二条保险，针对的是梯度下溢。设原始 loss 为 <span class=\"kb-math kb-math-inline\">L</span>，缩放因子为 <span class=\"kb-math kb-math-inline\">S</span>，反向传播使用：</p>\n<div class=\"kb-math kb-math-display\">L&#x27; = S\\cdot L</div>\n<p>由链式法则，任意参数梯度变为：</p>\n<div class=\"kb-math kb-math-display\">g&#x27; = \\frac{\\partial L&#x27;}{\\partial W}=S\\frac{\\partial L}{\\partial W}=Sg</div>\n<p>只要在 optimizer step 前恢复：</p>\n<div class=\"kb-math kb-math-display\">g=\\frac{g&#x27;}{S}</div>\n<p>最终更新与 FP32 训练在数学上等价，但反向传播中间的梯度被整体“平移”到 FP16 可表示范围内。论文以 Multibox SSD 为例，未做 loss scaling 时 mixed precision 会发散；用 <span class=\"kb-math kb-math-inline\">S=8</span> 后恢复到 FP32 mAP。对 bigLSTM，缩放因子 128 可避免 perplexity 曲线在 300K iterations 后发散。</p>\n<div class=\"warn-box\">⚠️ 注意：loss scaling 不能无限大。若 <span class=\"kb-math kb-math-inline\">S\\cdot g</span> 超过 FP16 最大有限值 65,504，就会产生 <code>inf</code> 或 <code>NaN</code>，因此训练系统需要在 unscale 时检测溢出并跳过更新。</div>\n<p>第三个关键点是算术精度分层。论文把神经网络算子分为 dot products、reductions 和 point-wise operations。矩阵乘、卷积、循环层中的 dot product 可以使用 FP16 乘法，但累加最好用 FP32：</p>\n<div class=\"kb-math kb-math-display\">y=\\sum_i a_i b_i,\\qquad a_i,b_i\\in\\mathrm{FP16},\\ \\mathrm{accumulator}\\in\\mathrm{FP32}</div>\n<p>这是 Volta Tensor Cores 的核心路径：输入半精度，乘积累加到单精度，再根据需要写回 FP16。大型 reduction，例如 batch norm 的均值方差统计、softmax 归约，也应该用 FP32，因为大量元素求和会放大舍入误差。相反，ReLU、逐元素乘加等 point-wise operations 常受内存带宽限制，使用 FP16 或 FP32 对速度影响不大，可按实现便利和精度需求选择。</p>\n<p>混合精度训练的收益主要来自两个方面。第一是显存：权重、激活和梯度以 FP16 存储时，训练中占大头的 activation memory 近似减半，这允许更大 batch size、更大模型或更长序列。虽然 FP32 master weights 会让权重部分额外增加一份拷贝，但训练显存通常不是只由权重主导，所以整体仍接近减半。第二是吞吐：在支持半精度矩阵单元的硬件上，FP16 GEMM/conv 的 arithmetic throughput 更高，且内存带宽压力更低。</p>\n<p>与早期低精度或量化训练不同，NVIDIA 这篇方法强调“不改模型结构、不调窄层宽、不牺牲 baseline accuracy”。以前很多方法只量化推理，或仅量化权重/激活但保留反向 FP32，因此训练成本没有真正下降；也有方法需要改变超参数或网络尺寸。混合精度训练的工程价值在于它能作为训练系统的一层数值策略：同一模型、同一学习率日程、同一优化器语义，只在 dtype、master weights、loss scaling 和 accumulator precision 上做系统性处理。</p>\n<p>在现代 LLM 训练中，论文的三条原则仍然是基础。FP32 master weights 后来演化出 FP32 optimizer states、BF16/FP16 parameters、ZeRO/FSDP shard 等组合；loss scaling 在 FP16 中仍常用，而 BF16 因指数范围更大通常不需要同样强的 scaling；FP32 accumulation 则成为 Tensor Core 路径的默认假设。换句话说，混合精度训练不是单纯“把模型 <code>.half()</code>”，而是一套数值稳定性协议。</p>",
+      "quiz": {
+        "q": "混合精度训练中保留 FP32 master weights 的主要目的是什么？",
+        "options": [
+          "让模型推理时一定使用 FP32",
+          "避免小梯度更新在 FP16 权重更新中因舍入或下溢而丢失",
+          "减少 optimizer state 的显存占用到原来一半",
+          "替代 loss scaling，使所有梯度都不会溢出"
+        ],
+        "answer": 1,
+        "explain": "FP16 的尾数和指数范围有限，小更新可能在加到权重时变成 0；FP32 master copy 用更高精度累积优化器更新。"
+      }
     },
     {
       "id": "flash_attention",
@@ -817,12 +1107,29 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "training",
       "motivation": "IO感知算法SRAM内完成Attention",
-      "summary": "FlashAttention 的核心目标是：IO感知算法SRAM内完成Attention。",
+      "summary": "FlashAttention 提出了一种 IO-aware 的精确 attention 计算方法，通过分块、在线 softmax 与反向重计算避免把 \\(N \\times N\\) attention 矩阵写入 HBM，解决了长序列 Transformer 中显存访问主导耗时的问题。它不改变 attention 的数学结果，却把显存占用从序列长度的二次级中间矩阵压到近似线性，并显著提升训练速度。",
       "keyPoints": [
-        "核心动机：IO感知算法SRAM内完成Attention",
-        "代表机构：Stanford"
+        "精确 attention：计算结果等价于 <span class=\"kb-math kb-math-inline\">\\mathrm{softmax}(QK^\\top)V</span>，不是低秩、稀疏或随机近似。",
+        "IO-aware 设计：优化目标不是只减少 FLOPs，而是减少 HBM 与片上 SRAM 之间的读写次数。",
+        "分块 tiling：按块加载 <span class=\"kb-math kb-math-inline\">Q,K,V</span> 到 SRAM，在片上完成矩阵乘、mask、softmax、dropout 与乘 <span class=\"kb-math kb-math-inline\">V</span>。",
+        "在线 softmax：用每行最大值 <span class=\"kb-math kb-math-inline\">m</span> 与归一化项 <span class=\"kb-math kb-math-inline\">\\ell</span> 增量合并不同 key block，避免一次性物化完整 attention 矩阵。",
+        "反向重计算：前向只保存输出和 softmax 统计量，反向在 SRAM 中重算局部 <span class=\"kb-math kb-math-inline\">S</span> 与 <span class=\"kb-math kb-math-inline\">P</span>，避免保存 <span class=\"kb-math kb-math-inline\">N^2</span> 中间矩阵。",
+        "Kernel fusion：把 attention 的多个 memory-bound 子操作融合进一个 CUDA kernel，减少中间结果反复进出 HBM。",
+        "IO 复杂度优势：标准 attention 需要读写大规模 <span class=\"kb-math kb-math-inline\">S,P</span>，FlashAttention 在 SRAM 大小 <span class=\"kb-math kb-math-inline\">M</span> 合理时把 HBM 访问量降到 <span class=\"kb-math kb-math-inline\">O(N^2d^2/M)</span> 量级。",
+        "可扩展到 block-sparse FlashAttention：在预定义稀疏块 mask 下跳过零块，进一步降低长上下文 attention 的 IO 与计算。"
       ],
-      "detail": "<p>IO感知算法SRAM内完成Attention</p>"
+      "detail": "<p><img alt=\"FlashAttention IO-aware tiling 示意图\" src=\"https://ar5iv.labs.arxiv.org/html/2205.14135/assets/x1.png\" />\n<em>图：FlashAttention 利用 GPU 内存层级差异，将 <span class=\"kb-math kb-math-inline\">Q,K,V</span> 分块搬入 SRAM，避免把完整 attention 矩阵写回 HBM。左侧展示 HBM/SRAM 带宽差异，中间展示分块循环，右侧展示 attention kernel 的速度收益。</em></p>\n<p>标准 self-attention 通常写成 <span class=\"kb-math kb-math-inline\">S=QK^\\top</span>、<span class=\"kb-math kb-math-inline\">P=\\mathrm{softmax}(S)</span>、<span class=\"kb-math kb-math-inline\">O=PV</span>。问题不只是 <span class=\"kb-math kb-math-inline\">O(N^2d)</span> 的矩阵乘计算量，而是常规实现会把 <span class=\"kb-math kb-math-inline\">S</span> 和 <span class=\"kb-math kb-math-inline\">P</span> 这两个 <span class=\"kb-math kb-math-inline\">N\\times N</span> 中间矩阵写入 HBM，再被 mask、softmax、dropout 和后续矩阵乘反复读取。GPU 上 SRAM 的容量远小于 HBM，但带宽通常高一个数量级；当 attention 中大量操作是逐元素或归约操作时，真正拖慢 wall-clock time 的往往是 HBM IO，而不是 Tensor Core 可高效执行的 matmul FLOPs。</p>\n<p>FlashAttention 的核心做法是把 attention 重新组织为“流式分块计算”。对每个 query block <span class=\"kb-math kb-math-inline\">Q_i</span>，算法逐个扫描 key/value block <span class=\"kb-math kb-math-inline\">(K_j,V_j)</span>，在片上计算局部分数 <span class=\"kb-math kb-math-inline\">S_{ij}=Q_iK_j^\\top</span>。由于 softmax 的归一化需要整行所有 key 的信息，不能简单对每个块单独 softmax 后相加；因此论文引入在线 softmax 统计量：行最大值 <span class=\"kb-math kb-math-inline\">m</span> 用于数值稳定，行指数和 <span class=\"kb-math kb-math-inline\">\\ell</span> 用于最终归一化。对一个向量 <span class=\"kb-math kb-math-inline\">x</span>，稳定 softmax 可写为：</p>\n<div class=\"kb-math kb-math-display\">m(x)=\\max_k x_k,\\qquad \\ell(x)=\\sum_k e^{x_k-m(x)},\\qquad \\mathrm{softmax}(x)_k=\\frac{e^{x_k-m(x)}}{\\ell(x)}.</div>\n<p>当一行分数被拆成两个块 <span class=\"kb-math kb-math-inline\">x^{(1)},x^{(2)}</span> 时，不需要保存全部分数，只要合并统计量：</p>\n<div class=\"kb-math kb-math-display\">m=\\max(m^{(1)},m^{(2)}),\\qquad\n\\ell=e^{m^{(1)}-m}\\ell^{(1)}+e^{m^{(2)}-m}\\ell^{(2)}.</div>\n<p>这个公式给出了 FlashAttention 正确性的直觉：每个块内部先以本块或当前全局最大值为基准计算指数，再用指数缩放把旧块贡献调整到新的全局最大值坐标系中。输出 <span class=\"kb-math kb-math-inline\">O</span> 也以相同方式重标定，所以处理完所有 key block 后得到的结果与完整 <span class=\"kb-math kb-math-inline\">\\mathrm{softmax}(QK^\\top)V</span> 完全一致。</p>\n<pre><code class=\"language-python\"># FlashAttention forward 的核心逻辑，省略 batch/head/dropout 的工程细节\n# Q, K, V: [N, d] in HBM; SRAM can hold one Q block plus one K/V block\nsplit Q into row blocks Q_i of size B_r\nsplit K, V into column blocks K_j, V_j of size B_c\ninitialize O_i = 0, m_i = -inf, l_i = 0 for every Q block\n\nfor each K_j, V_j block:\n    load K_j, V_j from HBM to SRAM\n    for each Q_i block:\n        load Q_i, O_i, m_i, l_i from HBM to SRAM\n        S_ij = Q_i @ K_j.T\n        m_new = maximum(m_i, rowmax(S_ij))\n        P_tilde = exp(S_ij - m_new[:, None])\n        l_new = exp(m_i - m_new) * l_i + rowsum(P_tilde)\n        O_i = (\n            exp(m_i - m_new)[:, None] * l_i[:, None] * O_i\n            + P_tilde @ V_j\n        ) / l_new[:, None]\n        write O_i, m_new, l_new back to HBM\n\nreturn O\n</code></pre>\n<p>反向传播的关键是“少存、多算”，但这里的多算是刻意设计的。常规训练会在前向保存 <span class=\"kb-math kb-math-inline\">P</span> 以便反向计算 <span class=\"kb-math kb-math-inline\">dQ,dK,dV</span>，这会产生 <span class=\"kb-math kb-math-inline\">O(N^2)</span> 的显存占用。FlashAttention 前向只保存输出 <span class=\"kb-math kb-math-inline\">O</span> 和 softmax 统计量 <span class=\"kb-math kb-math-inline\">(m,\\ell)</span>；反向时重新加载局部 <span class=\"kb-math kb-math-inline\">Q_i,K_j,V_j</span>，在 SRAM 中重算局部 <span class=\"kb-math kb-math-inline\">S_{ij}</span> 和 <span class=\"kb-math kb-math-inline\">P_{ij}</span>，再计算梯度贡献。虽然重计算增加了一些 FLOPs，但这些 FLOPs 主要是块内矩阵乘，GPU 擅长处理；相比之下，避免 HBM 读写大矩阵通常带来更大的实际加速。</p>\n<p>FlashAttention 与许多“高效 attention”工作的区别在于它不牺牲精度。低秩、局部窗口、哈希或随机特征方法通常试图降低理论计算复杂度，但会改变 attention 矩阵或引入近似误差，并且不一定有真实速度收益。FlashAttention 反过来承认精确 attention 的 <span class=\"kb-math kb-math-inline\">N^2</span> 交互仍然要算，却把这些交互安排在更合适的内存层级中完成。论文也给出 IO 复杂度分析：在 head dimension 为 <span class=\"kb-math kb-math-inline\">d</span>、SRAM 大小为 <span class=\"kb-math kb-math-inline\">M</span> 时，FlashAttention 的 HBM 访问规模约为 <span class=\"kb-math kb-math-inline\">O(N^2d^2/M)</span>，而标准实现要物化并访问 <span class=\"kb-math kb-math-inline\">N^2</span> 级中间矩阵。</p>\n<div class=\"key-point\">💡 关键：FlashAttention 的“快”不是因为少算了 attention，而是因为不把 <span class=\"kb-math kb-math-inline\">S</span> 和 <span class=\"kb-math kb-math-inline\">P</span> 这两个巨大中间矩阵写到慢速 HBM。它把计算重排成适合 GPU 内存层级的形式，让 expensive IO 变少、cheap recompute 变多。</div>\n<p>在训练流程中，FlashAttention 通常作为 Transformer attention kernel 的 drop-in replacement：上层模型仍然生成 <span class=\"kb-math kb-math-inline\">Q,K,V</span>，仍然使用 causal mask 或 padding mask，仍然得到同形状输出 <span class=\"kb-math kb-math-inline\">O</span>。区别在 kernel 内部：mask、softmax、dropout、矩阵乘 <span class=\"kb-math kb-math-inline\">V</span> 被融合，局部块在 SRAM 生命周期内完成尽可能多的操作。对于自回归 causal attention，还可以跳过完全位于未来位置的块；对于 block-sparse 版本，只需在同一分块框架中跳过稀疏 mask 为零的块。</p>\n<p>论文实验表明，FlashAttention 在 BERT-large、GPT-2 与 Long Range Arena 等场景中带来端到端训练加速，并让模型能处理更长上下文。更重要的是，它把“高效 Transformer”的优化视角从单纯 FLOPs 转向 IO complexity，这也解释了为什么很多理论上 FLOPs 更低的近似 attention 并没有稳定获得 wall-clock speedup。</p>",
+      "quiz": {
+        "q": "FlashAttention 为什么能够在不近似 attention 的情况下节省显存并加速？",
+        "options": [
+          "把 softmax 替换成线性 attention，降低理论计算复杂度",
+          "通过分块和在线 softmax 避免把完整 attention 矩阵写入 HBM",
+          "只保留局部窗口内的 token-token 交互",
+          "冻结 K/V 矩阵，只训练 Q 矩阵"
+        ],
+        "answer": 1,
+        "explain": "FlashAttention 仍计算精确的 softmax attention，但用 tiling、在线归一化和反向重计算减少 HBM 读写，因此显存占用和实际运行时间下降。"
+      }
     },
     {
       "id": "flash_attention_2",
@@ -836,13 +1143,29 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "training",
       "motivation": "优化并行度提升2倍速度",
-      "summary": "FlashAttention-2 的核心目标是：优化并行度提升2倍速度。",
+      "summary": "FlashAttention-2 在保持 FlashAttention 精确 attention 与线性级中间显存优势的基础上，重写在线 softmax 更新、提升单 head 内并行度，并重新划分 warp 工作，从而解决 FlashAttention GPU 占用率和共享内存通信不足的问题。它把 attention kernel 从约 25-40% 理论峰值提升到接近 GEMM 的 50-73% 峰值利用率，并相对 FlashAttention 约 2 倍加速。",
       "keyPoints": [
-        "核心动机：优化并行度提升2倍速度",
-        "演化来源：继承或改进自 flash_attention",
-        "代表机构：Stanford"
+        "保持精确性：仍计算 <span class=\"kb-math kb-math-inline\">O=\\mathrm{softmax}(QK^\\top)V</span>，不引入 attention 近似。",
+        "减少 non-matmul FLOPs：维护未归一化输出 <span class=\"kb-math kb-math-inline\">\\tilde O</span>，最后一次性除以 <span class=\"kb-math kb-math-inline\">\\ell</span>，减少逐元素缩放次数。",
+        "只保存 logsumexp：前向保存 <span class=\"kb-math kb-math-inline\">L=m+\\log\\ell</span>，反向不再同时保存行最大值和指数和。",
+        "单 head 内序列并行：除 batch 和 head 维度外，把一个 head 的 sequence block 分给多个 thread block，提高长序列小 batch 场景的 occupancy。",
+        "Warp 级工作重划分：从 FlashAttention 的 sliced-K 改为 sliced-Q，减少 warp 间规约、同步和 shared memory 读写。",
+        "Causal attention 优化：跳过完全被 causal mask 遮蔽的块，只在边界块应用 mask，降低无效计算。",
+        "工程覆盖扩大：支持 head dimension 到 256，并支持 MQA/GQA 等现代 LLM 推理常用 attention 变体。",
+        "训练收益：A100 上达到 50-73% 理论最大 FLOPs/s，GPT 风格模型训练可达约 225 TFLOPs/s 每 A100。"
       ],
-      "detail": "<p>优化并行度提升2倍速度</p>"
+      "detail": "<p><img alt=\"FlashAttention-2 warp 工作划分示意图\" src=\"https://hazyresearch.stanford.edu/static/posts/2023-07-17-flash2/flash_flash2_partitioning.png\" />\n<em>图：FlashAttention 使用 sliced-K，把 <span class=\"kb-math kb-math-inline\">K,V</span> 分给不同 warp 后需要跨 warp 合并中间输出；FlashAttention-2 使用 sliced-Q，让每个 warp 负责不同 <span class=\"kb-math kb-math-inline\">Q</span> 行切片，共享 <span class=\"kb-math kb-math-inline\">K,V</span>，从而减少 shared memory 通信。</em></p>\n<p>FlashAttention-2 的出发点不是推翻 FlashAttention，而是解释为什么 FlashAttention 仍明显慢于优化良好的 GEMM。第一版已经避免了 <span class=\"kb-math kb-math-inline\">N^2</span> attention 矩阵的 HBM 读写，但在 A100 上通常只有理论最大 FLOPs/s 的 25-40%。论文指出瓶颈主要来自三类低层问题：在线 softmax 中过多 non-matmul 操作、thread block 数不足导致 SM 利用率不高、warp 之间为了合并局部结果产生 shared memory 通信。现代 GPU 的 Tensor Core 对 matmul 极快，但 FP32 标量/逐元素操作吞吐远低于 matmul，因此 attention kernel 中每一次额外 rescale、bound check 或 mask 都很贵。</p>\n<p>算法层面的第一处改动是重写在线 softmax 的输出更新。FlashAttention 在每个 key/value block 后都会维护已经归一化的 <span class=\"kb-math kb-math-inline\">O</span>，这意味着每次合并都要用新的 <span class=\"kb-math kb-math-inline\">\\ell</span> 重新缩放旧输出和新输出。FlashAttention-2 改为维护未归一化输出 <span class=\"kb-math kb-math-inline\">\\tilde O</span>，只在处理完所有 <span class=\"kb-math kb-math-inline\">K,V</span> block 后执行一次最终归一化：</p>\n<div class=\"kb-math kb-math-display\">S_i^{(j)}=Q_iK_j^\\top,\n\\qquad\nm_i^{(j)}=\\max\\left(m_i^{(j-1)},\\mathrm{rowmax}(S_i^{(j)})\\right),</div>\n<div class=\"kb-math kb-math-display\">\\tilde P_i^{(j)}=\\exp\\left(S_i^{(j)}-m_i^{(j)}\\right),\n\\qquad\n\\ell_i^{(j)}=e^{m_i^{(j-1)}-m_i^{(j)}}\\ell_i^{(j-1)}+\\mathrm{rowsum}(\\tilde P_i^{(j)}),</div>\n<div class=\"kb-math kb-math-display\">\\tilde O_i^{(j)}=e^{m_i^{(j-1)}-m_i^{(j)}}\\tilde O_i^{(j-1)}+\\tilde P_i^{(j)}V_j,\n\\qquad\nO_i=\\frac{\\tilde O_i^{(T_c)}}{\\ell_i^{(T_c)}}.</div>\n<p>这个变化的直觉很简单：旧块贡献必须随着全局最大值 <span class=\"kb-math kb-math-inline\">m</span> 的变化被重新标尺化，但没有必要在每个块后都把输出除以当前 <span class=\"kb-math kb-math-inline\">\\ell</span>。只要最后一次除以最终 <span class=\"kb-math kb-math-inline\">\\ell</span>，数学结果仍然等于完整 softmax attention，同时减少了大量逐元素除法和缩放。前向还保存 <span class=\"kb-math kb-math-inline\">L_i=m_i+\\log\\ell_i</span>，反向可由 <span class=\"kb-math kb-math-inline\">L</span> 恢复 softmax 归一化所需信息。</p>\n<pre><code class=\"language-python\"># FlashAttention-2 forward 的核心逻辑，强调未归一化输出和 logsumexp\nsplit Q into row blocks Q_i\nsplit K, V into column blocks K_j, V_j\n\nfor each Q_i block in parallel:\n    load Q_i to SRAM\n    O_tilde = zeros([B_r, d])\n    m = full([B_r], -inf)\n    l = zeros([B_r])\n\n    for each K_j, V_j block:\n        load K_j, V_j to SRAM\n        S = Q_i @ K_j.T\n        if causal:\n            apply mask only to boundary blocks; skip fully masked blocks\n        m_new = maximum(m, rowmax(S))\n        P_tilde = exp(S - m_new[:, None])\n        l = exp(m - m_new) * l + rowsum(P_tilde)\n        O_tilde = exp(m - m_new)[:, None] * O_tilde + P_tilde @ V_j\n        m = m_new\n\n    O_i = O_tilde / l[:, None]\n    L_i = m + log(l)\n    write O_i and L_i to HBM\n\nreturn O, L\n</code></pre>\n<p>并行性是 FlashAttention-2 的第二个关键。FlashAttention 主要按 batch 和 head 维度并行，一个 thread block 处理一个 attention head 的一个工作单元。当 batch size 或 head 数较小而序列很长时，可调度的 thread block 数可能小于 GPU SM 数，导致很多 SM 空闲。FlashAttention-2 额外沿 sequence 维拆分工作，即使是单个 head 也能分给多个 thread block，从而提高 occupancy。这对长上下文 LLM 特别重要，因为长序列训练往往受显存限制，只能使用较小 batch。</p>\n<p>第三个关键是 warp 内工作划分。第一版采用 sliced-K：不同 warp 拿不同 <span class=\"kb-math kb-math-inline\">K,V</span> 切片，计算出同一 <span class=\"kb-math kb-math-inline\">Q</span> block 的部分输出后，需要把中间结果写入 shared memory、同步、再规约相加。FlashAttention-2 改成 sliced-Q：不同 warp 处理 <span class=\"kb-math kb-math-inline\">Q</span> 的不同 row slice，共享同一份 <span class=\"kb-math kb-math-inline\">K,V</span>。这样每个 warp 产生的是输出的不同行，不需要跨 warp 合并同一行的 partial sum，减少了 shared memory 读写和同步开销。这个设计没有改变数学公式，但显著改善了 kernel 的数据流。</p>\n<div class=\"key-point\">💡 关键：FlashAttention-2 的“2”主要是硬件利用率升级，而不是新 attention 机制。它保留 IO-aware tiling，同时让更多 FLOPs 落在 Tensor Core matmul 上，让更少时间花在逐元素缩放、mask 与 warp 间通信上。</div>\n<p>与 FlashAttention 相比，FlashAttention-2 在 causal mask 上也更细。对于自回归 attention，约一半 <span class=\"kb-math kb-math-inline\">(Q_i,K_j)</span> 块位于未来位置，完全不需要计算；只有对角线附近的边界块需要真正应用 causal mask。这样既减少矩阵乘，也减少逐元素 mask 判断。工程上，FlashAttention-2 支持 head dimension 到 256，使 GPT-J、CodeGen、Stable Diffusion 1.x 等模型受益；同时支持 MQA/GQA，有利于推理阶段减少 KV cache 体积。</p>\n<p>论文的实证结果表明，这些优化让 FlashAttention-2 在 A100 上达到 50-73% 理论最大 FLOPs/s，明显接近 GEMM 效率。在端到端 GPT 风格训练中，FlashAttention-2 可达到约 225 TFLOPs/s 每 A100，约 72% model FLOPs utilization。由于它仍然是 exact attention，迁移成本主要是替换底层 kernel，而不是重新训练或调整模型结构。</p>",
+      "quiz": {
+        "q": "FlashAttention-2 相对 FlashAttention 的主要改进方向是什么？",
+        "options": [
+          "把 softmax attention 改成低秩近似",
+          "通过更好的在线 softmax、sequence 并行和 sliced-Q warp 划分提升 GPU 利用率",
+          "删除反向传播中的重计算以保存全部 attention 矩阵",
+          "只支持短序列以减少 kernel 复杂度"
+        ],
+        "answer": 1,
+        "explain": "FlashAttention-2 保持精确 attention 与 IO-aware tiling，核心提升来自减少非矩阵乘操作、增加单 head 内并行度以及减少 warp 间通信。"
+      }
     },
     {
       "id": "wesar",
@@ -856,12 +1179,29 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "training",
       "motivation": "可学习门控抑制梯度爆炸",
-      "summary": "WeSaR 的核心目标是：可学习门控抑制梯度爆炸。",
+      "summary": "WeSaR 提出用每个参数矩阵一个可学习 gate \\(\\alpha\\) 进行权重缩放重参数化，把“满足梯度传播所需的函数尺度”和“参数自身的统一小范数”解耦，从而缓解 LLM 预训练中的 loss spike 与梯度/更新比例不稳定。它解决的是传统初始化中不同矩阵范数不均导致小范数矩阵更新比例过大的问题。",
       "keyPoints": [
-        "核心动机：可学习门控抑制梯度爆炸",
-        "代表机构：学术界"
+        "失稳诊断：论文把 loss spike 与不同参数矩阵的 update ratio <span class=\"kb-math kb-math-inline\">\\|\\Delta W\\|/\\|W\\|</span> 不均联系起来。",
+        "范数冲突：Transformer 为避免梯度消失/爆炸需要某些矩阵采用非均匀初始化尺度，但小范数矩阵会对同等梯度更新更敏感。",
+        "权重缩放重参数化：每个参数矩阵使用 <span class=\"kb-math kb-math-inline\">\\bar W_i=\\alpha_i W_i</span>，模型前向使用虚拟权重 <span class=\"kb-math kb-math-inline\">\\bar W_i</span>。",
+        "统一实际参数尺度：实际参数 <span class=\"kb-math kb-math-inline\">W_i</span> 全部用共同小标准差 <span class=\"kb-math kb-math-inline\">\\hat\\sigma</span> 初始化，降低 update ratio 不均。",
+        "Gate 承担功能尺度：<span class=\"kb-math kb-math-inline\">\\alpha_i</span> 初始化为目标初始化尺度与 <span class=\"kb-math kb-math-inline\">\\hat\\sigma</span> 的比值，使 <span class=\"kb-math kb-math-inline\">\\bar W_i</span> 满足 He/residual scaling 等 backbone 初始化要求。",
+        "可学习且低开销：每个矩阵仅增加一个标量 gate，训练时可学习，推理时可合并为 <span class=\"kb-math kb-math-inline\">\\alpha_i W_i</span>。",
+        "与 WeightNorm/Reparam 区别：WeSaR 不做逐行范数归一化或谱归一化，避免额外 normalization 反向开销。",
+        "实验覆盖：在 130M、1.3B、13B Transformer decoder 预训练上稳定并加速训练，在 WikiText、LAMBADA 与下游 SuperGLUE 评估中优于多种初始化和重参数化基线。"
       ],
-      "detail": "<p><img alt=\"WeSaR loss spike 与 update ratio\" src=\"https://ar5iv.labs.arxiv.org/html/2410.05052/assets/x1.png\" />\n<em>图：WeSaR 论文 Figure 1，展示 13B Transformer 训练中 loss spike 与特定矩阵 update ratio 的关系，以及 WeSaR 对 update ratio 的稳定作用。Manifest 中 paper_url 指向不相关论文，正文依据 arXiv:2410.05052 补足。</em></p>\n<p>```python</p>"
+      "detail": "<p><img alt=\"WeSaR loss spike 与 update ratio 示意图\" src=\"https://ar5iv.org/html/2410.05052/assets/x1.png\" />\n<em>图：WeSaR 主论文 Figure 1 展示 13B Transformer 训练初期 loss spike，以及最后一层 FFN up/down projection 的 update ratio 变化；基线中小尺度矩阵的更新比例更大，而 WeSaR 使更新比例更稳定。</em></p>\n<p>WeSaR 的切入点不是“再设计一个更深的 Transformer 架构”，而是重新审视初始化尺度带来的训练动力学问题。LLM 预训练中的 loss spike 常被归因于异常 batch、优化器状态、attention entropy 或 logits 爆炸；WeSaR 论文关注的是另一个量：参数更新相对参数自身大小的比例，记为 <span class=\"kb-math kb-math-inline\">r_i=\\|\\Delta W_i\\|/\\|W_i\\|</span>。如果某个矩阵因为 residual scaling 或特定初始化策略而范数很小，那么即使绝对更新量不大，<span class=\"kb-math kb-math-inline\">r_i</span> 也可能很大，导致这个矩阵在训练早期被过度扰动，进而触发不稳定。</p>\n<p>传统初始化存在一个冲突：为了让反向传播的梯度尺度在深层网络中不爆炸也不消失，初始化标准差通常依赖 fan-in、fan-out、层深度或 residual 分支位置；但为了让不同参数矩阵有相近 update ratio，又希望所有矩阵本身的范数接近。WeSaR 的核心是把这两个目标拆开：实际可训练参数 <span class=\"kb-math kb-math-inline\">W_i</span> 负责保持统一的小范数，gate <span class=\"kb-math kb-math-inline\">\\alpha_i</span> 负责把前向/反向看到的有效权重尺度调到初始化理论所需的大小。</p>\n<p>具体地，对每个矩阵 <span class=\"kb-math kb-math-inline\">W_i</span>，WeSaR 不直接把它初始化为传统方法要求的标准差 <span class=\"kb-math kb-math-inline\">\\sigma_i</span>，而是统一采样：</p>\n<div class=\"kb-math kb-math-display\">W_i\\sim\\mathcal N(0,\\hat\\sigma^2),\\qquad \\bar W_i=\\alpha_i W_i,</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">\\hat\\sigma</span> 是所有矩阵共享的小标准差，<span class=\"kb-math kb-math-inline\">\\bar W_i</span> 是模型实际使用的虚拟权重。为了让虚拟权重在初始时仍满足 backbone 初始化方法，gate 初始化为：</p>\n<div class=\"kb-math kb-math-display\">\\alpha_i^{(0)}=\\frac{\\sigma_i}{\\hat\\sigma},\\qquad \\mathrm{Std}(\\bar W_i)=\\mathrm{Std}(\\alpha_i W_i)=\\sigma_i.</div>\n<p>这样，前向和反向中的有效权重 <span class=\"kb-math kb-math-inline\">\\bar W_i</span> 仍具备 He initialization、embedding scaling、residual scaling 等要求的函数尺度；但优化器直接维护的实际参数 <span class=\"kb-math kb-math-inline\">W_i</span> 都拥有接近的范数，更新比例更均匀。</p>\n<pre><code class=\"language-python\"># WeSaR 初始化与训练伪代码\n# sigma_target[i] 来自选定 backbone 初始化规则，例如 He init + residual scaling\nsigma_common = 4e-5  # 论文默认量级，可作为超参数调节\n\nfor each parameter matrix i:\n    W[i] = Normal(mean=0, std=sigma_common)\n    alpha[i] = sigma_target[i] / sigma_common\n\nfor each training step:\n    for each matrix i used by the Transformer:\n        W_eff[i] = alpha[i] * W[i]\n    loss = transformer_forward(parameters=W_eff)\n    loss.backward()\n    Adam.update(W, alpha)\n\nfor inference:\n    fold W_eff[i] = alpha[i] * W[i]\n    discard alpha[i]\n</code></pre>\n<p>论文给出的理论解释主要围绕 Adam。若模型使用 <span class=\"kb-math kb-math-inline\">\\bar W=\\alpha W</span>，则对实际参数的梯度满足 <span class=\"kb-math kb-math-inline\">\\nabla_W\\mathcal L=\\alpha\\nabla_{\\bar W}\\mathcal L</span>。Adam 的一阶动量和二阶动量会分别随 <span class=\"kb-math kb-math-inline\">\\alpha</span> 与 <span class=\"kb-math kb-math-inline\">\\alpha^2</span> 缩放，因此在忽略 <span class=\"kb-math kb-math-inline\">\\epsilon</span> 与符号细节时，更新方向近似不依赖 <span class=\"kb-math kb-math-inline\">\\alpha</span>：</p>\n<div class=\"kb-math kb-math-display\">\\Delta W_t\\approx -\\eta\\frac{\\alpha m_{\\bar W,t}}{\\sqrt{\\alpha^2 v_{\\bar W,t}}}\n= -\\eta\\frac{m_{\\bar W,t}}{\\sqrt{v_{\\bar W,t}}}.</div>\n<p>这意味着 gate 可以承担“把虚拟权重放大到合适函数尺度”的职责，而不会简单地把 Adam 对实际参数 <span class=\"kb-math kb-math-inline\">W</span> 的更新按同样比例放大。于是 WeSaR 可以选择更小的 <span class=\"kb-math kb-math-inline\">\\hat\\sigma</span>，让所有实际参数的范数更可控，同时保留梯度传播所需的有效尺度。</p>\n<div class=\"key-point\">💡 关键：WeSaR 不是把权重归一化到固定范数，而是把“参数本体”和“函数中使用的缩放后权重”分离。训练时 gate 是可学习的稳定器；推理时 gate 可以折叠进权重，没有额外推理成本。</div>\n<p>与 Weight Normalization 相比，WeSaR 的缩放粒度是“每个矩阵一个标量”，不是每一行一个归一化尺度，因此不需要在每个 batch 中计算行范数并反向传播通过归一化。与 <span class=\"kb-math kb-math-inline\">\\sigma</span>-Reparam 相比，WeSaR 不需要估计谱范数，也不是专门通过控制 attention entropy 来稳定训练；它把所有参数矩阵纳入统一的小标准差初始化，并用 gate 对齐每个矩阵自己的目标尺度。与 residual scaling as reparameterization 相比，WeSaR 不是只处理残差分支相关矩阵，而是扩展到 Transformer 中所有主要参数矩阵。</p>\n<p>训练流程上，WeSaR 通常可以作为初始化和参数化层面的改动接入预训练代码。模型结构、loss、数据流不需要改变；需要改变的是参数注册方式：原先一个矩阵 <span class=\"kb-math kb-math-inline\">W</span> 变成实际矩阵 <span class=\"kb-math kb-math-inline\">W</span> 与标量 gate <span class=\"kb-math kb-math-inline\">\\alpha</span>，forward 时临时使用 <span class=\"kb-math kb-math-inline\">\\alpha W</span>。由于每个矩阵只多一个标量，这个方法对参数量和通信量几乎无影响；在分布式训练中，gate 的同步开销也可以忽略。</p>\n<p>实验上，论文在 130M、1.3B、13B Transformer decoder 上验证 WeSaR。主结果显示，WeSaR 相比 Small initialization 在 WikiText 和 LAMBADA perplexity 上更好，并在 13B 模型训练初期减少 loss spike。更值得关注的是消融结论：He initialization 本身可能产生 loss spike，但作为 WeSaR 的虚拟权重 backbone 反而有效，因为它负责梯度传播尺度；实际参数则由统一小 <span class=\"kb-math kb-math-inline\">\\hat\\sigma</span> 控制 update ratio。这说明 WeSaR 的价值正是解耦了“函数尺度”和“可训练参数尺度”。</p>",
+      "quiz": {
+        "q": "WeSaR 中 gate 参数 alpha 的核心作用是什么？",
+        "options": [
+          "把所有权重剪枝为稀疏矩阵，减少计算量",
+          "让实际参数保持统一小范数，同时把有效权重缩放到满足初始化规则的尺度",
+          "替代 Adam 的二阶动量估计，直接控制学习率",
+          "只缩放 attention logits，避免 softmax 过尖锐"
+        ],
+        "answer": 1,
+        "explain": "WeSaR 使用 alpha W 作为模型中的有效权重，alpha 承担每个矩阵所需的函数尺度，而 W 本身用共同小标准差初始化以稳定 update ratio。"
+      }
     },
     {
       "id": "muon",
@@ -911,13 +1251,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "training",
       "motivation": "Blackwell架构71%硬件利用率",
-      "summary": "FlashAttention-4 的核心目标是：Blackwell架构71%硬件利用率。",
+      "summary": "FlashAttention-4 针对 NVIDIA Blackwell 的非对称硬件扩展重新设计 attention kernel，用异步 MMA、TMEM、2-CTA MMA、软件指数和条件 softmax rescaling 重叠 matmul、softmax 与内存瓶颈。它在 B200 BF16 上达到约 1605-1613 TFLOPs/s、约 71% 利用率，解决了 Tensor Core 变快后 SFU 和 shared memory 成为新瓶颈的问题。",
       "keyPoints": [
-        "核心动机：Blackwell架构71%硬件利用率",
-        "演化来源：继承或改进自 flash_attention_2",
-        "代表机构：Together AI"
+        "正确官方博客地址为 https://tridao.me/blog/2026/flash4/，论文为 arXiv:2603.05451",
+        "面向 Blackwell B200/GB200 的 TMEM、5th-gen async tensor cores 和 2-CTA MMA",
+        "前向使用 ping-pong Q tiles 和两个 softmax warpgroups，最大化 MMA 与 softmax overlap",
+        "用 FMA 多项式近似分担部分 <span class=\"kb-math kb-math-inline\">2^x</span> 指数计算，缓解 MUFU/SFU 吞吐瓶颈",
+        "条件 online softmax rescaling 只在 running max 变化超过阈值时重缩放，减少非 matmul 操作",
+        "反向把中间 <span class=\"kb-math kb-math-inline\">P^T,dS^T</span> 放入 TMEM，并用 2-CTA MMA 降低 shared memory traffic 与 dQ atomic adds",
+        "使用 CuTe-DSL/Python 实现，保持底层表达力同时显著缩短编译迭代时间"
       ],
-      "detail": "<p><img alt=\"FlashAttention-4 前向流水线\" src=\"https://tridao.me/assets/img/2026-03-05-flash4/fa4_fwd_pipeline.png\" />\n<em>图：Tri Dao 官方博客中的 FlashAttention-4 forward pipeline，展示 ping-pong Q tiles、softmax warpgroups 和 correction stage。Manifest 的 blog 路径已失效，正文使用官方正确路径 /blog/2026/flash4/ 与 arXiv:2603.05451 补足。</em></p>\n<p>```python</p>"
+      "detail": "<p><img alt=\"FlashAttention-4 前向流水线\" src=\"https://tridao.me/assets/img/2026-03-05-flash4/fa4_fwd_pipeline.png\" />\n<em>图：Tri Dao 官方博客中的 FlashAttention-4 forward pipeline，展示 ping-pong Q tiles、softmax warpgroups 和 correction stage。Manifest 的 blog 路径已失效，正文使用官方正确路径 /blog/2026/flash4/ 与 arXiv:2603.05451 补足。</em></p>\n<pre><code class=\"language-python\"># FlashAttention-4 forward 高层伪代码\ndef fa4_forward_blackwell(Q, K, V):\n    for cta in schedule_lpt_tiles(Q, K):\n        # 两个 Q tile 交替推进，MMA 输出进入 TMEM\n        q_hi, q_lo = load_two_q_tiles(cta)\n        state_hi = init_online_softmax()\n        state_lo = init_online_softmax()\n\n        for k_tile, v_tile in stream_kv_tiles(K, V):\n            async_mma_tmem(q_hi, k_tile)  # QK^T for high tile\n            softmax_lo = softmax_warpgroup(state_lo, exp_mode=&quot;mufu+fma&quot;)\n            maybe_correction_rescale(state_lo, threshold=tau)\n\n            async_mma_tmem(q_lo, k_tile)  # QK^T for low tile\n            softmax_hi = softmax_warpgroup(state_hi, exp_mode=&quot;mufu+fma&quot;)\n            maybe_correction_rescale(state_hi, threshold=tau)\n\n            async_mma_tmem(softmax_hi, v_tile)  # PV\n            async_mma_tmem(softmax_lo, v_tile)\n\n        write_normalized_outputs(state_hi, state_lo)\n</code></pre>\n<p><strong>动机与背景：Blackwell 的瓶颈从 GEMM 转移到周边单元。</strong> 从 H100 到 B200，BF16 Tensor Core 峰值大幅增加，但 shared memory bandwidth 和指数单元吞吐没有同等增长。Attention 不是纯 GEMM；它还要做 softmax、mask、归一化、数据搬运和调度。FA4 的 roofline 分析指出，前向常被指数计算卡住，反向常被 shared memory traffic 卡住，因此单纯复用 FA2/FA3 pipeline 会留下大量硬件性能。</p>\n<p><strong>核心机制一：前向把 softmax 藏在 MMA 后面。</strong> Blackwell 的 MMA 异步写入 TMEM，使 tensor core 工作不再强依赖寄存器累加器。FA4 让一个 CTA 同时处理两个 Q tile，交替发射 <span class=\"kb-math kb-math-inline\">QK^\\top</span> 和 <span class=\"kb-math kb-math-inline\">PV</span> MMA；当一个 tile 做 tensor core 计算时，另一个 tile 的 softmax warpgroup 读取 TMEM 结果并做 max/sum/exp。这样 softmax 不再完全串在两次 matmul 之间。</p>\n<p><strong>核心机制二：软件指数和条件 rescaling 减少非 matmul 路径。</strong> softmax 需要大量 <span class=\"kb-math kb-math-inline\">e^x</span>，但 MUFU.EX2 吞吐有限。FA4 将一部分 <span class=\"kb-math kb-math-inline\">2^x</span> 用 FMA 上的多项式近似计算，利用空闲 ALU 分担 MUFU 压力。online softmax 的传统更新每次 running max 改变都要 rescale 旧输出；FA4 只在 <span class=\"kb-math kb-math-inline\">m_j-m_{j-1}&gt;\\tau</span> 时立即 rescale，否则延迟到最终归一化：</p>\n<div class=\"kb-math kb-math-display\">O_j =\n\\begin{cases}\ne^{m_{j-1}-m_j}O_{j-1}+e^{S_j-m_j}V_j, &amp; m_j-m_{j-1}&gt;\\tau\\\\\nO_{j-1}+e^{S_j-m_{j-1}}V_j, &amp; \\text{otherwise}\n\\end{cases}</div>\n<p><strong>核心机制三：反向用 TMEM 和 2-CTA MMA 降低共享内存压力。</strong> Backward 需要重算 <span class=\"kb-math kb-math-inline\">S,P</span>，并执行 <span class=\"kb-math kb-math-inline\">dV,dK,dQ</span> 等五类 MMA。FA4 把 <span class=\"kb-math kb-math-inline\">P^T</span> 和 <span class=\"kb-math kb-math-inline\">dS^T</span> 直接放在 TMEM 中作为后续 MMA operand，避免在 shared memory 中反复写读。Blackwell 的 2-CTA MMA 让两个 CTA 协作一个大 tile，各自 staging 一半 operand，减少 B operand 的共享内存流量，并顺带减少 dQ 的全局 atomic reductions。</p>\n<p><strong>与 FA2/FA3 的区别：面向 Blackwell 的算法-内核协同。</strong> FA2 主要优化并行划分，FA3 面向 Hopper 做异步和 warp specialization；FA4 则把 Blackwell 新增的 TMEM、UMMA 和 2-CTA mode 作为算法设计约束。它不只是“换一代 GPU 重新调参”，而是改变 softmax、rescale、backward dataflow 和 scheduler 的配合方式。</p>\n<div class=\"key-point\">💡 关键：FA4 的本质是把 attention 中所有非 GEMM 瓶颈重新排进 Blackwell 的异步执行缝隙里。</div>",
+      "quiz": {
+        "q": "FlashAttention-4 在 Blackwell 上重点缓解了哪些新瓶颈？",
+        "options": [
+          "Tokenizer 训练和词表合并",
+          "前向指数/softmax 吞吐与反向 shared memory traffic",
+          "CPU 文件读取",
+          "模型参数初始化"
+        ],
+        "answer": 1,
+        "explain": "Blackwell Tensor Core 更快后，attention 的 SFU 指数计算和 shared memory 访问成为主要限制，FA4 围绕这些瓶颈重排流水线。"
+      }
     },
     {
       "id": "snip_quartet",
@@ -931,13 +1286,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "training",
       "motivation": "原生FP4训练层级动态量化",
-      "summary": "SNIP/Quartet 的核心目标是：原生FP4训练层级动态量化。",
+      "summary": "SNIP 和 Quartet 分别从“自适应层级混合精度”和“端到端原生 FP4 训练”两条路线推进 sub-byte LLM 训练：前者根据量化导致的 loss/weight divergence 动态决定各层 FP4/FP8，后者用 MXFP4/优化 kernel 和低精度 scaling law 证明主要线性层可原生 FP4。它们共同解决的是 FP4 训练吞吐高但收敛和精度容易崩的问题。",
       "keyPoints": [
-        "核心动机：原生FP4训练层级动态量化",
-        "演化来源：继承或改进自 mixed_precision",
-        "代表机构：NeurIPS"
+        "Manifest URL 指向不相关数学论文；正文依据 SNIP arXiv:2602.01410 与 Quartet arXiv:2505.14669 补足",
+        "SNIP 周期性收集 activations、gradients、optimizer states 统计，评估量化对训练质量的影响",
+        "SNIP 定义 forward loss divergence 和 backward weight divergence，作为层级精度选择的优化代理",
+        "SNIP 将“多少 FP4 FLOPs”作为效率预算，在满足质量约束下求 layer-wise FP4/FP8 配置",
+        "Quartet 聚焦 Blackwell 支持的 FP4/MXFP4，试图让主要 linear layers 的 forward/backward 都原生低精度",
+        "Quartet 通过低精度 scaling law 分析不同 bit-width/训练设置的 accuracy-vs-compute tradeoff",
+        "二者都继承混合精度思想，但把粒度从 FP16/FP32 扩展到 FP4/FP8/BF16 的动态组合"
       ],
-      "detail": "<p><img alt=\"SNIP 系统总览\" src=\"https://ar5iv.labs.arxiv.org/html/2602.01410/assets/x2.png\" />\n<em>图：SNIP 论文 Figure 2，展示周期性统计收集、层级量化影响评估和 FP4/FP8 配置更新。</em></p>\n<p><img alt=\"Quartet 低精度训练分析\" src=\"https://ar5iv.labs.arxiv.org/html/2505.14669/assets/x1.png\" />\n<em>图：Quartet 论文 Figure 1，展示低精度训练设置下的 scaling-law/accuracy-compute 分析。Manifest 中 paper_url 不匹配，正文使用 SNIP 与 Quartet 的公开论文补足。</em></p>\n<p>```python</p>"
+      "detail": "<p><img alt=\"SNIP 系统总览\" src=\"https://ar5iv.labs.arxiv.org/html/2602.01410/assets/x2.png\" />\n<em>图：SNIP 论文 Figure 2，展示周期性统计收集、层级量化影响评估和 FP4/FP8 配置更新。</em></p>\n<p><img alt=\"Quartet 低精度训练分析\" src=\"https://ar5iv.labs.arxiv.org/html/2505.14669/assets/x1.png\" />\n<em>图：Quartet 论文 Figure 1，展示低精度训练设置下的 scaling-law/accuracy-compute 分析。Manifest 中 paper_url 不匹配，正文使用 SNIP 与 Quartet 的公开论文补足。</em></p>\n<pre><code class=\"language-python\"># SNIP + Quartet 风格 sub-byte 训练伪代码\ndef subbyte_train(model, data, fp4_budget):\n    precision = {layer: &quot;FP8&quot; for layer in model.linear_layers}\n\n    for step, batch in enumerate(data):\n        if step % profile_interval == 0:\n            stats = collect_stats(model, batch, tensors=[&quot;act&quot;, &quot;grad&quot;, &quot;optimizer&quot;])\n            costs = {}\n            for layer in model.linear_layers:\n                loss_div = estimate_loss_divergence(layer, stats, quant=&quot;FP4&quot;)\n                weight_div = estimate_weight_divergence(layer, stats, quant=&quot;FP4&quot;)\n                costs[layer] = loss_div + lambda_w * weight_div\n            precision = solve_layer_precision(costs, fp4_budget)\n\n        with quantized_linear_policy(precision, fp4_kernel=&quot;MXFP4&quot;):\n            loss = model(batch)\n            loss.backward()\n            optimizer_step_with_master_states(model)\n</code></pre>\n<p><strong>动机与背景：FP4 的计算收益很大，但统一 FP4 太粗暴。</strong> Blackwell 等硬件让 FP4 GEMM 具备很高理论吞吐，但 LLM 训练对数值误差极其敏感。若把所有线性层、所有阶段都统一降到 FP4，forward loss 会因为激活/权重量化误差上升，backward 更新也会因梯度和 optimizer 状态误差偏离，最终表现为收敛变慢或质量崩溃。</p>\n<p><strong>SNIP 的核心机制：把精度选择变成有预算的优化问题。</strong> SNIP 不用固定规则说“前几层 FP8、后几层 FP4”，而是定期 profile 当前模型状态。它用 loss divergence 衡量某层 forward 量化让训练 loss 增加多少，用 weight divergence 衡量 backward/更新误差会让参数轨迹偏离多少。然后在给定 FP4 FLOPs 比例预算下，选择最适合降到 FP4 的层。</p>\n<div class=\"kb-math kb-math-display\">\\min_{q_1,\\ldots,q_L}\\sum_{\\ell=1}^{L} C_\\ell(q_\\ell)\n\\quad \\text{s.t.}\\quad\n\\sum_{\\ell=1}^{L}\\text{FLOPs}_\\ell\\mathbf{1}[q_\\ell=\\text{FP4}]\\ge B</div>\n<p><strong>Quartet 的核心机制：把 FP4 做成端到端训练路径。</strong> Quartet 关注硬件支持的 MXFP4/NVFP4 类格式，用 per-block scale、量化 kernel 和训练规则让主要线性层 forward/backward 都走 FP4，而不是在关键路径频繁 fallback 到 BF16/FP16。它还通过 scaling law 比较 BF16、FP8、FP4 在不同模型规模和 token 预算下的损失曲线，寻找计算最优的低精度配置。</p>\n<p><strong>二者的互补关系：SNIP 管策略，Quartet 管原生算子。</strong> SNIP 更像 precision scheduler，回答“哪些层、什么时候可以用 FP4”；Quartet 更像 FP4 training recipe/kernel stack，回答“用 FP4 时怎样量化、缩放和执行才不掉太多精度”。实际系统可以把 SNIP 的层级策略与 Quartet 的 MXFP4 kernel 结合。</p>\n<p><strong>与 2018 混合精度的区别：从 FP16 安全加速到 sub-byte 动态控制。</strong> 经典混合精度只需解决 FP16 下溢和 FP32 master weight；FP4 训练还要处理更强的量化噪声、block scale、outlier、梯度路径偏移和层间敏感度差异。因此 FP4 不能简单套用 loss scaling，而需要动态量化误差评估和硬件感知 kernel。</p>\n<div class=\"warn-box\">⚠️ 注意：SNIP/Quartet 并不意味着所有训练状态都变成 4 bit；优化器状态、累积器或部分敏感路径仍可能需要更高精度保护。</div>",
+      "quiz": {
+        "q": "SNIP 决定某层是否使用 FP4 时主要看什么？",
+        "options": [
+          "层名字是否包含 attention",
+          "量化导致的 loss divergence 和 weight divergence，并结合 FP4 FLOPs 预算",
+          "该层参数是否全为正数",
+          "训练数据文件大小"
+        ],
+        "answer": 1,
+        "explain": "SNIP 用前向损失偏移和反向权重轨迹偏移估计量化影响，再求层级混合精度配置。"
+      }
     },
     {
       "id": "longrope2",
@@ -951,12 +1321,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "training",
       "motivation": "进化搜索扩展至200万上下文",
-      "summary": "LongRoPE2 的核心目标是：进化搜索扩展至200万上下文。",
+      "summary": "LongRoPE2 通过“真实 critical dimension”感知的 RoPE rescaling、needle-driven perplexity 引导的进化搜索和 mixed context window training，把 RoPE 模型扩展到长上下文同时尽量保留短上下文能力。它解决的是传统 RoPE 外推在高维频率未充分训练时产生 OOD 位置、长上下文有效长度不足的问题。",
       "keyPoints": [
-        "核心动机：进化搜索扩展至200万上下文",
-        "代表机构：Microsoft"
+        "正确公开论文为 LongRoPE2: Near-Lossless LLM Context Window Scaling, arXiv:2502.20082",
+        "提出高 RoPE 维度训练不足会导致长上下文 OOD 的假设",
+        "用理论 period 初始化 rescaling factors，并识别 real critical dimension",
+        "构造 synthetic needle data，只计算 needle answer tokens 的 PPL 作为长程检索导向评价",
+        "用 evolutionary search 搜索各 RoPE 维度缩放因子，而不是手写统一 NTK/YaRN 缩放",
+        "mixed context window training 同时喂短上下文原始 RoPE 和长上下文 rescaled RoPE，减少短上下文遗忘",
+        "在 LLaMA3-8B 和 Phi3-mini-3.8B 上扩展到 128K，并报告保留 98.5% 以上短上下文性能；LongRoPE 系列支持更长目标上下文"
       ],
-      "detail": "<p><img alt=\"LongRoPE2 mixed context window training\" src=\"https://ar5iv.labs.arxiv.org/html/2502.20082/assets/x5.png\" />\n<em>图：LongRoPE2 论文 Figure 5，展示短上下文使用原始 RoPE、长上下文使用 rescaled RoPE 的 mixed context window training。Manifest 中 paper_url 指向不相关论文，正文依据 arXiv:2502.20082 补足。</em></p>\n<p>```python</p>"
+      "detail": "<p><img alt=\"LongRoPE2 mixed context window training\" src=\"https://ar5iv.labs.arxiv.org/html/2502.20082/assets/x5.png\" />\n<em>图：LongRoPE2 论文 Figure 5，展示短上下文使用原始 RoPE、长上下文使用 rescaled RoPE 的 mixed context window training。Manifest 中 paper_url 指向不相关论文，正文依据 arXiv:2502.20082 补足。</em></p>\n<pre><code class=\"language-python\"># LongRoPE2 搜索与训练伪代码\ndef longrope2_extend(model, target_len):\n    factors = init_by_theoretical_periods(model.rope_dims, target_len)\n    population = make_population(factors, size=64)\n\n    for _ in range(40):  # evolutionary search\n        scored = []\n        for candidate in population:\n            apply_rope_scaling(model, candidate)\n            ppl = needle_driven_perplexity(model, synthetic_needle_set(target_len))\n            scored.append((ppl, candidate))\n        parents = select_best(scored)\n        population = mutate_critical_dims(parents, prob=0.3)\n\n    best_factors = min(scored)[1]\n    for batch in mixed_context_batches(short_docs, long_docs):\n        if batch.length &lt;= original_len:\n            model.use_rope(&quot;original&quot;)\n        else:\n            model.use_rope(&quot;rescaled&quot;, best_factors)\n        train_step(model, batch)\n\n    return model\n</code></pre>\n<p><strong>动机与背景：RoPE 外推失败并不只因长度变大。</strong> RoPE 为不同维度分配不同旋转频率。低维高频分量在原始训练长度内经历过多个周期，而高维低频分量可能连一个完整周期都没见过。把上下文突然扩到 128K 或更长时，这些高维旋转角进入模型未训练过的区域，造成 position OOD。LongRoPE2 把这个问题称为高维 RoPE 训练不足。</p>\n<p><strong>核心机制一：按维度缩放，而不是统一拉伸。</strong> NTK/YaRN 等方法提供全局或规则化缩放，但不同 RoPE 维度的训练充分程度不同。LongRoPE2 先用理论 period 找到哪些维度在目标长度下会跨入风险区，再围绕 real critical dimension 搜索维度级 rescaling factor。形式上，位置 <span class=\"kb-math kb-math-inline\">p</span> 和第 <span class=\"kb-math kb-math-inline\">i</span> 个 RoPE 频率的角度从 <span class=\"kb-math kb-math-inline\">\\theta_i p</span> 改为：</p>\n<div class=\"kb-math kb-math-display\">\\theta&#x27;_i p = \\frac{\\theta_i}{s_i}p</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">s_i</span> 不是常数，而是搜索得到的 per-dimension factor。</p>\n<p><strong>核心机制二：needle-driven PPL 让搜索关注长程检索。</strong> 普通 PPL 对所有 token 平均，长上下文中局部语言建模 token 会淹没“是否真的利用远距离信息”的信号。LongRoPE2 在长文本中插入 needle，并只对答案 needle tokens 计算 perplexity。这样候选 rescaling factor 如果不能让模型跨长距离找回 needle，会直接得到更差分数。</p>\n<p><strong>核心机制三：mixed context window training 保短也保长。</strong> 只用长上下文 rescaled RoPE 继续训练，可能让模型短上下文基准下降；只保留原始 RoPE，又无法适应长位置。LongRoPE2 在训练中混合两种模式：短片段继续使用原始 RoPE，长片段使用搜索到的 rescaled RoPE。推理时也可根据输入长度切换 factor，减少“为了长上下文牺牲常规能力”的问题。</p>\n<p><strong>与 LongRoPE/YaRN 的区别：搜索目标更贴近有效上下文。</strong> 早期方法通常用预设缩放公式或搜索短期 PPL。LongRoPE2 把 OOD 假设、needle PPL 和 mixed-context 训练结合起来，因此不仅看模型能否在长序列上给低平均 loss，还看能否在远距离 needle retrieval 中保持准确，并保留短上下文评测。</p>\n<div class=\"key-point\">💡 关键：LongRoPE2 的“near-lossless”来自两个约束同时满足：长上下文位置不过度 OOD，短上下文仍用原始分布训练和推理。</div>",
+      "quiz": {
+        "q": "LongRoPE2 为什么使用 needle-driven perplexity 指导搜索？",
+        "options": [
+          "因为它只适用于代码补全",
+          "因为普通平均 PPL 容易被局部 token 淹没，不能直接反映远距离检索能力",
+          "因为 RoPE 不需要任何位置编码",
+          "因为它会删除短上下文训练"
+        ],
+        "answer": 1,
+        "explain": "needle token 的 PPL 更直接衡量模型是否能利用长距离上下文找回关键信息。"
+      }
     },
     {
       "id": "gpipe",
@@ -970,12 +1356,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "distributed",
       "motivation": "流水线并行微批次切分",
-      "summary": "GPipe 的核心目标是：流水线并行微批次切分。",
+      "summary": "GPipe 提出了一套面向任意顺序神经网络的流水线模型并行方法，通过把 mini-batch 切成 micro-batch 并在多个加速器上的模型分区之间同步流水执行，解决单卡显存无法容纳大模型以及朴素模型并行设备利用率低的问题。",
       "keyPoints": [
-        "核心动机：流水线并行微批次切分",
-        "代表机构：Google"
+        "将可表示为层序列的网络切成多个连续 cell，每个 cell 放到一个 accelerator 上执行。",
+        "使用 micro-batch pipeline：把一个 mini-batch 切成多个 micro-batch，让不同分区同时处理不同 micro-batch。",
+        "采用同步 mini-batch 梯度下降：所有 micro-batch 的梯度累积完以后再统一更新参数，避免异步流水线的 weight staleness。",
+        "在分区边界自动插入通信，只传递 activation tensor 和反向梯度，通信量主要由边界张量决定。",
+        "使用 rematerialization / recomputation 降低激活显存，前向只保留边界激活，反向时在分区内部重算中间激活。",
+        "通过基于计算代价的分区策略平衡每个 cell 的耗时，减少流水线 bubble 和 load imbalance。",
+        "实验展示了 557M 参数 AmoebaNet 在 ImageNet-2012 上达到 84.4% top-1，以及 128 层、6B 参数 multilingual Transformer 覆盖 103 种语言。"
       ],
-      "detail": "<p>流水线并行微批次切分</p>"
+      "detail": "<p><img alt=\"GPipe micro-batch pipeline 示意图\" src=\"https://ar5iv.labs.arxiv.org/html/1811.06965/assets/PipelineParallelism.png\" />\n<em>图：论文 Figure 2(c) 的流水线并行面板。横向表示时间，不同颜色表示不同模型分区，<code>F</code> 是 forward，<code>B</code> 是 backward，中央空白是 pipeline bubble。</em></p>\n<p>GPipe 的出发点不是为某一种网络手写并行规则，而是抓住一个更通用的结构：许多深度网络都可以看成有序层序列。设模型由层 <span class=\"kb-math kb-math-inline\">L_1, L_2, \\dots, L_N</span> 组成，GPipe 把连续层合并成 <span class=\"kb-math kb-math-inline\">K</span> 个 cell：<span class=\"kb-math kb-math-inline\">C_1, C_2, \\dots, C_K</span>，并把第 <span class=\"kb-math kb-math-inline\">k</span> 个 cell 放在第 <span class=\"kb-math kb-math-inline\">k</span> 个加速器上。对第 <span class=\"kb-math kb-math-inline\">m</span> 个 micro-batch，其前向传播可以写成：</p>\n<div class=\"kb-math kb-math-display\">h_k^{(m)} = C_k(h_{k-1}^{(m)}; \\theta_k), \\quad k=1,\\dots,K</div>\n<p>朴素模型并行会让设备按层串行等待：第 2 个分区必须等第 1 个分区完成同一个 batch 的前向，第 1 个分区处理完后又空闲，反向时也类似。GPipe 的关键改动是把原 mini-batch <span class=\"kb-math kb-math-inline\">B</span> 切成 <span class=\"kb-math kb-math-inline\">M</span> 个 micro-batch <span class=\"kb-math kb-math-inline\">B^{(1)},\\dots,B^{(M)}</span>。当 <span class=\"kb-math kb-math-inline\">C_2</span> 在处理 <span class=\"kb-math kb-math-inline\">B^{(1)}</span> 的前向时，<span class=\"kb-math kb-math-inline\">C_1</span> 可以立即处理 <span class=\"kb-math kb-math-inline\">B^{(2)}</span>，于是设备利用率显著提高。pipeline 的近似利用率常被理解为 <span class=\"kb-math kb-math-inline\">\\frac{M}{M+K-1}</span>：分区数 <span class=\"kb-math kb-math-inline\">K</span> 越多，启动和排空阶段的 bubble 越大；micro-batch 数 <span class=\"kb-math kb-math-inline\">M</span> 越多，bubble 被摊薄得越充分。</p>\n<pre><code class=\"language-python\"># GPipe 训练一步的核心逻辑，省略具体调度队列和通信实现\npartitions = partition_sequential_layers(model.layers, num_cells=K, balance_by_cost=True)\nmicro_batches = split(minibatch, chunks=M)\n\n# 1. 流水线前向：不同 cell 同时处理不同 micro-batch\nfor clock in range(M + K - 1):\n    for k in range(K):\n        m = clock - k\n        if 0 &lt;= m &lt; M:\n            h[k + 1][m] = partitions[k].forward(h[k][m])\n\n# 2. 计算每个 micro-batch 的 loss\nloss = sum(loss_fn(h[K][m], target[m]) for m in range(M)) / M\n\n# 3. 反向流水线：按相反方向传回梯度，并对每个分区累积梯度\nfor clock in range(M + K - 1):\n    for k in reversed(range(K)):\n        m = clock - (K - 1 - k)\n        if 0 &lt;= m &lt; M:\n            grad_h[k][m], grad_theta[k] += partitions[k].backward(grad_h[k + 1][m])\n\n# 4. 同步更新：所有 micro-batch 都完成后才更新一次\noptimizer.step(accumulated_gradients=grad_theta)\noptimizer.zero_grad()\n</code></pre>\n<p>同步更新是 GPipe 与一些异步 pipeline 方法的关键差异。对一个 mini-batch 的目标函数可写为：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}(\\theta)=\\frac{1}{M}\\sum_{m=1}^{M}\\ell\\left(C_K\\circ C_{K-1}\\circ\\cdots\\circ C_1(x^{(m)}), y^{(m)}\\right)</div>\n<p>GPipe 在所有 micro-batch 的梯度 <span class=\"kb-math kb-math-inline\">\\nabla_\\theta \\ell_m</span> 累积后执行一次参数更新：</p>\n<div class=\"kb-math kb-math-display\">\\theta \\leftarrow \\theta - \\eta \\cdot \\frac{1}{M}\\sum_{m=1}^{M}\\nabla_\\theta \\ell_m</div>\n<p>因此，同一个 mini-batch 内所有 micro-batch 都看到同一版本的参数。这样做牺牲了部分调度自由度，但换来与普通 mini-batch SGD 一致的更新语义；增加分区数或 micro-batch 数不会改变数学上的 batch gradient，只改变执行计划。这一点对于大模型预训练很重要，因为训练稳定性通常比单步吞吐更敏感。</p>\n<p>显存优化来自 rematerialization。若每个分区在前向时缓存所有层的中间激活，activation memory 会随着分区内层数和 micro-batch 数增长。GPipe 只保存分区边界上的 activation；反向传播到某个 cell 时，再重新执行该 cell 的局部前向来恢复内部中间值，然后计算梯度。这相当于用额外计算换显存。对超大 Transformer 或 AmoebaNet，这个折中非常实用：重算增加的 FLOPs 通常小于因模型能跨卡放大而获得的收益。</p>\n<p>GPipe 的通信也被限制在 cell 边界。第 <span class=\"kb-math kb-math-inline\">k</span> 个设备只需把 <span class=\"kb-math kb-math-inline\">h_k^{(m)}</span> 发送给第 <span class=\"kb-math kb-math-inline\">k+1</span> 个设备，并在反向时接收 <span class=\"kb-math kb-math-inline\">\\partial \\mathcal{L}/\\partial h_k^{(m)}</span>。相比张量并行在层内频繁 all-reduce，GPipe 的通信模式更像点到点 activation 传递，容易与数据并行组合：每个数据并行副本内部做 GPipe，副本之间再同步参数梯度。</p>\n<div class=\"key-point\">💡 关键：GPipe 的核心不是“把模型切开”这一件事，而是“切模型 + 切 batch + 同步累积 + 激活重算”四件事共同成立。只切模型会产生严重空闲；只切 batch 不解决单卡显存；只做流水线但异步更新会引入 staleness；只做重算则无法提升多设备利用率。</div>\n<p>与传统数据并行相比，GPipe 解决的是单个模型无法放进一张卡的问题，而不是单纯扩大 batch 吞吐。与朴素模型并行相比，它利用 micro-batch 让多个分区同时工作。与 Mesh-TensorFlow 一类更通用的张量切分框架相比，GPipe 的假设更简单：模型可按层顺序切分即可，因此实现门槛低，但对非顺序结构、分区不均衡、跨层跳连较复杂的模型需要更仔细的 partition function。</p>",
+      "quiz": {
+        "q": "GPipe 为什么要等所有 micro-batch 的梯度累积完以后再更新参数？",
+        "options": [
+          "为了让每个 micro-batch 使用不同参数，从而增加随机性",
+          "为了保持与普通 mini-batch SGD 一致的同步梯度语义，避免同一 batch 内参数陈旧",
+          "为了减少 forward pass 的计算量",
+          "为了把所有通信都替换为广播操作"
+        ],
+        "answer": 1,
+        "explain": "GPipe 的同步更新让一个 mini-batch 内的所有 micro-batch 基于同一参数版本计算梯度，最后统一更新，避免异步 pipeline 中常见的 stale weight 问题。"
+      }
     },
     {
       "id": "megatron_lm",
@@ -989,12 +1391,29 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "distributed",
       "motivation": "张量并行Transformer层内切分",
-      "summary": "Megatron-LM 的核心目标是：张量并行Transformer层内切分。",
+      "summary": "Megatron-LM 提出了一种面向 Transformer 的层内张量并行方案，通过按矩阵列/行和 attention head 切分 MLP、Self-Attention 与词表 embedding，在只插入少量 all-reduce 的情况下训练数十亿参数语言模型。",
       "keyPoints": [
-        "核心动机：张量并行Transformer层内切分",
-        "代表机构：NVIDIA"
+        "将 Transformer 层内部的 GEMM 做 tensor model parallel，而不是只按层做 pipeline parallel。",
+        "MLP 中第一层线性按列切分，GeLU 可在每张 GPU 本地独立执行；第二层线性按行切分，输出通过 all-reduce 合并。",
+        "Self-Attention 中 Q/K/V 按 attention head 或列维度切分，每张 GPU 计算一部分 head，输出投影再按行切分并 all-reduce。",
+        "引入成对通信算子 <span class=\"kb-math kb-math-inline\">f</span> 与 <span class=\"kb-math kb-math-inline\">g</span>：一个 forward 恒等、backward all-reduce；另一个 forward all-reduce、backward 恒等。",
+        "每个 Transformer layer 的主要并行区域只需 forward 两次 all-reduce、backward 两次 all-reduce。",
+        "输入 embedding 按 vocabulary 维度切分；输出 embedding 与 cross-entropy 融合，避免 all-gather 巨大的 vocabulary logits。",
+        "LayerNorm、dropout、residual 等便宜操作在各 GPU 上复制执行，保持 GPU 主要时间花在大 GEMM 上。",
+        "论文在 512 张 V100 GPU 上训练 8.3B GPT-2-like 模型，达到 15.1 PFLOPs 和 76% scaling efficiency，并报告 WikiText103、LAMBADA、RACE 上的 SOTA 结果。"
       ],
-      "detail": "<p>张量并行Transformer层内切分</p>"
+      "detail": "<p><img alt=\"Megatron-LM MLP tensor parallel 示意图\" src=\"https://ar5iv.labs.arxiv.org/html/1909.08053/assets/mlp_mp_2.png\" />\n<em>图：论文 Figure 3(a)。第一层 MLP 矩阵 <span class=\"kb-math kb-math-inline\">A</span> 按列切分，第二层矩阵 <span class=\"kb-math kb-math-inline\">B</span> 按行切分，GeLU 夹在两次 GEMM 中间但不需要跨卡同步。</em></p>\n<p><img alt=\"Megatron-LM Self-Attention tensor parallel 示意图\" src=\"https://ar5iv.labs.arxiv.org/html/1909.08053/assets/attention_mp_2.png\" />\n<em>图：论文 Figure 3(b)。Q/K/V 与 attention heads 被分配到不同 GPU，本地完成一部分 head 的注意力计算，输出线性层后再合并。</em></p>\n<p>Megatron-LM 的基本判断是：Transformer 的主要计算量集中在大矩阵乘法，而这些矩阵乘法具有天然可切分结构。对 MLP 块，设输入为 <span class=\"kb-math kb-math-inline\">X</span>，第一层权重为 <span class=\"kb-math kb-math-inline\">A</span>，第二层权重为 <span class=\"kb-math kb-math-inline\">B</span>，原始计算为：</p>\n<div class=\"kb-math kb-math-display\">Y = \\mathrm{GeLU}(XA), \\quad Z = YB</div>\n<p>如果把 <span class=\"kb-math kb-math-inline\">A</span> 按列切分为 <span class=\"kb-math kb-math-inline\">[A_1, A_2]</span>，则：</p>\n<div class=\"kb-math kb-math-display\">Y = [Y_1, Y_2] = [\\mathrm{GeLU}(XA_1), \\mathrm{GeLU}(XA_2)]</div>\n<p>GeLU 是逐元素非线性，可以在每个分片上本地执行，不需要先把 <span class=\"kb-math kb-math-inline\">XA_1</span> 与 <span class=\"kb-math kb-math-inline\">XA_2</span> 聚合。这是设计的核心直觉：非线性函数不能跨加法随意交换，因此要选择一种切法，让非线性前不需要同步。随后把 <span class=\"kb-math kb-math-inline\">B</span> 按行切为 <span class=\"kb-math kb-math-inline\">\\begin{bmatrix}B_1 \\\\ B_2\\end{bmatrix}</span>，输出为：</p>\n<div class=\"kb-math kb-math-display\">Z = YB = Y_1B_1 + Y_2B_2</div>\n<p>这个求和通过一次 all-reduce 完成。也就是说，MLP 中两个 GEMM 被“配对切分”：第一个 GEMM column-parallel，第二个 GEMM row-parallel，中间的 GeLU 完全本地化，最后只在必要位置同步。</p>\n<pre><code class=\"language-python\"># Megatron-LM Transformer layer 的张量并行伪代码，world_size 张 GPU 组成一个 model-parallel group\nfor layer in transformer_layers:\n    # Self-Attention: QKV column-parallel，按 head 分片\n    x_norm = layernorm_replicated(x)\n    q_i, k_i, v_i = column_parallel_qkv(x_norm, shard_id=rank)\n    attn_i = scaled_dot_product_attention(q_i, k_i, v_i)   # 每张 GPU 只算自己的 heads\n    attn_out_i = row_parallel_projection(attn_i, shard_id=rank)\n    attn_out = all_reduce_sum(attn_out_i)                  # g: forward all-reduce\n    x = x + dropout_replicated(attn_out)\n\n    # MLP: A column-parallel，B row-parallel\n    x_norm = layernorm_replicated(x)\n    hidden_i = gelu(x_norm @ A_i)                          # 不需要同步即可 GeLU\n    mlp_out_i = hidden_i @ B_i\n    mlp_out = all_reduce_sum(mlp_out_i)                    # g: forward all-reduce\n    x = x + dropout_replicated(mlp_out)\n</code></pre>\n<p>论文中的 <span class=\"kb-math kb-math-inline\">f</span> 与 <span class=\"kb-math kb-math-inline\">g</span> 是实现这个图的关键抽象。<span class=\"kb-math kb-math-inline\">f</span> 在 forward pass 中是 identity，在 backward pass 中对梯度 all-reduce；<span class=\"kb-math kb-math-inline\">g</span> 在 forward pass 中 all-reduce，在 backward pass 中是 identity。二者是共轭的 autograd function，因此可以用少量 PyTorch 自定义 autograd 代码实现，而不用新编译器或重写整个框架。直观上，<span class=\"kb-math kb-math-inline\">f</span> 让各 GPU 在前向拿到同样输入但反向时合并输入梯度；<span class=\"kb-math kb-math-inline\">g</span> 让分片输出在前向相加，反向时每个分片自然接收自己的梯度。</p>\n<p>Self-Attention 的切分利用了 multi-head attention 的结构。多个 attention head 在 softmax 前后基本独立，所以可以把 Q/K/V 的投影矩阵按列切分，使每张 GPU 负责一部分 head：</p>\n<div class=\"kb-math kb-math-display\">Q_i = XW^Q_i, \\quad K_i = XW^K_i, \\quad V_i = XW^V_i</div>\n<p>然后每张 GPU 本地计算 <span class=\"kb-math kb-math-inline\">\\mathrm{softmax}(Q_iK_i^\\top / \\sqrt{d})V_i</span>。只有在 attention 输出投影时，需要像 MLP 第二层那样把行切分的结果求和。这样的好处是把最重的 attention-head 内部计算留在本地，通信只发生在 block 边界，而不是每个中间张量之后都同步。</p>\n<p>Embedding 层也需要特殊处理。语言模型的输出 logits 维度是 vocabulary size，GPT-2 词表约五万量级，直接 all-gather logits 会产生很大的通信。Megatron-LM 把 input embedding 按 vocabulary 维度切分，并对 output embedding GEMM 与 cross-entropy loss 做融合：每张 GPU 只保留自己词表分片上的 logits，计算局部 loss 所需项，再通过较小的标量或向量归约得到全局 loss。这样避免了把 <span class=\"kb-math kb-math-inline\">B \\times S \\times V</span> 的大 logits 张量完整聚合到每张 GPU。</p>\n<p>与 GPipe 的层间流水线不同，Megatron-LM 的 2019 论文重点是层内切分：单个 Transformer layer 的参数、激活和计算被拆到多张 GPU 上。它与 pipeline parallelism 正交，后续大规模训练系统通常会组合 tensor parallel、pipeline parallel 和 data parallel。论文当时强调的工程价值在于“少量侵入式修改”：原有 PyTorch Transformer 只需替换线性层、QKV 投影、embedding 和通信函数，就能扩展到多 GPU model-parallel group。</p>\n<div class=\"warn-box\">⚠️ 注意：张量并行并不是免费扩展。切得越细，每张 GPU 上的 GEMM 越小，通信占比越高；attention head 数也会影响切分粒度。Megatron-LM 的设计目标是让 GPU 仍然 compute-bound，即把 all-reduce 限制在少数必须同步的位置，并尽量复用 Transformer 里最规则的大矩阵乘法。</div>\n<p>论文还指出 BERT-like 模型放大时 layer normalization 的位置会影响训练稳定性。Megatron-LM 使用类似 GPT-2/BERT 常见的 pre-LN 风格，把 LayerNorm 放在 attention 和 MLP 子层输入侧，使更大 BERT 模型随规模增加仍能获得更好的下游结果。这部分不是张量并行本身，但说明大模型扩展同时依赖并行系统和可训练架构细节。</p>",
+      "quiz": {
+        "q": "Megatron-LM 在 MLP 中为什么把第一层 GEMM 按列切分、第二层 GEMM 按行切分？",
+        "options": [
+          "为了让 GeLU 在每个分片本地执行，并只在第二层输出处做一次 all-reduce",
+          "为了把所有参数复制到每张 GPU，减少显存占用",
+          "为了让每个 attention head 共享同一个 Q/K/V 投影",
+          "为了完全消除 forward 和 backward 中的通信"
+        ],
+        "answer": 0,
+        "explain": "第一层列切分后 GeLU 可独立作用于每个输出分片；第二层行切分后各分片结果求和，用一次 all-reduce 合并即可。"
+      }
     },
     {
       "id": "zero",
@@ -1008,12 +1427,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "distributed",
       "motivation": "优化器/梯度/参数分片存储",
-      "summary": "ZeRO 的核心目标是：优化器/梯度/参数分片存储。",
+      "summary": "ZeRO 通过在数据并行进程之间分片优化器状态、梯度和参数，消除传统 Data Parallel 中模型状态的冗余存储，使训练显存随数据并行规模近似线性扩展，同时尽量保持数据并行的计算粒度和通信效率。",
       "keyPoints": [
-        "核心动机：优化器/梯度/参数分片存储",
-        "代表机构：Microsoft"
+        "ZeRO-DP 将数据并行中的 model states 从“每卡完整复制”改为“按 rank 分片保存”，覆盖 optimizer states、gradients、parameters 三类最大显存来源",
+        "Stage 1 <span class=\"kb-math kb-math-inline\">P_{os}</span>：分片 Adam 等优化器状态，混合精度 Adam 下可达到约 4x model-state 显存降低，通信量与普通 DP 基本一致",
+        "Stage 2 <span class=\"kb-math kb-math-inline\">P_{os+g}</span>：继续分片梯度，显存降低约 8x，梯度规约从 all-reduce 组织为 reduce-scatter 语义",
+        "Stage 3 <span class=\"kb-math kb-math-inline\">P_{os+g+p}</span>：继续分片参数，需要前向/反向按需 all-gather 参数，model-state 显存随数据并行度 <span class=\"kb-math kb-math-inline\">N_d</span> 近似线性降低",
+        "ZeRO-R 处理残余显存：partitioned activation checkpointing、constant-size buffers、memory defragmentation，避免激活、临时通信缓冲和碎片成为新瓶颈",
+        "ZeRO 保持数据并行的高计算粒度，可与模型并行组合；论文分析显示 1024 张 GPU 可支撑 1T 参数级模型状态存储"
       ],
-      "detail": "<p>优化器/梯度/参数分片存储</p>"
+      "detail": "<p><img alt=\"ZeRO-DP 三阶段显存对比\" src=\"https://ar5iv.labs.arxiv.org/html/1910.02054/assets/x1.png\" />\n<em>图：ZeRO 论文 Figure 1，对比标准数据并行和 ZeRO-DP 三个阶段的单卡 model-state 显存。</em></p>\n<pre><code class=\"language-python\"># ZeRO-DP 训练步骤伪代码，展示三阶段的核心通信/存储逻辑\ndef zero_train_step(model, batch, rank, world_size, stage):\n    # 每个 rank 始终只拥有自己的优化器状态分片\n    optimizer_state = load_optimizer_state_shard(rank)\n\n    # Stage 3: 参数也只保留本地分片；每层计算前临时收集完整参数\n    for layer in model.layers:\n        if stage &gt;= 3:\n            full_param = all_gather(layer.param_shard)\n        else:\n            full_param = layer.full_param\n\n        activation = layer.forward(batch, full_param)\n\n        if stage &gt;= 3:\n            release_non_owned_param_shards(full_param, rank)\n\n    loss = compute_loss(activation)\n\n    for layer in reversed(model.layers):\n        if stage &gt;= 3:\n            full_param = all_gather(layer.param_shard)\n\n        grad = layer.backward(loss)\n\n        if stage &gt;= 2:\n            grad_shard = reduce_scatter(grad)       # 梯度求和并只留下本 rank 分片\n        else:\n            grad_shard = all_reduce(grad)           # 普通 DP 梯度同步\n\n        if stage &gt;= 3:\n            release_non_owned_param_shards(full_param, rank)\n\n    # Stage 1/2/3: 只更新自己负责的参数/优化器状态分片\n    updated_param_shard = optimizer_step(\n        param_shard=get_param_shard(rank),\n        grad_shard=grad_shard,\n        optimizer_state=optimizer_state,\n    )\n\n    if stage &lt; 3:\n        all_gather_updated_params(updated_param_shard)\n</code></pre>\n<p><strong>动机与背景：大模型训练的显存瓶颈首先来自 model states，而不是参数本身。</strong> 以混合精度 Adam 为例，训练时不仅要保存 FP16 参数和 FP16 梯度，还要保存 FP32 master parameters、momentum、variance 等优化器状态。若模型参数量为 <span class=\"kb-math kb-math-inline\">\\Psi</span>，优化器状态 multiplier 为 <span class=\"kb-math kb-math-inline\">K</span>，标准数据并行每张卡都保存完整状态，model-state 显存近似为：</p>\n<div class=\"kb-math kb-math-display\">M_{\\text{DP}} = 2\\Psi_{\\text{param}} + 2\\Psi_{\\text{grad}} + K\\Psi_{\\text{optim}}</div>\n<p>混合精度 Adam 中 <span class=\"kb-math kb-math-inline\">K=12</span>，因此总量约为 <span class=\"kb-math kb-math-inline\">16\\Psi</span> bytes。普通数据并行增加 GPU 数只增加 batch 并复制这些状态，单卡显存并不会下降；模型并行虽然能切参数，但会破坏算子粒度并引入层内通信。ZeRO 的核心判断是：数据并行已经有最好的编程模型和较大的计算粒度，真正浪费的是每个 rank 上重复保存同一份模型状态。</p>\n<p><strong>ZeRO-DP 的三阶段是累积启用的显存去冗余策略。</strong> Stage 1 <span class=\"kb-math kb-math-inline\">P_{os}</span> 只分片 optimizer states：每个 rank 只维护自己负责的 Adam 状态和参数更新，更新后通过 all-gather 让各 rank 得到一致参数。此时显存从 <span class=\"kb-math kb-math-inline\">(4+K)\\Psi</span> 降到：</p>\n<div class=\"kb-math kb-math-display\">M_{P_{os}} = 4\\Psi + \\frac{K\\Psi}{N_d}</div>\n<p>Stage 2 <span class=\"kb-math kb-math-inline\">P_{os+g}</span> 进一步分片梯度，反向传播结束后不再让每张卡保存完整梯度，而是通过 reduce-scatter 只保留对应分片：</p>\n<div class=\"kb-math kb-math-display\">M_{P_{os+g}} = 2\\Psi + \\frac{(2+K)\\Psi}{N_d}</div>\n<p>Stage 3 <span class=\"kb-math kb-math-inline\">P_{os+g+p}</span> 连参数也分片保存，前向和反向只在某一层需要时临时 all-gather 该层参数，用完立即释放非本地分片，最终 model-state 显存降到：</p>\n<div class=\"kb-math kb-math-display\">M_{P_{os+g+p}} = \\frac{(4+K)\\Psi}{N_d}</div>\n<p><strong>关键机制不是“少算”，而是“只在需要时 materialize”。</strong> 标准 DP 在整个训练 step 中静态持有完整参数、梯度和优化器状态，但 Transformer 层的参数只在该层前向和反向附近被使用。ZeRO-3 把参数视为有生命周期的临时对象：计算前 all-gather，计算后释放；梯度在反向完成后 reduce-scatter；优化器只更新本地分片。这样仍执行和普通训练等价的数学更新，但把常驻显存从“完整模型”改成“本地分片 + 当前层临时完整参数”。</p>\n<p><strong>ZeRO-R 解决 ZeRO-DP 之后暴露出的残余显存问题。</strong> 当 model states 大幅下降后，activation checkpoint、通信临时 buffer 和 CUDA 内存碎片会变得更突出。ZeRO-R 对模型并行中的激活做 partitioned activation checkpointing，避免每个 MP rank 保存重复激活；对 all-reduce 等操作使用固定大小通信 buffer，避免超大临时张量直接占满显存；同时按张量生命周期管理内存，减少“总空闲足够但没有连续块”的碎片化 OOM。</p>\n<p><strong>与传统数据并行和模型并行的区别在于效率取舍。</strong> 普通 DP 通信简单但显存完全冗余；MP/PP 能降低显存但要求模型结构切分，跨节点通信和 pipeline bubble 会降低效率。ZeRO 试图保留 DP 的用户体验和大矩阵计算粒度，只改变状态放置和通信调度。因此它特别适合把单机无法容纳的大模型扩展到多机多卡，同时仍能和 Megatron-LM 这类模型并行技术组合使用。</p>\n<div class=\"key-point\">💡 关键：ZeRO 的“Zero Redundancy”不是压缩模型或改变优化器，而是把每个 rank 上不必要的重复状态移除；训练结果应与对应的数据并行优化过程保持等价。</div>",
+      "quiz": {
+        "q": "ZeRO Stage 3 相比 Stage 2 额外分片了哪一类 model state？",
+        "options": [
+          "激活值 activation",
+          "模型参数 parameters",
+          "训练样本 batch",
+          "注意力分数矩阵 attention scores"
+        ],
+        "answer": 1,
+        "explain": "Stage 2 已经分片优化器状态和梯度；Stage 3 进一步分片参数，并在每层计算前按需 all-gather。"
+      }
     },
     {
       "id": "fsdp",
@@ -1027,13 +1461,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "distributed",
       "motivation": "PyTorch原生完全分片数据并行",
-      "summary": "FSDP 的核心目标是：PyTorch原生完全分片数据并行。",
+      "summary": "FSDP 将 ZeRO-3 风格的参数、梯度和优化器状态完全分片做成 PyTorch 原生训练机制，通过按 FSDP unit 临时 all-gather、计算后释放、反向 reduce-scatter，让大模型以接近 DDP 的使用体验在更小单卡显存上训练。",
       "keyPoints": [
-        "核心动机：PyTorch原生完全分片数据并行",
-        "演化来源：继承或改进自 zero",
-        "代表机构：Meta"
+        "FSDP 把模型拆成多个 FSDP unit，每个 unit 内参数被展平为 FlatParameter 并均匀切成 rank 分片",
+        "前向/反向只 materialize 当前 unit 的完整参数，其余 unit 常驻为 sharded parameter",
+        "反向结束时对 FlatParameter gradient 执行 ReduceScatter，使每个 rank 只保存梯度分片，optimizer states 也保持分片",
+        "支持 full sharding、hybrid sharding 和 full replication，通过 sharding factor 在显存节省与通信开销之间调节",
+        "使用 deferred initialization 在 fake device 上记录初始化，再按 unit 在真实 GPU 上初始化和分片，降低超大模型初始化峰值显存",
+        "通信优化包括单独 CUDA stream 上的 AllGather、backward prefetch、forward prefetch、gradient accumulation 选项和 caching allocator rate limiter",
+        "PyTorch 实现通过 autograd-visible views 和 hooks 接入原生 autograd，尽量保持用户模型代码和训练语义不变"
       ],
-      "detail": "<p><img alt=\"FSDP 算法总览\" src=\"https://ar5iv.labs.arxiv.org/html/2304.11277/assets/x1.png\" />\n<em>图：FSDP 论文 Figure 1，模型被拆成多个 FSDP unit；每个 unit 在前向/反向前收集完整参数，计算后释放非本地分片。</em></p>\n<p><img alt=\"FlatParameter 完全分片\" src=\"https://ar5iv.labs.arxiv.org/html/2304.11277/assets/x4.png\" />\n<em>图：FSDP 论文 Figure 3，原始参数被 flatten/concat/pad 成 FlatParameter，再按 sharding group 均匀切分。</em></p>\n<p>```python</p>"
+      "detail": "<p><img alt=\"FSDP 算法总览\" src=\"https://ar5iv.labs.arxiv.org/html/2304.11277/assets/x1.png\" />\n<em>图：FSDP 论文 Figure 1，模型被拆成多个 FSDP unit；每个 unit 在前向/反向前收集完整参数，计算后释放非本地分片。</em></p>\n<p><img alt=\"FlatParameter 完全分片\" src=\"https://ar5iv.labs.arxiv.org/html/2304.11277/assets/x4.png\" />\n<em>图：FSDP 论文 Figure 3，原始参数被 flatten/concat/pad 成 FlatParameter，再按 sharding group 均匀切分。</em></p>\n<pre><code class=\"language-python\"># FSDP 单步训练核心逻辑伪代码\ndef fsdp_train_step(fsdp_units, batch, optimizer):\n    x = batch\n\n    # Forward: 每个 unit 只在执行时 all-gather 完整参数\n    for unit in fsdp_units:\n        unit.full_param = all_gather(unit.flat_param_shard)\n        unit.install_param_views(unit.full_param)\n        x = unit.forward(x)\n        unit.free_peer_param_shards()       # 保留本地 shard，释放临时收集的 peer shards\n\n    loss = compute_loss(x)\n\n    # Backward: 按反向顺序重新 materialize 参数并规约梯度\n    grad = loss_grad(loss)\n    for unit in reversed(fsdp_units):\n        unit.full_param = all_gather(unit.flat_param_shard)\n        unit.install_param_views(unit.full_param)\n        grad = unit.backward(grad)\n        unit.free_peer_param_shards()\n        unit.grad_shard = reduce_scatter(unit.flat_param_grad)\n\n    # Optimizer states 始终分片；每个 rank 只更新自己的 FlatParameter shard\n    for unit in fsdp_units:\n        optimizer.step(\n            param_shard=unit.flat_param_shard,\n            grad_shard=unit.grad_shard,\n            optim_state_shard=unit.optim_state_shard,\n        )\n</code></pre>\n<p><strong>动机与背景：FSDP 的目标是把完全分片数据并行变成 PyTorch 的工业级默认能力。</strong> DDP 的问题很直接：每个 rank 都要放完整参数、完整梯度和完整优化器状态，模型稍大就会触发 OOM。ZeRO-3 证明了完全分片可行，但在框架层面要处理初始化、autograd、通信调度、CUDA allocator、动态图等大量工程细节。FSDP 论文的贡献不是提出新的优化目标，而是把“完全分片 + 按需 materialization”系统性集成进 PyTorch。</p>\n<p><strong>FSDP unit 是显存峰值和通信效率的核心粒度。</strong> 模型被包装成多个 FSDP unit，每个 unit 的参数被拼接成一个 FlatParameter。设模型总元素数为 <span class=\"kb-math kb-math-inline\">\\Psi</span>，第 <span class=\"kb-math kb-math-inline\">i</span> 个 FlatParameter 大小为 <span class=\"kb-math kb-math-inline\">\\psi_i</span>，sharding factor 为 <span class=\"kb-math kb-math-inline\">F</span>，则参数相关峰值近似包含两部分：</p>\n<div class=\"kb-math kb-math-display\">O\\left(\\sum_i \\frac{\\psi_i}{F} + \\max_i \\psi_i\\right)</div>\n<p>第一项是所有 unit 的常驻本地分片，第二项是当前被 all-gather 出来的最大完整 unit。unit 划得越细，峰值显存越低，但 collective 次数更多；unit 划得越粗，通信更高效但需要更大瞬时显存。因此 FSDP 的 auto-wrap/manual-wrap 本质上是在调这个 memory-throughput trade-off。</p>\n<p><strong>FlatParameter 让通信更接近 NCCL 的高效路径。</strong> 原始模型参数形状不一，直接对每个小 tensor all-gather/reduce-scatter 会产生大量小 collective 和不均匀输入。FSDP 将一个 unit 内参数 flatten、concat，并 padding 到可被 sharding factor 整除，随后每个 rank 持有等长 chunk。这样 unsharded FlatParameter 和 sharded FlatParameter 的布局天然匹配 AllGather 和 ReduceScatter，减少额外 copy，也避免小消息通信启动开销过高。</p>\n<p><strong>训练流程与普通本地训练等价，但参数生命周期不同。</strong> 前向进入某个 unit 前，FSDP all-gather 完整 FlatParameter，并把原始参数设置为其 view；计算完成后释放 peer shards，只留下本地分片。反向到达该 unit 前再次 all-gather，autograd 写入完整 FlatParameter gradient，unit 结束后用 ReduceScatter 求和并切回梯度分片。优化器只看本地 param/grad/state shard，因此 optimizer states 不需要完整 materialize。</p>\n<p><strong>通信重叠和 prefetch 是 FSDP 能接近 DDP 性能的关键。</strong> FSDP 的 full sharding 会引入比 DDP 更多的 AllGather/ReduceScatter，论文指出 ring 算法下 full sharding 通信量可达到 DDP 的约 1.5x。为了减少暴露在 critical path 上的时间，FSDP 在单独 CUDA stream 上发 AllGather，避免 default stream 的伪依赖；backward prefetch 根据记录到的 forward order 预测反向顺序，在当前 ReduceScatter 前提前发起下一个 AllGather；forward prefetch 则面向静态图和较慢 CPU 调度场景，提前填充 NCCL stream。</p>\n<p><strong>FSDP 的工程难点还包括初始化和内存分配器行为。</strong> 超大模型不能先在一张 GPU 上完整初始化再分片，因此 FSDP 支持 deferred initialization：在 fake device 上创建参数并记录初始化操作，包装后逐个 unit 在真实 GPU 上 materialize、replay 初始化、再分片。另一方面，AllGather 目标 tensor 常在 producer stream 分配，计算在 consumer stream 使用；CPU 若跑得过快，PyTorch caching allocator 可能无法复用已有 block，引发 cudaMalloc retry。FSDP 的 rate limiter 限制最多两个 inflight AllGather，在保持重叠的同时降低分配器峰值压力。</p>\n<div class=\"key-point\">💡 关键：FSDP 的“fully sharded”不是把计算也切碎，而是让每个 rank 在计算当前 unit 时临时拥有完整参数；这保留了本地算子语义，也把常驻显存压到分片级别。</div>",
+      "quiz": {
+        "q": "FSDP 中 FlatParameter 的主要作用是什么？",
+        "options": [
+          "把多个参数展平拼接后均匀分片，提升 AllGather/ReduceScatter 的通信效率",
+          "把模型层改写成流水线并行 stage",
+          "把激活值压缩成低精度格式",
+          "替代 autograd 计算梯度"
+        ],
+        "answer": 0,
+        "explain": "FlatParameter 统一参数布局并保证分片大小均匀，使 FSDP 可以用高效 collective 通信，同时减少小 tensor 通信开销。"
+      }
     },
     {
       "id": "distflashattn",
@@ -1047,13 +1496,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "distributed",
       "motivation": "Token级负载均衡百万上下文",
-      "summary": "DISTFLASHATTN 的核心目标是：Token级负载均衡百万上下文。",
+      "summary": "DISTFLASHATTN 将 FlashAttention 扩展到序列维度分布式训练，通过 token/worker 级负载均衡、KV 通信与计算重叠、以及 rematerialization-aware checkpointing，在保持精确注意力的同时支持 32K 到 512K 级长上下文训练。",
       "keyPoints": [
-        "核心动机：Token级负载均衡百万上下文",
-        "演化来源：继承或改进自 flash_attention_2",
-        "代表机构：学术界"
+        "沿 sequence dimension 把一个长序列的 tokens 均匀切到 <span class=\"kb-math kb-math-inline\">P</span> 个 worker，每个 worker 只保存 <span class=\"kb-math kb-math-inline\">N/P</span> 个 query/key/value 激活",
+        "继承 FlashAttention 的 IO-aware blockwise 计算方式，每次只流式拉取一个远端 <span class=\"kb-math kb-math-inline\">K,V</span> chunk，而不是本地 materialize 全部 <span class=\"kb-math kb-math-inline\">K,V</span>",
+        "针对 causal attention 的天然三角工作量不均衡，使用 helper worker 计算后段 worker 的部分 attention block，并回传 partial output 与 softmax statistics",
+        "使用独立通信 stream 预取远端 key/value，使 P2P 通信与当前 attention block 计算重叠",
+        "将 checkpoint 边界移动到 FlashAttention 输出处，避免 HuggingFace 式 layer-level checkpointing 触发额外一次 FlashAttention forward recomputation",
+        "通信分析中 DISTFLASHATTN 每轮约 <span class=\"kb-math kb-math-inline\">3Nd</span> 通信量，Megatron-LM 在 checkpointing 下约 <span class=\"kb-math kb-math-inline\">14Nd</span>，理论通信量降低约 4.7x",
+        "与 FSDP 正交：DISTFLASHATTN 降低长序列 activation/attention 显存，FSDP 分片模型权重、梯度和优化器状态"
       ],
-      "detail": "<p><img alt=\"DISTFLASHATTN 序列并行与负载均衡\" src=\"https://ar5iv.labs.arxiv.org/html/2310.03294/assets/x1.png\" />\n<em>图：论文 Figure 1，左侧为序列维度切分，右侧展示 causal attention 负载均衡前后的 bubble。</em></p>\n<p><img alt=\"DISTFLASHATTN 通信计算重叠\" src=\"https://ar5iv.labs.arxiv.org/html/2310.03294/assets/x2.png\" />\n<em>图：论文 Figure 2，worker 7 在计算当前 attention block 时用通信 stream 预取下一块远端 KV。</em></p>\n<p><img alt=\"Rematerialization-aware checkpointing\" src=\"https://ar5iv.labs.arxiv.org/html/2310.03294/assets/x4.png\" />\n<em>图：论文 checkpointing 对比，将 checkpoint 放在 FlashAttention 输出处，避免重复执行 attention forward。</em></p>\n<p>```python</p>"
+      "detail": "<p><img alt=\"DISTFLASHATTN 序列并行与负载均衡\" src=\"https://ar5iv.labs.arxiv.org/html/2310.03294/assets/x1.png\" />\n<em>图：论文 Figure 1，左侧为序列维度切分，右侧展示 causal attention 负载均衡前后的 bubble。</em></p>\n<p><img alt=\"DISTFLASHATTN 通信计算重叠\" src=\"https://ar5iv.labs.arxiv.org/html/2310.03294/assets/x2.png\" />\n<em>图：论文 Figure 2，worker 7 在计算当前 attention block 时用通信 stream 预取下一块远端 KV。</em></p>\n<p><img alt=\"Rematerialization-aware checkpointing\" src=\"https://ar5iv.labs.arxiv.org/html/2310.03294/assets/x4.png\" />\n<em>图：论文 checkpointing 对比，将 checkpoint 放在 FlashAttention 输出处，避免重复执行 attention forward。</em></p>\n<pre><code class=\"language-python\"># Balanced DISTFLASHATTN forward 伪代码，简化自论文 Algorithm 1/2\ndef distflashattn_worker(p, Q_p, K_p, V_p, world_size):\n    O_p = zeros_like(Q_p)\n    stats_p = init_softmax_stats(Q_p)  # m, l 等在线 softmax 统计量\n\n    # 先计算本地 token chunk 的注意力\n    O_p, stats_p = flash_attn_block(Q_p, K_p, V_p, O_p, stats_p)\n\n    # causal attention 中只需要访问当前 worker 及更早 worker 的 KV\n    for t in range(1, world_size // 2 + 1):\n        remote = (p - t) % world_size\n\n        if p &gt; t:\n            # owner worker: 预取远端 KV，并与当前计算重叠\n            K_r, V_r = async_recv_kv(remote)\n            wait_until_ready(K_r, V_r)\n            O_p, stats_p = flash_attn_block(Q_p, K_r, V_r, O_p, stats_p)\n\n            # 如果有 helper 替自己算了部分 block，合并 partial output 和 softmax stats\n            if has_helper_result(p, t):\n                O_h, stats_h = recv_partial_result(helper_rank(p, t))\n                O_p, stats_p = rescale_and_merge(O_p, stats_p, O_h, stats_h)\n        else:\n            # helper worker: 利用空闲时间替后段 worker 计算一块 attention\n            owner = owner_rank_for_helper(p, t)\n            Q_owner = recv_query(owner)\n            O_part, stats_part = flash_attn_block(Q_owner, K_p, V_p, zeros(), init_stats())\n            send_partial_result(owner, O_part, stats_part)\n\n    return O_p, stats_p\n</code></pre>\n<p><strong>动机与背景：长上下文训练同时卡在 attention 激活和并行维度上。</strong> 单卡 FlashAttention 已经把 attention 的峰值显存从显式 <span class=\"kb-math kb-math-inline\">N^2</span> softmax 矩阵降到线性级别，但当 <span class=\"kb-math kb-math-inline\">N</span> 到 128K、512K 时，单卡仍无法容纳完整序列激活。Megatron-LM 这类张量并行通常按 attention heads 切分，但并行度受 head 数限制；GQA/MQA 或少头模型尤其难继续扩展。DISTFLASHATTN 改为沿 token 序列切分，最大并行度随上下文长度增长，更适合长上下文。</p>\n<p><strong>核心 attention 公式保持精确，只改变 KV 的放置和流式访问。</strong> 第 <span class=\"kb-math kb-math-inline\">p</span> 个 worker 持有 <span class=\"kb-math kb-math-inline\">Q_p,K_p,V_p \\in \\mathbb{R}^{N/P \\times d}</span>。在 causal attention 下，它需要计算：</p>\n<div class=\"kb-math kb-math-display\">O_p =\n\\operatorname{Softmax}\\left(\\frac{Q_p [K_1,\\ldots,K_p]^T}{\\sqrt{d}}\\right)\n[V_1,\\ldots,V_p]</div>\n<p>朴素做法会把所有历史 <span class=\"kb-math kb-math-inline\">K,V</span> 都 gather 到本地，重新制造巨大的显存压力。DISTFLASHATTN 利用 FlashAttention 的 blockwise 特性，每次只拉取一个远端 <span class=\"kb-math kb-math-inline\">K_r,V_r</span> chunk，执行一次局部 attention，并维护在线 softmax 的 <span class=\"kb-math kb-math-inline\">m,l</span> statistics 来正确合并不同 block 的 partial output。这样每个 worker 常驻的远端 KV 只是一块，而不是整条序列。</p>\n<p><strong>负载均衡来自 causal mask 的三角结构。</strong> 在序列切分后，越靠后的 worker 需要 attend 的历史 chunk 越多；第一个 worker 很快完成本地块后空闲，最后一个 worker 最忙。未均衡时 idle fraction 近似趋近 <span class=\"kb-math kb-math-inline\">1/2</span>。论文让早完成的 worker 作为 helper，为后段 worker 计算部分 attention block，并把 partial output 与 softmax statistics 回传给 owner。owner 用 <code>rescale</code> 合并结果，保持与自己顺序执行所有 block 相同的数值语义。</p>\n<p><strong>通信计算重叠把远端 KV 传输隐藏在 FlashAttention kernel 后面。</strong> 每个 worker 在计算当前 <span class=\"kb-math kb-math-inline\">Q_p,K_r,V_r</span> block 时，可以在另一个 CUDA/NCCL stream 上预取下一块 <span class=\"kb-math kb-math-inline\">K,V</span>。由于 FlashAttention block 的计算量随 <span class=\"kb-math kb-math-inline\">N/P</span> 和 <span class=\"kb-math kb-math-inline\">d</span> 增长，长序列下有足够计算时间覆盖 P2P 传输。这个设计不是减少通信字节本身，而是减少通信暴露在 critical path 上的时间。</p>\n<p><strong>Rematerialization-aware checkpointing 解决了 FlashAttention 与传统 checkpoint 的冲突。</strong> 常见 layer-level checkpointing 在反向时会重算整个 Transformer layer，其中包括 FlashAttention forward；而 FlashAttention backward 内部本来就会为了省显存重算 softmax block。若仍按层边界 checkpoint，就会多做一次 attention forward。DISTFLASHATTN 将 checkpoint 边界移动到 FlashAttention 输出：后续 FFN 需要重算时使用该输出，FlashAttention backward 也直接使用它，从而每层少一次 attention forward recomputation，且不改变数值结果。</p>\n<p><strong>与 Megatron-LM、Ring Attention 和 FSDP 的关系。</strong> Megatron-LM 的 sequence/tensor 并行在长上下文下会产生多次 all-gather/reduce-scatter，且受 head 数约束；Ring Attention/Ring Self-Attention 也沿序列传播 KV，但论文指出其对 causal workload 和 FlashAttention 兼容性优化不足。DISTFLASHATTN 关注 activation 和 attention 的长序列瓶颈；FSDP 关注模型状态分片。因此两者可组合：FSDP 让权重/优化器状态不爆显存，DISTFLASHATTN 让百万级上下文的 attention 激活不爆显存。</p>\n<div class=\"key-point\">💡 关键：DISTFLASHATTN 不是近似稀疏注意力；它仍计算精确 causal attention，只是把序列分布到多个 worker，并用 FlashAttention 的在线 softmax 统计量合并跨 worker block。</div>",
+      "quiz": {
+        "q": "DISTFLASHATTN 为什么需要 token/worker 级负载均衡？",
+        "options": [
+          "因为 causal attention 中后段 token 需要看更多历史 token，后段 worker 工作量更大",
+          "因为每个 worker 的模型参数数量不同",
+          "因为 FlashAttention 只能在 CPU 上执行",
+          "因为训练数据需要按类别重新采样"
+        ],
+        "answer": 0,
+        "explain": "序列维度切分后，causal mask 形成三角计算量；越靠后的 worker attend 的历史 KV 越多，因此需要 helper worker 减少空闲 bubble。"
+      }
     }
   ],
   "categories": {

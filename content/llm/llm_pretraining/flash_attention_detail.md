@@ -1,81 +1,96 @@
-### FlashAttention
-
+### FlashAttention (FlashAttention: Fast and Memory-Efficient)
 ```yaml
 id: flash_attention
 name: FlashAttention
-full_name: 'FlashAttention (FlashAttention: Fast and Memory-Efficient)'
-year: '2022'
-org: Stanford
-paper_url: https://arxiv.org/abs/2205.14135
-category: training
-parent: —
-motivation: IO感知算法SRAM内完成Attention
+full_name: "FlashAttention (FlashAttention: Fast and Memory-Efficient)"
+year: "2022"
+org: "Stanford"
+paper_url: "https://arxiv.org/abs/2205.14135"
+category: "training"
+parent: "—"
+motivation: "IO感知算法SRAM内完成Attention"
 ```
 
 #### 📝 一句话总结
-
-FlashAttention 提出 IO-aware exact attention：通过按块把 \(Q,K,V\) 搬入片上 SRAM，并用 online softmax 合并分块结果，避免显式 materialize \(N\times N\) 注意力矩阵。它解决的是标准 attention 在长序列下 HBM 读写和显存占用成为瓶颈的问题。
+FlashAttention 提出了一种 IO-aware 的精确 attention 计算方法，通过分块、在线 softmax 与反向重计算避免把 \(N \times N\) attention 矩阵写入 HBM，解决了长序列 Transformer 中显存访问主导耗时的问题。它不改变 attention 的数学结果，却把显存占用从序列长度的二次级中间矩阵压到近似线性，并显著提升训练速度。
 
 #### 🎯 核心要点
-
-- 不近似 attention，输出与标准 softmax attention 数学等价
-- 将 \(Q,K,V\) 按 tile 加载到 SRAM，分块计算 \(S=QK^\top\)、\(P=\text{softmax}(S)\)、\(O=PV\)
-- 使用 online softmax 维护每行 running max \(m_i\) 和 running sum \(\ell_i\)，跨 key blocks 稳定合并
-- 不保存完整 \(S\) 和 \(P\) 矩阵，反向传播时按块重算必要中间量
-- 将 attention memory 从 \(O(N^2)\) 降到 \(O(N)\)，同时减少 HBM traffic
-- 支持 block-sparse FlashAttention，把稀疏模式与 IO-aware tiling 结合
-- 在 BERT/GPT-2/Long Range Arena 等任务上带来显著训练速度和长上下文能力提升
+- 精确 attention：计算结果等价于 \(\mathrm{softmax}(QK^\top)V\)，不是低秩、稀疏或随机近似。
+- IO-aware 设计：优化目标不是只减少 FLOPs，而是减少 HBM 与片上 SRAM 之间的读写次数。
+- 分块 tiling：按块加载 \(Q,K,V\) 到 SRAM，在片上完成矩阵乘、mask、softmax、dropout 与乘 \(V\)。
+- 在线 softmax：用每行最大值 \(m\) 与归一化项 \(\ell\) 增量合并不同 key block，避免一次性物化完整 attention 矩阵。
+- 反向重计算：前向只保存输出和 softmax 统计量，反向在 SRAM 中重算局部 \(S\) 与 \(P\)，避免保存 \(N^2\) 中间矩阵。
+- Kernel fusion：把 attention 的多个 memory-bound 子操作融合进一个 CUDA kernel，减少中间结果反复进出 HBM。
+- IO 复杂度优势：标准 attention 需要读写大规模 \(S,P\)，FlashAttention 在 SRAM 大小 \(M\) 合理时把 HBM 访问量降到 \(O(N^2d^2/M)\) 量级。
+- 可扩展到 block-sparse FlashAttention：在预定义稀疏块 mask 下跳过零块，进一步降低长上下文 attention 的 IO 与计算。
 
 #### 🔬 深入细节
+![FlashAttention IO-aware tiling 示意图](https://ar5iv.labs.arxiv.org/html/2205.14135/assets/x1.png)
+*图：FlashAttention 利用 GPU 内存层级差异，将 \(Q,K,V\) 分块搬入 SRAM，避免把完整 attention 矩阵写回 HBM。左侧展示 HBM/SRAM 带宽差异，中间展示分块循环，右侧展示 attention kernel 的速度收益。*
 
-![FlashAttention IO-aware tiling](https://ar5iv.labs.arxiv.org/html/2205.14135/assets/x1.png)
-*图：FlashAttention 论文 Figure 1，展示标准 attention 与 IO-aware 分块 attention 在 HBM/SRAM 之间的数据流差异。*
+标准 self-attention 通常写成 \(S=QK^\top\)、\(P=\mathrm{softmax}(S)\)、\(O=PV\)。问题不只是 \(O(N^2d)\) 的矩阵乘计算量，而是常规实现会把 \(S\) 和 \(P\) 这两个 \(N\times N\) 中间矩阵写入 HBM，再被 mask、softmax、dropout 和后续矩阵乘反复读取。GPU 上 SRAM 的容量远小于 HBM，但带宽通常高一个数量级；当 attention 中大量操作是逐元素或归约操作时，真正拖慢 wall-clock time 的往往是 HBM IO，而不是 Tensor Core 可高效执行的 matmul FLOPs。
+
+FlashAttention 的核心做法是把 attention 重新组织为“流式分块计算”。对每个 query block \(Q_i\)，算法逐个扫描 key/value block \((K_j,V_j)\)，在片上计算局部分数 \(S_{ij}=Q_iK_j^\top\)。由于 softmax 的归一化需要整行所有 key 的信息，不能简单对每个块单独 softmax 后相加；因此论文引入在线 softmax 统计量：行最大值 \(m\) 用于数值稳定，行指数和 \(\ell\) 用于最终归一化。对一个向量 \(x\)，稳定 softmax 可写为：
+
+$$
+m(x)=\max_k x_k,\qquad \ell(x)=\sum_k e^{x_k-m(x)},\qquad \mathrm{softmax}(x)_k=\frac{e^{x_k-m(x)}}{\ell(x)}.
+$$
+
+当一行分数被拆成两个块 \(x^{(1)},x^{(2)}\) 时，不需要保存全部分数，只要合并统计量：
+
+$$
+m=\max(m^{(1)},m^{(2)}),\qquad
+\ell=e^{m^{(1)}-m}\ell^{(1)}+e^{m^{(2)}-m}\ell^{(2)}.
+$$
+
+这个公式给出了 FlashAttention 正确性的直觉：每个块内部先以本块或当前全局最大值为基准计算指数，再用指数缩放把旧块贡献调整到新的全局最大值坐标系中。输出 \(O\) 也以相同方式重标定，所以处理完所有 key block 后得到的结果与完整 \(\mathrm{softmax}(QK^\top)V\) 完全一致。
 
 ```python
-# FlashAttention forward 简化伪代码
-def flash_attention(Q, K, V, block_m, block_n):
-    O = zeros_like(Q)
-    m = full((Q.rows,), -inf)  # row-wise running max
-    l = zeros((Q.rows,))       # row-wise running sum
+# FlashAttention forward 的核心逻辑，省略 batch/head/dropout 的工程细节
+# Q, K, V: [N, d] in HBM; SRAM can hold one Q block plus one K/V block
+split Q into row blocks Q_i of size B_r
+split K, V into column blocks K_j, V_j of size B_c
+initialize O_i = 0, m_i = -inf, l_i = 0 for every Q block
 
-    for K_j, V_j in blocks(K, V, size=block_n):
-        for Q_i in blocks(Q, size=block_m):
-            S = Q_i @ K_j.T
-            m_new = maximum(m_i, rowmax(S))
-            P = exp(S - m_new[:, None])
-            l_new = exp(m_i - m_new) * l_i + rowsum(P)
-            O_i = (exp(m_i - m_new)[:, None] * l_i[:, None] * O_i + P @ V_j) / l_new[:, None]
-            m_i, l_i = m_new, l_new
+for each K_j, V_j block:
+    load K_j, V_j from HBM to SRAM
+    for each Q_i block:
+        load Q_i, O_i, m_i, l_i from HBM to SRAM
+        S_ij = Q_i @ K_j.T
+        m_new = maximum(m_i, rowmax(S_ij))
+        P_tilde = exp(S_ij - m_new[:, None])
+        l_new = exp(m_i - m_new) * l_i + rowsum(P_tilde)
+        O_i = (
+            exp(m_i - m_new)[:, None] * l_i[:, None] * O_i
+            + P_tilde @ V_j
+        ) / l_new[:, None]
+        write O_i, m_new, l_new back to HBM
 
-    return O
+return O
 ```
 
-**动机与背景：attention 的 FLOPs 不是唯一瓶颈。** 标准实现会先算 \(S=QK^\top\)，写入 HBM，再读出做 softmax 得到 \(P\)，再写入 HBM，再读出与 \(V\) 相乘。即使矩阵乘法很快，\(S\) 和 \(P\) 的 \(N^2\) 中间矩阵也会造成巨大显存和带宽压力。FlashAttention 的核心判断是：GPU 层次内存不对称，SRAM 小但快，HBM 大但慢，attention 应该围绕 IO 次数重新组织。
+反向传播的关键是“少存、多算”，但这里的多算是刻意设计的。常规训练会在前向保存 \(P\) 以便反向计算 \(dQ,dK,dV\)，这会产生 \(O(N^2)\) 的显存占用。FlashAttention 前向只保存输出 \(O\) 和 softmax 统计量 \((m,\ell)\)；反向时重新加载局部 \(Q_i,K_j,V_j\)，在 SRAM 中重算局部 \(S_{ij}\) 和 \(P_{ij}\)，再计算梯度贡献。虽然重计算增加了一些 FLOPs，但这些 FLOPs 主要是块内矩阵乘，GPU 擅长处理；相比之下，避免 HBM 读写大矩阵通常带来更大的实际加速。
 
-**核心机制：online softmax 让分块 softmax 可精确合并。** softmax 需要整行最大值和归一化分母，似乎必须先看到所有 key。FlashAttention 使用 running max \(m\) 和 running sum \(\ell\) 解决这个问题。处理新 block 时，用新的 \(m'\) 重新缩放旧分母和旧输出：
+FlashAttention 与许多“高效 attention”工作的区别在于它不牺牲精度。低秩、局部窗口、哈希或随机特征方法通常试图降低理论计算复杂度，但会改变 attention 矩阵或引入近似误差，并且不一定有真实速度收益。FlashAttention 反过来承认精确 attention 的 \(N^2\) 交互仍然要算，却把这些交互安排在更合适的内存层级中完成。论文也给出 IO 复杂度分析：在 head dimension 为 \(d\)、SRAM 大小为 \(M\) 时，FlashAttention 的 HBM 访问规模约为 \(O(N^2d^2/M)\)，而标准实现要物化并访问 \(N^2\) 级中间矩阵。
 
-$$
-m'=\max(m,\max_j S_j),\quad
-\ell'=e^{m-m'}\ell+\sum_j e^{S_j-m'}
-$$
+> 💡 关键：FlashAttention 的“快”不是因为少算了 attention，而是因为不把 \(S\) 和 \(P\) 这两个巨大中间矩阵写到慢速 HBM。它把计算重排成适合 GPU 内存层级的形式，让 expensive IO 变少、cheap recompute 变多。
 
-输出同样按比例合并，因此最终结果与一次性 softmax 完全一致。
+在训练流程中，FlashAttention 通常作为 Transformer attention kernel 的 drop-in replacement：上层模型仍然生成 \(Q,K,V\)，仍然使用 causal mask 或 padding mask，仍然得到同形状输出 \(O\)。区别在 kernel 内部：mask、softmax、dropout、矩阵乘 \(V\) 被融合，局部块在 SRAM 生命周期内完成尽可能多的操作。对于自回归 causal attention，还可以跳过完全位于未来位置的块；对于 block-sparse 版本，只需在同一分块框架中跳过稀疏 mask 为零的块。
 
-**训练流程：前向少存，反向重算。** 为了省显存，FlashAttention 前向只保存输出 \(O\) 和 softmax 统计量 \(m,\ell\)，不保存 \(S,P\)。反向传播按 tile 重新计算 \(S\) 和 \(P\)，再计算 \(dQ,dK,dV\)。这是一种特定于 attention 的 rematerialization：多花少量计算，换取大量 HBM 存储和读写减少。
-
-**与近似 attention 的区别：优化系统实现而非改变模型。** Longformer、Performer 等方法通过稀疏或低秩近似降低复杂度，可能改变模型表达；FlashAttention 在 dense setting 下仍计算完整 attention，只改变循环顺序和内存调度。因此它可以无缝替换标准 attention，并保持收敛和精度行为。
-
-> 💡 关键：FlashAttention 的“flash”来自少访问慢内存，而不是少算 attention。
+论文实验表明，FlashAttention 在 BERT-large、GPT-2 与 Long Range Arena 等场景中带来端到端训练加速，并让模型能处理更长上下文。更重要的是，它把“高效 Transformer”的优化视角从单纯 FLOPs 转向 IO complexity，这也解释了为什么很多理论上 FLOPs 更低的近似 attention 并没有稳定获得 wall-clock speedup。
 
 #### 🧪 练习题
-
 ```yaml
-question: "FlashAttention 为什么能避免保存完整 N×N 注意力矩阵？"
+question: "FlashAttention 为什么能够在不近似 attention 的情况下节省显存并加速？"
 options:
-  - "它把 softmax 改成 sigmoid"
-  - "它用 online softmax 维护分块归一化统计，并在反向中重算中间量"
-  - "它删除所有 key token"
-  - "它只支持 batch size 为 1"
+  - "把 softmax 替换成线性 attention，降低理论计算复杂度"
+  - "通过分块和在线 softmax 避免把完整 attention 矩阵写入 HBM"
+  - "只保留局部窗口内的 token-token 交互"
+  - "冻结 K/V 矩阵，只训练 Q 矩阵"
 answer: 1
-explain: "running max/sum 使分块 softmax 精确合并，前向只需保存少量统计量，反向按块重算。"
+explain: "FlashAttention 仍计算精确的 softmax attention，但用 tiling、在线归一化和反向重计算减少 HBM 读写，因此显存占用和实际运行时间下降。"
 ```
+
+#### 📚 参考来源
+- 论文：<https://arxiv.org/abs/2205.14135>
+- HTML 图与算法说明：<https://ar5iv.labs.arxiv.org/html/2205.14135>

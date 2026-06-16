@@ -1,201 +1,113 @@
-### RAGAS — Automated Evaluation of Retrieval Augmented Generation
+### RAGAS
 
 ```yaml
 id: ragas
 name: RAGAS
-full_name: 检索增强生成评估 (Retrieval Augmented Generation Assessment)
-year: "2023"
-org: Exploding Gradients
+full_name: RAG评估框架 (Retrieval-Augmented Generation Assessment)
+year: "2024.05"
+org: Explorium
 paper_url: https://arxiv.org/abs/2309.15217
 category: evaluation
 parent: —
-motivation: 用 LLM-as-judge 实现无参考的 RAG 系统自动化评估，覆盖忠实度、答案相关性与上下文相关性三个维度
+motivation: RAG三元组评估法，LLM-as-judge评估忠实度
 ```
 
 #### 📝 一句话总结
 
-RAGAS 提出了一套无需人工标注参考答案的 RAG 系统自动评估框架，通过 LLM 分别度量忠实度（答案是否基于上下文）、答案相关性（答案是否切题）和上下文相关性（检索内容是否聚焦），在 WikiEval 数据集上与人类判断高度一致（忠实度准确率 95%）。
+RAGAS 提出了一套面向 RAG 三元组 \((q, c(q), a_s(q))\) 的无参考自动评估框架，用 LLM-as-judge 将忠实度、答案相关性、上下文相关性拆成可执行的子判断，解决 RAG 系统缺少人工参考答案时难以持续评估的问题。
 
 #### 🎯 核心要点
 
-- **三维度无参考评估框架**：Faithfulness（忠实度）、Answer Relevance（答案相关性）、Context Relevance（上下文相关性），完全不依赖 ground truth
-- **Faithfulness 指标**：将答案分解为原子声明（statements），逐条用 LLM 验证是否可从上下文推断，\(F = |V| / |S|\)
-- **Answer Relevance 指标**：从答案反向生成 \(n\) 个问题，计算与原始问题的平均余弦相似度，\(\text{AR} = \frac{1}{n}\sum_{i=1}^{n}\text{sim}(q, q_i)\)
-- **Context Relevance 指标**：用 LLM 从上下文中提取回答问题所需的关键句子，\(\text{CR} = \frac{|\text{extracted sentences}|}{|\text{total sentences in } c(q)|}\)
-- **WikiEval 基准数据集**：50 篇 2022 年后的 Wikipedia 页面，含人工标注的三维度质量判断，标注者一致率 90%–95%
-- **实验使用 gpt-3.5-turbo-16k**，在 WikiEval 上忠实度与人类一致率 95%，答案相关性 78%，上下文相关性 70%
-- **显著优于基线**：对比 GPT Score（直接打分 0–10）和 GPT Ranking（直接排序），RAGAS 在所有维度上大幅领先
+- **RAG 三元组评估**：仅依赖问题 \(q\)、检索上下文 \(c(q)\)、系统答案 \(a_s(q)\)，不要求 ground truth answer。
+- **Faithfulness 忠实度**：先把答案拆成原子事实声明，再逐条判断声明能否由上下文推出，用于检测基于上下文的事实幻觉。
+- **Answer Relevance 答案相关性**：从答案反向生成若干可能问题，再计算这些问题与原始问题的嵌入相似度，惩罚答非所问、信息缺失和冗余回答。
+- **Context Relevance 上下文相关性**：让 LLM 从检索上下文中抽取回答问题所需的关键句，按关键句占全部上下文句子的比例估计检索噪声。
+- **结构化 LLM-as-judge**：避免让 LLM 一次性给整体质量打分，而是把评估拆成声明生成、NLI 判断、问题生成、句子抽取等更稳定的局部任务。
+- **WikiEval 验证集**：论文构造 50 个基于 2022 年后 Wikipedia 页面的样本，并用人工偏好比较验证指标与人类判断的一致性。
+- **实验结论**：在 WikiEval 成对比较中，RAGAS 在 Faithfulness、Answer Relevance、Context Relevance 上分别达到 0.95、0.78、0.70 的人工一致率，优于直接 GPT Score 和 GPT Ranking。
 
 #### 🔬 深入细节
 
-**RAGAS 评估框架总览**
-
-RAGAS 的核心思想是：RAG 系统的质量可以从三个正交维度进行评估——生成的答案是否忠于检索到的上下文（Faithfulness）、答案是否真正回答了用户的问题（Answer Relevance）、检索到的上下文是否与问题高度相关且不含冗余信息（Context Relevance）。这三个维度共同覆盖了 RAG 系统中检索器和生成器的质量。
-
-> 💡 关键：RAGAS 的最大创新在于**完全无需参考答案**（reference-free），仅利用 \((q, c(q), a_s(q))\) 三元组——即问题、检索上下文和系统答案——就能自动评估 RAG 系统质量。这使得在缺乏标注数据的真实生产环境中也能持续监控 RAG 系统。
-
----
-
-**1. Faithfulness（忠实度）：声明级验证**
-
-忠实度衡量生成答案中的每个事实声明是否都能从检索到的上下文中推断出来。这是检测 RAG 幻觉的核心指标。
-
-评估分两步进行：
-
-**Step 1 — 声明分解**：使用 LLM 将答案 \(a_s(q)\) 分解为一组简短的原子声明 \(S = \{s_1, s_2, \dots, s_k\}\)。
-
-Prompt 示例：
-> *Given a question and answer, create one or more statements from each sentence in the given answer.*
-
-**Step 2 — NLI 验证**：对每个声明 \(s_i\)，使用 LLM 判断该声明是否可以从上下文 \(c(q)\) 中推断出来（verdict: Yes/No）。
-
-Prompt 示例：
-> *Consider the given context and following statements, then determine whether they are supported by the information present in the context. Provide a brief explanation for each before arriving at the verdict (Yes/No).*
-
-最终忠实度得分：
-
-$$F = \frac{|V|}{|S|}$$
-
-其中 \(|V|\) 是被判定为"Yes"的声明数量，\(|S|\) 是声明总数。\(F \in [0, 1]\)，越高表示答案越忠实于上下文。
-
-> ⚠️ 注意：这种声明级分解+逐条验证的方式比直接让 LLM 打分更可靠，因为它将复杂的整体判断拆解为多个简单的二元判断任务，降低了 LLM 的认知负担。
-
----
-
-**2. Answer Relevance（答案相关性）：反向问题生成**
-
-答案相关性衡量生成的答案是否真正回答了用户的问题，同时惩罚不完整或包含冗余信息的答案。
-
-RAGAS 采用了一种巧妙的**反向验证**策略：如果一个答案与问题高度相关，那么从该答案反向生成的问题应该与原始问题语义相近。
-
-**Step 1 — 反向问题生成**：使用 LLM 从答案 \(a_s(q)\) 生成 \(n\) 个问题 \(q_1, q_2, \dots, q_n\)。
-
-Prompt 示例：
-> *Generate a question for the given answer.*
-
-**Step 2 — 余弦相似度计算**：使用文本嵌入模型将原始问题 \(q\) 和每个生成问题 \(q_i\) 编码为向量，计算平均余弦相似度：
-
-$$\text{AR} = \frac{1}{n}\sum_{i=1}^{n}\text{sim}(q, q_i)$$
-
-其中 \(\text{sim}(\cdot, \cdot)\) 为余弦相似度。\(\text{AR} \in [-1, 1]\)，实际中通常为正值，越高表示答案越切题。
-
-> 💡 关键：这种间接评估方式避免了让 LLM 直接判断"答案是否相关"这一主观任务。通过反向生成问题，将语义匹配任务交给嵌入模型，更加客观和稳定。同时，如果答案包含冗余信息，反向生成的问题会偏离原始问题，从而自然地惩罚冗余。
-
----
-
-**3. Context Relevance（上下文相关性）：关键句提取**
-
-上下文相关性衡量检索到的上下文是否聚焦于回答问题所需的信息，惩罚检索结果中的冗余内容。这是对 RAG 系统检索器质量的直接评估。
-
-**单步评估**：使用 LLM 从上下文 \(c(q)\) 中提取对回答问题 \(q\) 至关重要的句子子集 \(S_{ext}\)。
-
-Prompt 示例：
-> *Please extract relevant sentences from the provided context that can potentially help answer the following question. If no relevant sentences are found, or if you believe the question cannot be answered from the given context, return the phrase "Insufficient Information".*
-
-上下文相关性得分：
-
-$$\text{CR} = \frac{|S_{ext}|}{\text{total number of sentences in } c(q)}$$
-
-\(\text{CR} \in [0, 1]\)，越高表示检索到的上下文越聚焦、冗余越少。
-
-> ⚠️ 注意：作者发现上下文相关性是最难评估的维度。ChatGPT 在处理较长上下文时，常常难以准确选择关键句子，导致该指标与人类判断的一致率（70%）低于其他两个维度。
-
----
-
-**4. WikiEval 数据集构建**
-
-WikiEval 是论文提出的评估基准，用于验证 RAGAS 指标与人类判断的一致性：
-
-- **数据来源**：50 篇 2022 年后的 Wikipedia 页面（超出模型训练截止日期），优先选择有近期编辑的页面
-- **问题生成**：使用 ChatGPT 基于页面引言部分生成中等难度的问题
-- **答案生成**：使用 ChatGPT 在给定上下文的条件下回答问题
-- **对比样本构建**：
-  - Faithfulness：额外生成无上下文的答案作为低忠实度对比
-  - Answer Relevance：用 prompt 生成不完整答案作为低相关性对比
-  - Context Relevance：通过抓取反向链接页面添加相关但冗余的句子
-- **人工标注**：两位英语流利的标注者独立标注，Faithfulness 和 Context Relevance 一致率约 95%，Answer Relevance 约 90%，分歧通过讨论解决
-
----
-
-**5. 实验结果与基线对比**
+![RAGAS 评估框架图](https://assets.zilliz.com/large_Mar_18_RAG_Evaluation_using_Ragas_20240318_080304_62e448ec81.png)
+*图：公开 RAGAS 框架示意图，展示 RAG 评估围绕问题、上下文、答案和可选参考答案展开；论文核心关注无需参考答案的 Faithfulness、Answer Relevance、Context Relevance 三项指标。*
 
 ```python
-# RAGAS 评估流程伪代码
-
-def evaluate_ragas(question, context, answer, llm, embedder):
-    """
-    输入: question q, context c(q), answer a_s(q)
-    输出: faithfulness, answer_relevance, context_relevance 三个分数
-    """
-
-    # === 1. Faithfulness ===
-    # Step 1: 声明分解
-    statements = llm.decompose_to_statements(answer)  # a_s(q) → {s_1, ..., s_k}
-    # Step 2: 逐条 NLI 验证
-    verified = 0
-    for s in statements:
-        verdict = llm.verify_against_context(s, context)  # "Yes" or "No"
+# RAGAS 三元组评估伪代码
+def evaluate_ragas(question, context, answer, llm, embedder, n_questions=3):
+    # 1. Faithfulness: answer -> statements -> supported / unsupported
+    statements = llm.extract_atomic_statements(question=question, answer=answer)
+    supported = 0
+    for statement in statements:
+        verdict = llm.verify_statement(context=context, statement=statement)
         if verdict == "Yes":
-            verified += 1
-    faithfulness = verified / len(statements)  # F = |V| / |S|
+            supported += 1
+    faithfulness = supported / max(len(statements), 1)
 
-    # === 2. Answer Relevance ===
-    generated_questions = []
-    for _ in range(n):  # 生成 n 个反向问题
-        q_i = llm.generate_question_from_answer(answer)
-        generated_questions.append(q_i)
-    # 计算嵌入余弦相似度
-    q_emb = embedder.encode(question)
-    similarities = [cosine_sim(q_emb, embedder.encode(q_i))
-                    for q_i in generated_questions]
-    answer_relevance = mean(similarities)  # AR = (1/n) Σ sim(q, q_i)
+    # 2. Answer Relevance: answer -> reverse questions -> embedding similarity
+    generated_questions = [
+        llm.generate_question_from_answer(answer)
+        for _ in range(n_questions)
+    ]
+    q_vec = embedder.encode(question)
+    answer_relevance = mean(
+        cosine_similarity(q_vec, embedder.encode(q_i))
+        for q_i in generated_questions
+    )
 
-    # === 3. Context Relevance ===
-    extracted = llm.extract_relevant_sentences(question, context)
-    total_sentences = count_sentences(context)
-    context_relevance = len(extracted) / total_sentences  # CR
+    # 3. Context Relevance: context -> answer-supporting sentences
+    relevant_sentences = llm.extract_relevant_sentences(
+        question=question,
+        context=context,
+    )
+    total_sentences = sentence_count(context)
+    context_relevance = len(relevant_sentences) / max(total_sentences, 1)
 
-    return faithfulness, answer_relevance, context_relevance
+    return {
+        "faithfulness": faithfulness,
+        "answer_relevance": answer_relevance,
+        "context_relevance": context_relevance,
+    }
 ```
 
-实验在 WikiEval 数据集上进行成对比较（pairwise comparison），每个实例要求模型比较两个答案或两个上下文片段，统计模型偏好与人类偏好的一致率：
+RAGAS 的出发点是生产环境里的 RAG 往往没有标准答案。传统 QA 指标通常假设有人工标注答案或可抽取短答案，但真实 RAG 系统的输出是长文本，质量同时取决于检索器是否取回了聚焦上下文，以及生成器是否正确利用了这些上下文。论文因此把评估对象固定成 \((q, c(q), a_s(q))\)：问题、检索到的上下文、系统生成答案。这样做的价值是可以直接接入线上日志，对每次 RAG 调用做自动诊断，而不是等人工标注集积累完再评估。
 
-| 方法 | Faithfulness | Answer Relevance | Context Relevance |
-|------|:---:|:---:|:---:|
-| **RAGAS** | **0.95** | **0.78** | **0.70** |
-| GPT Score | 0.72 | 0.52 | 0.63 |
-| GPT Ranking | 0.54 | 0.40 | 0.52 |
+Faithfulness 是最核心的幻觉检测指标。RAGAS 不直接问 LLM “这个答案是否忠实”，而是先让 LLM 把答案拆成短而集中的 statements，再逐条用上下文做蕴含判断。若答案声明集合为 \(S\)，被上下文支持的声明集合为 \(V\)，则：
 
-*表：WikiEval 数据集上与人类标注者的成对比较一致率（准确率）*
+$$
+F = \frac{|V|}{|S|}
+$$
 
-- **GPT Score 基线**：直接让 ChatGPT 对三个维度打 0–10 分，相同分数随机打破平局
-- **GPT Ranking 基线**：直接让 ChatGPT 在两个候选中选择更好的一个
+这个设计的关键直觉是把复杂主观判断变成多个二元 NLI 式判断。一个长答案可能大部分正确、局部幻觉；整体打分容易掩盖局部错误，而 statement 级验证能定位具体不被上下文支持的事实，从而给 RAG 调参与失败分析提供更细粒度信号。
 
-> 💡 关键：RAGAS 在忠实度上达到 95% 的人类一致率，远超直接打分（72%）和直接排序（54%）。这证明了**将复杂评估任务分解为结构化子任务**（声明分解 → 逐条验证）的有效性，而非依赖 LLM 的单次整体判断。
+Answer Relevance 只衡量“答得是否切题”，刻意不检查事实正确性。RAGAS 采用反向问题生成：如果答案确实围绕原问题，那么从答案生成的问题 \(q_i\) 应该与原问题 \(q\) 语义接近。论文用文本嵌入计算平均余弦相似度：
 
----
+$$
+AR = \frac{1}{n}\sum_{i=1}^{n} \operatorname{sim}(q, q_i)
+$$
 
-**与传统评估方法的区别**
+这种间接评估避免了让 LLM 凭感觉给“相关性”打分。答案若遗漏问题关键约束，反向生成的问题会变得更宽泛；答案若夹带冗余事实，生成的问题也可能偏离原始意图，最终拉低平均相似度。
 
-| 特性 | 传统指标 (BLEU/ROUGE) | 基于参考的 LLM 评估 | RAGAS |
-|------|:---:|:---:|:---:|
-| 需要参考答案 | ✅ | ✅ | ❌ |
-| 评估语义忠实度 | ❌ | 部分 | ✅ |
-| 评估检索质量 | ❌ | ❌ | ✅ |
-| 可用于生产监控 | 受限 | 受限 | ✅ |
-| 与人类判断一致性 | 低 | 中 | 高 |
+Context Relevance 则面向检索器。它要求 LLM 从 \(c(q)\) 中抽取真正有助于回答 \(q\) 的句子集合 \(S_{ext}\)，再用关键句数占总句数的比例近似上下文聚焦程度：
 
-RAGAS 的核心优势在于：(1) 无需标注数据即可评估，适合快速迭代和生产环境监控；(2) 通过结构化分解将评估任务简化，提高 LLM 评估的可靠性；(3) 三个维度分别覆盖生成器和检索器，提供全面的系统诊断能力。
+$$
+CR = \frac{|S_{ext}|}{\text{number of sentences in } c(q)}
+$$
+
+该指标的方向不是“检索结果越多越好”，而是惩罚噪声上下文。对于长上下文 RAG，冗余段落会增加 token 成本，也可能让模型忽略中间位置的关键信息；因此 Context Relevance 直接反映检索结果是否足够精炼。论文也指出这是三项指标里最难稳定判断的一项，因为长上下文中的关键句抽取对 LLM 本身要求更高。
+
+WikiEval 的构造用于检验这些指标是否真能对齐人类偏好。论文选取 50 个 2022 年以后发生事件相关的 Wikipedia 页面，生成可由页面引言回答的问题，再构造高低质量对比样本：无上下文回答用于制造低忠实度答案，不完整回答用于测试答案相关性，反向链接和补全内容用于制造冗余上下文。两名英语流利标注者独立比较样本，最终 RAGAS 在忠实度上达到 0.95 的人工一致率，显著高于让 ChatGPT 直接 0-10 打分或直接排序。
+
+> 💡 关键：RAGAS 的贡献不只是“用 LLM 当裁判”，而是提出了一套把 RAG 质量拆解为可审计中间步骤的评估流程。它牺牲了一点调用复杂度，换来更高的可解释性和更可靠的线上诊断能力。
 
 #### 🧪 练习题
 
 ```yaml
-question: "RAGAS 的 Faithfulness 指标为什么要先将答案分解为原子声明再逐条验证，而不是直接让 LLM 判断整个答案是否忠实？"
+question: "RAGAS 的 Faithfulness 指标为什么要把答案拆成 statements 再验证？"
 options:
-  - "为了减少 LLM 的 API 调用次数，降低评估成本"
-  - "将复杂的整体判断拆解为多个简单的二元判断，降低 LLM 的认知负担，提高评估准确性"
-  - "因为 LLM 无法理解完整的答案文本，只能处理短句"
-  - "为了生成更多的训练数据用于微调评估模型"
+  - "为了让答案更短，从而降低生成模型的输出 token 数"
+  - "为了把整体忠实度判断拆成多个声明级支持性判断，定位哪些事实无法由上下文推出"
+  - "为了训练一个新的检索器，让检索结果更接近人工参考答案"
+  - "为了把上下文相关性和答案相关性合并成一个单一分数"
 answer: 1
-explain: "声明级分解将'整个答案是否忠实'这一复杂判断拆解为多个'单条声明是否可从上下文推断'的简单二元任务，实验表明这种结构化方法（95%一致率）远优于直接让 LLM 整体打分（72%）。"
+explain: "Faithfulness 的核心是 statement-level verification。拆分后每条事实声明都能单独与上下文做支持性判断，比直接整体打分更可解释，也更容易发现局部幻觉。"
 ```

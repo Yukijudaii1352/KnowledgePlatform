@@ -1,98 +1,107 @@
-### Transformer-XL: Attentive Language Models Beyond a Fixed-Length Context
-
+### Transformer-XL：超长上下文 Transformer (Transformer-XL)
 ```yaml
-title: Transformer-XL: Attentive Language Models Beyond a Fixed-Length Context
-authors: Zihang Dai, Zhilin Yang, Yiming Yang, Jaime Carbonell, Quoc V. Le, Ruslan Salakhutdinov
-year: 2019
-url: https://arxiv.org/abs/1901.02860
-conference: ACL 2019
-tags: [language-modeling, transformer, long-context, recurrence, relative-positional-encoding]
+id: transformer_xl
+name: Transformer-XL
+full_name: 超长上下文 Transformer (Transformer-XL)
+year: "2019.01"
+org: CMU / Google Brain
+paper_url: https://arxiv.org/abs/1901.02860
+category: long_context
+parent: transformer
+motivation: 分段递归缓解上下文截断
 ```
 
 #### 📝 一句话总结
-Transformer-XL 通过在 Transformer 中引入段级循环机制（Segment-Level Recurrence）和相对位置编码（Relative Positional Encoding），解决了标准 Transformer 无法建模超出固定上下文长度的长程依赖问题，实现了比 RNN 长 80%、比普通 Transformer 长 450% 的有效上下文，评估速度提升高达 1800 倍，并在五个主流语言建模基准上取得 SOTA。
+Transformer-XL 在标准 Transformer 语言模型中加入分段级递归和相对位置编码，使当前片段能复用前一片段的隐藏状态，从而突破固定上下文长度并缓解上下文碎片化。它解决了 vanilla Transformer 训练时片段之间无信息流、推理时重复计算严重的问题，是长上下文 Transformer 的早期关键架构。
 
 #### 🎯 核心要点
-1. **问题背景**：标准 Transformer 将长文本切分为固定长度段独立训练，导致（a）最大依赖长度受限于段长，（b）简单切分造成上下文碎片化（context fragmentation），预测时虽用滑动窗口但极低效。
-2. **核心创新 - 段级循环（Segment-Level Recurrence）**：训练时将前一段的隐状态固定并缓存，拼接到当前段作为扩展上下文，梯度不跨段但信息可跨段流动。
-3. **核心创新 - 相对位置编码（Relative Positional Encoding）**：将绝对位置编码替换为相对位置编码，注入 Query-Key 注意力分数中，使状态复用时不发生时序混淆。
-4. **评估加速**：评估时复用缓存的前段表示而非从头计算，enwiki8 上比 Vanilla Transformer 快 1800+ 倍。
-5. **实验结果**：WikiText-103 PPL 从 20.5 降至 18.3；enwiki8 bpc 0.99；One Billion Word PPL 21.8；PTB PPL 54.5；text8 bpc 1.08，均为当时 SOTA。
+- 提出 segment-level recurrence：把上一片段各层隐藏状态缓存为 memory，作为当前片段 attention 的额外 key/value 上下文。
+- 使用 stop-gradient 连接相邻片段，使训练类似截断 BPTT：前向可复用历史，反向梯度仍限制在当前片段，控制显存和计算成本。
+- 解决 context fragmentation：当前片段开头 token 不再只能依赖片段内很短前缀，而能看到前一片段的语义上下文。
+- 指出绝对位置编码与状态复用冲突：缓存状态在新片段中被复用时，绝对位置编号会混淆，因此必须改用相对位置编码。
+- 提出新的 relative positional encoding 打分分解，包括 content-based addressing、content-dependent positional bias、global content bias、global positional bias 四项。
+- 推理时复用历史 hidden states，避免每预测一个 token 都从头处理完整窗口，论文报告在 enwiki8 上相对 vanilla Transformer 可达到 1,800+ 倍评估加速。
+- 在 WikiText-103、enwiki8、text8、One Billion Word、Penn Treebank 等语言建模基准上刷新当时困惑度或 bpc 结果，并展示千 token 级连贯生成能力。
 
 #### 🔬 深入细节
+![Transformer-XL 分段递归机制](https://ar5iv.labs.arxiv.org/html/1901.02860/assets/x3.png)
+*图：Transformer-XL 的训练阶段分段递归。上一段的隐藏状态被固定并缓存，作为当前段的扩展上下文；绿色路径表示当前 token 可以直接注意到历史片段中的 hidden states。*
 
-##### 1. Vanilla Transformer 语言模型的局限性
+```python
+# Transformer-XL segment-level recurrence, simplified
 
-标准方法（Al-Rfou et al., 2018）将语料切分为等长段，每段独立训练 Transformer，段间无信息流动。这带来两个关键问题：
+memory = init_empty_memory(num_layers)
 
-- **最大依赖长度受限**：理论上自注意力可捕捉任意长依赖，但因段长常设数百 token（字符级约几百），实际依赖长度被硬性截断。
-- **上下文碎片化（Context Fragmentation）**：简单按固定长度切分不顾语义边界，导致前段末尾和后段开头本应连续的上下文被割裂，模型在前几个位置的预测缺少足够前文。
+for segment in stream_as_segments(tokens, length=L):
+    h = [None] * (num_layers + 1)
+    h[0] = token_embedding(segment)
 
-评估时采用滑动窗口：每步右移一位重新计算整段，虽利用最长上下文但极其低效。
+    for layer in range(1, num_layers + 1):
+        # Reuse previous segment states as fixed memory.
+        mem = stop_gradient(memory[layer - 1])
+        extended_context = concat(mem, h[layer - 1], dim="time")
 
-> **图 1（论文 Fig.1）**：Vanilla Transformer 训练时一段只预测一段（a），评估时每次只预测最后一个位置，然后整体右移一位重新计算（b）。
+        # Query comes from current segment; key/value come from memory + current segment.
+        q = h[layer - 1] @ W_q[layer]
+        k_content = extended_context @ W_k_content[layer]
+        v_content = extended_context @ W_v[layer]
 
-##### 2. 段级循环与状态复用
+        rel_pos = relative_sinusoidal_positions(query_len=len(segment), key_len=len(extended_context))
+        attn_score = relative_attention_score(q, k_content, rel_pos, u[layer], v_bias[layer])
+        attn_out = softmax(mask_future(attn_score)) @ v_content
+        h[layer] = feed_forward(layer_norm(attn_out + h[layer - 1]))
 
-**核心公式。**令第 τ 段的第 n 层隐状态为 h_τ^n ∈ R^{L×d}（L 为段长，d 为隐维度）。处理段 s_{τ+1} 时，将前段第 n-1 层的隐状态缓存并拼接：
+    # Cache latest hidden states for the next segment.
+    for layer in range(num_layers):
+        memory[layer] = keep_last(concat(memory[layer], h[layer]), mem_len)
+```
 
-$$\tilde{h}_{τ+1}^{n-1} = [\text{SG}(h_τ^{n-1}) \;\circ\; h_{τ+1}^{n-1}]$$
+标准 Transformer 语言模型在长文本上通常把语料切成固定长度片段，然后在每个片段内部做因果 self-attention。这个做法计算方便，但有两个硬伤。第一，最长依赖被片段长度上界截断，片段外信息完全不可见；第二，切片往往不尊重句子或段落边界，片段开头 token 缺少必要前文，形成 context fragmentation。推理阶段也不理想：为了让每个新 token 用到最长窗口，vanilla Transformer 往往把窗口右移一位并重新计算整个窗口，历史状态不能复用，成本极高。
 
-其中 SG 为 stop-gradient（前段表示固定不计算梯度）。然后用 $\tilde{h}_{τ+1}^{n-1}$ 生成 Key 和 Value，用 $h_{τ+1}^{n-1}$ 生成 Query：
+Transformer-XL 的第一项核心改动是 segment-level recurrence。设第 \(\tau\) 个片段在第 \(n-1\) 层的隐藏状态为 \(\mathbf{h}_{\tau}^{n-1}\)，上一片段的对应隐藏状态为 \(\mathbf{h}_{\tau-1}^{n-1}\)。当前层计算前先拼接一个扩展上下文：
 
-$$q_{τ+1}^n = h_{τ+1}^{n-1} W_q^\top,\quad k_{τ+1}^n = \tilde{h}_{τ+1}^{n-1} W_k^\top,\quad v_{τ+1}^n = \tilde{h}_{τ+1}^{n-1} W_v^\top$$
+$$
+\tilde{\mathbf{h}}_{\tau}^{n-1}=[\mathrm{SG}(\mathbf{h}_{\tau-1}^{n-1})\circ \mathbf{h}_{\tau}^{n-1}]
+$$
 
-注意力计算与标准 Transformer 相同。梯度仅沿当前段回传，不跨段。
+其中 \(\mathrm{SG}\) 是 stop-gradient，\(\circ\) 表示沿时间维拼接。然后当前片段的 query 只来自当前片段，而 key/value 来自“历史 memory + 当前片段”：
 
-> **图 2（论文 Fig.2）**：段级循环示意图。训练时（a）前一 4-token 段（初始为紫色）的隐状态被缓存（蓝色框），拼接到当前段作为扩展上下文。评估时（b）可复用更多前段，加速显著。
+$$
+\mathbf{q}_{\tau}^{n}=\mathbf{h}_{\tau}^{n-1}W_q^n,\quad
+\mathbf{k}_{\tau}^{n}=\tilde{\mathbf{h}}_{\tau}^{n-1}W_{k,E}^n,\quad
+\mathbf{v}_{\tau}^{n}=\tilde{\mathbf{h}}_{\tau}^{n-1}W_v^n
+$$
 
-**Memory 扩展。**具体实现中使用长度为 M 的 memory m_τ^n 缓存多个前段的隐状态。训练时 M = L（段长），评估时 M 可增为数倍 L，GPU 内存允许时缓存更多前文。
+$$
+\mathbf{h}_{\tau}^{n}=\mathrm{TransformerLayer}(\mathbf{q}_{\tau}^{n},\mathbf{k}_{\tau}^{n},\mathbf{v}_{\tau}^{n})
+$$
 
-**评估加速。**因前段表示直接复用，enwiki8 上评估速度比 Vanilla Transformer 快 1800+ 倍。
+这个设计让当前片段的每个位置都可以 attend 到上一片段的缓存表示，但梯度不会穿回上一片段，因此显存不会随全文长度线性爆炸。多层网络连续应用这种机制后，信息会跨片段逐层传播，最大可利用依赖长度随层数和片段长度近似线性增长，而不是被单个 segment length 固定封死。
 
-##### 3. 相对位置编码（Relative Positional Encoding）—— 解决状态复用的关键技术
+> 💡 关键：Transformer-XL 的 memory 不是 RNN 那样只传一个最终 hidden state，而是缓存一整段 hidden state 序列。这样当前 token 能用 attention 选择历史中不同位置的信息，保留了 Transformer 的直接长距离连接优势。
 
-**动机。**标准 Transformer 使用绝对位置编码 U ∈ R^{L_max×d}，每段内位置 1,2,...,L 的编码固定。但引入循环后，前段位置 1 和当前段位置 1 编码相同——模型无法区分，产生时序混淆。
+第二项核心改动是相对位置编码。直接把标准绝对位置编码搬到 recurrence 上会出错：上一片段缓存的第 \(i\) 个位置和当前片段的第 \(i\) 个位置可能带着相同绝对位置向量，模型无法判断二者在真实时间轴上的先后距离。Transformer-XL 因此不再把绝对位置静态加到输入 embedding 中，而是在每层 attention score 中注入相对距离 \(i-j\)。单头注意力中，位置 \(i\) 对位置 \(j\) 的打分可写成四项：
 
-**重新推导。**标准 Transformer 的注意力分数（单头，忽略缩放因子）可分解为：
+$$
+A_{i,j}^{\mathrm{rel}}=q_i^{\top}k_{E,j}+q_i^{\top}W_{k,R}R_{i-j}+u^{\top}k_{E,j}+v^{\top}W_{k,R}R_{i-j}
+$$
 
-$$A_{i,j}^{\text{abs}} = \underbrace{E_{x_i}^\top W_q^\top W_k E_{x_j}}_{(a)} + \underbrace{E_{x_i}^\top W_q^\top W_k U_j}_{(b)} + \underbrace{U_i^\top W_q^\top W_k E_{x_j}}_{(c)} + \underbrace{U_i^\top W_q^\top W_k U_j}_{(d)}$$
+这里 \(q_i\) 是当前位置 query，\(k_{E,j}\) 是内容 key，\(R_{i-j}\) 是相对距离的正弦编码，\(u\) 和 \(v\) 是可学习全局偏置。四项分别有清晰含义：\(q_i^{\top}k_{E,j}\) 做内容寻址；\(q_i^{\top}W_{k,R}R_{i-j}\) 表示“当前内容想关注多远”；\(u^{\top}k_{E,j}\) 是全局内容偏置；\(v^{\top}W_{k,R}R_{i-j}\) 是全局位置偏置。相较 Shaw 等相对位置方法，Transformer-XL 保留 sinusoidal relative encoding 的外推归纳偏置，并把内容 key 与位置 key 的投影矩阵分开。
 
-Transformer-XL 将其改为基于相对距离的公式：
+这种位置设计和 memory 机制是配套的。只有 recurrence 而没有相对位置，模型会在复用缓存时产生时间混淆；只有相对位置而没有 recurrence，仍然无法跨片段传递历史信息。两者结合后，训练时可固定片段长度，评估时可以把 memory length 设得更长，因为相对距离编码比训练过的绝对位置编号更容易外推到长上下文。
 
-$$A_{i,j}^{\text{rel}} = \underbrace{E_{x_i}^\top W_q^\top W_{k,E} E_{x_j}}_{(a)} + \underbrace{E_{x_i}^\top W_q^\top W_{k,R} R_{i-j}}_{(b)} + \underbrace{u^\top W_{k,E} E_{x_j}}_{(c)} + \underbrace{v^\top W_{k,R} R_{i-j}}_{(d)}$$
+从计算流程看，Transformer-XL 在训练阶段像截断 BPTT：每个 segment 做一次前向和反向，上一段 hidden states 作为固定 memory。推理阶段则更像缓存式自回归模型：旧片段的各层表示保留在 memory 中，新片段只需计算新增 token 的表示，不需要每次滑窗都从头重算历史。这就是论文能报告大幅评估加速的原因。它不仅扩大有效上下文，也把“长上下文语言模型”从重复窗口计算推进到状态复用范式。
 
-**四个关键改动**：
-1. **(b)(d)** 将绝对位置编码 U_j 替换为基于相对距离 i−j 的编码 R_{i−j}（可学习的正弦编码矩阵）。
-2. **(c)(d)** 新增可学习向量 u 和 v 替代 U_i^\top W_q^\top，因为 Query 位置对注意力应无偏置效果——对不同位置 Query 使用相同偏置。
-3. **Key 权重分拆**：W_k 分为 W_{k,E}（内容映射）和 W_{k,R}（位置映射），分别处理内容向量和位置向量。
-4. **(d)** 将 U_i^\top W_q^\top W_k U_j 重构为与 Query 无关的形式 v^\top W_{k,R} R_{i-j}。
-
-这样一来，位置信息仅依赖相对距离 i−j，前段和当前段的位置编码不再冲突，状态复用自然成立。
-
-> **伪代码（直观理解）**：
-> ```
-> def rel_attn(Q, K, V, R, u, v, W_kE, W_kR):
->     A_content = Q @ (W_kE @ K).T          # (a) 内容-内容
->     A_pos    = Q @ (W_kR @ R).T           # (b) 内容-位置
->     bias_c   = u @ (W_kE @ K).T           # (c) 全局内容偏置
->     bias_p   = v @ (W_kR @ R).T           # (d) 全局位置偏置
->     return softmax(A_content + A_pos + bias_c + bias_p) @ V
-> ```
-
-##### 4. 消融实验与关键发现
-
-**WikiText-103 消融**（Table 6）：同时使用递归机制和相对位置编码才取得最优结果。绝对位置编码仅与 "half loss"（仅对段后半位置计算损失）配合才有效，因为前半位置训练时注意力长度过短导致泛化差。全模型可将训练时的 128 注意长度扩展至评估时的 640，PPL 随注意长度增加持续下降。
-
-**One Billion Word 控制实验**：该数据集不要求长程依赖，任何提升仅归因于解决上下文碎片化。Transformer-XL 仍显著优于 baseline，验证了递归机制消除碎片化的独立价值。
-
-##### 5. 生成能力
-
-论文展示了 Transformer-XL 生成连贯长文章的能力。在给定种子段落后，模型能持续生成数千 token、主题一致的文本，远超标准 Transformer 的生成质量。
+与后来的长上下文 Transformer 相比，Transformer-XL 的思路朴素但影响很大。它没有依赖稀疏注意力、检索索引或外部记忆库，而是在标准 Transformer 内部加入可缓存的 hidden-state recurrence；它也没有把长上下文问题只看作位置编码问题，而是同时处理信息流、位置一致性和推理效率。对于现代 LLM，KV cache 已成为自回归推理的基础设施，Transformer-XL 则是较早系统性说明“Transformer 状态可以跨片段复用，并且位置编码必须随之改造”的代表工作。
 
 #### 🧪 练习题
-1. 标准 Transformer 语言模型的 context fragmentation 问题具体指的是什么？为什么简单 padding 到句边界在实践中未被广泛采用？
-2. Transformer-XL 的段级循环机制中，前段隐状态通过 SG（stop-gradient）固定。如果允许梯度跨段回传（类似 BPTT），会带来什么利弊？
-3. 推导标准 Transformer 注意力分数分解为四项 (a)(b)(c)(d) 的过程，并说明 Transformer-XL 为何必须将绝对位置编码改为相对位置编码。
-4. 为什么 Transformer-XL 在评估时能比 Vanilla Transformer 快 1800 倍？请从计算量和缓存复用的角度分析。
-5. 如果将 Transformer-XL 的 memory 长度 M 从训练时的 L 增加到评估时的 3L，会对模型的注意力模式产生什么影响？
+```yaml
+question: "Transformer-XL 为什么不能直接复用标准 Transformer 的绝对位置编码？"
+options:
+  - "因为缓存的历史状态与当前片段可能共享相同绝对位置编号，导致模型无法区分真实相对距离"
+  - "因为绝对位置编码会让模型参数量变成两倍"
+  - "因为绝对位置编码只能用于图像，不能用于文本"
+  - "因为相对位置编码会完全取消 attention mask"
+answer: 0
+explain: "Transformer-XL 复用上一片段 hidden states 时，需要知道当前 query 与历史 key 的相对距离；绝对位置编号在跨片段缓存下会造成时间混淆。"
+```

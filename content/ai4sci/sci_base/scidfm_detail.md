@@ -1,221 +1,110 @@
-### SciDFM: 面向科学的混合专家大语言模型
-
+### SciDFM：科学领域基础模型 (Scientific Domain Foundation Model)
 ```yaml
----
-tags: [AI4Science, MoE, LLM, 科学推理, 分子理解]
-authors: [Liangtai Sun, Danyu Luo, Da Ma, Zihan Zhao, Baocai Chen, Zhennan Shen, Su Zhu, Lu Chen, Xin Chen, Kai Yu]
-affiliations: [上海交通大学 X-LANCE实验室, 苏州实验室, AI Speech Co.]
-pub_date: 2024-09-27
-arxiv_id: "2409.18412"
----
+id: scidfm
+name: SciDFM
+full_name: 科学领域基础模型 (Scientific Domain Foundation Model)
+year: '2024'
+org: 复旦大学
+paper_url: https://arxiv.org/abs/2401.12356
+category: science_llm
+parent: —
+motivation: MoE架构科学大模型多领域专家
 ```
 
-## 📝 一句话总结
+#### 📝 一句话总结
+SciDFM 提出了一个从头训练的科学领域 MoE 大语言模型，用 8 专家、top-2 路由的稀疏 FFN 替代普通 Transformer FFN，并通过科学语料、分子/蛋白专用 token 与指令微调来补足通用 LLM 对化学分子和氨基酸序列的建模短板。
 
-SciDFM 是一个基于 **Mixture-of-Experts (MoE)** 架构的科学大语言模型（总参数 18.2B，激活 5.6B），通过在科学文献与通用语料上联合预训练，并设计专用分词器处理分子与氨基酸序列，在多个科学基准上达到同规模模型 SOTA，且 MoE 专家选择呈现出与学科关联性一致的聚类现象。
+#### 🎯 核心要点
+- MoE 架构：总参数约 18.2B、每次前向激活约 5.6B，26 层、隐藏维度 3200、上下文长度 8192、8 个专家且每个 token 选择 top-2 专家。
+- 科学 token 设计：在 OpenLLaMA-3B BPE tokenizer 基础上，把化学原子和氨基酸字符作为独立 token，减少 SMILES 与蛋白序列被普通子词切碎的问题。
+- 预训练数据：约 570B token 单轮语料，其中科学域约 300B、通用域约 270B；训练两轮后总计约 1.1T token。
+- 指令微调数据：约 9.3M 条样本，覆盖数学、物理、生物、医学、化学与通用问答，并包含 Mol-Instructions、ChemDFM-sft 等分子/蛋白任务。
+- 训练机制：AdamW、cosine learning-rate schedule、4M token macro batch、MoE auxiliary loss factor 0.02 与 expert capacity factor 1.0。
+- 专家分析：论文用不同学科论文、分子 SMILES 与氨基酸序列统计专家选择向量，再用 t-SNE 展示专家路由会随学科/模态形成不同分布。
+- 来源限制：任务给出的 `paper_url` 实际指向联邦学习论文；本文依据可追溯的 SciDFM 论文 `https://arxiv.org/abs/2409.18412` 和公开模型页 `https://huggingface.co/OpenDFM/SciDFM-MoE-A5.6B-v1.0` 撰写。
 
----
+#### 🔬 深入细节
+##### 图示与来源
+![SciDFM 专家选择 t-SNE 可视化](https://arxiv.org/html/2409.18412v3/extracted/5994215/tsne.png)
+*图：SciDFM 论文 Figure 1，展示数学、物理、化学、生物文本以及分子/蛋白序列在 MoE 专家选择统计上的 t-SNE 分布。论文没有给出单独的模型架构总览图，因此这里使用作者提供的专家行为分析图作为核心机制证据。*
 
-## 🎯 核心要点
+可访问来源：SciDFM 的 arXiv HTML 为 `https://arxiv.org/html/2409.18412v3`；任务中的 `https://arxiv.org/abs/2401.12356` 不是 SciDFM 论文，正文按实际论文校正。
 
-| 维度 | 内容 |
-|------|------|
-| **解决的问题** | 现有科学 LLM 要么局限于单一领域（如化学、生物），要么缺乏对分子/蛋白质等非文本模态的理解能力，难以同时覆盖多学科科学推理 |
-| **关键创新** | ① MoE 架构实现多学科知识的高效建模（8 专家 top-2 路由）；② 专用分词器将化学原子和氨基酸字符作为独立 token；③ 科学+通用数据联合预训练策略 |
-| **主要结果** | 在 SciEval、SciQ 等通用科学基准上超越 Galactica-30B 和同规模模型；在 MoleculeNet 分子属性预测和 Mol-Instructions 分子生成任务上达到 SOTA |
-| **局限性** | 仅 5.6B 激活参数，在数学推理（GSM8K/MATH）上不及 Llama3-8B-Instruct；分子/蛋白质理解仍为文本级别，未引入 3D 结构信息 |
+##### 机制拆解
+SciDFM 的基础仍是 decoder-only Transformer，并沿用 LLaMA 系列常见改动：RMSNorm、RoPE 与 SwiGLU。关键差异在于把原本每层中的 dense FFN 替换为 MoE 层。对每个 token 的隐藏状态 \(x\)，门控网络产生专家概率：
 
----
+$$
+p=\mathrm{Softmax}(xW_g),\qquad S=\mathrm{TopK}(p, k=2)
+$$
 
-## 🔬 深入细节
+MoE 输出可写成：
 
-### 1. 整体架构
+$$
+\mathrm{MoE}(x)=\sum_{i\in S} p_i E_i(x)
+$$
 
-SciDFM 基于 Transformer 解码器架构，融合了 LLaMA 的改进（RMSNorm、RoPE、SwiGLU），并将前馈网络（FFN）替换为 **Mixture-of-Experts 层**。
+其中 \(E_i\) 是第 \(i\) 个专家 FFN。直觉上，注意力层仍负责跨 token 交互，而 MoE FFN 负责把 token 映射到少量更适合的专家子网络；top-2 路由让计算量接近 5.6B 激活参数，同时保留 18.2B 总容量。训练时还加入负载均衡辅助项，避免少数专家长期被过度使用：
 
-**架构示意图：**
+$$
+\mathcal{L}_{\mathrm{train}}
+=-\sum_t \log p_\theta(x_t\mid x_{<t})
++\lambda \mathcal{L}_{\mathrm{aux}}
+$$
 
-![SciDFM Architecture](https://ar5iv.labs.arxiv.org/html/2409.18412/assets/x1.png)
+SciDFM 的 tokenizer 是另一个方法核心。普通 BPE 对 SMILES 或氨基酸序列可能把一个化学原子、括号、键符号或残基拆到不稳定的子词边界；SciDFM 把化学原子和 20 类氨基酸字符作为独立 token，并使用特殊标识区分科学符号和自然语言文本。例如 `C(C(=O)O)N` 会按原子、括号和键相关符号切分，蛋白序列 `MIRLGAPQTL` 则按残基逐字符切分。这样做的效果不是显式建模 3D 结构，而是让语言模型至少在序列层面看到稳定的科学符号单元。
 
-> *图：SciDFM 的 MoE 架构示意。每个 Transformer 层中的 FFN 被替换为包含 8 个专家的 MoE 层，通过 top-2 门控路由选择 2 个专家进行计算。*
+论文还提出了一种专家选择分析方式。设第 \(i\) 层 MoE gate 对长度为 \(l\) 的文本输出 \(g_i\)，专家数为 \(e\)，该层的专家选择摘要为：
 
-**核心架构参数：**
+$$
+e_i=\mathrm{Softmax}\left(\sum_{j=1}^{l} g_i[j,:]\right)\in\mathbb{R}^{e}
+$$
 
-| 参数 | 值 |
-|------|------|
-| 总参数量 | 18.2B |
-| 激活参数量 | 5.6B |
-| 隐藏维度 | 3200 |
-| 层数 | 26 |
-| 注意力头数 | 25 |
-| 专家数量 | 8 |
-| 激活专家数 (top-k) | 2 |
-| 上下文长度 | 8192 |
-| 词表大小 | 32000 + 特殊科学 token |
+把所有 \(N\) 个 MoE 层的摘要拼接为：
 
-### 2. 专用分词器设计
+$$
+E_T=\mathrm{Concat}([e_1,e_2,\dots,e_N])\in\mathbb{R}^{Ne}
+$$
 
-SciDFM 基于 OpenLLaMa-3B 的 BPE 分词器，额外添加了**化学原子**和**氨基酸字符**作为独立 token，并用特殊标识符包裹：
+这相当于把一段文本或序列投影成“它倾向使用哪些专家”的指纹。论文对数学、物理、化学、生物论文以及分子/蛋白序列分别采样后发现，学科文本在专家选择空间中出现聚类，分子和蛋白序列又与普通学科论文明显分离，说明 MoE 路由确实学习到了不同科学数据类型的差异。
 
-```
-# 分子 SMILES 编码示例
-原始: C(C(=O)O)N
-编码: [C] [(] [C] [(] [=] [O] [)] [O] [)] [N]
-
-# 氨基酸序列编码示例  
-原始: MKTL...
-编码: [M] [K] [T] [L] ...
-```
-
-这种设计使模型能够**区分科学符号与普通文本字符**，避免子词分词对分子结构的破坏。
-
-### 3. MoE 门控机制
-
-MoE 层的核心是 **top-2 门控路由**，其工作流程如下：
-
-$$G(x) = \text{TopK}(\text{Softmax}(x \cdot W_g), k=2)$$
-
-其中 \(W_g \in \mathbb{R}^{d \times e}\) 是门控网络权重，\(d=3200\) 为隐藏维度，\(e=8\) 为专家数。
-
-**伪代码：**
-
+##### 训练与推理伪代码
 ```python
-def moe_forward(hidden_states, gate_weight, experts, k=2):
-    """MoE层前向传播"""
-    # Step 1: 计算门控分数
-    gate_logits = hidden_states @ gate_weight  # [batch, seq_len, num_experts]
-    gate_probs = softmax(gate_logits, dim=-1)
-    
-    # Step 2: 选择 top-k 专家
-    top_k_probs, top_k_indices = topk(gate_probs, k=k)  # 选择概率最高的2个专家
-    top_k_probs = top_k_probs / top_k_probs.sum(dim=-1, keepdim=True)  # 归一化
-    
-    # Step 3: 加权组合专家输出
-    output = zeros_like(hidden_states)
-    for i in range(k):
-        expert_idx = top_k_indices[:, :, i]
-        expert_output = experts[expert_idx](hidden_states)
-        output += top_k_probs[:, :, i:i+1] * expert_output
-    
-    return output
+# SciDFM pretraining: decoder-only LM with top-2 MoE FFN
+for batch in science_and_general_corpus:
+    tokens = scientific_tokenizer(batch)  # text, SMILES, amino-acid sequences
+    hidden = embed(tokens)
+
+    aux_loss = 0.0
+    for layer in transformer_layers:
+        hidden = hidden + self_attention(layer.norm1(hidden))
+
+        x = layer.norm2(hidden)
+        gate_prob = softmax(x @ layer.gate_weight)
+        expert_ids = topk(gate_prob, k=2)
+        moe_out = 0
+        for expert_id in expert_ids:
+            moe_out += gate_prob[expert_id] * layer.experts[expert_id](x)
+        hidden = hidden + moe_out
+        aux_loss += load_balance_loss(gate_prob, expert_ids)
+
+    lm_loss = cross_entropy(next_token_head(hidden), tokens.shift_left())
+    loss = lm_loss + 0.02 * aux_loss
+    loss.backward()
+    optimizer.step()
 ```
 
-**为什么用 MoE？** 科学领域涵盖数学、物理、化学、生物等差异巨大的子领域，MoE 允许不同专家"专精"不同领域的知识，同时保持计算效率（仅激活 5.6B/18.2B ≈ 31% 的参数）。
+推理阶段没有额外检索或工具调用：输入文本、SMILES 或蛋白序列先经科学 tokenizer 编码，再经过同一组 MoE Transformer 层；每个 token 的 gate 动态选择两个专家，因此同一个模型能在数学推理、医学问答、分子属性描述和蛋白功能描述之间共享底层表示，同时保留一定的专家分工。
 
-### 4. 训练数据与策略
+> 💡 关键：SciDFM 的贡献不是提出新的注意力机制，而是把“科学语料 + 科学符号 tokenizer + 稀疏 MoE 容量”组合成一个通用科学 LLM，并用专家选择分析证明不同科学域会触发不同路由模式。
 
-**预训练数据（~570B tokens）：**
-
-| 数据类别 | 来源 | 规模 |
-|----------|------|------|
-| 科学论文 | S2ORC (Semantic Scholar) | ~300B tokens |
-| 数学 | MathPile, proof-pile-2 | 包含在科学数据中 |
-| 代码 | The Stack | 包含在通用数据中 |
-| 通用文本 | SlimPajama (RedPajama子集) | ~270B tokens |
-| 分子数据 | PubChem, UniProt | 特殊格式处理 |
-
-**指令微调数据（9.3M 样本）：**
-
-| 类别 | 数据集 | 样本数 |
-|------|--------|--------|
-| 通用对话 | Dolly, SlimOrca, GPT4All | ~1.2M |
-| 数学推理 | MetaMath, Orca-Math, MAmmoTH | ~1.5M |
-| 科学问答 | SciEval, SciQ, ARC 训练集 | ~2M |
-| 分子任务 | Mol-Instructions | ~4.6M |
-
-**训练超参数：**
-- 优化器：AdamW（\(\beta_1=0.9, \beta_2=0.95\)）
-- 学习率：\(2 \times 10^{-4}\)（预训练），\(2 \times 10^{-5}\)（指令微调）
-- 预训练轮数：2 epochs
-- 负载均衡损失权重：0.01
-
-### 5. 专家选择分析（关键发现）
-
-论文对 MoE 层的专家选择模式进行了 t-SNE 可视化分析，这是本文最独特的贡献之一。
-
-**分析方法：**
-
-对于每个文本 \(T\)，计算各层的专家选择概率分布：
-
-$$e_i = \text{Softmax}\left(\sum_{j=1}^{l} g_i[j,:]\right) \in \mathbb{R}^e$$
-
-$$E_T = \text{Concat}([e_1, e_2, \dots, e_N]) \in \mathbb{R}^{Ne}$$
-
-其中 \(g_i = h_i \cdot W_g\) 是第 \(i\) 层的门控输出，\(N=26\) 为层数，\(e=8\) 为专家数，最终每个文本得到一个 \(26 \times 8 = 208\) 维的专家选择向量。
-
-![Expert Analysis t-SNE](https://ar5iv.labs.arxiv.org/html/2409.18412/assets/x2.png)
-
-> *图：不同学科数据的专家选择 t-SNE 可视化。数学与物理聚类接近，化学与生物聚类接近，分子和蛋白质序列与文本数据明显分离。*
-
-**关键发现：**
-1. **学科聚类**：数学、化学、物理、生物论文呈现明显的学科特异性聚类
-2. **学科亲缘性**：数学↔物理 聚类接近，化学↔生物 聚类接近，符合学科间的知识关联
-3. **模态分离**：分子 SMILES 和氨基酸序列与文本数据完全分离，因为它们使用了独特的词汇表
-
-### 6. 实验结果亮点
-
-**通用科学基准（零样本）：**
-
-| 模型 | SciEval | SciQ | ARC | GSM8K | MATH | 平均 |
-|------|---------|------|-----|-------|------|------|
-| Galactica-6.7B | 46.6 | 75.5 | 67.2 | 6.4 | 2.2 | 39.6 |
-| Galactica-30B | 48.0 | 85.2 | 78.9 | 10.1 | 3.4 | 45.1 |
-| Llama3-8B-Instruct | 47.3 | 90.7 | 79.4 | **75.1** | **23.2** | **63.1** |
-| ChatGLM3-6B | 47.7 | 80.4 | 63.7 | 53.8 | 17.8 | 52.7 |
-| **SciDFM** | **52.7** | **90.8** | 72.6 | 38.4 | 12.4 | 53.4 |
-
-**逆合成预测（Mol-Instructions，零样本）：**
-
-| 模型 | Exact Match ↑ | Levenshtein ↓ | RDK FTS ↑ | Validity ↑ |
-|------|---------------|---------------|-----------|------------|
-| Galactica-6.7B | 0.000 | 30.760 | 0.036 | 0.995 |
-| Mol-Instructions | 0.044 | 23.167 | 0.237 | 1.000 |
-| **SciDFM** | **0.665** | **6.45** | **0.916** | 0.998 |
-
-> SciDFM 在逆合成预测上的 Exact Match 达到 66.5%，远超其他模型，展现了 MoE + 专用分词器在分子任务上的巨大优势。
-
----
-
-## 🧪 练习题
-
-### 题目 1：MoE 路由计算
-**问题：** 假设 SciDFM 某一层的门控网络对一个 token 输出的 logits 为 \([1.2, 0.3, 2.1, 0.5, 1.8, 0.1, 0.7, 1.5]\)（对应 8 个专家），使用 top-2 路由策略。请计算：
-1. 哪两个专家被选中？
-2. 归一化后的路由权重分别是多少？
-
-<details>
-<summary>💡 查看答案</summary>
-
-1. Softmax 后概率最高的两个专家为 **Expert 3**（logit=2.1）和 **Expert 5**（logit=1.8）
-
-2. 计算 softmax（仅对选中的两个）：
-   - \(p_3 = e^{2.1} / (e^{2.1} + e^{1.8}) = 8.166 / (8.166 + 6.050) = 0.574\)
-   - \(p_5 = e^{1.8} / (e^{2.1} + e^{1.8}) = 6.050 / (8.166 + 6.050) = 0.426\)
-   
-   归一化权重：Expert 3 ≈ **0.574**，Expert 5 ≈ **0.426**
-</details>
-
-### 题目 2：专家选择向量维度
-**问题：** SciDFM 有 26 层 MoE，每层 8 个专家。论文中定义的专家选择向量 \(E_T\) 的维度是多少？如果要对 600 个文本样本（数学/化学/物理/生物/分子/蛋白质各 100 个）进行 t-SNE 分析，输入矩阵的形状是什么？
-
-<details>
-<summary>💡 查看答案</summary>
-
-- \(E_T \in \mathbb{R}^{Ne} = \mathbb{R}^{26 \times 8} = \mathbb{R}^{208}\)，即 **208 维**
-- 600 个样本的输入矩阵形状为 **600 × 208**
-- t-SNE 将其降至 3 维，输出为 **600 × 3**
-</details>
-
-### 题目 3：分词器设计思考
-**问题：** 为什么 SciDFM 需要将化学原子（如 C、N、O）和氨基酸字符作为独立 token？如果使用标准 BPE 分词器处理 SMILES 字符串 `C(C(=O)O)N`，可能会出现什么问题？
-
-<details>
-<summary>💡 查看答案</summary>
-
-**原因：** 标准 BPE 分词器会将频繁出现的字符组合合并为子词，例如可能将 `C(` 或 `O)` 合并为单个 token，这会**破坏分子的化学结构语义**。在 SMILES 中，每个原子符号（C、N、O）和括号都有独立的化学含义：
-- `C` = 碳原子
-- `(` = 分支开始
-- `=O` = 双键连接氧
-
-如果 BPE 将 `C(` 合并，模型就无法区分"碳原子"和"碳原子后跟分支"这两个不同的化学概念。专用分词器确保每个化学符号保持独立，使模型能正确学习分子的拓扑结构。
-</details>
+#### 🧪 练习题
+```yaml
+question: "SciDFM 使用 MoE 层替代普通 FFN 的主要目的是什么？"
+options:
+  - "让每个 token 动态路由到少量专家，在增加总参数容量的同时控制激活计算量"
+  - "完全移除注意力层，只依赖专家网络完成序列建模"
+  - "把分子 3D 坐标直接编码进模型结构"
+  - "用检索数据库替代预训练语料"
+answer: 0
+explain: "SciDFM 的 MoE 层通过 top-2 gate 激活少数专家，使模型拥有更大的总容量，但每次前向只计算部分专家。"
+```

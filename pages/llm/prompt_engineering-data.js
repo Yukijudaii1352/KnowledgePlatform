@@ -1,5 +1,5 @@
 /**
- * prompt_engineering-data.js — 由 pipeline/build.py 于 2026-06-15 18:08:26 自动生成。
+ * prompt_engineering-data.js — 由 pipeline/build.py 于 2026-06-16 17:00:17 自动生成。
  * 源文件：content/llm/prompt_engineering.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "prompt_engineering",
     "topic_name": "提示词工程",
     "page_title": "提示词工程 算法总结",
-    "page_subtitle": "2026-06-15 版",
+    "page_subtitle": "2026-06-16 版",
     "page_desc": "系统性梳理从基础Prompt设计到思维链(CoT)、自动化提示优化及2026年最新前沿技术的演进脉络。",
     "page_icon": "✍️",
     "hero_pills": [
@@ -295,12 +295,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "basic",
       "motivation": "通过少量示例激发模型上下文学习能力",
-      "summary": "Few-shot 的核心目标是：通过少量示例激发模型上下文学习能力。",
+      "summary": "Few-shot Prompting 在 GPT-3 论文中被系统化为一种“只在输入上下文中给少量示例、不更新参数”的任务适配方式，解决了传统微调依赖大量标注样本和梯度更新的问题。",
       "keyPoints": [
-        "核心动机：通过少量示例激发模型上下文学习能力",
-        "代表机构：OpenAI"
+        "使用任务描述加 <span class=\"kb-math kb-math-inline\">K</span> 个输入-输出示例作为上下文，直接让自回归语言模型续写答案",
+        "GPT-3 以 175B 参数规模验证少样本上下文学习随模型规模增强",
+        "评估范式明确区分 Fine-tuning、Zero-shot、One-shot、Few-shot",
+        "所有测试任务均不进行梯度更新，任务规范完全由自然语言和示例文本给出",
+        "在翻译、问答、完形填空、SuperGLUE、LAMBADA、简单算术等任务上展示跨任务泛化",
+        "局限包括上下文长度受限、示例选择敏感、部分推理和稳健性任务仍明显落后"
       ],
-      "detail": "<p>通过少量示例激发模型上下文学习能力</p>"
+      "detail": "<p><img alt=\"GPT-3 评估范式对比图\" src=\"https://ar5iv.labs.arxiv.org/html/2005.14165/assets/figures/eval_strategies.png\" />\n<em>图：GPT-3 论文 Figure 2.1，对比 Fine-tuning、Zero-shot、One-shot 与 Few-shot 的测试时输入方式。图源：ar5iv / arXiv。</em></p>\n<pre><code class=\"language-python\"># Few-shot prompting 推理伪代码\ndef few_shot_predict(lm, task_description, demonstrations, query, k):\n    prompt = task_description.strip() + &quot;\\n\\n&quot;\n    for x_i, y_i in demonstrations[:k]:\n        prompt += f&quot;Input: {x_i}\\nOutput: {y_i}\\n\\n&quot;\n    prompt += f&quot;Input: {query}\\nOutput:&quot;\n    return lm.generate(prompt, stop=[&quot;\\n&quot;])\n</code></pre>\n<p>Few-shot 的核心不是“用少量样本训练模型”，而是把少量样本作为输入条件。给定任务描述 <span class=\"kb-math kb-math-inline\">d</span>、示例集合 <span class=\"kb-math kb-math-inline\">\\{(x_i,y_i)\\}_{i=1}^{K}</span> 和测试样本 <span class=\"kb-math kb-math-inline\">x_\\*</span>，模型直接估计：</p>\n<div class=\"kb-math kb-math-display\">p_\\theta(y_\\* \\mid d, x_1,y_1,\\ldots,x_K,y_K,x_\\*)</div>\n<p>这里的 <span class=\"kb-math kb-math-inline\">\\theta</span> 在测试时保持不变，因此适配过程发生在 Transformer 的前向传播和注意力模式中，而不是参数空间中。GPT-3 论文将这种能力称为 in-context learning 的一种表现：预训练阶段形成的模式识别能力被测试时的文本示例临时调动起来。</p>\n<p>方法设计的关键是“格式对齐”。示例不仅提供标签，还提供任务的输入输出 schema、答案风格、标签空间和隐含约束。例如情感分类中，示例会告诉模型标签只能是 <code>Positive</code> 或 <code>Negative</code>；翻译任务中，示例会告诉模型输入输出语言边界。示例数量 <span class=\"kb-math kb-math-inline\">K</span> 增加时，模型获得更多任务结构信号，但也会消耗上下文窗口并引入坏示例干扰。</p>\n<p>与传统 fine-tuning 相比，Few-shot Prompting 的优势是部署成本低：同一个底座模型可以通过不同 prompt 切换任务，不需要为每个任务维护独立权重。代价是它把优化问题转移到了 prompt 设计上，示例的代表性、顺序、格式和长度都会影响输出；当任务需要精确规则、长链推理或罕见标签时，少量示例未必足以稳定约束模型行为。</p>\n<div class=\"key-point\">💡 关键：Few-shot 的“学习”发生在上下文内，模型参数不变；示例越像一个清晰的小型任务说明书，模型越容易把续写分布收缩到正确答案空间。</div>",
+      "quiz": {
+        "q": "Few-shot Prompting 与传统监督微调的核心区别是什么？",
+        "options": [
+          "Few-shot 在测试时更新全部模型参数",
+          "Few-shot 通过上下文示例指定任务，测试时不做梯度更新",
+          "Few-shot 必须使用奖励模型筛选答案",
+          "Few-shot 只适用于分类任务"
+        ],
+        "answer": 1,
+        "explain": "Few-shot Prompting 将少量示例放入 prompt 中作为条件信息，模型权重保持冻结。"
+      }
     },
     {
       "id": "zero_shot",
@@ -314,12 +329,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "basic",
       "motivation": "仅凭指令完成任务，无需示例",
-      "summary": "Zero-shot 的核心目标是：仅凭指令完成任务，无需示例。",
+      "summary": "Zero-shot Prompting 让语言模型只依赖自然语言指令和待处理输入完成任务，解决了没有示例或标注样本时如何快速调用预训练能力的问题。",
       "keyPoints": [
-        "核心动机：仅凭指令完成任务，无需示例",
-        "代表机构：OpenAI"
+        "只提供任务描述和测试输入，不提供输入-输出示例",
+        "测试时无微调、无梯度更新、无任务专属参数",
+        "GPT-3 论文将 Zero-shot 作为与 One-shot、Few-shot、Fine-tuning 并列的评估范式",
+        "性能依赖预训练中积累的任务知识、指令理解能力和模型规模",
+        "通常弱于 Few-shot，但成本最低、上下文占用最小、任务切换最快",
+        "对模糊任务、非标准标签空间和复杂推理任务更容易产生格式偏差或误解"
       ],
-      "detail": "<p>仅凭指令完成任务，无需示例</p>"
+      "detail": "<p><img alt=\"GPT-3 零样本与少样本评估范式\" src=\"https://ar5iv.labs.arxiv.org/html/2005.14165/assets/figures/eval_strategies.png\" />\n<em>图：GPT-3 论文 Figure 2.1，Zero-shot 面板展示只用任务说明和当前输入进行预测。图源：ar5iv / arXiv。</em></p>\n<pre><code class=\"language-python\"># Zero-shot prompting 推理伪代码\ndef zero_shot_predict(lm, instruction, query):\n    prompt = f&quot;{instruction.strip()}\\n\\nInput: {query}\\nOutput:&quot;\n    answer = lm.generate(prompt, stop=[&quot;\\n&quot;])\n    return normalize(answer)\n</code></pre>\n<p>Zero-shot 的条件分布可以写为：</p>\n<div class=\"kb-math kb-math-display\">p_\\theta(y_\\* \\mid d, x_\\*)</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">d</span> 是自然语言任务说明，<span class=\"kb-math kb-math-inline\">x_\\*</span> 是测试输入。与 Few-shot 相比，条件中没有 <span class=\"kb-math kb-math-inline\">(x_i,y_i)</span> 示例，因此模型必须从指令文本本身推断任务目标、输出格式和标签空间。它本质上是在调用预训练阶段已经吸收的知识和模式，而不是在上下文中学习新映射。</p>\n<p>这一范式的动机非常直接：很多真实任务没有现成示例，或者用户只愿意用一句话表达需求。Zero-shot 把任务接口压缩成“说明 + 输入”，让一个通用模型能在翻译、摘要、问答、分类、改写等任务之间直接切换。GPT-3 论文的重要观察是，随着模型规模扩大，Zero-shot 能力也会平滑提升，但在不少任务上仍明显低于带示例的 Few-shot。</p>\n<p>设计 Zero-shot prompt 时，指令必须承担更多约束功能。它需要说明角色、目标、输出格式、边界条件和禁止行为，例如“只输出一个标签”“用 JSON 返回”“如果无法判断则回答 Unknown”。如果指令省略这些约束，模型会按最可能的自然文本续写，可能给出解释、补充背景或使用与评测脚本不匹配的答案格式。</p>\n<p>与 Few-shot 的区别在于，Zero-shot 的失败更常来自“任务解释错误”，而 Few-shot 的失败更常来自“示例选择或模式泛化错误”。因此 Zero-shot 通常适合开放生成、常见任务和低成本批量调用；当标签空间罕见、格式严格或推理链较长时，加入示例、思维链或自洽投票通常更稳。</p>\n<div class=\"warn-box\">⚠️ 注意：Zero-shot 不是“模型不知道任务也能做”，而是“用户不提供示例”；模型仍依赖预训练中已有的语言和任务知识。</div>",
+      "quiz": {
+        "q": "Zero-shot Prompting 最依赖 prompt 中的哪类信息？",
+        "options": [
+          "梯度更新次数",
+          "任务说明和输出约束",
+          "训练集随机种子",
+          "奖励模型打分"
+        ],
+        "answer": 1,
+        "explain": "Zero-shot 没有示例可参考，模型主要依靠自然语言任务说明判断应执行什么以及如何输出。"
+      }
     },
     {
       "id": "icl",
@@ -333,13 +363,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "basic",
       "motivation": "研究示例选择与顺序对性能的影响",
-      "summary": "ICL 的核心目标是：研究示例选择与顺序对性能的影响。",
+      "summary": "ICL 指模型在不更新参数的情况下利用当前上下文中的任务信号完成新输入；该论文从预训练样本切分角度解释了模型为什么偏好同一上下文内的依赖，并提出用 kNN-Pretraining 改善这种归纳偏置。",
       "keyPoints": [
-        "核心动机：研究示例选择与顺序对性能的影响",
-        "演化来源：继承或改进自 few_shot",
-        "代表机构：Google/Stanford"
+        "分析预训练文本被切成固定长度 example 后带来的 in-context inductive bias",
+        "理论上说明模型更容易建模同一训练 example 内片段之间的依赖，而跨 example 依赖被削弱",
+        "将 ICL 现象与预训练 example 设计联系起来，而不只看推理时 prompt 模板",
+        "提出 kNN-Pretraining：把语义相关但非相邻的句子放入同一预训练 example",
+        "在 Natural Questions closed-book QA 和 SentEval 相似度任务上展示增益",
+        "启发后续示例检索、示例排序、上下文构造等 prompt engineering 方法"
       ],
-      "detail": "<p>研究示例选择与顺序对性能的影响</p>"
+      "detail": "<p><img alt=\"ICL 归纳偏置与 kNN-Pretraining 效果\" src=\"https://ar5iv.labs.arxiv.org/html/2110.04541/assets/x1.png\" />\n<em>图：论文 Figure 1，展示少量 kNN-Pretraining 对 closed-book QA 的提升。图源：ar5iv / arXiv。</em></p>\n<pre><code class=\"language-python\"># kNN-Pretraining 风格的上下文构造伪代码\ndef build_pretraining_example(anchor_sentence, corpus, encoder, max_len):\n    neighbors = knn_search(\n        query=encoder(anchor_sentence),\n        index=[encoder(s) for s in corpus],\n        k=K,\n    )\n    packed = [anchor_sentence]\n    for sent in neighbors:\n        if token_len(packed + [sent]) &lt;= max_len:\n            packed.append(sent)\n    return concatenate(packed)\n</code></pre>\n<p>论文关注的不是单个 prompt 技巧，而是 ICL 的来源：语言模型在预训练时看到的是一个个长度有限的连续文本块。若两个文本片段出现在同一个训练 example 中，Transformer 的自注意力和语言建模损失可以直接学习它们之间的条件依赖；若它们被切到不同 example，中间没有共同上下文，模型只能通过参数中的统计记忆间接连接。</p>\n<p>可以用一个抽象式子表达这种差异：同一上下文中的片段 <span class=\"kb-math kb-math-inline\">a,b</span> 允许模型直接估计 <span class=\"kb-math kb-math-inline\">p_\\theta(b \\mid a, c)</span>，而不同 example 中的片段只能通过全局参数近似相关性。论文将这种训练机制称为一种 in-context bias，它有利于语言建模，却可能让需要整合语料中分散证据的 NLU 任务受限。</p>\n<p>kNN-Pretraining 的思路是改变“哪些文本被放在同一个 example”。给定一个 anchor 句子，用语义检索找到近邻句子，再把这些非相邻但相关的句子打包到同一个预训练样本中。这样模型在训练时就能通过上下文直接看到跨文档或跨位置的语义关系，从而强化“在上下文里对齐相关证据”的能力。</p>\n<p>对 prompt engineering 的启发是：ICL 不只是“多放几个例子”，而是要让上下文中的片段形成有用依赖。推理时的示例选择、示例顺序、标签分布和测试输入相似度，都会改变模型可见的条件结构；预训练时的 example 设计则决定模型多大程度上习惯利用这些结构。</p>\n<div class=\"key-point\">💡 关键：ICL 的表现由两层因素共同决定：预训练阶段模型是否学会利用同一上下文内的依赖，推理阶段 prompt 是否把有用依赖组织进上下文。</div>",
+      "quiz": {
+        "q": "该论文解释 ICL 归纳偏置时最强调哪一点？",
+        "options": [
+          "模型必须通过反向传播学习每个新任务",
+          "同一预训练 example 内的片段依赖比跨 example 依赖更容易被建模",
+          "示例越随机越能提升上下文学习",
+          "上下文学习只由模型参数量决定"
+        ],
+        "answer": 1,
+        "explain": "论文指出常规 chunking 会让模型偏向同一上下文内的信息整合，kNN-Pretraining 正是利用这一偏置。"
+      }
     },
     {
       "id": "cot",
@@ -353,13 +397,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "reasoning",
       "motivation": "通过中间推理步骤提升复杂推理能力",
-      "summary": "CoT 的核心目标是：通过中间推理步骤提升复杂推理能力。",
+      "summary": "Chain-of-Thought Prompting 在少样本示例中加入自然语言中间推理步骤，使大模型先生成推理链再给答案，解决了标准 prompt 在多步算术、常识和符号推理上容易直接跳错的问题。",
       "keyPoints": [
-        "核心动机：通过中间推理步骤提升复杂推理能力",
-        "演化来源：继承或改进自 few_shot",
-        "代表机构：Google"
+        "将 few-shot 示例从“问题-答案”扩展为“问题-推理步骤-答案”",
+        "不训练新模型、不修改参数，只改变 prompt 中示例答案的结构",
+        "在算术、常识、符号推理任务上显著优于标准 few-shot prompting",
+        "推理能力随模型规模涌现，小模型往往无法稳定受益",
+        "PaLM 540B 配合 8 个 CoT 示例在 GSM8K 等任务上取得强结果",
+        "为后续 Self-Consistency、Zero-shot CoT、Least-to-Most、ReAct、ToT 等方法奠定基础"
       ],
-      "detail": "<p>通过中间推理步骤提升复杂推理能力</p>"
+      "detail": "<p><img alt=\"Chain-of-Thought Prompting 示例图\" src=\"https://ar5iv.labs.arxiv.org/html/2201.11903/assets/x1.png\" />\n<em>图：CoT 论文 Figure 1，展示标准 prompting 与带中间推理步骤的 prompting 对比。图源：ar5iv / arXiv。</em></p>\n<pre><code class=\"language-python\"># Chain-of-Thought prompting 推理伪代码\ndef cot_predict(lm, cot_examples, question):\n    prompt = &quot;&quot;\n    for q_i, rationale_i, answer_i in cot_examples:\n        prompt += f&quot;Q: {q_i}\\nA: {rationale_i} The answer is {answer_i}.\\n\\n&quot;\n    prompt += f&quot;Q: {question}\\nA:&quot;\n    completion = lm.generate(prompt)\n    rationale, answer = split_rationale_and_final_answer(completion)\n    return answer, rationale\n</code></pre>\n<p>CoT 的关键变量是推理链 <span class=\"kb-math kb-math-inline\">r</span>。标准 prompting 直接建模 <span class=\"kb-math kb-math-inline\">p_\\theta(y \\mid x)</span>，而 CoT 让模型先生成中间步骤再生成答案：</p>\n<div class=\"kb-math kb-math-display\">p_\\theta(y,r \\mid x, D_{\\text{cot}})\n= p_\\theta(r \\mid x, D_{\\text{cot}})\\,p_\\theta(y \\mid x,r,D_{\\text{cot}})</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">D_{\\text{cot}}</span> 是带推理步骤的少样本示例。这个分解把隐式计算外化为文本，使模型可以把多步问题拆成更短的局部推断，例如先提取数字关系、再执行算术、最后汇总答案。</p>\n<p>CoT 的设计非常轻量：同样的问题、同样的模型，只把示例答案从短标签改成“解释 + 最终答案”。这种结构给模型两个信号：第一，答案之前应该展开推理；第二，推理步骤的粒度应该与示例相似。它不是保证推理正确的形式化证明，但会显著降低模型从问题直接跳到答案时的压缩负担。</p>\n<p>论文的重要发现是规模效应。对较小模型，要求生成推理链可能只是增加无用文本；对足够大的模型，推理链提供了可利用的计算轨迹，使复杂任务性能大幅提升。这解释了为什么 CoT 常被视为大模型能力涌现的代表现象之一。</p>\n<p>与传统符号求解器相比，CoT 不需要显式写规则或程序，通用性强；但它的推理链仍是模型生成的自然语言，可能出现看似合理但计算错误的步骤。因此后续方法通常在 CoT 之上加入多路径采样、投票、工具执行或搜索机制来提升可靠性。</p>\n<div class=\"warn-box\">⚠️ 注意：CoT 提高的是“生成中间计算轨迹”的概率，不等于验证了轨迹的逻辑正确性。</div>",
+      "quiz": {
+        "q": "CoT Prompting 的主要改动是什么？",
+        "options": [
+          "在测试时微调模型参数",
+          "在示例答案中加入中间推理步骤",
+          "删除所有 few-shot 示例",
+          "用外部搜索引擎替代模型生成"
+        ],
+        "answer": 1,
+        "explain": "CoT 的核心是在 prompt 示例中展示推理过程，让模型按类似格式先推理再回答。"
+      }
     },
     {
       "id": "self_consistency",
@@ -373,13 +431,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "reasoning",
       "motivation": "多路径采样投票提升推理鲁棒性",
-      "summary": "Self-Consistency 的核心目标是：多路径采样投票提升推理鲁棒性。",
+      "summary": "Self-Consistency 用多次采样的 CoT 推理路径替代贪心解码，并对最终答案投票，解决了单条推理链偶然出错导致答案不稳的问题。",
       "keyPoints": [
-        "核心动机：多路径采样投票提升推理鲁棒性",
-        "演化来源：继承或改进自 cot",
-        "代表机构：Google"
+        "将 CoT 的 greedy decoding 改为随机采样多条 reasoning paths",
+        "对每条推理链抽取 final answer，再选择出现最一致的答案",
+        "近似边缘化中间推理路径，而不是信任单一路径",
+        "在 GSM8K、SVAMP、AQuA、StrategyQA、ARC-challenge 等任务上显著提升",
+        "与模型训练无关，是纯解码策略，可叠加在 CoT prompt 上",
+        "代价是多次采样带来更高推理成本，并依赖答案抽取规则"
       ],
-      "detail": "<p>多路径采样投票提升推理鲁棒性</p>"
+      "detail": "<p><img alt=\"Self-Consistency 三步流程\" src=\"https://ar5iv.labs.arxiv.org/html/2203.11171/assets/x1.png\" />\n<em>图：论文 Figure 1，展示 CoT prompt、多路径采样和最终答案聚合三步。图源：ar5iv / arXiv。</em></p>\n<pre><code class=\"language-python\"># Self-Consistency 解码伪代码\ndef self_consistency(lm, cot_prompt, question, n_samples, temperature):\n    votes = {}\n    traces = []\n    for _ in range(n_samples):\n        completion = lm.generate(\n            cot_prompt + f&quot;\\nQ: {question}\\nA:&quot;,\n            temperature=temperature,\n        )\n        rationale, answer = parse_final_answer(completion)\n        traces.append((rationale, answer))\n        votes[answer] = votes.get(answer, 0) + 1\n    best_answer = max(votes, key=votes.get)\n    return best_answer, traces\n</code></pre>\n<p>Self-Consistency 的直觉是：复杂问题通常存在多条不同但等价的解题路线，错误路线之间不一定收敛到同一个错误答案，而正确路线更可能汇聚到同一最终答案。于是与其用贪心解码找单条最高概率推理链，不如采样多个 <span class=\"kb-math kb-math-inline\">r</span>，再边缘化掉 <span class=\"kb-math kb-math-inline\">r</span>：</p>\n<div class=\"kb-math kb-math-display\">p(a \\mid x) = \\sum_r p_\\theta(a,r \\mid x)\n\\approx \\sum_{m=1}^{M} \\mathbf{1}[a_m=a]</div>\n<p>这里 <span class=\"kb-math kb-math-inline\">M</span> 是采样次数，<span class=\"kb-math kb-math-inline\">a_m</span> 是第 <span class=\"kb-math kb-math-inline\">m</span> 条推理链抽取出的最终答案。最终选择 <span class=\"kb-math kb-math-inline\">\\arg\\max_a \\text{count}(a)</span>。这使决策从“哪条完整文本概率最高”变为“哪个答案被多种推理路径支持最多”。</p>\n<p>与普通 CoT 相比，Self-Consistency 只改变解码和聚合。Prompt 仍是 CoT prompt，模型也不需要额外训练；关键参数是采样温度、样本数和答案解析函数。温度过低会得到高度相似的路径，投票收益有限；温度过高会生成噪声路径，增加解析错误。</p>\n<p>它的强项是封闭答案空间的推理任务，例如数字答案、多选题、是非题。对于开放式生成，标准 Self-Consistency 会遇到“答案无法精确匹配”的问题：同义表达、列表顺序、长文本摘要都很难用正则或字符串投票处理。这也直接推动了 Universal Self-Consistency 等后续方法。</p>\n<div class=\"key-point\">💡 关键：Self-Consistency 不是让模型反思，而是用采样近似“多条推理路径对同一答案的边缘支持”。</div>",
+      "quiz": {
+        "q": "Self-Consistency 相比普通 CoT 的核心变化是什么？",
+        "options": [
+          "训练一个新的验证器模型",
+          "采样多条推理链并对最终答案聚合投票",
+          "只使用零样本指令",
+          "把自然语言推理全部替换成 Python"
+        ],
+        "answer": 1,
+        "explain": "Self-Consistency 通过多路径采样降低单条推理链错误的影响，最终选择最一致的答案。"
+      }
     },
     {
       "id": "zero_shot_cot",
@@ -393,13 +465,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "reasoning",
       "motivation": "\"Let's think step by step\"激发推理",
-      "summary": "Zero-shot CoT 的核心目标是：\"Let's think step by step\"激发推理。",
+      "summary": "Zero-shot CoT 通过在问题后加入 “Let's think step by step” 一类通用触发语，在没有任何示例的情况下诱导模型生成推理链，解决了 CoT 依赖人工少样本推理示例的问题。",
       "keyPoints": [
-        "核心动机：\"Let's think step by step\"激发推理",
-        "演化来源：继承或改进自 cot",
-        "代表机构：东京大学/Google"
+        "使用任务无关的触发语激发逐步推理，不需要 few-shot CoT 示例",
+        "通常采用两阶段 prompting：先生成 reasoning，再用第二个 prompt 抽取最终答案",
+        "与标准 Zero-shot 相比，在算术、符号、常识推理任务上明显更强",
+        "与 Few-shot CoT 相比，人工 prompt 成本更低，但稳定性通常更弱",
+        "触发语可变，论文测试了多种类似模板",
+        "仍依赖模型规模和答案抽取，生成的推理链可能合理但错误"
       ],
-      "detail": "<p>\"Let's think step by step\"激发推理</p>"
+      "detail": "<p><img alt=\"Zero-shot CoT 输入输出对比\" src=\"https://ar5iv.labs.arxiv.org/html/2205.11916/assets/x1.png\" />\n<em>图：论文 Figure 1，对比标准 Few-shot、Few-shot CoT、标准 Zero-shot 与 Zero-shot CoT。图源：ar5iv / arXiv。</em></p>\n<pre><code class=\"language-python\"># Zero-shot CoT 两阶段推理伪代码\ndef zero_shot_cot(lm, question):\n    reasoning_prompt = f&quot;Q: {question}\\nA: Let's think step by step.&quot;\n    reasoning = lm.generate(reasoning_prompt)\n\n    extraction_prompt = (\n        f&quot;Q: {question}\\n&quot;\n        f&quot;A: Let's think step by step. {reasoning}\\n&quot;\n        &quot;Therefore, the answer (arabic numerals) is&quot;\n    )\n    final_answer = lm.generate(extraction_prompt, stop=[&quot;\\n&quot;])\n    return normalize(final_answer), reasoning\n</code></pre>\n<p>Zero-shot CoT 可以看作在普通 zero-shot 条件分布里加入一个推理模式触发器 <span class=\"kb-math kb-math-inline\">t</span>：</p>\n<div class=\"kb-math kb-math-display\">p_\\theta(y,r \\mid x,t), \\quad t=\\text{``Let&#x27;s think step by step&#x27;&#x27;}</div>\n<p>这个短语的作用不是提供具体知识，而是改变输出分布的格式先验：模型更倾向于续写一段分步分析，而不是直接给出短答案。对于需要多步计算的问题，这相当于为模型争取了额外的文本计算空间。</p>\n<p>论文提出两阶段流程是因为第一阶段生成的文本常包含推理和答案，格式不一定适合自动评测。第二阶段把原问题、推理文本和答案抽取指令重新交给模型，让它输出标准化答案。这个设计牺牲了一次额外调用，换来更稳定的最终答案解析。</p>\n<p>Zero-shot CoT 与 Few-shot CoT 的差别在于示例来源。Few-shot CoT 用人工构造的推理示例规定任务格式和推理粒度；Zero-shot CoT 只用通用触发语，依赖模型内部已经学到的“逐步解释”模式。因此它更便宜、更通用，但在任务特定格式、复杂符号规则或需要精确约束时不如精心设计的少样本 CoT 稳。</p>\n<div class=\"warn-box\">⚠️ 注意：触发“逐步思考”会增加可解释文本，但也可能增加冗长错误；在高风险任务中仍需要验证、工具执行或多路径投票。</div>",
+      "quiz": {
+        "q": "Zero-shot CoT 中第二阶段 prompting 的主要目的是什么？",
+        "options": [
+          "训练模型记住推理链",
+          "从第一阶段生成的推理中抽取格式化最终答案",
+          "随机打乱示例顺序",
+          "减少模型参数量"
+        ],
+        "answer": 1,
+        "explain": "Zero-shot CoT 第一阶段生成推理，第二阶段通常用于把推理结果转成可评测的最终答案。"
+      }
     },
     {
       "id": "least_to_most",
@@ -413,13 +499,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "reasoning",
       "motivation": "将复杂问题分解为子问题逐步求解",
-      "summary": "Least-to-Most 的核心目标是：将复杂问题分解为子问题逐步求解。",
+      "summary": "Least-to-Most Prompting 先让模型把复杂问题分解成更简单的子问题，再按顺序求解并把前序答案传给后续步骤，解决了普通 CoT 在“测试题比示例更难”时泛化不足的问题。",
       "keyPoints": [
-        "核心动机：将复杂问题分解为子问题逐步求解",
-        "演化来源：继承或改进自 cot",
-        "代表机构：Google"
+        "两阶段流程：problem decomposition 与 sequential subproblem solving",
+        "分解和求解都通过 few-shot prompting 完成，不需要微调",
+        "后一个子问题的 prompt 会包含前面子问题及其答案",
+        "针对 easy-to-hard generalization，比普通 CoT 更适合组合泛化",
+        "在 SCAN、符号操作、数学推理等任务中显著提升",
+        "可与 CoT 结合：每个子问题内部仍可生成短推理链"
       ],
-      "detail": "<p>将复杂问题分解为子问题逐步求解</p>"
+      "detail": "<p><img alt=\"Least-to-Most 两阶段流程\" src=\"https://ar5iv.labs.arxiv.org/html/2205.10625/assets/figures/ltm-pull-fig_new.png\" />\n<em>图：论文 Figure 1，展示先分解问题、再按子问题顺序求解的流程。图源：ar5iv / arXiv。</em></p>\n<pre><code class=\"language-python\"># Least-to-Most prompting 伪代码\ndef least_to_most(lm, decomposition_prompt, solving_prompt, problem):\n    subquestions = lm.generate(\n        decomposition_prompt + f&quot;\\nProblem: {problem}\\nSubproblems:&quot;\n    )\n    context = f&quot;Problem: {problem}\\n&quot;\n    answers = []\n    for q in parse_subquestions(subquestions):\n        prompt = solving_prompt + &quot;\\n&quot; + context + f&quot;Q: {q}\\nA:&quot;\n        a = lm.generate(prompt)\n        answers.append((q, a))\n        context += f&quot;Q: {q}\\nA: {a}\\n&quot;\n    return answers[-1][1], answers\n</code></pre>\n<p>普通 CoT 假设示例中的推理模式可以直接迁移到测试题，但当测试题需要更多组合步骤时，模型可能学到的是“示例长度附近的解法”。Least-to-Most 把问题显式拆成一串更小的目标，让每次调用都只处理当前可控难度的子任务。</p>\n<p>流程可以写成：</p>\n<div class=\"kb-math kb-math-display\">q_{1:n} \\sim p_\\theta(\\text{subquestions} \\mid x), \\quad\na_i \\sim p_\\theta(a_i \\mid x, q_1,a_1,\\ldots,q_i)</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">q_{1:n}</span> 是分解出的子问题，<span class=\"kb-math kb-math-inline\">a_i</span> 是第 <span class=\"kb-math kb-math-inline\">i</span> 个子问题答案。关键是求解第 <span class=\"kb-math kb-math-inline\">i</span> 个子问题时，模型能看到 <span class=\"kb-math kb-math-inline\">a_{&lt;i}</span>，所以复杂依赖被转化成逐步累积的状态。</p>\n<p>这种设计的优势在组合任务上尤其明显。例如 SCAN 这类指令映射任务要求模型把短规则组合成长动作序列；普通 CoT 示例如果都很短，模型不一定能 extrapolate 到长序列。Least-to-Most 则把长指令拆成局部片段，逐步构造最终输出。</p>\n<p>与 CoT 的区别在于，CoT 主要控制“答案内部要写推理步骤”，Least-to-Most 控制“问题外部要先规划子问题结构”。前者是一条连续推理链，后者是显式课程式求解；当问题天然可分解时，Least-to-Most 更容易复用前序中间结果，也更便于人工检查失败发生在哪个子问题。</p>\n<div class=\"key-point\">💡 关键：Least-to-Most 的核心不是让推理更长，而是让每一步更简单，并让上下文保存已解决的中间状态。</div>",
+      "quiz": {
+        "q": "Least-to-Most Prompting 最核心的两步是什么？",
+        "options": [
+          "采样多条答案并多数投票",
+          "先分解复杂问题，再顺序求解子问题",
+          "把答案翻译成 Python 并执行",
+          "训练奖励模型筛选 prompt"
+        ],
+        "answer": 1,
+        "explain": "Least-to-Most 通过 decomposition 和 sequential solving 将难题变成一串依赖前序答案的简单子问题。"
+      }
     },
     {
       "id": "react",
@@ -433,13 +533,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "reasoning",
       "motivation": "协同推理与行动调用外部工具",
-      "summary": "ReAct 的核心目标是：协同推理与行动调用外部工具。",
+      "summary": "ReAct 让语言模型交替生成 Thought、Action 和 Observation，把内部推理与外部工具或环境交互结合起来，解决了纯 CoT 容易幻觉、纯行动策略缺少任务规划的问题。",
       "keyPoints": [
-        "核心动机：协同推理与行动调用外部工具",
-        "演化来源：继承或改进自 cot",
-        "代表机构：Google/Princeton"
+        "统一 Reasoning traces 与 task-specific actions",
+        "轨迹格式通常为 Thought → Action → Observation 的循环",
+        "Action 可调用 Wikipedia API、搜索接口、网页环境或文本游戏环境",
+        "Thought 用于分解目标、跟踪状态、修正计划和整合观察",
+        "在 HotpotQA、Fever、ALFWorld、WebShop 等任务上优于只推理或只行动基线",
+        "轨迹可解释性强，适合调试 agent 失败原因"
       ],
-      "detail": "<p>协同推理与行动调用外部工具</p>"
+      "detail": "<p><img alt=\"ReAct 与标准 prompting、CoT、Act-only 对比\" src=\"https://ar5iv.labs.arxiv.org/html/2210.03629/assets/x1.png\" />\n<em>图：论文 Figure 1，对比 Standard、CoT、Act-only 与 ReAct 在问答和环境任务中的轨迹。图源：ar5iv / arXiv。</em></p>\n<pre><code class=\"language-python\"># ReAct agent 推理-行动循环伪代码\ndef react_agent(lm, tools, task, examples, max_steps=8):\n    trajectory = format_examples(examples) + f&quot;\\nQuestion: {task}\\n&quot;\n    for _ in range(max_steps):\n        thought_action = lm.generate(trajectory + &quot;Thought:&quot;)\n        thought, action = parse_thought_and_action(thought_action)\n        trajectory += f&quot;Thought: {thought}\\nAction: {action}\\n&quot;\n\n        if action.name == &quot;Finish&quot;:\n            return action.argument, trajectory\n\n        observation = tools[action.name](*action.arguments)\n        trajectory += f&quot;Observation: {observation}\\n&quot;\n    return &quot;No answer&quot;, trajectory\n</code></pre>\n<p>ReAct 的状态可以写为 <span class=\"kb-math kb-math-inline\">s_t=(x,\\tau_{&lt;t})</span>，其中 <span class=\"kb-math kb-math-inline\">x</span> 是任务输入，<span class=\"kb-math kb-math-inline\">\\tau_{&lt;t}</span> 是已经产生的 thought/action/observation 轨迹。模型在每一步生成：</p>\n<div class=\"kb-math kb-math-display\">(\\text{thought}_t,\\text{action}_t) \\sim p_\\theta(\\cdot \\mid x,\\tau_{&lt;t})</div>\n<p>Action 执行后得到外部观察 <span class=\"kb-math kb-math-inline\">o_t</span>，再追加到上下文中。这样模型不必完全依赖参数记忆回答事实问题，也不必在没有语言规划的情况下盲目探索环境。</p>\n<p>纯 CoT 的缺陷是封闭世界：模型只能基于已有知识和上下文推理，遇到事实缺口时容易编造。ReAct 通过 Action 把推理链接到外部信息源，例如先搜索实体，再查找页面，再根据观察更新下一步检索。Thought 的作用是决定“下一步查什么”和“观察意味着什么”。</p>\n<p>纯行动方法的缺陷是缺少显式状态抽象。ReAct 的 Thought 能记录目标、已完成步骤、失败原因和替代计划。例如环境返回“物品不在当前位置”时，模型可以在 Thought 中修正路线，而不是继续重复无效动作。</p>\n<p>从 prompt engineering 角度看，ReAct 的关键是少样本轨迹示范。示例不只给最终答案，还展示可用动作名、动作参数格式、观察如何进入上下文、何时调用 <code>Finish</code>。这使模型学会一个可执行协议，而不是仅学会回答风格。</p>\n<div class=\"key-point\">💡 关键：ReAct 把语言模型从“只会续写答案”变成“能维护轨迹并调用环境反馈的控制器”。</div>",
+      "quiz": {
+        "q": "ReAct 中 Observation 的作用是什么？",
+        "options": [
+          "替代语言模型参数",
+          "把外部工具或环境返回的信息写回轨迹，供后续推理使用",
+          "保存训练梯度",
+          "随机选择下一个示例"
+        ],
+        "answer": 1,
+        "explain": "Observation 是 Action 执行后的外部反馈，ReAct 将其追加到上下文中以支持下一步 Thought 和 Action。"
+      }
     },
     {
       "id": "tot",
@@ -453,13 +567,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "reasoning",
       "motivation": "引入搜索算法探索与回溯思维路径",
-      "summary": "ToT 的核心目标是：引入搜索算法探索与回溯思维路径。",
+      "summary": "Tree of Thoughts 将中间推理步骤建模为树节点，用语言模型生成、评估并搜索多个思维分支，解决了 CoT 单路径推理无法系统探索和回溯的问题。",
       "keyPoints": [
-        "核心动机：引入搜索算法探索与回溯思维路径",
-        "演化来源：继承或改进自 cot",
-        "代表机构：Princeton/Google"
+        "将 thought 定义为可作为中间步骤的连贯语言片段",
+        "状态表示为输入加已生成 thought 序列 <span class=\"kb-math kb-math-inline\">s=[x,z_{1:i}]</span>",
+        "四个核心设计：thought decomposition、generation、evaluation、search",
+        "支持 BFS、DFS 等显式搜索策略和回溯",
+        "语言模型既可生成候选 thought，也可作为启发式评估器",
+        "在 Game of 24、Creative Writing、Mini Crosswords 等任务上展示优势"
       ],
-      "detail": "<p>引入搜索算法探索与回溯思维路径</p>"
+      "detail": "<p><img alt=\"Tree of Thoughts 框架图\" src=\"https://ar5iv.labs.arxiv.org/html/2305.10601/assets/x1.png\" />\n<em>图：论文 Figure 1，对比输入输出、CoT、自洽 CoT 与 ToT 的问题求解结构。图源：ar5iv / arXiv。</em></p>\n<pre><code class=\"language-python\"># ToT-BFS 简化伪代码\ndef tot_bfs(lm, problem, depth, branch, beam):\n    frontier = [State(problem=problem, thoughts=[])]\n    for t in range(depth):\n        candidates = []\n        for state in frontier:\n            thoughts = generate_thoughts(lm, state, k=branch)\n            for z in thoughts:\n                next_state = state.extend(z)\n                score = evaluate_state(lm, next_state)\n                candidates.append((score, next_state))\n        frontier = [s for _, s in sorted(candidates, reverse=True)[:beam]]\n    return select_best_solution(lm, frontier)\n</code></pre>\n<p>ToT 把问题求解写成搜索问题。每个节点是一个 partial solution：</p>\n<div class=\"kb-math kb-math-display\">s_i = [x, z_1, z_2, \\ldots, z_i]</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">x</span> 是原问题，<span class=\"kb-math kb-math-inline\">z_i</span> 是第 <span class=\"kb-math kb-math-inline\">i</span> 个 thought。模型不再一次性生成完整答案，而是在每个状态上生成若干候选 thought，再用评估函数估计这些状态离成功有多近。</p>\n<p>论文将 ToT 的实例化拆成四个问题。第一，如何把任务过程分成 thought 粒度，例如 Game of 24 中一步算式就是一个 thought。第二，如何生成候选 thought，可以独立采样或按 prompt 提议多个候选。第三，如何评估状态，可以让模型打分、投票或判断可行性。第四，使用哪种搜索策略，例如 BFS 保留 top-<span class=\"kb-math kb-math-inline\">b</span> 状态，DFS 在低分时回溯。</p>\n<p>与 Self-Consistency 相比，ToT 不只是采样多条完整推理链后投票，而是在中间层面就进行选择。错误分支可以提前剪枝，有希望的分支可以继续展开。这种 lookahead 和 backtracking 对组合搜索任务尤其重要，因为早期一个错误步骤会导致后续全部无效。</p>\n<p>ToT 的代价是推理调用次数显著增加，并且需要为任务定义 thought 粒度和评估 prompt。它更适合高价值、可分步搜索、可评估中间状态的任务；对于简单问答，普通 CoT 或 Self-Consistency 往往更便宜。</p>\n<div class=\"key-point\">💡 关键：ToT 把 prompt 从“线性续写”升级为“语言模型驱动的启发式搜索”。</div>",
+      "quiz": {
+        "q": "ToT 相比普通 CoT 的关键增强是什么？",
+        "options": [
+          "只输出最终答案",
+          "维护多个 thought 分支并用搜索策略选择和回溯",
+          "禁止模型生成中间步骤",
+          "只依赖监督微调"
+        ],
+        "answer": 1,
+        "explain": "ToT 将中间推理表示为树节点，通过生成、评估和搜索探索多条候选路径。"
+      }
     },
     {
       "id": "pal",
@@ -473,13 +601,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "reasoning",
       "motivation": "将推理转为可执行代码保证准确性",
-      "summary": "PAL 的核心目标是：将推理转为可执行代码保证准确性。",
+      "summary": "PAL 让语言模型把自然语言问题转成可执行程序，再由 Python 解释器完成计算，解决了 CoT 会写出合理推理但算错或执行不精确的问题。",
       "keyPoints": [
-        "核心动机：将推理转为可执行代码保证准确性",
-        "演化来源：继承或改进自 cot",
-        "代表机构：CMU"
+        "Program-aided Language Models 将中间推理表示为代码",
+        "LLM 负责理解问题、分解变量和生成程序，解释器负责执行",
+        "最终答案来自程序运行结果，而不是模型直接口算",
+        "在 13 个算术和符号推理任务上评估，尤其适合精确计算",
+        "使用 Codex 等具备代码能力的模型生成 Python",
+        "与 CoT 互补：自然语言推理可读，程序执行更可靠"
       ],
-      "detail": "<p>将推理转为可执行代码保证准确性</p>"
+      "detail": "<p><img alt=\"PAL 与 CoT 对比图\" src=\"https://ar5iv.labs.arxiv.org/html/2211.10435/assets/x1.png\" />\n<em>图：论文 Figure 1，对比 CoT 的自然语言推理和 PAL 的 Python 程序执行流程。图源：ar5iv / arXiv。</em></p>\n<pre><code class=\"language-python\"># PAL 推理伪代码\ndef pal_solve(lm, prompt_examples, question, python_executor):\n    prompt = prompt_examples + f&quot;\\n# Question: {question}\\n&quot;\n    prompt += &quot;# Write a Python program to solve it.\\n&quot;\n    program = lm.generate(prompt, stop=[&quot;\\n\\n# Question:&quot;])\n    result = python_executor.run(program, entrypoint=&quot;solution&quot;)\n    return result, program\n</code></pre>\n<p>PAL 的核心分解是：</p>\n<div class=\"kb-math kb-math-display\">c \\sim p_\\theta(c \\mid x, D_{\\text{PAL}}), \\quad y = \\operatorname{Exec}(c)</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">c</span> 是模型生成的程序，<span class=\"kb-math kb-math-inline\">\\operatorname{Exec}</span> 是外部解释器。模型不再承担所有推理和计算，只负责把语言问题翻译成程序化步骤；精确算术、循环、条件和符号操作交给解释器执行。</p>\n<p>CoT 在复杂算术上常见失败是“思路看起来对，但某一步算错”。PAL 把这些易错步骤落到代码里，例如把人数、价格、日期写成变量，再用表达式计算。只要程序语义正确，解释器会稳定给出同一结果，不会像语言模型那样在多位数计算上随机漂移。</p>\n<p>Prompt 的示例需要展示从题目到代码的映射风格：如何命名变量、如何写注释、如何把最终结果赋给 <code>answer</code> 或从 <code>solution()</code> 返回。示例越清楚，模型越容易生成可执行且结构化的程序。这里的“推理链”仍然存在，只是从自然语言句子变成了代码语句。</p>\n<p>PAL 的边界也很清楚：如果模型误解题意，解释器只能精确执行错误程序；如果执行环境不安全或库不可用，也会带来工程风险。因此实际系统中通常需要沙箱、超时、依赖白名单和异常回退。</p>\n<div class=\"key-point\">💡 关键：PAL 不要求语言模型自己算得更准，而是让模型把问题交给更适合精确执行的符号工具。</div>",
+      "quiz": {
+        "q": "PAL 中 Python 解释器主要承担什么职责？",
+        "options": [
+          "生成自然语言题目",
+          "执行模型生成的程序并产出最终答案",
+          "训练语言模型参数",
+          "筛选 few-shot 示例顺序"
+        ],
+        "answer": 1,
+        "explain": "PAL 由 LLM 生成程序，解释器执行程序，因此最终答案来自可执行代码的运行结果。"
+      }
     },
     {
       "id": "universal_sc",
@@ -493,13 +635,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "reasoning",
       "motivation": "扩展自洽性至开放式任务",
-      "summary": "Universal SC 的核心目标是：扩展自洽性至开放式任务。",
+      "summary": "Universal Self-Consistency 用语言模型直接从多个候选回答中选择最一致的一个，解决了标准 Self-Consistency 依赖答案抽取、难以处理开放式生成的问题。",
       "keyPoints": [
-        "核心动机：扩展自洽性至开放式任务",
-        "演化来源：继承或改进自 self_consistency",
-        "代表机构：Google"
+        "先采样多个候选响应，再用 LLM 进行 consistency-based selection",
+        "不需要正则抽取最终答案，也不要求候选格式完全一致",
+        "适用于数学推理、代码生成、长上下文摘要、开放式问答等任务",
+        "在可抽取答案的数学任务上接近标准 Self-Consistency",
+        "在摘要和 TruthfulQA 等开放任务上提供标准 SC 无法直接使用的聚合方式",
+        "局限包括候选顺序偏置、长上下文理解压力和“最一致不等于最好”"
       ],
-      "detail": "<p>扩展自洽性至开放式任务</p>"
+      "detail": "<p><img alt=\"Universal Self-Consistency 工作流\" src=\"https://ar5iv.labs.arxiv.org/html/2311.17311/assets/figs/usc.png\" />\n<em>图：论文 Figure 1，展示采样多个候选回答并由 LLM 选择最一致响应的流程。图源：ar5iv / arXiv。</em></p>\n<pre><code class=\"language-python\"># Universal Self-Consistency 伪代码\ndef universal_self_consistency(lm, task_prompt, x, n_samples):\n    candidates = []\n    for _ in range(n_samples):\n        candidates.append(lm.generate(task_prompt + format_input(x), temperature=0.7))\n\n    selection_prompt = build_selection_prompt(\n        x=x,\n        candidates=candidates,\n        criterion=&quot;Choose the response that is most consistent with the others.&quot;,\n    )\n    chosen_index = lm.generate(selection_prompt)\n    return candidates[parse_index(chosen_index)], candidates\n</code></pre>\n<p>标准 Self-Consistency 的聚合依赖 <span class=\"kb-math kb-math-inline\">a_m=\\operatorname{extract}(y_m)</span>，即从每条推理链中抽取一个可比较的短答案。开放式任务中这个函数很难定义：两个摘要可能都正确但措辞不同，两个实体列表可能部分重叠，代码也可能有不同实现。USC 直接把候选 <span class=\"kb-math kb-math-inline\">y_{1:M}</span> 交给模型判断：</p>\n<div class=\"kb-math kb-math-display\">j^\\* = \\operatorname{LLMSelect}(x, y_1,\\ldots,y_M; \\text{consistency})</div>\n<p>然后输出 <span class=\"kb-math kb-math-inline\">y_{j^\\*}</span>。这把“答案规范化和投票”的手工规则替换为模型自己的语义一致性判断。</p>\n<p>USC 的动机是，判断候选之间哪一个最符合多数语义，通常比从零生成更容易。候选集中往往已经包含高质量答案，选择器只需要比较它们共享的事实、推理结论或内容覆盖。对于数学题，它可以近似标准 SC；对于开放问答，它可以选择实体覆盖最一致的候选；对于摘要，它可以偏向信息更完整或与多数内容一致的摘要。</p>\n<p>方法的一个重要工程点是 selection prompt。候选需要编号，顺序最好随机化或多次重排以减轻位置偏置；标准可以是“most consistent”，也可以针对任务改成“most detailed”“most truthful”等。论文也指出任务特定选择标准可能进一步提升摘要等任务。</p>\n<p>USC 的失败模式来自 LLM-as-judge 本身：长候选太多会超过上下文或削弱比较能力；多数一致也可能意味着多数候选共享同一个错误；候选顺序和表述风格可能影响选择。因此 USC 更像一个通用聚合框架，而不是完美验证器。</p>\n<div class=\"key-point\">💡 关键：USC 的泛化点在于不再要求答案可被规则抽取，而是让模型在语义层面做一致性选择。</div>",
+      "quiz": {
+        "q": "Universal Self-Consistency 解决了标准 Self-Consistency 的哪类主要限制？",
+        "options": [
+          "无法进行梯度更新",
+          "开放式回答难以用规则抽取并精确投票",
+          "不能采样多个候选",
+          "只能使用小模型"
+        ],
+        "answer": 1,
+        "explain": "USC 让 LLM 直接选择最一致候选，避免为每个开放式任务手写答案抽取和匹配规则。"
+      }
     },
     {
       "id": "got",
@@ -513,13 +669,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "reasoning",
       "motivation": "将思维建模为有向图支持聚合循环",
-      "summary": "GoT 的核心目标是：将思维建模为有向图支持聚合循环。",
+      "summary": "Graph of Thoughts 将中间思维从线性链或树扩展为有向图，使模型能生成、聚合、评分、筛选并循环改写 thought，解决了 ToT 难以表达多分支合并和复杂工作流的问题。",
       "keyPoints": [
-        "核心动机：将思维建模为有向图支持聚合循环",
-        "演化来源：继承或改进自 tot",
-        "代表机构：ETH Zurich"
+        "将 thought 表示为图中的顶点，将操作依赖表示为有向边",
+        "支持 Generate、Aggregate、Score、KeepBest 等 thought transformation",
+        "比 CoT、Self-Consistency、ToT 更自然地表达分支合并和循环 refinement",
+        "引入 Graph Reasoning State / controller 思路来调度图执行",
+        "在排序、集合交集、关键词计数、文档合并等任务中验证",
+        "目标是在质量、成本和延迟之间获得更灵活的 tradeoff"
       ],
-      "detail": "<p>将思维建模为有向图支持聚合循环</p>"
+      "detail": "<p><img alt=\"Graph of Thoughts 与其他 prompting 策略对比\" src=\"https://ar5iv.labs.arxiv.org/html/2308.09687/assets/x1.png\" />\n<em>图：论文 Figure 1，对比 GoT 与 IO、CoT、Self-Consistency、ToT 等提示策略。图源：ar5iv / arXiv。</em></p>\n<pre><code class=\"language-python\"># Graph of Thoughts 调度伪代码\ndef run_got(lm, graph_plan, input_data):\n    graph = ThoughtGraph()\n    graph.add_node(&quot;input&quot;, value=input_data)\n\n    for op in graph_plan:\n        parents = graph.get_nodes(op.inputs)\n        if op.type == &quot;Generate&quot;:\n            children = generate_thoughts(lm, parents, n=op.n)\n            graph.add_children(parents, children)\n        elif op.type == &quot;Aggregate&quot;:\n            merged = aggregate_thoughts(lm, parents)\n            graph.add_node(op.output, merged, parents=parents)\n        elif op.type == &quot;Score&quot;:\n            graph.attach_scores(score_thoughts(lm, parents))\n        elif op.type == &quot;KeepBest&quot;:\n            graph.keep_top_k(parents, k=op.k)\n    return graph.best_output()\n</code></pre>\n<p>GoT 把推理过程表示为有向图 <span class=\"kb-math kb-math-inline\">G=(V,E)</span>。每个顶点 <span class=\"kb-math kb-math-inline\">v \\in V</span> 是一个 thought，可以是部分答案、候选列表、摘要片段或中间分析；边 <span class=\"kb-math kb-math-inline\">e \\in E</span> 表示某个 thought transformation 的输入输出依赖。这样，多个 thought 可以被聚合成一个新 thought，一个 thought 也可以被多次扩展或回到前面步骤重新 refinement。</p>\n<p>ToT 的结构是树，适合“从一个状态分裂出多个候选，再继续向下搜索”。但许多任务需要合并：例如把长列表切块排序后再合并，把多个文档摘要融合成一个摘要，把多个候选解的优点整合。树结构表达合并很别扭，图结构则可以把 Aggregate 作为一等操作。</p>\n<p>GoT 的操作层使 prompt workflow 更像可编排程序。Generate 负责产生候选，Score 负责评价候选，KeepBest 做剪枝，Aggregate 负责融合多个候选。不同任务可以复用这些算子，只替换 prompt 模板和图计划。例如排序任务可以“分块生成排序结果 → 聚合 → 再评分修正”。</p>\n<p>与 ReAct 的工具调用不同，GoT 的重点不是外部环境反馈，而是组织 LLM 自身的多次生成与选择。它牺牲一些实现复杂度，换来更强的工作流表达能力；当任务需要多轮合并、改写和筛选时，这种图式结构比线性 CoT 更稳定。</p>\n<div class=\"key-point\">💡 关键：GoT 的创新在于允许 thought 之间多对一、一对多和循环依赖，把 prompt reasoning 从搜索树升级为可编排图。</div>",
+      "quiz": {
+        "q": "GoT 相比 ToT 最重要的结构扩展是什么？",
+        "options": [
+          "完全移除中间 thought",
+          "允许多个 thought 聚合成新 thought，并支持图式依赖",
+          "只保留一条贪心路径",
+          "要求所有任务都调用外部搜索引擎"
+        ],
+        "answer": 1,
+        "explain": "GoT 将思维组织为有向图，因此可以表达分支、合并、评分、筛选和循环改写等复杂流程。"
+      }
     },
     {
       "id": "self_refine",
@@ -533,12 +703,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "optimization",
       "motivation": "通过自我反馈迭代改进输出质量",
-      "summary": "Self-Refine 的核心目标是：通过自我反馈迭代改进输出质量。",
+      "summary": "Self-Refine 让同一个语言模型先生成初稿，再给自己的输出写反馈，并基于反馈迭代改写，解决了单次生成难以一次达到高质量的问题。",
       "keyPoints": [
-        "核心动机：通过自我反馈迭代改进输出质量",
-        "代表机构：CMU/Allen AI"
+        "三个核心阶段：initial generation、feedback、refine",
+        "使用同一个底座 LLM 完成生成、反馈和改写，不需要额外训练",
+        "迭代直到达到固定轮数或模型判断无需继续修改",
+        "反馈需要具体指出缺陷，refine 需要保留优点并修复问题",
+        "在对话、代码优化、约束生成、情感反转、缩写生成等任务上评估",
+        "适合开放式生成质量优化，但不能保证每轮都单调变好"
       ],
-      "detail": "<p>通过自我反馈迭代改进输出质量</p>"
+      "detail": "<p><img alt=\"Self-Refine 高层流程图\" src=\"https://ar5iv.labs.arxiv.org/html/2303.17651/assets/x1.png\" />\n<em>图：论文 Figure 1，展示同一模型生成输出、生成反馈并迭代精炼的流程。图源：ar5iv / arXiv。</em></p>\n<pre><code class=\"language-python\"># Self-Refine 迭代伪代码\ndef self_refine(lm, task_input, max_iters=3):\n    y = lm.generate(build_initial_prompt(task_input))\n    history = []\n    for t in range(max_iters):\n        feedback = lm.generate(build_feedback_prompt(task_input, y, history))\n        if is_satisfied(feedback):\n            break\n        y_new = lm.generate(build_refine_prompt(task_input, y, feedback))\n        history.append((y, feedback, y_new))\n        y = y_new\n    return y, history\n</code></pre>\n<p>Self-Refine 的迭代可以写成：</p>\n<div class=\"kb-math kb-math-display\">y_0 = \\mathcal{M}(x), \\quad\nfb_t = \\mathcal{M}(x,y_t), \\quad\ny_{t+1} = \\mathcal{M}(x,y_t,fb_t)</div>\n<p>其中同一个模型 <span class=\"kb-math kb-math-inline\">\\mathcal{M}</span> 同时扮演作者、评论者和编辑。它不依赖人工反馈，也不需要训练奖励模型；所有改进都通过 prompt 中的自反馈文本完成。</p>\n<p>该方法的动机来自开放式生成的常见现象：第一次回答可能方向正确但有遗漏、约束违反、代码低效或表达不清。直接要求模型“再试一次”不一定有效，因为缺少明确改写目标；Self-Refine 先生成反馈，把问题显式列出来，再让模型根据反馈修订。</p>\n<p>反馈质量是核心。好的 feedback 应该具体、可执行，例如指出“没有满足长度约束”“代码复杂度仍是 <span class=\"kb-math kb-math-inline\">O(n^2)</span>”“回答没有覆盖用户第二个要求”。如果反馈只是泛泛地说“需要更好”，refine 阶段很难稳定改进。论文也通过消融说明反馈步骤本身对性能很重要。</p>\n<p>Self-Refine 与 Self-Consistency 的方向不同：Self-Consistency 并行采样多个候选后选择，Self-Refine 串行改进同一个候选。前者适合封闭答案投票，后者适合开放式质量打磨。实际系统中也可以组合：先采样多个初稿，再分别 refine，最后用选择器挑选。</p>\n<div class=\"warn-box\">⚠️ 注意：Self-Refine 没有外部真值校验，模型可能把正确内容改坏；高风险任务应加入测试、规则检查或人类审核。</div>",
+      "quiz": {
+        "q": "Self-Refine 的 feedback 阶段主要作用是什么？",
+        "options": [
+          "为模型参数计算梯度",
+          "指出当前输出的具体问题，为下一轮改写提供目标",
+          "随机删除上下文",
+          "替代最终答案输出"
+        ],
+        "answer": 1,
+        "explain": "Self-Refine 依靠模型生成的具体反馈指导 refine 阶段修复初稿问题。"
+      }
     },
     {
       "id": "reflexion",
@@ -552,13 +737,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "optimization",
       "motivation": "语言反馈实现无梯度闭环学习",
-      "summary": "Reflexion 的核心目标是：语言反馈实现无梯度闭环学习。",
+      "summary": "Reflexion 把失败轨迹、环境反馈和模型自我批评压缩成自然语言记忆，让同一个大模型在不更新参数的情况下，通过下一轮上下文逐步改进决策。",
       "keyPoints": [
-        "核心动机：语言反馈实现无梯度闭环学习",
-        "演化来源：继承或改进自 self_refine",
-        "代表机构：MIT/Northeastern"
+        "将强化学习式的试错闭环改写为“执行-评估-反思-重试”的语言闭环",
+        "不做梯度更新，改用 episodic memory 保存反思文本作为下一次尝试的上下文",
+        "由 Actor 产生动作轨迹，Evaluator 给出成功信号或分数，Self-Reflection 模块生成可执行的改进建议",
+        "适合有明确外部反馈的任务，如代码生成、交互式决策、问答和工具使用",
+        "反思文本起到“语义梯度”的作用，指出上一轮失败原因和下一轮策略",
+        "主要风险是反思质量依赖模型自身判断，错误反思会被记忆放大"
       ],
-      "detail": "<p>语言反馈实现无梯度闭环学习</p>"
+      "detail": "<p><img alt=\"Reflexion 闭环流程图\" src=\"https://raw.githubusercontent.com/noahshinn/reflexion/main/figures/reflexion_rl.png\" />\n<em>图源：Reflexion 官方 GitHub，展示 Actor、Evaluator、Self-Reflection 与记忆之间的闭环。</em></p>\n<pre><code class=\"language-python\"># Reflexion 推理-反思循环伪代码\ndef reflexion_solve(task, actor, evaluator, reflector, max_trials=5, memory_size=3):\n    memory = []\n    for trial in range(max_trials):\n        trajectory = actor.generate(task=task, reflections=memory)\n        score, feedback = evaluator(trajectory)\n        if score == &quot;success&quot;:\n            return trajectory.final_answer\n\n        reflection = reflector.generate(\n            task=task,\n            failed_trajectory=trajectory,\n            feedback=feedback,\n            prior_reflections=memory,\n        )\n        memory = (memory + [reflection])[-memory_size:]\n    return trajectory.final_answer\n</code></pre>\n<p>Reflexion 的核心不是让模型“多想一遍”，而是把任务反馈转写成后续可复用的语言状态。传统强化学习会把奖励信号用于参数更新；Reflexion 则把奖励、错误、轨迹和诊断合成为一段反思文字，再放回 prompt。这样模型在下一轮看到的不是裸任务，而是“任务 + 过去失败原因 + 应避免的策略”。</p>\n<p>Actor、Evaluator、Self-Reflection 三个角色可以由同一个 LLM 扮演，也可以由不同模型或外部环境承担。Actor 负责产生动作序列；Evaluator 只需要给出可判定反馈，例如单元测试是否通过、答案是否正确、游戏是否成功；Reflector 将这些反馈转换成更高层的策略建议。系统成功的关键在于反思要足够具体，例如指出哪个假设错了、遗漏了哪个约束、下一轮应该先验证什么。</p>\n<p>从算法角度看，Reflexion 是一种上下文级的信用分配。失败不是直接变成一个标量惩罚，而是被解释为可读的因果线索。记忆长度通常需要受限，因为过多反思会污染上下文并消耗 token；论文中的设置更接近短期经验缓冲区，而不是永久知识库。</p>\n<p>它与 Self-Refine 的区别在于反馈来源和循环粒度。Self-Refine 通常针对单个输出做局部修改；Reflexion 面向跨 episode 的任务尝试，把完整轨迹和环境反馈纳入下一轮策略。在工具使用或代码任务中，这种跨轮记忆尤其有效，因为失败信号往往来自真实执行结果，而不是模型自评。</p>",
+      "quiz": {
+        "q": "Reflexion 为什么可以被称为无梯度学习？",
+        "options": [
+          "它完全不使用模型输出",
+          "它通过自然语言反思更新上下文，而不是更新模型参数",
+          "它只训练一个额外分类器",
+          "它要求人工手写所有反馈"
+        ],
+        "answer": 1,
+        "explain": "Reflexion 将失败反馈写入短期记忆，下一轮通过 prompt 条件化行为，参数本身不发生梯度更新。"
+      }
     },
     {
       "id": "ape",
@@ -572,12 +771,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "optimization",
       "motivation": "利用LLM自动生成筛选最优指令",
-      "summary": "APE 的核心目标是：利用LLM自动生成筛选最优指令。",
+      "summary": "APE 将自然语言指令视为可搜索的“程序”，让 LLM 根据少量输入输出示例生成候选 prompt，再用目标模型执行结果打分筛选最优指令。",
       "keyPoints": [
-        "核心动机：利用LLM自动生成筛选最优指令",
-        "代表机构：多伦多大学"
+        "将 prompt engineering 形式化为 natural language program synthesis 和黑盒优化问题。",
+        "使用 LLM 作为 proposal model，根据 demonstrations 生成一批候选 instruction。",
+        "支持 forward generation、reverse generation 和针对任务的 customized prompt proposal。",
+        "使用 execution accuracy、目标答案 log probability 或任务指标作为 score function。",
+        "通过多阶段子集评估和 top-<span class=\"kb-math kb-math-inline\">k</span> 过滤降低候选 prompt 评估成本。",
+        "可选 iterative Monte Carlo search：保留高分候选，再让 LLM 生成语义相近变体。",
+        "在 Instruction Induction、BIG-Bench Instruction Induction、Zero-shot CoT 与 TruthfulQA 等设置中验证自动指令搜索的有效性。"
       ],
-      "detail": "<p>利用LLM自动生成筛选最优指令</p>"
+      "detail": "<p><img alt=\"APE 自动提示工程师工作流\" src=\"https://ar5iv.labs.arxiv.org/html/2211.01910/assets/x1.png\" />\n<em>图：APE 工作流。LLM 生成候选指令，目标模型执行并打分，保留高分候选，必要时继续重采样相似指令。</em></p>\n<pre><code class=\"language-python\"># Automatic Prompt Engineer (APE) 伪代码\ndef ape(demos, proposer_llm, target_llm, score_fn, rounds=1, keep_ratio=0.2):\n    # demos: 少量 (input, output) 示例\n    candidates = proposer_llm.sample_instructions(demos)\n\n    for _ in range(rounds):\n        scored = []\n        for instruction in candidates:\n            # 先用小子集快速估计，候选足够好时再扩大评估集\n            subset = sample_eval_subset(demos)\n            predictions = [\n                target_llm.generate(prompt=instruction, input=x)\n                for x, y in subset\n            ]\n            score = score_fn(predictions, [y for x, y in subset])\n            scored.append((score, instruction))\n\n        scored.sort(reverse=True)\n        survivors = [inst for score, inst in scored[:max(1, int(len(scored) * keep_ratio))]]\n\n        # iterative APE: 围绕高分指令生成语义相近候选；默认可只做一轮\n        candidates = survivors + proposer_llm.resample_similar_instructions(survivors)\n\n    return best_by_full_validation(candidates, demos, target_llm, score_fn)\n</code></pre>\n<p>APE 的核心抽象是 <span class=\"kb-math kb-math-inline\">instruction\\ as\\ program</span>：一个 prompt 不只是自然语言提示，而是控制目标模型 <span class=\"kb-math kb-math-inline\">M</span> 执行任务的程序。给定样本 <span class=\"kb-math kb-math-inline\">(x,y)</span>，目标是搜索指令 <span class=\"kb-math kb-math-inline\">i</span>，使模型在 <span class=\"kb-math kb-math-inline\">i+x</span> 条件下输出 <span class=\"kb-math kb-math-inline\">y</span> 的期望分数最大：\n<div class=\"kb-math kb-math-display\">i^*=\\arg\\max_i\\mathbb{E}_{(x,y)\\sim D}\\left[s\\left(M(i,x),y\\right)\\right].</div>\n由于 <span class=\"kb-math kb-math-inline\">i</span> 是离散自然语言文本，且多数 API 模型无法提供梯度，APE 采用 generate-and-rank 的黑盒优化路线。</p>\n<p>候选生成阶段让 LLM 扮演 inference model。forward mode 会把若干输入输出示例放在 prompt 中，让模型补全“这些样例遵循什么指令”；reverse mode 则使用 infilling 模型，把缺失的 instruction 作为空槽反推出来。两者的共同点是利用大模型的归纳能力，把无限大的自然语言搜索空间压缩成一个较小但质量较高的候选池。</p>\n<p>评估阶段是 APE 与“只让模型猜一个 prompt”的分界线。论文讨论了两类典型 score：execution accuracy 直接比较预测与目标输出，适合分类、转换、简短问答；log probability 计算目标答案在候选指令下的条件似然，能给低质量候选提供更细粒度信号。对 TruthfulQA 等任务，score 也可以替换为任务自带的自动评估器。</p>\n<p>为了控制成本，APE 不要求每个候选都在完整训练集上执行。它先用小子集快速淘汰低分候选，再把更多预算分配给高分候选，最后只对少量候选做完整验证。这一设计很实际：prompt 搜索的主要成本不是生成文本，而是反复调用目标模型执行候选指令。</p>\n<p>iterative APE 进一步把搜索做成局部 Monte Carlo 过程：过滤出高分候选后，让 LLM 生成语义相近但措辞不同的变体，再继续评估。论文发现迭代能改善候选池整体质量，但最高分指令往往在初始生成中已经出现，因此默认 APE 可以保持简单的一轮生成加筛选。</p>\n<p>与 soft prompt tuning 或 AutoPrompt 相比，APE 不优化连续向量或离散 token 模板，而是直接搜索人类可读的自然语言指令。这让它适合黑盒 LLM、API 模型和需要可解释 prompt 的场景；代价是它容易受验证集覆盖面、候选池多样性和 score function 偏差影响。如果验证集太窄，APE 可能学到只对少数示例有效的“投机式”指令。</p>",
+      "quiz": {
+        "q": "APE 中 score function 的主要作用是什么？",
+        "options": [
+          "衡量候选指令在目标模型上的实际任务表现并排序",
+          "直接修改目标模型参数",
+          "替代输入输出示例，生成训练数据标签",
+          "把自然语言 prompt 转换成连续 soft prompt"
+        ],
+        "answer": 0,
+        "explain": "APE 的核心是生成候选后执行并打分，score function 决定哪些指令被保留、重采样或最终选中。"
+      }
     },
     {
       "id": "promptbreeder",
@@ -591,13 +806,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "optimization",
       "motivation": "进化算法实现提示词自我演化",
-      "summary": "PromptBreeder 的核心目标是：进化算法实现提示词自我演化。",
+      "summary": "PromptBreeder 将提示词和“如何变异提示词的提示词”一起放入进化循环，让任务 prompt 与 mutation prompt 共同演化，自动产生更适配任务的指令。",
       "keyPoints": [
-        "核心动机：进化算法实现提示词自我演化",
-        "演化来源：继承或改进自 ape",
-        "代表机构：DeepMind"
+        "使用遗传算法维护 prompt population，而不是一次性生成候选",
+        "每个个体通常包含 task prompt 与 mutation prompt",
+        "task prompt 决定模型如何解题，mutation prompt 决定下一代如何改写 task prompt",
+        "通过随机训练批次上的任务表现作为 fitness",
+        "采用锦标赛选择、交叉、变异和自指式变异提升多样性",
+        "相比 APE，更强调长期搜索和元提示词的自我改进"
       ],
-      "detail": "<p>进化算法实现提示词自我演化</p>"
+      "detail": "<p><img alt=\"PromptBreeder 总览\" src=\"https://arxiv.org/html/2309.16797/x1.png\" />\n<em>图源：arXiv HTML Figure 1，展示 population、task prompt、mutation prompt 与评估循环。</em></p>\n<pre><code class=\"language-python\"># PromptBreeder 进化式提示优化伪代码\ndef promptbreeder(task, init_prompts, init_mutators, evaluate, generations=20):\n    population = [(p, m) for p in init_prompts for m in init_mutators]\n    for _ in range(generations):\n        fitness = {unit: evaluate(task_prompt=unit[0], batch=sample_batch(task))\n                   for unit in population}\n        parents = tournament_select(population, fitness)\n\n        children = []\n        for prompt, mutator in parents:\n            new_prompt = llm_generate(mutator, prompt, task.description)\n            new_mutator = maybe_mutate_mutator(mutator, task.description)\n            children.append((new_prompt, new_mutator))\n\n        population = elitism(population, children, fitness)\n    return best_unit(population, evaluate)[0]\n</code></pre>\n<p>PromptBreeder 的新意在于把优化器的一部分也文本化。普通 prompt 搜索只优化 task prompt；PromptBreeder 还让 mutation prompt 参与进化。也就是说，系统不仅在学“怎样提示模型做这个任务”，还在学“怎样生成更好的提示改写”。这构成了一个自指式的元优化循环。</p>\n<p>每一代的 fitness 来自任务验证批次。为了控制成本，论文使用随机 batch 估计 prompt 表现，再通过锦标赛选择保留高分个体。变异算子可以直接改写 task prompt，也可以改写 mutation prompt；后者会改变后续搜索的方向，使搜索策略本身逐渐适配任务域。</p>\n<p>这种方法特别适合 prompt 空间高度非凸、难以手工枚举的场景。进化算法保留了多个候选分支，避免过早收敛到单一措辞；而 LLM 生成的变异又比字符级或词级随机扰动更语义化，通常能产生仍然可读、可执行的候选 prompt。</p>\n<p>PromptBreeder 的代价是评估成本高于单轮 APE，并且需要设计 population size、选择压力、变异比例等超参数。它的优势在于长期自适应：如果初始 prompt 较弱，只要评估信号足够可靠，系统仍可能通过多代变异找到任务专用指令。</p>",
+      "quiz": {
+        "q": "PromptBreeder 与普通候选 prompt 搜索最主要的区别是什么？",
+        "options": [
+          "它只使用人工写好的 prompt",
+          "它同时进化任务提示词和用于变异提示词的元提示词",
+          "它必须微调目标语言模型",
+          "它不需要任何任务评分"
+        ],
+        "answer": 1,
+        "explain": "PromptBreeder 的个体包含 task prompt 和 mutation prompt，后者让搜索策略本身也能进化。"
+      }
     },
     {
       "id": "opro",
@@ -611,13 +840,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "optimization",
       "motivation": "LLM作为优化器迭代提升提示词",
-      "summary": "OPRO 的核心目标是：LLM作为优化器迭代提升提示词。",
+      "summary": "OPRO 把历史候选解和分数写进 meta-prompt，让 LLM 根据“哪些方案得分高”继续提出更好的解，从而把语言模型本身用作黑盒优化器。",
       "keyPoints": [
-        "核心动机：LLM作为优化器迭代提升提示词",
-        "演化来源：继承或改进自 ape",
-        "代表机构：Google DeepMind"
+        "用自然语言描述优化问题、历史解和对应分数",
+        "LLM 读取优化轨迹后生成下一批候选解或候选 prompt",
+        "每轮用外部目标函数评估新候选，再把结果追加回 meta-prompt",
+        "适用于数学优化，也适用于任务 prompt 的自动改写",
+        "在 GSM8K、BBH 等任务上可找到超过人工 prompt 的指令",
+        "成败取决于历史排序呈现、探索约束、评价噪声和上下文长度"
       ],
-      "detail": "<p>LLM作为优化器迭代提升提示词</p>"
+      "detail": "<p><img alt=\"OPRO 工作流示意图\" src=\"https://arxiv.org/html/2309.03409v3/x3.png\" />\n<em>图源：arXiv HTML Figure 2，展示 LLM 根据历史解-分数对迭代生成新解。</em></p>\n<pre><code class=\"language-python\"># OPRO 黑盒优化伪代码\ndef opro_optimize(problem_description, initial_solutions, optimizer_llm, objective, rounds=10):\n    history = [(objective(sol), sol) for sol in initial_solutions]\n    for _ in range(rounds):\n        meta_prompt = render_meta_prompt(\n            problem=problem_description,\n            scored_solutions=sorted(history, reverse=True),\n            instruction=&quot;Propose new solutions with higher scores.&quot;,\n        )\n        proposals = optimizer_llm.generate_list(meta_prompt)\n        for sol in proposals:\n            history.append((objective(sol), sol))\n        history = keep_top_and_diverse(history, limit=50)\n    return max(history, key=lambda pair: pair[0])[1]\n</code></pre>\n<p>OPRO 的基本假设是：LLM 不只会执行 prompt，也能从历史样本中归纳“什么样的解更好”。当 meta-prompt 中列出若干候选解及其分数后，模型会倾向于模仿高分解的结构，同时尝试新的变体。这把优化过程转化为上下文学习，而不是显式梯度下降。</p>\n<p>用于 prompt 优化时，候选解就是自然语言指令，目标函数通常是验证集准确率。每轮 LLM 看到过去 prompt 的得分，生成更可能提升指标的新 prompt；外部评估器再给出真实分数。与 APE 的一次性 generate-and-rank 相比，OPRO 明确利用了历史轨迹，具有迭代爬坡能力。</p>\n<p>meta-prompt 的组织方式很关键。高分样本通常按分数排序展示，以便模型学习趋势；同时需要保留一定低分或多样样本，避免搜索过早塌缩。候选解数量、温度、历史窗口大小都会影响探索与利用的平衡。</p>\n<p>OPRO 的强项是通用：只要能把目标函数评价结果写成文本，它就能尝试优化。但它不是数学意义上有收敛保证的优化器；上下文长度限制、评价噪声、分数泄漏和验证集过拟合都会影响最终 prompt。实际使用时通常要配合独立测试集确认泛化。</p>",
+      "quiz": {
+        "q": "OPRO 中 LLM 扮演的核心角色是什么？",
+        "options": [
+          "仅作为固定分类器",
+          "读取历史解和分数后提出新的候选解",
+          "直接反向传播更新目标模型",
+          "删除低分样本以外的所有上下文"
+        ],
+        "answer": 1,
+        "explain": "OPRO 把优化轨迹写进 meta-prompt，让 LLM 基于历史表现生成下一轮候选。"
+      }
     },
     {
       "id": "causal_cot",
@@ -631,13 +874,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "frontier_2026",
       "motivation": "因果分析消除幻觉提升逻辑严密性",
-      "summary": "Causal-CoT 的核心目标是：因果分析消除幻觉提升逻辑严密性。",
+      "summary": "Causal-CoT 用因果充分性与必要性评估 CoT 中每个推理步骤的真实贡献，通过反事实 rollout 保留既能支撑答案又不可替代的步骤，从而压缩冗余推理并减少幻觉。",
       "keyPoints": [
-        "核心动机：因果分析消除幻觉提升逻辑严密性",
-        "演化来源：继承或改进自 cot",
-        "代表机构：NeurIPS"
+        "针对普通 CoT 的两类问题：步骤不足导致结论缺证据，步骤冗余导致过度推理与 token 浪费。",
+        "引入 Probability of Sufficiency (PS)、Probability of Necessity (PN) 和 Probability of Necessary and Sufficient Cause (PNS) 描述推理链与步骤的因果贡献。",
+        "先做 chain-level PS 判断整条 CoT 是否足以得到正确答案，再做 node-level PN/PNS 判断单个步骤是否不可替代。",
+        "通过 counterfactual intervention 替换或移除步骤，并让 rollout model 生成后续链条来估计该步骤的必要性。",
+        "用阈值 <span class=\"kb-math kb-math-inline\">\\alpha</span> 剪枝低 PNS 步骤，得到 compact CoT，再用于 in-context learning 或 supervised fine-tuning。",
+        "论文在 GSM-8K、MATH-500、AIME、CommonsenseQA 等数学与常识推理基准上报告了更短推理链和更高/相近准确率。"
       ],
-      "detail": "<p>因果分析消除幻觉提升逻辑严密性</p>"
+      "detail": "<p><img alt=\"Causal-CoT 因果优化框架\" src=\"https://arxiv.org/html/2506.09853v3/x3.png\" />\n<em>图：Causal Optimization Framework for CoT Reasoning。初始 CoT 经 PS/PNS 评估、反事实干预和剪枝后形成 compact CoT，并用于 ICL 或 SFT。</em></p>\n<pre><code class=\"language-python\"># Sufficient and Necessary Optimization of CoT 伪代码\ndef causal_cot_optimize(S_init, q, y, alpha, rollout_model, validator, k):\n    # PS: 先确认完整链条是否足以得到正确答案\n    y_hat = rollout_answer(S_init, q)\n    if y_hat != y:\n        return S_init  # 单次运行不剪枝；实践中可重采样更充分的 CoT\n\n    S_final = []\n    S_current = list(S_init)\n\n    for step_index, s_t in enumerate(S_current):\n        prefix = S_final + S_current[len(S_final):step_index]\n\n        # 对当前步骤做反事实替换/删除，再 rollout 后续步骤\n        scores = []\n        for _ in range(k):\n            s_alt = generate_alternative(prefix, s_t)\n            S_counterfactual = rollout_model.continue_chain(\n                question=q,\n                prefix=prefix + [s_alt],\n            )\n            # validator 判断反事实链是否仍能保持正确、连贯和逻辑完整\n            scores.append(validator(S_counterfactual, answer=y))\n\n        pns = 1.0 - sum(scores) / k\n        if pns &gt; alpha:\n            S_final.append(s_t)   # 替换后会坏，说明原步骤必要，保留\n        else:\n            pass                  # 替换后仍可行，说明原步骤冗余，剪掉\n\n    return S_final\n</code></pre>\n<p>普通 CoT 把推理过程写成线性文本，但线性文本无法保证每一步都真正支撑最终答案。论文把问题拆成两个因果标准：充分性要求整条推理链足以推出答案；必要性要求某个中间步骤一旦被替换或移除，答案或逻辑完整性就会受损。前者防止“跳步”，后者防止“过度解释”。</p>\n<p>论文用 Pearl 因果框架重写这些概念。对推理链 <span class=\"kb-math kb-math-inline\">S=(s_1,\\dots,s_n)</span>，PS 衡量把 <span class=\"kb-math kb-math-inline\">S</span> 作为干预插入后是否能把错误答案变为正确答案：\n<div class=\"kb-math kb-math-display\">\\mathrm{PS}(S,q)=P(A_{\\mathrm{do}(S)}=y\\mid A\\ne y,\\bar{S},q).</div>\n对具体步骤 <span class=\"kb-math kb-math-inline\">s_t</span>，PN 衡量把该步骤替换为错误或替代步骤 <span class=\"kb-math kb-math-inline\">\\bar{s}_t</span>，并重新生成后续步骤 <span class=\"kb-math kb-math-inline\">s&#x27;_{&gt;t}</span> 后，正确答案是否被破坏：\n<div class=\"kb-math kb-math-display\">\\mathrm{PN}(S,s_t,q)=P(A_{\\mathrm{do}(s_{&lt;t},\\bar{s}_t,s&#x27;_{&gt;t})}\\ne y\\mid A=y,S,q).</div>\nPNS 则关注“原链正确且反事实链错误”的联合事件：\n<div class=\"kb-math kb-math-display\">\\mathrm{PNS}(S,s_t,q)=P(A_S=y,\\;A_{S&#x27;}\\ne y).</div></p>\n<p>直接最大化完整 PNS 很昂贵，因此方法采用两阶段近似。第一阶段把 chain-level PS 近似为二值：如果当前 CoT 产生正确答案，则 <span class=\"kb-math kb-math-inline\">\\mathrm{PS}=1</span>，否则不对它做必要性剪枝，并可通过重复采样寻找更充分的链。第二阶段在 <span class=\"kb-math kb-math-inline\">\\mathrm{PS}=1</span> 的链上逐节点估计 PN/PNS，只保留对正确推理有因果贡献的步骤。</p>\n<p>PNS 的估计依赖反事实 rollout。对于每个步骤 <span class=\"kb-math kb-math-inline\">s_t</span>，系统构造一个与原步骤语义分离的替代步骤 <span class=\"kb-math kb-math-inline\">\\bar{s}_t</span>，再让 rollout model 从前缀和替代步骤继续生成后续链 <span class=\"kb-math kb-math-inline\">S^{(i)}</span>。validation model <span class=\"kb-math kb-math-inline\">V</span> 不只检查最终答案，还检查推理是否连贯、逻辑是否完整。论文用 Monte Carlo 形式估计：\n<div class=\"kb-math kb-math-display\">\\mathrm{PNS}(S,s_t,q)\\approx 1-\\frac{1}{k}\\sum_{i=1}^{k}V(S^{(i)}).</div>\n如果替换后大多数 rollout 仍然被验证为有效，说明原步骤不是必要条件，可以剪掉；如果替换后经常失败，原步骤的 PNS 高，应保留。</p>\n<p>这与常见的 CoT 压缩不同。简单压缩通常按长度、困惑度或句子重要性删减文本，可能删掉对最终答案关键但表面不显著的步骤；Causal-CoT 则通过“干预后答案是否仍成立”来判断必要性。它也不同于 self-consistency：self-consistency 汇总多条链的答案，Causal-CoT 要重构一条更短、更因果忠实的链，并把这些 compact CoT 用作 ICL 示例或 SFT 数据。</p>\n<div class=\"warn-box\">⚠️ 注意：Causal-CoT 的收益依赖 validator 和 rollout model 的可靠性。如果验证器只看最终答案而忽略中间逻辑，PNS 会把“碰巧答对”的反事实链误判为有效，从而过度剪枝。</div>",
+      "quiz": {
+        "q": "Causal-CoT 中某个步骤的 PNS 高通常意味着什么？",
+        "options": [
+          "该步骤被反事实替换后推理更容易失败，因此它对正确答案具有必要贡献",
+          "该步骤越长越好，应无条件保留所有长步骤",
+          "该步骤与问题无关，可以直接删除",
+          "该步骤只提高输出格式，不影响推理结果"
+        ],
+        "answer": 0,
+        "explain": "PNS 近似为 1 减去反事实链仍有效的比例；值高说明替换后多数 rollout 不能维持正确和连贯推理。"
+      }
     },
     {
       "id": "ncots",
@@ -686,13 +943,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "frontier_2026",
       "motivation": "长推理链在复杂任务中指数级增益",
-      "summary": "Long-CoT 的核心目标是：长推理链在复杂任务中指数级增益。",
+      "summary": "Long-CoT 证明并实证展示：在图连通性这类必须逐步传播信息的推理任务上，把测试时计算预算用于一条更长的思维链，可能比生成大量短思维链再投票具有指数级优势。",
       "keyPoints": [
-        "核心动机：长推理链在复杂任务中指数级增益",
-        "演化来源：继承或改进自 cot",
-        "代表机构：NeurIPS"
+        "将测试时计算明确区分为并行缩放和顺序缩放：前者生成多条短回答并用 best-of-n 或 majority vote 聚合，后者让模型在单条 CoT 中持续推进多步推理。",
+        "构造 <span class=\"kb-math kb-math-inline\">(s,t_1,t_2)</span>-connectivity 图连通性任务：给定边列表和三个节点，保证 <span class=\"kb-math kb-math-inline\">s</span> 只与 <span class=\"kb-math kb-math-inline\">t_1,t_2</span> 中一个相连，模型必须找出可达目标。",
+        "给出基于 transformer 表达能力的理论分离：多项式长度 CoT 可以实现 BFS 等多项式时间算法，而多项式数量的 <span class=\"kb-math kb-math-inline\">O(1)</span> 长度 CoT 在复杂性假设下仍无法解决连通性。",
+        "提出 Vertex Query Model (VQM/RVQM) 抽象：把 CoT 每一步视为一次局部邻域查询，用 two-path 和 bridge graph 得到更细粒度的顺序与并行差距。",
+        "在 bridge graph 中证明并行缩放需要 <span class=\"kb-math kb-math-inline\">\\exp(\\Omega(d))</span> 条独立短链才能把成功率提升到常数水平，而一条足够长的顺序链可以沿图结构逐层推进。",
+        "实验覆盖从头训练的小型 transformer、DeepSeek-R1-Distill-Qwen-32B 以及 AIME2024 等设置，趋势一致支持长 CoT 在串行依赖任务上的价值。"
       ],
-      "detail": "<p>长推理链在复杂任务中指数级增益</p>"
+      "detail": "<p><img alt=\"Long-CoT 并行与顺序缩放对比\" src=\"https://github.com/seyedparsa/let-me-think/raw/main/figures/figure1.png\" />\n<em>图：论文和官方代码仓库给出的 Figure 1。横轴是单条 CoT 的顺序长度预算，纵轴是独立 CoT 数量，可以看到减少少量顺序预算往往需要大幅增加并行样本数才能补偿。</em></p>\n<pre><code class=\"language-python\"># Long-CoT 顺序缩放与并行缩放的核心流程抽象\ndef solve_connectivity_with_test_time_scaling(graph, s, t1, t2, mode, seq_budget, parallel_budget):\n    targets = {t1, t2}\n\n    def one_long_cot():\n        frontier = [s]\n        visited = {s}\n        trace = []\n        while frontier and len(trace) &lt; seq_budget:\n            v = frontier.pop()\n            trace.append(v)\n            if v in targets:\n                return v, trace\n            for u in graph.neighbors(v):\n                if u not in visited:\n                    visited.add(u)\n                    frontier.append(u)\n        return guess(t1, t2), trace\n\n    def one_short_cot():\n        trace = local_or_random_walk(graph, start=s, max_steps=seq_budget)\n        answer = extract_target_if_seen(trace, targets) or guess(t1, t2)\n        return answer, trace\n\n    if mode == &quot;sequential&quot;:\n        return one_long_cot()\n\n    votes = []\n    for _ in range(parallel_budget):\n        answer, trace = one_short_cot()\n        if verifies_path(trace, s, answer, graph):\n            return answer, trace      # best-of-n: 找到可验证证据就采用\n        votes.append(answer)\n    return majority_vote(votes), None # majority: 短链没有足够证据时只能靠统计聚合\n</code></pre>\n<p>这篇论文的核心不是提出一个新的提示模板，而是给 Long-CoT 一个可分析的计算视角。作者把测试时计算分成两类：并行缩放用 <span class=\"kb-math kb-math-inline\">N</span> 条互不通信的短推理链提高覆盖率，顺序缩放用一条更长的 CoT 把中间状态不断传递下去。对于每一步都依赖前一步发现的任务，这两类预算并不等价，因为短链之间不能共享已经探索到的节点、分支判断或局部证据。</p>\n<p>论文选择图连通性作为最小但足够有代表性的串行推理任务。标准 <span class=\"kb-math kb-math-inline\">(s,t)</span>-connectivity 在不可达时缺少短证书，因此作者改用 <span class=\"kb-math kb-math-inline\">(s,t_1,t_2)</span>-connectivity：保证 <span class=\"kb-math kb-math-inline\">s</span> 恰好和两个候选目标中的一个连通。这样正确答案总能由一条路径证明，CoT 可以自然写成从 <span class=\"kb-math kb-math-inline\">s</span> 出发的节点序列或 DFS 轨迹。输入边被随机排序，节点 ID 也被随机置换，模型不能依靠表面位置捷径，只能逐步恢复图结构。</p>\n<p>理论部分先给出极端情形的分离。在 <span class=\"kb-math kb-math-inline\">TC^0 \\not\\supseteq L</span> 的复杂性假设下，常数长度 CoT 的 bounded-depth transformer 落在低阶电路类中；即便并行采样多项式条，再做 majority vote，本质上仍不足以解决连通性。相反，多项式长度 CoT 可以模拟多项式时间算法，例如 BFS，因此存在常数 <span class=\"kb-math kb-math-inline\">c&gt;0</span>，长度不超过 <span class=\"kb-math kb-math-inline\">n^c</span> 的一条 CoT 可以解决任意规模为 <span class=\"kb-math kb-math-inline\">n</span> 的连通性实例。</p>\n<p>为了更贴近真实 CoT 长度预算，作者又提出 Vertex Query Model。VQM 把一次 CoT 推理抽象成一次邻域查询 <span class=\"kb-math kb-math-inline\">N_G(v)=\\{u:\\exists(v,u)\\in E\\}</span>，即模型在当前已知节点附近继续探索。two-path 图说明如果路径长为 <span class=\"kb-math kb-math-inline\">L</span>，少于 <span class=\"kb-math kb-math-inline\">(L-2)/2</span> 次查询的算法正确率只能是 <span class=\"kb-math kb-math-inline\">1/2</span>，而 <span class=\"kb-math kb-math-inline\">L-1</span> 次查询足以确定答案。bridge graph 更强：每层交叉点都要求做连续分支选择，短链每次都重新开始，优势会随深度指数衰减。</p>\n<p>论文中的关键结论可以概括为：</p>\n<div class=\"kb-math kb-math-display\">\\Pr[\\text{parallel succeeds}]\n\\le \\frac{1}{2} + \\exp\\left(-\\Omega(d)\\right),\n\\quad\nN_{\\text{parallel}} \\ge \\exp(\\Omega(d))</div>\n<p>这里 <span class=\"kb-math kb-math-inline\">d</span> 是 bridge graph 深度。直觉上，一条长链可以把每层选择的结果保留下来，并在下一层继续使用；多条短链虽然总 token 数可能相近，但每条链都独立丢失了前面未完成的探索状态，所以很难补偿串行依赖。</p>\n<p>实验流程也服务于这个观点。作者训练模型生成 Shortest-Path、Path CoT 和 DFS CoT，并分别用 decision criterion 与 evidence criterion 评估答案和路径证据；并行聚合则使用 majority decision 或 best-of-n。结果显示，只要问题确实需要跨越多层图结构，增加单条 CoT 的长度会出现明显阈值效应，而增加短链数量只能缓慢改善，甚至在低顺序预算区间几乎无效。</p>\n<div class=\"key-point\">💡 关键：Long-CoT 的结论不等于“所有任务都应该无限拉长 CoT”。它说明的是，当任务包含不可压缩的串行依赖时，顺序计算和并行采样不是简单可替代关系，提示工程和推理系统应优先保证一条链有足够预算走完整个依赖路径。</div>",
+      "quiz": {
+        "q": "Long-CoT 论文中，为什么 bridge graph 会放大长 CoT 相对多条短 CoT 的优势？",
+        "options": [
+          "因为 bridge graph 的节点标签按答案顺序排列，长 CoT 更容易记忆标签",
+          "因为每个交叉点的选择依赖前面已经走到的位置，短 CoT 无法继承连续探索状态",
+          "因为 majority vote 会强制所有短 CoT 输出相同路径",
+          "因为长 CoT 在训练时使用了更多模型参数"
+        ],
+        "answer": 1,
+        "explain": "bridge graph 的难点是连续局部分支选择。长 CoT 能把前面探索到的状态传递到下一步，而互相独立的短链需要反复重新探索，因此并行数量要指数级增长。"
+      }
     },
     {
       "id": "grace",
@@ -706,13 +977,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "frontier_2026",
       "motivation": "门控机制精炼指令压缩冗余信息",
-      "summary": "GRACE 的核心目标是：门控机制精炼指令压缩冗余信息。",
+      "summary": "GRACE 提出 Gated Refinement 与 Adaptive Compression 两个互补机制，通过有控制地丢弃有害或冗余信息，解决自动提示优化中更新不稳定、候选搜索低效和局部最优停滞的问题。",
       "keyPoints": [
-        "核心动机：门控机制精炼指令压缩冗余信息",
-        "演化来源：继承或改进自 opro",
-        "代表机构：NeurIPS"
+        "面向黑盒 LLM 的自动提示优化，不依赖目标模型梯度或内部状态，只通过训练集、验证集和优化器 LLM 迭代改写自然语言 prompt。",
+        "Feedback Regulation Gate 同时采样成功样本和失败样本，让失败反馈提供改进方向，让成功样本约束更新幅度，避免过度纠偏和语义漂移。",
+        "Update Rejection Gate 在验证集上比较当前 prompt 与候选 prompt，只接受带来验证性能提升的更新，把有害更新直接阻断。",
+        "Adaptive Compression 在连续 <span class=\"kb-math kb-math-inline\">K</span> 次候选被拒后触发，将当前 prompt 中冗长、重复、过度具体的规则压缩成更抽象的任务关键概念。",
+        "以“信息损失”换取泛化：门控丢弃噪声更新，压缩丢弃局部最优中积累的实例特化细节，形成局部精炼和全局重构的循环。",
+        "在 11 个任务、3 类领域上评测，覆盖 BBH、医学领域任务和通用 NLP 任务；相对已有自动提示优化方法分别取得 4.7%、4.4%、2.7% 的平均相对提升，并用约 25% 的 prompt 生成预算达到更好结果。"
       ],
-      "detail": "<p>门控机制精炼指令压缩冗余信息</p>"
+      "detail": "<p><img alt=\"GRACE 方法框架\" src=\"https://github.com/Eric8932/GRACE/raw/main/images/method.png\" />\n<em>图：官方代码仓库中的方法图。左侧是传统扩展与选择范式，右侧是 GRACE 的反馈调节门、更新拒绝门和自适应压缩循环。</em></p>\n<pre><code class=\"language-python\"># GRACE 论文 Algorithm 1 的简化伪代码\ndef grace(P0, D_train, D_val, optimizer_llm, evaluator, T, K):\n    P = P0\n    best_P = P0\n    reject_counter = 0\n\n    for t in range(T):\n        # Gated Refinement: 用成功样本调节失败反馈\n        successes, failures = partition_by_score(D_train, prompt=P, evaluator=evaluator)\n        batch = sample(successes) + sample(failures)\n        P_candidate = optimizer_llm.generate(\n            current_prompt=P,\n            update_batch=batch,\n            meta_prompt=&quot;fix failures while preserving successful patterns&quot;,\n        )\n\n        # Update Rejection Gate: 只接受验证集更优的候选\n        if score(P_candidate, D_val, evaluator) &gt; score(P, D_val, evaluator):\n            P = P_candidate\n            reject_counter = 0\n        else:\n            reject_counter += 1\n\n        # Adaptive Compression: 连续停滞时压缩并抽象 prompt\n        if reject_counter == K:\n            P = optimizer_llm.generate(\n                current_prompt=P,\n                meta_prompt=&quot;remove redundancy and abstract case-specific rules&quot;,\n            )\n            reject_counter = 0\n\n        if score(P, D_val, evaluator) &gt; score(best_P, D_val, evaluator):\n            best_P = P\n\n    return best_P\n</code></pre>\n<p>GRACE 继承了 OPRO/APO/PromptAgent 这类“用 LLM 优化 prompt”的黑盒设置：给定初始 prompt <span class=\"kb-math kb-math-inline\">P_0</span>、训练样本、验证样本、目标模型 <span class=\"kb-math kb-math-inline\">B</span> 和优化器模型 <span class=\"kb-math kb-math-inline\">O</span>，目标是在离散自然语言空间中找到让目标任务得分最高的 prompt。论文将目标写成：</p>\n<div class=\"kb-math kb-math-display\">P^*=\\arg\\max_{P\\in S} f_B(P,D)\n=\\arg\\max_{P\\in S}\\sum_{(a_i,q_i)\\in D} f(p_B(a_i\\mid P,q_i)).</div>\n<p>传统反思式 APO 往往只看失败样本，把错误分析当作“文本梯度”。这个信号很强，但也容易偏：如果某一批失败样本包含偶然模式，优化器会把 prompt 改得过于具体，导致原本能做对的样本被破坏。GRACE 的反馈调节门把训练集按当前 prompt 的表现分成成功集 <span class=\"kb-math kb-math-inline\">S_t</span> 与失败集 <span class=\"kb-math kb-math-inline\">F_t</span>，再构造更新批次 <span class=\"kb-math kb-math-inline\">B_t=S&#x27;_t\\cup F&#x27;_t</span>，候选更新为：</p>\n<div class=\"kb-math kb-math-display\">P_t^c \\sim p_O(P\\mid P_t,B_t,m_1).</div>\n<p>这里 <span class=\"kb-math kb-math-inline\">m_1</span> 明确要求优化器“修复失败，同时保留成功模式”。这相当于给文本梯度加入一个正则项：失败样本提供方向，成功样本限制步长和语义边界。论文的直觉是，真正有用的更新不应只解释错误，还必须不破坏已经有效的任务理解。</p>\n<p>第二道门是更新拒绝门。即使候选 prompt 由平衡样本生成，它仍可能包含冗余、冲突或过度具体的规则。因此 GRACE 不直接采用候选，而是在验证集上做二选一：</p>\n<div class=\"kb-math kb-math-display\">P_{t+1}=\\arg\\max_{P\\in\\{P_t,P_t^c\\}} f_B(P,D_{val}).</div>\n<p>如果候选没有提升，更新被拒绝，信息流被阻断。这个设计牺牲了部分探索速度，但显著降低了 prompt 行为突变的风险，也解释了为什么 GRACE 每轮只生成一个候选仍能比大量候选搜索更高效。</p>\n<p>自适应压缩处理另一个常见问题：prompt 优化前几轮能快速提升，随后大量规则堆积，新增内容从通用原则变成实例特化补丁，优化进入局部最优。GRACE 在连续 <span class=\"kb-math kb-math-inline\">K</span> 次拒绝后触发压缩：</p>\n<div class=\"kb-math kb-math-display\">P_{t+1}\\sim p_O(P\\mid P_t,m_2),\n\\quad\n\\sum_{j=t-K+1}^{t} \\mathbf{1}[P_j=P_{j-1}]=K.</div>\n<p><span class=\"kb-math kb-math-inline\">m_2</span> 要求优化器合并或删除重复元素，并把具体条件、记忆化措辞和窄规则抽象为更一般的任务指导。这与信息瓶颈思想一致：保留任务相关信息，压缩无关或有害细节。压缩后的 prompt 不只是变短，而是重置了后续 gated refinement 的起点，使优化可以从另一个更泛化的局部区域继续前进。</p>\n<div class=\"key-point\">💡 关键：GRACE 的“loss”不是性能损失，而是主动的信息损失。反馈调节、更新拒绝和压缩都在丢弃信息，但丢弃的是不稳定更新、验证集无效更新和局部最优中积累的冗余细节。</div>",
+      "quiz": {
+        "q": "GRACE 中 Adaptive Compression 主要在什么情况下触发？",
+        "options": [
+          "每次候选 prompt 在训练集上得分提升时",
+          "当连续 K 次候选更新被拒绝，说明优化可能停滞时",
+          "当优化器 LLM 的上下文窗口不足以放入训练集时",
+          "当 prompt 长度短于初始 prompt 时"
+        ],
+        "answer": 1,
+        "explain": "GRACE 使用 rejection counter 检测停滞。连续 K 次没有验证集提升时，压缩当前 prompt 以去除冗余和过度具体内容，从而逃离局部最优。"
+      }
     },
     {
       "id": "uniapo",
@@ -726,13 +1011,29 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "frontier_2026",
       "motivation": "首个多模态自动提示优化方法",
-      "summary": "UniAPO 的核心目标是：首个多模态自动提示优化方法。",
+      "summary": "UniAPO 提出首个统一的多模态自动提示优化框架，用 EM 式 E/M 两步解耦反馈建模与 prompt 精炼，并通过短长期记忆缓解视觉 token 膨胀和过程级监督不足。",
       "keyPoints": [
-        "核心动机：首个多模态自动提示优化方法",
-        "演化来源：继承或改进自 opro",
-        "代表机构：AAAI"
+        "将自动提示优化从文本扩展到文本、图像、视频统一场景，目标是在同一框架下优化 MLLM 的任务 prompt。",
+        "使用多角色冻结 MLLM 系统：任务模型 <span class=\"kb-math kb-math-inline\">L_T</span>、反馈模型 <span class=\"kb-math kb-math-inline\">L_F</span>、prompt 优化模型 <span class=\"kb-math kb-math-inline\">L_P</span> 和演化模型 <span class=\"kb-math kb-math-inline\">L_E</span>。",
+        "采用 EM-inspired 优化：E-step 生成并更新反馈记忆，M-step 利用反馈和 prompt 记忆生成新 prompt。",
+        "Feedback Memory <span class=\"kb-math kb-math-inline\">M_F^t</span> 保存历史反馈，解决多模态错误样本太长、无法全部塞入上下文的问题。",
+        "Prompt Memory <span class=\"kb-math kb-math-inline\">M_P^t</span> 保存历史 prompt 及验证分数，提供过程级监督，避免只依赖当前错误反馈造成不稳定更新。",
+        "E-step 结合当前错误集的短期反馈、从历史中检索的长期反馈、演化融合和过滤机制，获得有效反馈 <span class=\"kb-math kb-math-inline\">F_{t+1}</span>。",
+        "M-step 结合当前反馈生成短期 prompt，再用 top-k 历史高分 prompt 作为长期过程指导，通过演化融合和 beam search 延长优化视野。",
+        "在文本分类/生成、图像分类、视频分类和视频关键词抽取上评测，UniAPO 在 GPT-4o 与 QwenVL2.5-72B 设置下均相对 Vanilla、CoT、EvoPrompt、ERM 等基线取得稳定提升。"
       ],
-      "detail": "<p>首个多模态自动提示优化方法</p>"
+      "detail": "<p><img alt=\"UniAPO 动机与 EM 式优化框架\" src=\"https://www.catalyzex.com/_next/image?q=75&amp;url=https%3A%2F%2Ffigures.semanticscholar.org%2F13c6c22e41bf029ecd5e3a4d9f2ac27afe1c0392%2F2-Figure1-1.png&amp;w=640\" />\n<em>图：UniAPO 论文 Figure 1 的公开图像版本。左侧显示朴素多模态 APO 的视觉 token 膨胀和监督不清，右侧展示 E-step/M-step、反馈记忆与 prompt 记忆的闭环。</em></p>\n<pre><code class=\"language-python\"># UniAPO 的 EM-inspired 多模态 prompt 优化伪代码\ndef uniapo(simple_prompt, D_train, D_dev, LT, LF, LP, LE, T, beam_size, top_k):\n    P0 = LP.refine_initial_prompt(simple_prompt)\n    feedback_memory = []\n    prompt_memory = [(P0, evaluate(LT, P0, D_dev))]\n    beams = [P0]\n\n    for t in range(T):\n        new_prompts = []\n        for P_t in beams:\n            # E-step: 反馈建模，缓解视觉 token 膨胀\n            errors = collect_errors(LT, P_t, D_train)\n            clusters = dbscan_cluster(errors, encoder=&quot;BGE-m3&quot;)\n            F_short = LF.generate_feedback(P_t, clusters)\n            F_long = retrieve_relevant_feedback(F_short, feedback_memory)\n            F_candidate = LE.merge_feedback(F_short, F_long)\n            F_t1 = filter_feedback(F_candidate, errors, P_t, LT)\n            feedback_memory.append(F_t1)\n\n            # M-step: prompt 精炼，引入 outcome-level 与 process-level 双监督\n            positives = sample_successes(D_train, errors)\n            P_short = LP.optimize_prompt(P_t, F_t1, positives)\n            P_long = top_k_prompts(prompt_memory, k=top_k)\n            P_next = LE.evolve_prompt(P_short, P_long)\n            score = evaluate(LT, P_next, D_dev)\n            prompt_memory.append((P_next, score))\n            new_prompts.append((P_next, score))\n\n        beams = [p for p, _ in top_b(prompt_memory, b=beam_size)]\n\n    return best_prompt(prompt_memory)\n</code></pre>\n<p>UniAPO 的出发点是：文本 APO 的“错误样本 -&gt; 反馈 -&gt; 改写 prompt”闭环，直接搬到多模态任务会同时遇到两个问题。第一是视觉 token 膨胀，一张高分辨率图像或一段短视频就可能消耗大量上下文，导致反馈模型无法同时读取足够多的当前错误和历史错误。第二是过程级监督不足，传统 APO 主要用当前输出对错作为 outcome-level 信号，很少利用“哪些历史 prompt 曾经有效、优化路径为何有效”这类过程信息。</p>\n<p>论文把这两个纠缠的问题拆成 EM-inspired 的两步。E-step 负责在当前 prompt 下估计更可靠的反馈变量，M-step 负责在反馈和历史 prompt 指导下更新 prompt。整体写作：</p>\n<div class=\"kb-math kb-math-display\">(F_{t+1},M_F^{t+1})\n=\\mathrm{E\\mbox{-}Step}(D_{error}^t,M_F^t;L_F,L_E),</div>\n<div class=\"kb-math kb-math-display\">(P_{t+1},M_P^{t+1})\n=\\mathrm{M\\mbox{-}Step}(F_{t+1},M_P^t,P_t;L_P,L_E).</div>\n<p>这里的 EM 不是严格概率模型求解，而是一个工程化分解：先让反馈变得更充分、更干净，再让 prompt 更新受到当前反馈和历史成功轨迹的双重约束。</p>\n<p>E-step 的关键是短长期反馈记忆。短期反馈来自当前错误集 <span class=\"kb-math kb-math-inline\">D_{error}^t</span>，但当前错误本身也可能太长，所以 UniAPO 先用 BGE-m3 表征和 DBSCAN 聚类，把相似失败归为簇，再分块生成聚类级反馈：</p>\n<div class=\"kb-math kb-math-display\">F_{short}^{t+1}=L_F(P_t,\\mathrm{Clustering}(D_{error}^t)).</div>\n<p>长期反馈不直接把整个 <span class=\"kb-math kb-math-inline\">M_F^t</span> 全塞进上下文，而是用 <span class=\"kb-math kb-math-inline\">F_{short}^{t+1}</span> 作为查询，从反馈记忆中检索语义相关的历史记录：</p>\n<div class=\"kb-math kb-math-display\">F_{long}^{t+1}=\\mathrm{Retrieval}(F_{short}^{t+1},M_F^t).</div>\n<p>随后演化模型 <span class=\"kb-math kb-math-inline\">L_E</span> 融合短期和长期反馈，过滤器只保留确实能修复当前错误的建议，得到最终 <span class=\"kb-math kb-math-inline\">F_{t+1}</span>。这种设计把“长历史”压缩成与当前失败相关的可操作反馈，避免多模态上下文被原始图像/视频错误样本淹没。</p>\n<p>M-step 则把监督信号分成 outcome-level 和 process-level。outcome-level 来自刚生成的 <span class=\"kb-math kb-math-inline\">F_{t+1}</span>，由 <span class=\"kb-math kb-math-inline\">L_P</span> 改写当前 prompt，生成短期候选：</p>\n<div class=\"kb-math kb-math-display\">P_{short}^{t+1}=L_P(P_t,F_{t+1},\\mathrm{Sample}(D_{train}-D_{error}^t)).</div>\n<p>这里加入成功样本是为了防止只围绕当前失败过拟合。process-level 来自 prompt memory：UniAPO 选取历史上在开发集表现最好的 top-k prompt，形成长期提示指导 <span class=\"kb-math kb-math-inline\">P_{long}^{t+1}=\\mathrm{TopK}(M_P^t,k)</span>。最后 <span class=\"kb-math kb-math-inline\">L_E</span> 像演化交叉一样融合短期候选与长期优秀策略，得到 <span class=\"kb-math kb-math-inline\">P_{t+1}</span>，并把它连同开发集分数加入 <span class=\"kb-math kb-math-inline\">M_P</span>。</p>\n<p>与 OPRO/APO 这类文本优化器相比，UniAPO 的主要增量在于“记忆不是简单历史拼接”。反馈记忆解决的是多模态 token 过长导致的反馈不足，prompt 记忆解决的是只看当前结果导致的过程监督缺失。二者配合后，系统既能对最近错误快速响应，又能被历史高质量 prompt 拉回稳定方向，适合视频关键词抽取、图像分类、文本生成等异构任务。</p>\n<div class=\"key-point\">💡 关键：UniAPO 的统一性来自角色和流程统一，而不是把所有模态压成相同输入。不同模态仍由 MLLM 处理，优化层只维护反馈、prompt、验证分数和检索/演化机制。</div>",
+      "quiz": {
+        "q": "UniAPO 中 Prompt Memory 的主要作用是什么？",
+        "options": [
+          "缓存所有原始图片和视频 token，避免重新编码",
+          "保存历史高分 prompt，为 M-step 提供过程级监督和长期优化方向",
+          "替代任务模型 LT 直接输出最终答案",
+          "把多模态输入转换成纯文本数据集"
+        ],
+        "answer": 1,
+        "explain": "Prompt Memory 记录历史 prompt 及其开发集分数，M-step 通过 Top-K 选出高质量历史 prompt，作为过程级监督来稳定和引导当前 prompt 更新。"
+      }
     },
     {
       "id": "promptmix",
@@ -746,12 +1047,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "frontier_2026",
       "motivation": "语义提示与多模态混合增强泛化能力",
-      "summary": "PromptMix 的核心目标是：语义提示与多模态混合增强泛化能力。",
+      "summary": "PromptMix 提出一种由 LLM 辅助的视觉语言模型提示学习框架，通过语义提示进化、模态无关共享表示和跨注意力适配器，缓解小样本工业识别中的过拟合、提示表达不足和跨模态对齐不稳问题。",
       "keyPoints": [
-        "核心动机：语义提示与多模态混合增强泛化能力",
-        "代表机构：Information Fusion"
+        "面向真实工程视觉识别：重点处理标注稀缺、缺陷形态细微、类间差异容易混淆的低数据场景",
+        "LLM 语义增强：为类别生成细粒度自然语言描述，并经冻结文本编码器得到局部语义 <span class=\"kb-math kb-math-inline\">T_{local}</span> 与全局语义 <span class=\"kb-math kb-math-inline\">T_{global}</span>",
+        "MASR：构建 Modality-Agnostic Shared Representation，减少预训练数据与目标工业数据之间的分布差异",
+        "LAPE：利用 LLM-Aided Prompt Evolution 将外部语义融入可学习上下文提示，迭代改进提示表达",
+        "CAA：通过 Cross-Attentive Adapter 对文本与图像分支进行跨模态融合，提升低样本条件下的鲁棒性",
+        "多损失训练：联合分类损失、提示进化/对齐相关损失与教师分布蒸馏，使 student 预测接近更稳定的 teacher 分布",
+        "实验覆盖七个数据集：包含六个公开工业基准和一个自建工业数据集，验证 base-to-novel 与 few-shot 泛化"
       ],
-      "detail": "<p>语义提示与多模态混合增强泛化能力</p>"
+      "detail": "<p><img alt=\"PromptMix 框架图\" src=\"https://ars.els-cdn.com/content/image/1-s2.0-S1566253526000655-gr1_lrg.jpg\" />\n<em>图：PromptMix 的整体流程。LLM 生成类别描述，MASR 产生共享表示，LAPE 进化文本提示，CAA 对图像与文本分支做跨注意力适配。</em></p>\n<pre><code class=\"language-python\"># PromptMix 训练流程伪代码\ndef train_promptmix(vlm, class_names, train_loader, llm, teacher):\n    freeze(vlm.text_encoder, vlm.image_encoder)\n    prompts = init_learnable_context(class_names)          # X_prompt + class token\n    adapters = init_cross_attentive_adapters()\n    masr = init_modality_agnostic_shared_representation()\n\n    llm_prompts = {\n        c: llm.generate_description(c, domain=&quot;industrial recognition&quot;)\n        for c in class_names\n    }\n    llm_tokens = tokenize(llm_prompts)\n    t_local, t_global = vlm.text_encoder(llm_tokens).token_features_and_mean()\n\n    for images, labels in train_loader:\n        r_text, r_vision = masr(prompts, images)\n        evolved_prompt = LAPE(\n            base_prompt=prompts,\n            llm_local=t_local,\n            llm_global=t_global,\n            shared_text=r_text,\n        )\n\n        text_feat = vlm.text_encoder(evolved_prompt)\n        image_feat = vlm.image_encoder(images, visual_prompt=r_vision)\n        fused_text, fused_image = adapters.cross_attend(text_feat, image_feat)\n\n        student_logits = cosine_classifier(fused_image, fused_text)\n        with no_grad():\n            teacher_logits = teacher(images, class_names)\n\n        loss = (\n            ce_loss(student_logits, labels)\n            + lambda_pil * prompt_image_language_loss(fused_image, fused_text)\n            + lambda_prl * prompt_refinement_loss(evolved_prompt, t_global)\n            + lambda_kd * kl_divergence(student_logits, teacher_logits)\n        )\n        update(prompts, adapters, masr, loss)\n\n    return prompts, adapters, masr\n</code></pre>\n<p>PromptMix 的直接动机是 CLIP 类视觉语言模型在低样本工业场景中容易出现两类失败：一是可学习 prompt 只由少量样本驱动，容易记住训练域的表面纹理；二是类别名或模板句过短，无法表达“焊缝细黑沟槽”“轻微划痕”这类细粒度语义。论文因此不把 LLM 只当作离线文字扩写器，而是把 LLM 描述、可学习 prompt、图像特征放入同一个可训练融合流程中。</p>\n<p>在语义侧，LLM 根据类别和任务上下文生成更具判别性的描述 <span class=\"kb-math kb-math-inline\">T_{LLM}</span>，再通过冻结的文本编码器得到 token 级局部语义 <span class=\"kb-math kb-math-inline\">T_{local}</span> 与平均池化后的全局语义 <span class=\"kb-math kb-math-inline\">T_{global}</span>。局部语义适合描述部件、形状、颜色和缺陷模式，全局语义提供类别级概念锚点；这比直接使用 “a photo of a class” 更能覆盖工业图像中的细微差异。</p>\n<p>MASR 的作用是建立模态无关共享表示。图中可以看到 MASR 同时向文本 prompt 编码器与图像 prompt 编码器提供 <span class=\"kb-math kb-math-inline\">R_t</span> 与 <span class=\"kb-math kb-math-inline\">R_v</span>，直觉上是在可学习 prompt 前先构造一个跨模态共享的潜在空间。这样做的意义是降低 CLIP 预训练分布与目标工业数据分布之间的落差，避免文本分支只学到自然图像语义、视觉分支只响应目标域噪声。</p>\n<p>LAPE 是 PromptMix 的提示进化核心。它不是简单把 LLM 输出拼接到模板里，而是让 Prompt Evolution 模块在 <span class=\"kb-math kb-math-inline\">T_{local}</span>、<span class=\"kb-math kb-math-inline\">T_{global}</span>、当前 prompt 表示之间进行迭代更新，并用提示相关损失约束更新方向。可以把整体目标概括为：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L} =\n\\mathcal{L}_{CE}\n+ \\lambda_{PIL}\\mathcal{L}_{PIL}\n+ \\lambda_{PRL}\\mathcal{L}_{PRL}\n+ \\lambda_{KD}\\mathcal{L}_{KD}.</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">\\mathcal{L}_{CE}</span> 负责监督分类，<span class=\"kb-math kb-math-inline\">\\mathcal{L}_{PIL}</span> 与 <span class=\"kb-math kb-math-inline\">\\mathcal{L}_{PRL}</span> 约束图文提示交互和提示进化质量，<span class=\"kb-math kb-math-inline\">\\mathcal{L}_{KD}</span> 让 student 的预测分布向 teacher 分布靠近。这个组合目标的核心不是追求更复杂的分类头，而是让提示、图像和文本三类信号在低样本下保持一致。</p>\n<p>CAA 负责最后的跨模态适配。图中 Text Adapter 与 Image Adapter 接收文本信号、图像信号和多模态信号，通过交互后输出 <span class=\"kb-math kb-math-inline\">T_{TA}</span> 与 <span class=\"kb-math kb-math-inline\">V_{IA}</span>，再计算 student 预测 <span class=\"kb-math kb-math-inline\">P_{student}</span>。相比只调文本 prompt 的 CoOp 式方法，PromptMix 同时让视觉侧与文本侧参与适配；相比只做特征 adapter 的方法，它又保留了 LLM 语义对类别边界的指导。</p>\n<p>推理时，训练好的 prompt、MASR 和 adapter 被固定，输入图像经图像编码器与图像适配器得到视觉特征，类别侧使用进化后的文本提示得到文本原型，再以图文相似度完成分类。因此 PromptMix 的优势主要体现在需要从少量标注中泛化到新类别或新工业场景时：LLM 语义提供更宽的概念覆盖，MASR 降低域偏移，CAA 让两种模态在任务相关维度上重新对齐。</p>",
+      "quiz": {
+        "q": "PromptMix 中 LAPE 的主要作用是什么？",
+        "options": [
+          "利用 LLM 语义迭代增强和细化可学习文本提示",
+          "把所有图像转换为纯文本描述后再分类",
+          "替代 CLIP 的文本编码器和图像编码器",
+          "只用 BM25 检索类别相关文档"
+        ],
+        "answer": 0,
+        "explain": "LAPE 即 LLM-Aided Prompt Evolution，核心是把 LLM 生成的局部/全局语义注入可学习 prompt，并约束提示进化过程。"
+      }
     },
     {
       "id": "vcp",
@@ -765,13 +1082,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "frontier_2026",
       "motivation": "视觉引导条件提示实现图文深度对齐",
-      "summary": "VCP 的核心目标是：视觉引导条件提示实现图文深度对齐。",
+      "summary": "VCP 通过视觉特征生成实例相关的条件提示，并与语义条件提示和上下文提示融合，使视觉语言模型在未见类别上获得更细粒度的图文对齐。",
       "keyPoints": [
-        "核心动机：视觉引导条件提示实现图文深度对齐",
-        "演化来源：继承或改进自 promptmix",
-        "代表机构：Expert Systems"
+        "公开 arXiv 版本对应 MuGCP：多模态互指导条件提示学习",
+        "使用多模态大模型生成 Semantic Conditional Prompts，补充类别语义",
+        "Attention Mutual-Guidance 模块从视觉特征中生成 Visual Conditional Prompts",
+        "Multi-Prompt Fusion 同时融合语义提示、视觉提示和可学习上下文提示",
+        "文本增强与一致性损失提升未见类别和跨域泛化",
+        "重点解决固定 prompt 无法适配每张图像实例的问题"
       ],
-      "detail": "<p>视觉引导条件提示实现图文深度对齐</p>"
+      "detail": "<p><img alt=\"MuGCP / VCP 框架图\" src=\"https://arxiv.org/html/2507.08410v1/extracted/6614324/OverView5.png\" />\n<em>图源：arXiv HTML framework figure，展示 SCP、VCP、AMG 与 MPF 的整体流程。</em></p>\n<pre><code class=\"language-python\"># VCP / MuGCP 条件提示学习伪代码\ndef vcp_forward(image, class_names, clip_model, mllm, amg, mpf):\n    visual_tokens = clip_model.encode_image_tokens(image)\n    semantic_prompts = mllm.generate_semantic_conditional_prompts(class_names)\n\n    visual_prompts = amg(\n        visual_tokens=visual_tokens,\n        semantic_prompts=semantic_prompts,\n    )\n    fused_prompts = mpf.combine(\n        context_prompts=learnable_context_tokens(),\n        semantic_prompts=semantic_prompts,\n        visual_prompts=visual_prompts,\n    )\n\n    image_feature = clip_model.encode_image(image, prompts=visual_prompts)\n    text_features = clip_model.encode_text(class_names, prompts=fused_prompts)\n    logits = similarity(image_feature, text_features)\n    return logits\n</code></pre>\n<p>传统 prompt learning 常用一组全局可学习上下文 token，同一类别或同一任务共享同一 prompt。这种方式对训练类有效，但对未见类别和分布偏移不够灵活。VCP 的核心是让 prompt 条件化于当前图像实例：不同图像可以触发不同视觉提示，从而捕捉姿态、局部区域、背景和细粒度属性差异。</p>\n<p>SCP 和 VCP 分别提供两种条件信息。SCP 来自多模态大模型或语言知识，强调类别语义、属性和常识；VCP 来自视觉编码器内部特征，强调当前图像中实际出现的视觉证据。二者互补：语义提示告诉模型应该看什么，视觉提示告诉模型这张图像实际支持什么。</p>\n<p>AMG 模块负责互指导。它不是单向地把文本加到图像或把图像加到文本，而是在跨层、跨模态特征之间建立注意力交互，使语义提示和视觉提示共同调整。这样可以减少文本描述与图像区域错配的问题。</p>\n<p>MPF 将可学习上下文提示、语义条件提示和视觉条件提示融合后送入 CLIP 类编码器。训练中再配合文本增强和一致性损失，约束不同增强视角下预测稳定。相比 PromptMix 偏重语义属性混合，VCP 更强调实例级视觉条件化，因此对细粒度分类和跨域泛化更有意义。</p>",
+      "quiz": {
+        "q": "VCP 相比固定上下文 prompt 的核心优势是什么？",
+        "options": [
+          "可以根据当前图像实例生成视觉条件提示",
+          "完全不需要图像编码器",
+          "只依赖类别名称，不使用视觉特征",
+          "把所有类别合并成一个标签"
+        ],
+        "answer": 0,
+        "explain": "VCP 利用图像特征产生实例相关提示，使图文对齐能随输入图像动态变化。"
+      }
     }
   ],
   "categories": {

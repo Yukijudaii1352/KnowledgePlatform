@@ -14,72 +14,118 @@ motivation: 大规模对比学习实现零样本迁移
 
 #### 📝 一句话总结
 
-CLIP 用 4 亿互联网图文对训练图像编码器和文本编码器，通过对比学习把自然语言监督转化为可迁移的视觉表示，解决传统视觉模型依赖固定标签空间的问题。预训练后，类别名或 prompt 就能直接构造零样本分类器。
+CLIP 用 4 亿互联网图文对训练图像编码器和文本编码器，通过对称对比学习把自然语言描述变成可迁移的视觉监督，解决传统分类模型只能预测固定标签空间、迁移到新任务依赖再标注的问题。
 
 #### 🎯 核心要点
 
-- 采用双编码器结构：图像塔可用 ResNet 或 ViT，文本塔为 Transformer
-- 训练数据是大规模 WebImageText 图文对，监督信号来自自然语言描述而非固定类别标签
-- 使用对称图文对比损失，让 batch 内正确图文对位于相似度矩阵对角线
-- 通过可学习温度缩放 logits，稳定大 batch 对比学习
-- 推理时图像和文本可独立编码，天然支持文本搜图、图搜文和向量库检索
-- 零样本分类通过 prompt 模板编码类别文本，再与图像嵌入做相似度匹配
+- 训练数据是 WebImageText：约 4 亿个从互联网收集的图像-文本对
+- 采用双编码器结构：图像塔为 ResNet 或 ViT，文本塔为 Transformer，二者输出同维度归一化向量
+- 使用 batch 内所有非配对样本作为负样本，训练目标是让正确图文对在相似度矩阵对角线上得分最高
+- 损失是对称的 image-to-text 与 text-to-image 交叉熵，配合可学习温度参数控制 softmax 尖锐度
+- 零样本分类通过 prompt 模板把类别名转成文本嵌入，文本嵌入直接充当分类器权重
+- 推理阶段图像和文本可以独立编码，因此天然适合大规模图文检索、向量库召回和开放词表分类
+- 论文系统展示了自然语言监督的可扩展性，同时也指出 CLIP 对分布偏移、细粒度计数和抽象推理仍有限制
 
 #### 🔬 深入细节
 
+##### 框架总览
+
 ![CLIP 方法总览](https://ar5iv.labs.arxiv.org/html/2103.00020/assets/x1.png)
-*图：论文 Figure 1。CLIP 训练时预测 batch 内正确的图文配对，测试时用文本编码器把类别描述转成零样本分类器。*
+*图：论文 Figure 1。CLIP 训练时预测 batch 内正确图文配对；测试时用文本编码器把类别 prompt 转成零样本分类器。*
+
+##### CLIP 训练与零样本分类伪代码
 
 ```python
-# CLIP 核心训练伪代码
-for images, texts in dataloader:
-    image_features = l2_normalize(image_encoder(images))
-    text_features = l2_normalize(text_encoder(texts))
+# CLIP 的核心训练循环
+for images, texts in web_image_text_loader:
+    image_features = image_encoder(images)      # ResNet 或 ViT
+    text_features = text_encoder(texts)         # Transformer
 
+    image_features = l2_normalize(image_projection(image_features))
+    text_features = l2_normalize(text_projection(text_features))
+
+    # N x N 相似度矩阵；对角线是正确配对
     logits = exp(logit_scale) * image_features @ text_features.T
     labels = arange(batch_size)
 
     loss_i2t = cross_entropy(logits, labels)
     loss_t2i = cross_entropy(logits.T, labels)
     loss = (loss_i2t + loss_t2i) / 2
+
     loss.backward()
     optimizer.step()
 
-# 零样本分类
-class_texts = [f"a photo of a {name}" for name in class_names]
-class_emb = l2_normalize(text_encoder(class_texts))
-pred = argmax(l2_normalize(image_encoder(image)) @ class_emb.T)
+# 零样本分类：类别名经 prompt 模板变成文本分类器
+prompts = [f"a photo of a {class_name}" for class_name in class_names]
+class_emb = l2_normalize(text_encoder(prompts))
+image_emb = l2_normalize(image_encoder(image))
+prediction = argmax(image_emb @ class_emb.T)
 ```
 
-CLIP 的核心转变是把视觉监督从“人工标注类别”改为“图像旁边自然出现的文本”。传统 ImageNet 分类器只能预测训练时定义好的 1000 个类别，迁移到新任务需要再收集标签并微调；CLIP 直接学习图像和语言描述之间的对应关系，因此新类别可以用文本描述临时定义。
+##### 方法细节
 
-设一个 batch 有 \(N\) 个匹配图文对，归一化后的图像嵌入为 \(I_i\)，文本嵌入为 \(T_j\)。相似度矩阵为：
+CLIP 的出发点是监督信号瓶颈。传统 ImageNet 训练把图像映射到固定的 1000 类，这种监督很干净，但标签空间窄、扩展成本高，而且迁移到新类别需要重新标注。互联网图像天然带有标题、alt-text、周边文字或用户描述，虽然噪声大，却覆盖了更开放的概念空间。CLIP 的关键判断是：与其继续人工扩充固定标签集，不如直接学习图像和自然语言之间的匹配关系。
 
-$$
-S_{ij}=\exp(t)\cdot I_i^\top T_j
-$$
-
-其中 \(t\) 是可学习的 logit scale。训练目标是让每一行的正确文本为第 \(i\) 个，同时让每一列的正确图像也是第 \(i\) 个：
+结构上，CLIP 刻意选择双编码器而不是跨注意力融合模型。图像编码器 \(f_\theta(I)\) 和文本编码器 \(g_\phi(T)\) 独立输出向量，再投影到同一嵌入空间并做 L2 归一化：
 
 $$
-\mathcal{L}=\frac{1}{2}\left(\operatorname{CE}(S, y)+\operatorname{CE}(S^\top,y)\right),\quad y_i=i
+v_i=\frac{f_\theta(I_i)}{\lVert f_\theta(I_i)\rVert_2},\qquad
+u_j=\frac{g_\phi(T_j)}{\lVert g_\phi(T_j)\rVert_2}
 $$
 
-这相当于同时做 image-to-text 和 text-to-image 两个方向的 \(N\) 类分类。batch 中其他 \(N-1\) 个样本自动成为 in-batch negatives，不需要显式标注负样本。
+给定一个 batch 的 \(N\) 个匹配图文对，CLIP 构造相似度矩阵：
 
-> 💡 关键：CLIP 的文本塔不只是 caption encoder，它在推理时承担“动态分类器生成器”的角色。类别名、属性描述、prompt 模板都会影响最终决策边界。
+$$
+S_{ij}=\exp(\tau)\,v_i^\top u_j
+$$
 
-与 SCAN、OSCAR、ViLT 等融合模型相比，CLIP 的双塔结构牺牲了一部分细粒度交互，但换来了大规模检索和零样本迁移的工程优势。图像和文本向量可以离线预计算，在线检索只需点积；这也是后续 ALIGN、SigLIP 和大量多模态嵌入模型沿用双塔范式的原因。
+其中 \(\tau\) 是可学习的 logit scale。因为向量被归一化，点积本质上是余弦相似度；温度缩放控制 softmax 分布的尖锐程度，避免 batch 很大时正负样本分数差异过小。
+
+训练目标是对称 InfoNCE。每张图像要在 \(N\) 条文本中找回自己的文本，每条文本也要在 \(N\) 张图像中找回自己的图像：
+
+$$
+\mathcal{L}_{i2t}
+=-\frac{1}{N}\sum_{i=1}^{N}
+\log\frac{\exp(S_{ii})}{\sum_{j=1}^{N}\exp(S_{ij})}
+$$
+
+$$
+\mathcal{L}_{t2i}
+=-\frac{1}{N}\sum_{i=1}^{N}
+\log\frac{\exp(S_{ii})}{\sum_{j=1}^{N}\exp(S_{ji})}
+$$
+
+$$
+\mathcal{L}_{CLIP}=\frac{1}{2}\left(\mathcal{L}_{i2t}+\mathcal{L}_{t2i}\right)
+$$
+
+这个损失的工程价值很高：batch 中其他 \(N-1\) 个样本自动成为负样本，不需要人工构造 hard negatives；图像和文本塔也可以分布式并行训练，只需在计算相似度前聚合 embedding。
+
+CLIP 的零样本分类来自同一个嵌入空间。对一个下游类别集合 \(\mathcal{C}\)，不是训练新的线性层，而是把类别名写入 prompt，例如 “a photo of a {label}”，得到文本向量 \(u_c\)。图像 \(I\) 的类别概率可以写成：
+
+$$
+p(y=c\mid I)=
+\frac{\exp(\exp(\tau)\,v_I^\top u_c)}
+{\sum_{c'\in\mathcal{C}}\exp(\exp(\tau)\,v_I^\top u_{c'})}
+$$
+
+因此，文本编码器在推理时相当于动态分类器生成器。改变 prompt 模板、加入同义词或对多个模板做 ensemble，都会改变分类边界；这也是论文中 prompt engineering 能显著影响零样本精度的原因。
+
+与早期视觉语言模型相比，CLIP 的取舍非常清楚。跨注意力模型能做更细粒度的 token-region 交互，但每个图文候选对都要一起前向，无法高效服务亿级检索库。CLIP 的双塔结构让图像库和文本库都能离线编码，在线阶段只需点积或近似最近邻搜索，因此更适合开放词表检索和大规模召回。
+
+CLIP 也不是“理解视觉语言”的终点。它主要学习全局图文对齐，容易受数据偏见、prompt 表达和语境歧义影响；对计数、空间关系、细粒度属性组合、OCR 长文本和需要多步推理的任务并不稳定。后续 ALIGN、SigLIP、LiT、BLIP 系列和多模态大模型，很大程度上都是在 CLIP 打开的自然语言监督路线基础上继续改进数据规模、损失函数、模型交互方式或生成能力。
+
+> 💡 关键：CLIP 的核心贡献不是某个复杂模块，而是证明“大规模噪声图文对 + 双塔对比学习 + prompt 形式的标签描述”可以把视觉模型从封闭标签空间推向开放词表迁移。
 
 #### 🧪 练习题
 
 ```yaml
-question: "CLIP 为什么能进行零样本图像分类？"
+question: "CLIP 为什么可以做零样本图像分类？"
 options:
-  - "它在预训练时已经见过所有下游数据集标签"
-  - "它可以把类别名称或 prompt 编码成文本向量，并与图像向量直接比较"
-  - "它使用目标检测器输出类别框"
-  - "它在推理时生成图像描述再做字符串匹配"
+  - "它在预训练时已经见过所有下游测试图像"
+  - "它可以把类别名称或 prompt 编码成文本向量，并直接与图像向量比较"
+  - "它在推理时先训练一个新的线性分类头"
+  - "它使用目标检测器输出所有候选类别框"
 answer: 1
-explain: "CLIP 学到共享图文嵌入空间，因此新类别可由自然语言 prompt 表达，文本向量即可充当分类权重。"
+explain: "CLIP 学到共享图文嵌入空间，类别文本向量可以充当分类器权重，因此新类别可通过自然语言 prompt 动态定义。"
 ```

@@ -2,106 +2,105 @@
 
 ```yaml
 id: align
-name: "ALIGN"
-year: 2021
+name: ALIGN
+year: '2021'
 category: contrastive
-paper_url: "https://arxiv.org/abs/2102.05918"
+institution: Google
+paper: ICML 2021
+motivation: 验证规模胜于质量的假设
 parent: clip
+description: 使用18亿对原始噪声Alt-text数据，证明简单架构在大规模数据下的强大生命力。
+topic_id: visual_language_model
+yaml_path: /mnt/dhwfile/raise/user/wanghaoyu/KnowledgePipeline/content/mm/visual_language_model.yaml
+output_path: /mnt/dhwfile/raise/user/wanghaoyu/KnowledgePipeline/content/mm/visual_language_model/align_detail.md
 ```
 
-## 📝 一句话总结
+#### 📝 一句话总结
+ALIGN 用 18 亿 noisy image-alt-text 对训练极简图文双塔，证明在图文对比学习中，大规模弱清洗数据可以弥补噪声，并在零样本分类和跨模态检索上获得强性能。
 
-ALIGN利用**18亿**未经精细清洗的网络图文对，通过双塔对比学习（EfficientNet + BERT），证明了**数据规模可以弥补噪声**，在零样本分类和跨模态检索上达到与CLIP相当甚至更优的性能。
+#### 🎯 核心要点
+- 数据策略极端简化：从网页 alt-text 构造 1.8B 图文对，只做基础安全、尺寸、长度、频率和去重过滤
+- 双塔架构直接有效：图像端用 EfficientNet，文本端用 BERT 的 `[CLS]` 表示，经线性层映射到共享嵌入空间
+- 从零训练：论文强调图像编码器和文本编码器均从头训练，避免依赖人工标签预训练
+- 归一化 softmax 对比损失：同时优化 image-to-text 和 text-to-image 两个方向，把 batch 内其他样本作为负例
+- 大 batch 与温度学习：跨 TPU core 拼接嵌入形成 16384 全局 batch，并学习共享温度 \(\sigma\)
+- 规模胜过清洗：消融显示同规模 noisy 数据不如 CC-3M，但 12M noisy 数据已超过 3M clean 数据
+- 强迁移结果：ImageNet 零样本 top-1 达 76.4%，线性/微调视觉迁移和 Flickr30K、MSCOCO 检索均很强
 
-## 🎯 核心要点
+#### 🔬 深入细节
+##### 核心示意图
 
-1. **数据规模压倒质量**：使用1.8B noisy image-alt-text pairs（仅做频率过滤和最小清洗），相比CLIP的400M精选数据，ALIGN证明了在足够大的规模下，噪声数据的负面影响可被稀释——仅需4倍于干净数据的规模即可反超（Table 10: noisy 12M > clean CC-3M）。
+![ALIGN 方法总览图](https://ar5iv.labs.arxiv.org/html/2102.05918/assets/x1.png)
+*图：ALIGN Figure 1。模型从 noisy image-alt-text 数据中学习图像和文本表征，并用于零样本分类、跨模态检索和图文组合查询。*
 
-2. **极简双塔架构**：图像端使用EfficientNet-L2，文本端使用BERT-Large，两者独立编码后通过L2归一化投影到共享嵌入空间（维度640），无需复杂的跨模态交互模块，推理时可高效预计算索引。
+公开来源：论文 `https://arxiv.org/abs/2102.05918`。
 
-3. **归一化Softmax对比损失**：采用双向（image-to-text + text-to-image）归一化softmax损失，以batch内所有其他样本为负例（batch size=16384），学习温度参数σ（收敛至~1/64），并使用0.1的label smoothing。
-
-4. **零样本与微调双强**：ImageNet零样本76.4%（vs CLIP 76.2%），微调后88.64%；Flickr30K零样本text→image R@1达75.7%（超CLIP 7%），微调后image→text R@1达95.3%，刷新当时所有SOTA。
-
-5. **跨模态 > 单模态**：ALIGN在跨模态检索（image↔text）上大幅领先，但在单模态检索（text↔text, image↔image）上提升有限，说明对比学习目标天然偏向跨模态对齐而非单模态聚类。
-
-## 🔬 深入细节
-
-### 架构示意图
-
-![ALIGN Architecture](https://ar5iv.labs.arxiv.org/html/2102.05918/assets/x1.png)
-
-*图1: ALIGN双塔架构。图像经EfficientNet编码，文本经BERT编码，两个嵌入通过L2归一化后在共享空间中进行对比学习。*
-
-### 核心算法伪代码
+##### 核心流程代码
 
 ```python
-# ALIGN: Normalized Softmax Contrastive Learning
-# I: batch of images, T: batch of texts, N = batch_size = 16384
+# ALIGN: normalized softmax contrastive learning on noisy alt-text pairs
 
-# 1. Encode
-img_emb = l2_normalize(image_encoder(I))   # [N, 640] EfficientNet-L2
-txt_emb = l2_normalize(text_encoder(T))     # [N, 640] BERT-Large
+def align_train_step(images, alt_texts, image_encoder, text_encoder, sigma):
+    img = image_encoder(images)                 # EfficientNet + global pooling
+    txt = text_encoder(alt_texts).cls_token     # BERT [CLS]
 
-# 2. Compute similarity matrix (cosine similarity scaled by temperature)
-# σ is a learnable scalar, initialized to 1.0, converges to ~1/64
-logits = (img_emb @ txt_emb.T) / sigma      # [N, N]
+    img_emb = l2_normalize(img_projection(img))
+    txt_emb = l2_normalize(txt_projection(txt))
 
-# 3. Bidirectional normalized softmax loss with label smoothing (eps=0.1)
-labels = torch.arange(N)  # diagonal = positive pairs
-loss_i2t = cross_entropy_with_label_smoothing(logits, labels, eps=0.1)
-loss_t2i = cross_entropy_with_label_smoothing(logits.T, labels, eps=0.1)
-loss = (loss_i2t + loss_t2i) / 2
+    # Embeddings from all TPU cores are concatenated before this step.
+    logits = img_emb @ txt_emb.T / sigma
+    labels = arange(len(images))
+
+    loss_i2t = cross_entropy(logits, labels, label_smoothing=0.1)
+    loss_t2i = cross_entropy(logits.T, labels, label_smoothing=0.1)
+    return (loss_i2t + loss_t2i) / 2
 ```
 
-### 方法详解
+##### 关键公式
 
-**数据管线：规模换质量的工程哲学。** ALIGN的核心洞察是：互联网上的图片alt-text天然构成了海量的弱监督图文对。与CLIP使用精心设计的50万查询词从网络爬取并过滤400M数据不同，ALIGN直接从超过10亿的网页中提取原始的image-alt-text对，仅进行极简的清洗：(1) 过滤色情/有害内容；(2) 去除alt-text过短（<3 unigrams）或过长的样本；(3) 基于图片尺寸和宽高比进行基本过滤；(4) 去除出现频率极高的无意义alt-text（如"click to enlarge"）。这套流程将数据从原始的数十亿缩减到1.8B对，但保留了大量噪声——许多alt-text只是部分描述图片内容，或完全无关。论文通过精心设计的消融实验（Table 10）证明：虽然同等规模下noisy数据远不如clean数据（3M noisy vs 3M CC: 8.1 vs 18.9 I2T R@1），但只需4倍规模（12M noisy）即可反超clean数据，而当规模达到1.8B时，模型性能远超任何clean小数据集训练的结果。
+设 \(x_i\) 是第 \(i\) 张图像的归一化嵌入，\(y_i\) 是其 alt-text 的归一化嵌入，\(\sigma\) 是温度参数。ALIGN 的 image-to-text 损失为：
 
-**双塔编码器：独立编码的效率优势。** 图像端采用EfficientNet-L2（480M参数），输入分辨率289×289，使用全局平均池化后接线性投影层映射到640维嵌入空间。文本端采用BERT-Large，输入最长64个wordpiece token（因alt-text通常不超过20个单词），取[CLS] token的表示经线性投影到同一640维空间。两个编码器的输出均经过L2归一化，使得余弦相似度等价于归一化内积。这种双塔设计的核心优势在于推理效率：图像和文本可以独立预计算嵌入向量，检索时只需计算向量内积，支持大规模近似最近邻搜索。相比UNITER、Oscar等需要将图文拼接后送入Transformer进行联合编码的方法，ALIGN在检索场景下的计算成本降低了数个数量级。
+$$
+L_{i2t}
+= -\frac{1}{N}\sum_{i=1}^{N}
+\log
+\frac{\exp(x_i^\top y_i / \sigma)}
+{\sum_{j=1}^{N}\exp(x_i^\top y_j / \sigma)}
+$$
 
-**训练策略：大batch与温度学习。** ALIGN在1024个Cloud TPUv3核心上训练，每个核心处理16个正样本对，总batch size为16384。所有核心的嵌入向量会被concatenate，使得每个样本有16383个in-batch负例。消融实验（Table 8）显示，减少负例数量（50%或25%）会显著降低性能，验证了大batch对对比学习的重要性。温度参数σ从1.0初始化，在训练过程中快速下降（前100k步即达到收敛值的~1.2倍），最终收敛到约1/64。消融显示手动设定σ=1/128或1/64可略优于学习值，但σ=1/32则性能急剧下降，说明温度过高会使分布过于平滑而丧失判别力。优化器使用LAMB（而非SGD或Adam），学习率在10k步内线性warmup到1e-3，然后在1.2M步（约12个epoch）内线性衰减到0，权重衰减1e-5，label smoothing 0.1。
+text-to-image 损失对称定义：
 
-**损失函数的数学形式。** 给定一个batch中的N个图文对 $$\{(x_i, y_i)\}_{i=1}^{N}$$，图像编码器输出 $$f(x_i)$$，文本编码器输出 $$g(y_i)$$，经L2归一化后的嵌入分别为 $$\hat{f}(x_i)$$ 和 $$\hat{g}(y_i)$$。image-to-text损失定义为：
+$$
+L_{t2i}
+= -\frac{1}{N}\sum_{i=1}^{N}
+\log
+\frac{\exp(y_i^\top x_i / \sigma)}
+{\sum_{j=1}^{N}\exp(y_i^\top x_j / \sigma)}
+$$
 
-$$\mathcal{L}_{i2t}(x_i) = -\frac{1}{\sigma} \hat{f}(x_i)^T \hat{g}(y_i) + \log \sum_{j=1}^{N} \exp\left(\frac{1}{\sigma} \hat{f}(x_i)^T \hat{g}(y_j)\right)$$
+总目标为 \(\mathcal{L}=L_{i2t}+L_{t2i}\)。由于 \(x\) 和 \(y\) 都经过 L2 归一化，\(\sigma\) 直接控制余弦相似度 softmax 的锐度。
 
-对称地定义text-to-image损失 $$\mathcal{L}_{t2i}$$，总损失为两者之和在batch上的均值。其中σ为可学习温度参数，控制softmax分布的锐度。
+##### 方法解读
 
-**与CLIP的关键差异。** 虽然ALIGN和CLIP几乎同时提出且思路相似，但存在几个关键区别：(1) **数据策略**：CLIP使用精心构建的50万查询词从网络爬取并过滤出400M高质量数据，ALIGN则使用1.8B原始noisy数据，验证了"规模>质量"的假设；(2) **编码器选择**：CLIP的最强版本使用ViT-L/14作为图像编码器，ALIGN使用EfficientNet-L2，两者参数量相近但架构不同；(3) **损失函数**：两者都使用对称对比损失，但ALIGN额外使用了label smoothing；(4) **结果对比**：在ImageNet零样本上两者接近（76.4 vs 76.2），但在跨模态检索上ALIGN显著领先（Flickr30K text→image R@1: 75.7 vs 68.7），这可能归因于更大的训练数据规模和label smoothing的正则化效果。
+ALIGN 的问题意识非常工程化：视觉-语言预训练的数据通常依赖精细清洗或人工标注，规模受限；互联网网页的 alt-text 虽然噪声很大，却天然提供了海量图文弱配对。论文保留了 Conceptual Captions 式的数据来源，但移除了大量昂贵的语义清洗，只过滤色情内容、异常图片尺寸/宽高比、过短或过长文本、出现频率过高的模板化 alt-text，以及下游评测集近重复样本。最终得到的 1.8B 数据噪声更高，但覆盖面远大于干净小数据集。
 
-## 🧪 练习题
+模型本身几乎没有复杂结构。图像端是 EfficientNet，经 global pooling 得到视觉表示；文本端是 BERT，用 `[CLS]` token 表示整段 alt-text，并生成 100k wordpiece 词表。二者各自接线性层映射到同一维度，再做 L2 归一化。这个设计与跨注意力 VLP 模型的差异很大：ALIGN 不在训练或检索时逐 token 做深度交互，而是先把图像和文本独立编码成向量，所以可以直接服务于大规模检索系统。
 
-### 概念理解
+损失函数与 CLIP 同属对称对比学习，但 ALIGN 更强调“超大 batch + noisy 数据”的组合。训练时每个 TPU core 处理 16 个正样本对，1024 个 Cloud TPUv3 core 拼接后形成 16384 的全局 batch，因此每个样本都有大量 in-batch 负例。论文还使用 label smoothing 0.1、LAMB 优化器、10k step warmup 到 \(10^{-3}\)，再在约 1.2M steps 内线性衰减；温度 \(\sigma\) 从 1.0 初始化并可学习，消融中收敛到约 \(1/64\)。
 
-1. **为什么ALIGN使用L2归一化后的内积作为相似度度量，而不是直接使用未归一化的内积？** 请从梯度稳定性和温度参数的物理意义两个角度分析。
+“规模胜于质量”不是说噪声无害，而是说在模型容量和数据规模足够大时，数据多样性会压过单样本噪声。论文消融显示，3M noisy ALIGN 子集明显差于 3M clean Conceptual Captions，但 6M、12M noisy 子集迅速追上并超过 clean 数据。这说明 noisy alt-text 的价值在于覆盖长尾实体、场景、属性和语言表达；单条标注可能错，但海量弱相关信号可以在对比学习中形成统计优势。
 
-2. **ALIGN的消融实验（Table 10）显示，12M noisy数据优于3M clean数据。请解释为什么噪声数据在规模足够大时反而有优势？** 提示：考虑数据多样性、正则化效果和长尾分布。
+ALIGN 与 CLIP 的主要区别集中在数据策略和工程取舍。CLIP 使用更有意图的数据收集和过滤流程，ALIGN 则尽量顺着网页 alt-text 原始分布扩张规模；CLIP 的公开代表模型大量使用 ViT，ALIGN 的主模型使用 EfficientNet-L2 + BERT-Large；两者都避免跨注意力，因此都能高效检索。ALIGN 进一步展示了图像向量和文本向量可以相加用于 image+text query，这为“用一张图加一句话检索相似但带指定属性变化的图片”提供了早期范式。
 
-3. **为什么温度参数σ=1/32时性能急剧下降（Table 8: I2T R@1从52.2降至39.6），而σ=1/64和1/128差异不大？** 请从softmax分布的角度解释。
+#### 🧪 练习题
 
-### 代码实践
-
-4. **实现ALIGN的核心对比损失函数**，包括双向softmax损失和label smoothing，并验证当batch_size=4、embedding_dim=8时的输出shape和梯度流。
-
-```python
-import torch
-import torch.nn.functional as F
-
-def align_loss(img_emb, txt_emb, sigma, label_smoothing=0.1):
-    """
-    Args:
-        img_emb: [N, D] L2-normalized image embeddings
-        txt_emb: [N, D] L2-normalized text embeddings
-        sigma: learnable temperature scalar
-        label_smoothing: smoothing parameter
-    Returns:
-        loss: scalar
-    """
-    # TODO: 实现双向归一化softmax对比损失
-    pass
+```yaml
+question: "ALIGN 为什么能从 noisy alt-text 数据中获得强表示？"
+options:
+  - "它使用了人工清洗到接近标注数据质量的文本"
+  - "它用跨注意力过滤掉所有错误图文对"
+  - "它用极大规模数据和 batch 内负例让统计相关性压过单样本噪声"
+  - "它只在 ImageNet 类别名上训练文本编码器"
+answer: 2
+explain: "ALIGN 的核心论点是数据规模可以补偿噪声。模型仍然会受到噪声影响，但 1.8B 图文对提供了足够多样的弱监督信号，对比学习能从总体统计中学习跨模态对齐。"
 ```
-
-### 论文拓展
-
-5. **ALIGN在单模态检索（text↔text, image↔image）上表现不如跨模态检索。** 请设计一种改进方案，使模型在保持跨模态对齐能力的同时提升单模态检索性能。提示：参考论文中提到的multitask learning方向。

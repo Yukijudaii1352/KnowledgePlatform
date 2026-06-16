@@ -1,5 +1,5 @@
 /**
- * 3d_vision-data.js — 由 pipeline/build.py 于 2026-06-15 18:08:20 自动生成。
+ * 3d_vision-data.js — 由 pipeline/build.py 于 2026-06-16 17:00:10 自动生成。
  * 源文件：content/cv/3d_vision.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "3d_vision",
     "topic_name": "3D视觉",
     "page_title": "3D视觉技术演进图谱",
-    "page_subtitle": "2026-06-15 版",
+    "page_subtitle": "2026-06-16 版",
     "page_desc": "系统梳理从点云处理、NeRF神经辐射场到3D Gaussian Splatting的技术变革与2026最新前沿，涵盖神经渲染、三维重建的完整演化路径。",
     "page_icon": "🧊",
     "hero_pills": [
@@ -490,13 +490,26 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "point_cloud",
       "motivation": "向量自注意力机制建模长程依赖，刷新语义分割记录",
-      "summary": "Point Transformer 的核心目标是：向量自注意力机制建模长程依赖，刷新语义分割记录。",
+      "summary": "Point Transformer 将 Transformer 的自注意力改造成适合无序点集的局部向量注意力层，通过相对位置编码和通道级注意力权重建模点云局部几何关系，解决了 PointNet/DGCNN 类方法对长程上下文和局部关系表达不足的问题。",
       "keyPoints": [
-        "核心动机：向量自注意力机制建模长程依赖，刷新语义分割记录",
-        "演化来源：继承或改进自 dgcnn",
-        "代表机构：Oxford"
+        "点云专用自注意力层：在局部邻域内执行 self-attention，既保持点集置换不变性，又避免全局注意力在大规模点云上的高复杂度",
+        "向量注意力（Vector Attention）：每个邻域点输出一组通道级权重，而不是所有通道共享一个标量注意力",
+        "相对位置编码：将 <span class=\"kb-math kb-math-inline\">p_i-p_j</span> 注入注意力权重和 value 特征，使模型显式感知 3D 欧氏空间结构",
+        "编码器-解码器骨干：分类使用层级下采样编码，语义分割使用 U-Net 式上采样与跳跃连接恢复逐点预测",
+        "多任务验证：在 S3DIS Area 5、ModelNet40、ShapeNetPart 等基准上刷新当时结果，其中 S3DIS Area 5 达到 70.4% mIoU"
       ],
-      "detail": "<p>向量自注意力机制建模长程依赖，刷新语义分割记录</p>"
+      "detail": "<p><img alt=\"Point Transformer 层结构\" src=\"https://ar5iv.labs.arxiv.org/html/2012.09164/assets/x2.png\" />\n<em>图：Point Transformer layer。每个中心点只聚合局部邻域，注意力由 query-key 差值、相对位置编码和 MLP 共同生成。</em></p>\n<pre><code class=\"language-python\"># Point Transformer layer 伪代码\ndef point_transformer_layer(points, features, k):\n    # points: (N, 3), features: (N, C)\n    output = []\n    for i in range(len(points)):\n        nbrs = knn(points, i, k)\n        q_i = phi(features[i])\n        aggregated = 0\n        for j in nbrs:\n            rel_pos = points[i] - points[j]\n            delta = mlp_pos(rel_pos)\n            key = psi(features[j])\n            value = alpha(features[j])\n            # vector attention: 每个通道一组权重\n            weight = softmax(gamma(q_i - key + delta), dim=&quot;neighbors&quot;)\n            aggregated += weight * (value + delta)\n        output.append(aggregated)\n    return stack(output)\n</code></pre>\n<p><strong>动机与背景</strong></p>\n<p>点云天然是无序集合，且点之间没有规则网格。PointNet 通过逐点 MLP 和对称池化解决置换不变性，但全局池化会丢失局部几何关系；DGCNN 用动态图卷积在邻域图上传播特征，但其聚合权重仍偏向局部边特征的固定函数。Transformer 的自注意力适合处理集合，但直接把 NLP/图像里的全局标量注意力搬到点云上会遇到两个问题：计算量随点数二次增长，以及不同特征通道被同一个标量权重调制，表达力不足。</p>\n<p>Point Transformer 的核心判断是：点云理解需要“局部、几何感知、通道可分”的注意力。局部邻域让大场景可扩展；相对位置让注意力知道点间空间关系；向量注意力让不同通道可学习不同的几何响应，例如某些通道关注边界，另一些通道关注平面或语义上下文。</p>\n<p><strong>核心机制：向量注意力</strong></p>\n<p>标准标量注意力可写成：</p>\n<div class=\"kb-math kb-math-display\">y_i=\\sum_{x_j\\in\\mathcal{X}}\\rho(\\varphi(x_i)^T\\psi(x_j)+\\delta)\\alpha(x_j)</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">\\rho</span> 通常是 softmax，输出是标量权重。Point Transformer 改用向量注意力：</p>\n<div class=\"kb-math kb-math-display\">y_i=\\sum_{x_j\\in\\mathcal{X}(i)}\n\\rho\\left(\\gamma\\left(\\varphi(x_i)-\\psi(x_j)+\\delta_{ij}\\right)\\right)\n\\odot\\left(\\alpha(x_j)+\\delta_{ij}\\right)</div>\n<p><span class=\"kb-math kb-math-inline\">\\mathcal{X}(i)</span> 是点 <span class=\"kb-math kb-math-inline\">i</span> 的局部邻域，<span class=\"kb-math kb-math-inline\">\\delta_{ij}=\\theta(p_i-p_j)</span> 是由相对坐标经过 MLP 得到的位置编码，<span class=\"kb-math kb-math-inline\">\\gamma</span> 生成与特征通道同维度的注意力向量，<span class=\"kb-math kb-math-inline\">\\odot</span> 表示逐通道相乘。直觉上，模型不是问“邻居 <span class=\"kb-math kb-math-inline\">j</span> 有多重要”，而是问“邻居 <span class=\"kb-math kb-math-inline\">j</span> 在每个特征通道上分别有多重要”。</p>\n<div class=\"key-point\">💡 关键：Point Transformer 同时把 <span class=\"kb-math kb-math-inline\">\\delta_{ij}</span> 加入 attention 分支和 value 分支。前者决定邻居权重，后者把几何偏移作为可聚合的内容，避免注意力只看语义特征而忽略空间关系。</div>\n<p><strong>网络结构与数据流</strong></p>\n<p>在语义分割中，网络采用类似 U-Net 的编码器-解码器。编码阶段通过 Transition Down 做采样和局部聚合，逐步减少点数并增加通道数；每个阶段堆叠 Point Transformer block 扩大有效感受野。解码阶段通过 Transition Up 将低分辨率语义特征插值回高分辨率点集，并与浅层特征拼接，最终得到每个输入点的类别概率。</p>\n<p>分类任务只需要最终全局表示，因此网络在多级 Point Transformer block 后进行全局聚合和分类。分割任务则必须保留局部边界和细粒度几何，所以跳跃连接非常重要：深层特征提供上下文，浅层特征提供坐标邻域细节。</p>\n<p><strong>与 DGCNN/PointNet++ 的区别</strong></p>\n<p>DGCNN 的 EdgeConv 通过 <span class=\"kb-math kb-math-inline\">h_\\Theta(x_i, x_j-x_i)</span> 显式编码边特征，并使用 max 聚合；PointNet++ 通过 Ball Query/FPS 构建层级局部区域，并在局部 PointNet 中池化。Point Transformer 保留了局部邻域的思想，但把固定池化替换为数据依赖的注意力聚合。相比 max pooling，它能根据输入内容动态分配邻居贡献；相比标量 attention，它能让不同通道学习不同几何模式。</p>\n<p><strong>训练与推理流程</strong></p>\n<p>训练时输入点坐标和可选颜色/法线特征，按层级采样形成多尺度点集，经过局部向量注意力聚合后输出分类或逐点语义标签。损失通常是交叉熵；在 S3DIS 等大场景中按块采样训练，推理时对场景块逐块预测再合并。该方法的主要代价在于 kNN/邻域构建和每层局部 attention，但由于注意力限制在邻域内，复杂度从全局 <span class=\"kb-math kb-math-inline\">O(N^2)</span> 降为近似 <span class=\"kb-math kb-math-inline\">O(Nk)</span>。</p>",
+      "quiz": {
+        "q": "Point Transformer 为什么采用向量注意力而不是传统标量注意力？",
+        "options": [
+          "为了完全取消相对位置编码",
+          "为了让不同特征通道拥有不同的邻域聚合权重",
+          "为了把全局注意力复杂度固定为 O(1)",
+          "为了只处理规则体素网格"
+        ],
+        "answer": 1,
+        "explain": "向量注意力输出通道级权重，可对不同几何/语义通道分别调制邻居贡献，比所有通道共享一个标量权重表达力更强。"
+      }
     },
     {
       "id": "tcs_net",
@@ -510,13 +523,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "point_cloud",
       "motivation": "面向极端环境的鲁棒点云分割，应用于隧道安全监测",
-      "summary": "TCS-Net 的核心目标是：面向极端环境的鲁棒点云分割，应用于隧道安全监测。",
+      "summary": "TCS-Net 面向在建隧道的复杂、遮挡、低纹理点云，提出由空间注意力、InvResMLP、特征传播和 KD-tree Gaussian 上采样组成的点云语义分割网络，解决通用室内/室外点云模型难以直接适配隧道安全监测的问题。",
       "keyPoints": [
-        "核心动机：面向极端环境的鲁棒点云分割，应用于隧道安全监测",
-        "演化来源：继承或改进自 point_transformer",
-        "代表机构：Springer"
+        "构建 3D Tunnel 数据集：手持激光扫描获得超过 6000 万点，覆盖掌子面、仰拱、中心隔墙、台车、初支、管线、地面等 8 类结构",
+        "多模块融合框架：MLP 预编码后进入 Set Abstraction、SelfAttention、InvResMLP 和多级 Feature Propagation",
+        "空间注意力模块：通过 query/key/value 关系强化远距离结构依赖，适配隧道中重复、遮挡、狭长的几何形态",
+        "InvResMLP：借鉴倒残差思想扩展再压缩通道，提高特征表达同时控制计算量",
+        "KD-tree Gaussian 上采样 + 通道注意力：在解码阶段更稳健地恢复稠密点特征，减少普通插值在稀疏/遮挡区域的误差",
+        "优化训练策略：结合 AdamW、cosine decay、label smoothing 提升鲁棒性，报告 mIoU 94.38%、OA 98.23%"
       ],
-      "detail": "<p>面向极端环境的鲁棒点云分割，应用于隧道安全监测</p>"
+      "detail": "<p><img alt=\"TCS-Net 网络结构\" src=\"https://media.springernature.com/lw685/springer-static/image/art%3A10.1007%2Fs10921-025-01293-8/MediaObjects/10921_2025_1293_Fig7_HTML.png\" />\n<em>图：TCS-Net 网络总览。编码侧融合 Set Abstraction、SelfAttention 与 InvResMLP，解码侧通过多级 Feature Propagation 与 KD-Gaussian 上采样恢复逐点标签。</em></p>\n<pre><code class=\"language-python\"># TCS-Net 训练/推理伪代码\ndef tcs_net(points, feats):\n    x = mlp_embed(concat(points, feats))          # [N, 32]\n    skip0 = x\n\n    # 编码器：逐级下采样并增强局部/全局上下文\n    p1, x1 = set_abstraction(points, x, n=1024, c=64)\n    x1 = spatial_self_attention(x1)\n\n    p2, x2 = set_abstraction(p1, x1, n=256, c=128)\n    x2 = inv_res_mlp(x2)\n\n    p3, x3 = set_abstraction(p2, x2, n=64, c=256)\n    x3 = inv_res_mlp(x3)\n\n    p4, x4 = set_abstraction(p3, x3, n=16, c=512)\n    x4 = inv_res_mlp(x4)\n\n    # 解码器：特征传播 + KD-tree Gaussian 上采样\n    y3 = feature_propagation(p4, p3, x4, x3)\n    y2 = feature_propagation(p3, p2, y3, x2)\n    y1 = feature_propagation(p2, p1, y2, x1)\n    y0 = kd_gaussian_upsample(p1, points, y1)\n    y0 = channel_attention(y0, skip0)\n\n    logits = linear_classifier(y0)\n    return logits\n</code></pre>\n<p><strong>动机与背景</strong></p>\n<p>隧道施工点云和标准室内数据集差异很大：空间狭长、结构重复、粉尘和设备遮挡多，且掌子面、台车、初支、管线等类别高度工程化。PointNet++/Point Transformer 这类通用模型虽然能处理无序点集，但在此类极端环境中容易受局部缺失、点密度变化和类别边界不清影响。TCS-Net 的目标不是单纯追求通用点云榜单，而是服务无损检测和施工安全监测中的结构级分割。</p>\n<p><strong>核心机制：空间注意力与 InvResMLP</strong></p>\n<p>论文中的 SelfAttention 模块使用典型的 query/key/value 形式，对输入特征 <span class=\"kb-math kb-math-inline\">F\\in\\mathbb{R}^{C\\times H\\times W}</span> 生成注意力矩阵：</p>\n<div class=\"kb-math kb-math-display\">A=\\operatorname{softmax}(Q^TK), \\qquad F&#x27; = V A</div>\n<p>在点云语义分割里，这一步的直觉是让远处但结构相关的点互相通信。例如隧道拱架、中心隔墙和初支沿纵向重复出现，单看局部邻域可能混淆类别；注意力可以让相似结构的上下文参与判别。</p>\n<p>InvResMLP 则承担轻量化特征增强的角色。它先用 MLP 将通道扩展到更高维空间，在高维空间中学习非线性组合，再投影回目标维度并通过残差连接稳定训练：</p>\n<div class=\"kb-math kb-math-display\">Y = X + W_2\\,\\sigma(W_1 X)</div>\n<p>这种“扩展-压缩”的倒残差设计适合点云网络：它比堆叠大注意力层更省计算，但能补足纯 Set Abstraction 的表达能力。</p>\n<p><strong>KD-tree Gaussian 上采样与通道注意力</strong></p>\n<p>常规 Feature Propagation 多使用最近邻或反距离加权插值：</p>\n<div class=\"kb-math kb-math-display\">f(x)=\\frac{\\sum_{i=1}^{k} w_i f_i}{\\sum_{i=1}^{k} w_i},\\quad w_i=\\frac{1}{d(x,x_i)^2+\\epsilon}</div>\n<p>TCS-Net 在恢复原始点分辨率时引入 KD-tree 邻域检索和 Gaussian 权重，等价于让近邻贡献按空间距离平滑衰减：</p>\n<div class=\"kb-math kb-math-display\">w_i=\\exp\\left(-\\frac{\\|x-x_i\\|^2}{2\\sigma^2}\\right)</div>\n<p>这对隧道点云很重要：遮挡或扫描角度造成局部稀疏时，硬最近邻容易把台车、管线、地面等边界处的语义错误传播；Gaussian 权重能更连续地融合邻域信息。通道注意力进一步学习哪些通道对当前类别更可靠，降低噪声特征的影响。</p>\n<div class=\"key-point\">💡 关键：TCS-Net 的设计重点是“工程场景鲁棒性”。它把 Point Transformer 的上下文建模思想缩进到可训练、可部署的点云分割流水线中，而不是追求全局大注意力。</div>\n<p><strong>训练策略与输出</strong></p>\n<p>训练时，模型以带标签的隧道点云块为输入，输出每个点的 8 类结构标签。损失使用带 label smoothing 的交叉熵，优化器采用 AdamW 并配合 cosine learning-rate decay。label smoothing 可缓解人工标注边界不确定导致的过拟合；AdamW 的权重衰减有助于提高跨隧道段泛化能力。</p>\n<p><strong>与 Point Transformer 的区别</strong></p>\n<p>Point Transformer 更像通用点云 backbone，核心贡献是局部向量注意力层；TCS-Net 则是面向在建隧道的应用网络。它保留注意力建模上下文的思想，但把重点放在数据集、轻量化特征增强、鲁棒上采样和工程类别恢复上。换言之，Point Transformer 解决“点云如何做 Transformer”，TCS-Net 解决“复杂隧道点云如何稳定分割成可监测结构”。</p>",
+      "quiz": {
+        "q": "TCS-Net 中 KD-tree Gaussian 上采样的主要作用是什么？",
+        "options": [
+          "把点云转换为规则 2D 图像",
+          "在解码阶段以距离相关权重恢复稠密点特征",
+          "完全替代所有 Set Abstraction 层",
+          "只用于减少类别数量"
+        ],
+        "answer": 1,
+        "explain": "KD-tree 用于快速检索空间邻域，Gaussian 权重根据距离平滑融合邻居特征，可在稀疏和遮挡区域更稳健地恢复逐点语义。"
+      }
     },
     {
       "id": "lora_pointnet",
@@ -530,13 +557,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "point_cloud",
       "motivation": "引入LoRA微调技术实现高效跨领域点云适配",
-      "summary": "LoRA-PointNet++ 的核心目标是：引入LoRA微调技术实现高效跨领域点云适配。",
+      "summary": "LoRA-PointNet++ 将低秩适配器插入 PointNet++ 的 Set Abstraction 与 Feature Propagation MLP 中，只训练少量低秩参数来完成跨域和增量类别适配，解决全量微调在航空 LiDAR 语义分割中参数开销大、灾难性遗忘强的问题。",
       "keyPoints": [
-        "核心动机：引入LoRA微调技术实现高效跨领域点云适配",
-        "演化来源：继承或改进自 pointnet_pp",
-        "代表机构：ISPRS"
+        "参数高效微调：冻结预训练 PointNet++ 主干权重，仅训练低秩矩阵 <span class=\"kb-math kb-math-inline\">A,B</span> 形成 <span class=\"kb-math kb-math-inline\">\\Delta W=BA</span>",
+        "插入位置明确：在编码器 Set Abstraction 的 MLP 和解码器 Feature Propagation 的 MLP 中加入 LoRA 分支",
+        "面向真实部署场景：评估 domain adaptation 和 novel classes incremental learning 两类任务",
+        "数据集覆盖航空 LiDAR：使用 TerLiDAR 与 DALES 等大规模点云子集，TerLiDAR 覆盖西班牙 Catalonia Ter River 沿线 51.4 km²、约 6.92 亿彩色点",
+        "抗遗忘能力：相比全量微调，对旧类别保持更好，尤其改善欠代表类别和新域类别",
+        "参数效率显著：报告在训练参数减少 73.4% 的情况下超过或接近全量微调，并在 DALES 上提升约 2.7 mIoU"
       ],
-      "detail": "<p>引入LoRA微调技术实现高效跨领域点云适配</p>"
+      "detail": "<p><img alt=\"LoRA-PointNet++ 插入位置\" src=\"https://ars.els-cdn.com/content/image/1-s2.0-S2667393226000050-gr2_lrg.jpg\" />\n<em>图：LoRA-enabled PointNet++。橙色模块表示可训练 LoRA 分支，分别插入编码器 Set Abstraction 与解码器 Feature Propagation 的 MLP 权重。</em></p>\n<pre><code class=\"language-python\"># LoRA-PointNet++ 微调伪代码\nclass LoRALinear:\n    def __init__(self, pretrained_weight, rank, alpha):\n        self.W = freeze(pretrained_weight)\n        self.A = trainable_matrix(rank, pretrained_weight.in_dim)\n        self.B = trainable_matrix(pretrained_weight.out_dim, rank)\n        self.scale = alpha / rank\n\n    def __call__(self, x):\n        return x @ self.W.T + self.scale * (x @ self.A.T @ self.B.T)\n\ndef finetune_lora_pointnetpp(batch):\n    points, labels = batch\n    logits = pointnetpp_with_lora(points)\n    loss = cross_entropy(logits, labels)\n    # 只更新 A、B 和可选分类头；预训练主干保持冻结\n    loss.backward(parameters=[&quot;lora_A&quot;, &quot;lora_B&quot;, &quot;classifier&quot;])\n    optimizer.step()\n</code></pre>\n<p><strong>动机与背景</strong></p>\n<p>航空 LiDAR 语义分割经常面对两个现实问题：一是采集平台、区域地貌、点密度、传感器通道不同导致 domain shift；二是国家测绘或城市治理任务会不断新增类别，旧模型需要增量学习。传统做法是全量微调 PointNet++，但全量更新会带来较高显存/训练成本，也容易在新域上过拟合并遗忘旧类别。</p>\n<p>LoRA 的核心思想是：预训练权重 <span class=\"kb-math kb-math-inline\">W_0</span> 不动，只学习一个低秩增量：</p>\n<div class=\"kb-math kb-math-display\">W = W_0 + \\Delta W,\\qquad \\Delta W = \\frac{\\alpha}{r}BA</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">A\\in\\mathbb{R}^{r\\times d_{\\text{in}}}</span>、<span class=\"kb-math kb-math-inline\">B\\in\\mathbb{R}^{d_{\\text{out}}\\times r}</span>，秩 <span class=\"kb-math kb-math-inline\">r</span> 远小于原始通道维度。这样模型仍然保留预训练 PointNet++ 的通用几何能力，新域知识通过低秩分支注入。</p>\n<p><strong>为什么适合 PointNet++</strong></p>\n<p>PointNet++ 的主要可学习参数集中在局部 PointNet/MLP 中。Set Abstraction 负责从局部邻域提取层级几何特征，Feature Propagation 负责把深层语义插值回原始点。LoRA-PointNet++ 将适配器放在这两类 MLP 上，等价于同时调整“局部几何编码方式”和“语义上采样方式”，但不破坏采样、分组和插值这些结构性归纳偏置。</p>\n<div class=\"key-point\">💡 关键：LoRA 并不是替换 PointNet++，而是在已有线性/MLP 权重旁边增加一个低秩旁路。推理时 <span class=\"kb-math kb-math-inline\">\\Delta W</span> 可以并回 <span class=\"kb-math kb-math-inline\">W_0</span>，几乎不增加推理延迟。</div>\n<p><strong>训练流程</strong></p>\n<p>训练前先准备一个在源域上预训练的 PointNet++。适配新城市、新传感器或新增类别时，冻结主干权重，只训练 LoRA 矩阵和必要的分类头。若是增量类别学习，分类头会扩展到新类别数，同时旧类别的主干表示尽量保持稳定；若是跨域适配，则分类空间不变，但 LoRA 学习新域的点密度、颜色/强度分布和地物形态偏移。</p>\n<p>损失仍是逐点交叉熵：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}=-\\frac{1}{N}\\sum_{i=1}^{N}\\sum_{c=1}^{C}y_{ic}\\log p_{ic}</div>\n<p>LoRA 只改变 <span class=\"kb-math kb-math-inline\">p_{ic}</span> 的特征生成路径，不改变 PointNet++ 的置换不变性和层级局部建模方式。</p>\n<p><strong>与全量微调的区别</strong></p>\n<p>全量微调会更新所有 MLP 权重，容量更大但也更容易把旧域知识覆盖掉；LoRA 将更新限制在低秩子空间中，相当于给模型一个受控的“域偏移补偿器”。这解释了论文中观察到的抗灾难性遗忘现象：旧知识主要保存在冻结权重里，新知识由低秩增量承载。</p>\n<p><strong>适用边界</strong></p>\n<p>LoRA-PointNet++ 最适合“源域和目标域有共享几何结构，但分布发生偏移”的场景，例如不同城市航空 LiDAR、不同测绘批次、少量新类别加入。如果目标域类别体系完全不同，或点特征模态大幅变化，单纯低秩适配可能不足，需要解冻更多层或结合自监督预训练。</p>",
+      "quiz": {
+        "q": "LoRA-PointNet++ 相比全量微调的核心优势是什么？",
+        "options": [
+          "完全取消 PointNet++ 的 Set Abstraction",
+          "冻结主干权重，只用低秩增量适配新域，从而减少训练参数并缓解遗忘",
+          "把点云强制转换为 2D 图像后训练 CNN",
+          "只适用于单个物体分类，不能做语义分割"
+        ],
+        "answer": 1,
+        "explain": "LoRA 学习低秩矩阵 A、B 形成权重增量，保留预训练主干知识，同时用少量参数适配新域或新增类别。"
+      }
     },
     {
       "id": "nerf",
@@ -649,13 +690,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "nerf",
       "motivation": "稀疏体素+球谐函数，无需神经网络实现快速优化",
-      "summary": "Plenoxels 的核心目标是：稀疏体素+球谐函数，无需神经网络实现快速优化。",
+      "summary": "Plenoxels 用可直接优化的稀疏体素网格存储密度和球谐颜色系数，去掉 NeRF 的 MLP 后仍用可微体渲染监督训练，从而将辐射场重建从“训练神经网络”转化为“优化显式体素参数”。",
       "keyPoints": [
-        "核心动机：稀疏体素+球谐函数，无需神经网络实现快速优化",
-        "演化来源：继承或改进自 nerf",
-        "代表机构：UC Berkeley"
+        "无神经网络辐射场：每个稀疏体素直接保存 density 与 spherical harmonics 系数",
+        "三线性插值：沿射线采样时从相邻体素插值得到连续空间中的密度和颜色系数",
+        "球谐视角相关颜色：用 SH 基函数表达随观察方向变化的外观，而不是通过 MLP 输入 view direction",
+        "可微体渲染优化：使用与 NeRF 类似的 alpha compositing 和图像重建 MSE 进行端到端优化",
+        "正则化与剪枝：使用 total variation 正则、稀疏化、coarse-to-fine 分辨率提升和空体素剪枝",
+        "速度优势：在标准新视角合成任务中以接近 NeRF 的质量实现约两个数量级更快的优化"
       ],
-      "detail": "<p>稀疏体素+球谐函数，无需神经网络实现快速优化</p>"
+      "detail": "<p><img alt=\"Plenoxels 稀疏体素辐射场流程\" src=\"https://ar5iv.labs.arxiv.org/html/2112.05131/assets/x2.png\" />\n<em>图：Plenoxels 总览。稀疏体素网格存储密度和球谐系数，射线采样时插值查询，再用可微体渲染和 TV 正则直接优化体素参数。</em></p>\n<pre><code class=\"language-python\"># Plenoxels 核心优化伪代码\ngrid = SparseVoxelGrid(resolution=initial_res)\ngrid.init_density_and_sh()\n\nfor stage in coarse_to_fine_schedule:\n    grid.upsample_if_needed(stage.resolution)\n    grid.prune_empty_voxels(threshold=stage.prune_threshold)\n\n    for rays, target_rgb in dataloader:\n        rgb_pred = []\n        for ray in rays:\n            samples = march_ray(ray, grid.bounds)\n            colors, sigmas, deltas = [], [], []\n            for x, d, delta in samples:\n                sigma, sh_coeff = grid.trilinear_lookup(x)\n                color = eval_spherical_harmonics(sh_coeff, d)\n                colors.append(color); sigmas.append(sigma); deltas.append(delta)\n            rgb_pred.append(volume_render(colors, sigmas, deltas))\n\n        loss = mse(rgb_pred, target_rgb) + lambda_tv * total_variation(grid)\n        loss.backward()\n        optimizer.step(grid.parameters())\n</code></pre>\n<p><strong>动机与背景</strong></p>\n<p>NeRF 证明了从多视角图像优化连续辐射场可以得到高质量新视角合成，但它把场景表示压进 MLP：每个采样点都要前向网络，训练和渲染都慢。Plenoxels 的问题意识很直接：如果目标只是表示一个已知场景，是否真的需要神经网络作为隐式函数？答案是否定的。用显式稀疏网格存参数，同样可以通过可微体渲染从图像监督中优化出来。</p>\n<p>Plenoxel 是 plenoptic volume element 的缩写。每个体素不只是 occupancy，而是一个小的辐射场单元，包含密度 <span class=\"kb-math kb-math-inline\">\\sigma</span> 和颜色的球谐系数 <span class=\"kb-math kb-math-inline\">\\mathbf{k}</span>。对任意位置 <span class=\"kb-math kb-math-inline\">x</span>，通过三线性插值得到局部参数；对任意方向 <span class=\"kb-math kb-math-inline\">d</span>，通过球谐基函数恢复颜色：</p>\n<div class=\"kb-math kb-math-display\">c(x,d)=\\sum_{\\ell=0}^{L}\\sum_{m=-\\ell}^{\\ell} k_{\\ell m}(x)Y_{\\ell m}(d)</div>\n<p><strong>体渲染公式</strong></p>\n<p>Plenoxels 保留 NeRF 的体渲染合成。沿射线 <span class=\"kb-math kb-math-inline\">r(t)=o+td</span> 采样后，离散颜色为：</p>\n<div class=\"kb-math kb-math-display\">\\hat{C}(r)=\\sum_i T_i\\left(1-\\exp(-\\sigma_i\\Delta_i)\\right)c_i</div>\n<div class=\"kb-math kb-math-display\">T_i=\\exp\\left(-\\sum_{j&lt;i}\\sigma_j\\Delta_j\\right)</div>\n<p>这里 <span class=\"kb-math kb-math-inline\">\\sigma_i</span> 与 <span class=\"kb-math kb-math-inline\">c_i</span> 来自体素插值和球谐求值，而不是 MLP。由于所有步骤可微，图像重建误差可以直接反传到体素密度和 SH 系数。</p>\n<p><strong>正则化为什么重要</strong></p>\n<p>显式网格的自由度很高，如果只用训练图像 MSE，容易在空域、遮挡边界和少视角区域产生噪声。Plenoxels 使用 total variation 正则鼓励相邻体素参数平滑：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{TV}=\\sum_{v}\\sum_{u\\in\\mathcal{N}(v)}\\|\\theta_v-\\theta_u\\|_1</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">\\theta_v</span> 表示体素的密度或颜色系数。TV 正则相当于把逆问题中的先验显式写出来：真实场景局部通常连续，孤立噪声体素应被抑制。</p>\n<div class=\"key-point\">💡 关键：Plenoxels 的贡献不只是“用体素代替 MLP”，而是证明高质量辐射场可以由显式参数、可微渲染、正则化和优化器这四个经典逆问题组件组合出来。</div>\n<p><strong>粗到细优化与剪枝</strong></p>\n<p>为了在单 GPU 上处理高分辨率体素，Plenoxels 采用 coarse-to-fine 训练。先在低分辨率网格上学到粗几何和颜色，再逐步上采样到高分辨率。优化过程中会剪掉密度低或贡献小的体素，避免在空空间浪费显存和计算。这样既保持显式表示的速度，又控制了体素网格的内存膨胀。</p>\n<p><strong>与 NeRF 的区别</strong></p>\n<p>NeRF 的优势是连续函数表达紧凑、泛化性强；Plenoxels 的优势是场景特定优化速度快、参数查询简单、可解释性更强。NeRF 通过网络权重隐式存储几何和外观，Plenoxels 则把它们显式放在空间网格中。对于离线重建一个固定场景，显式网格可以更直接地利用 GPU 并显著缩短优化时间。</p>",
+      "quiz": {
+        "q": "Plenoxels 为什么不需要 MLP 也能表示视角相关颜色？",
+        "options": [
+          "它完全忽略观察方向",
+          "它在每个体素中存储球谐系数，并用观察方向的球谐基函数求颜色",
+          "它只渲染灰度图像",
+          "它把所有相机姿态固定为同一个方向"
+        ],
+        "answer": 1,
+        "explain": "Plenoxels 在体素中保存 SH 系数，颜色由系数与方向相关的球谐基函数组合得到，因此无需通过 MLP 输入 view direction。"
+      }
     },
     {
       "id": "instant_ngp",
@@ -669,13 +724,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "nerf",
       "motivation": "多分辨率哈希编码将训练时间从数天缩短至数秒",
-      "summary": "Instant-NGP 的核心目标是：多分辨率哈希编码将训练时间从数天缩短至数秒。",
+      "summary": "Instant-NGP 提出多分辨率哈希编码，用可训练哈希表特征替代传统 Fourier 位置编码，并结合小型全融合 CUDA MLP 与 occupancy grid 跳空采样，将 NeRF 等神经图形基元的训练从小时/天级压缩到秒级。",
       "keyPoints": [
-        "核心动机：多分辨率哈希编码将训练时间从数天缩短至数秒",
-        "演化来源：继承或改进自 nerf",
-        "代表机构：NVIDIA"
+        "多分辨率哈希编码：在 <span class=\"kb-math kb-math-inline\">L</span> 个空间分辨率上查询可训练特征表，拼接后送入小 MLP",
+        "哈希表压缩存储：每层最多保存 <span class=\"kb-math kb-math-inline\">T</span> 个特征向量，利用哈希碰撞换取固定显存上限",
+        "线性插值保持连续性：对输入坐标周围体素顶点的哈希特征做多线性插值",
+        "碰撞由优化自动消解：不同空间点共享哈希槽时，重要区域会通过梯度主导该槽的特征",
+        "全融合 MLP：使用 tiny-cuda-nn 风格的 fully-fused CUDA kernel，降低内存访问和 kernel launch 开销",
+        "occupancy grid 加速 NeRF：维护多尺度占用网格，跳过空空间和已不透明区域后的无效采样",
+        "通用神经图形基元：同一编码用于 gigapixel image、SDF、Neural Radiance Caching 和 NeRF"
       ],
-      "detail": "<p>多分辨率哈希编码将训练时间从数天缩短至数秒</p>"
+      "detail": "<p><img alt=\"Instant-NGP 多分辨率哈希编码\" src=\"https://docs.nerf.studio/_images/hash_figure.png\" />\n<em>图：多分辨率哈希编码流程。对输入坐标在多个分辨率网格中定位顶点，哈希查表、插值、拼接，再送入小 MLP 预测密度与颜色。</em></p>\n<pre><code class=\"language-python\"># Instant-NGP hash encoding 伪代码\ndef hash_encode(x, levels, table_size, feature_dim):\n    encoded = []\n    for l in range(levels):\n        N_l = resolution_at_level(l)\n        x_l = x * N_l\n        corners = voxel_corners(floor(x_l))\n        weights = x_l - floor(x_l)\n\n        feats = []\n        for corner in corners:\n            idx = spatial_hash(corner) % table_size\n            feats.append(theta[l][idx])  # trainable F-dim vector\n\n        encoded.append(multilinear_interpolate(feats, weights))\n    return concat(encoded)\n\ndef nerf_query(x, direction):\n    y = concat(hash_encode(x, L, T, F), sh_encode(direction))\n    sigma, rgb = tiny_fused_mlp(y)\n    return sigma, rgb\n\ndef train_step(rays):\n    # occupancy grid 跳过空空间\n    samples = ray_march_with_occupancy_grid(rays)\n    colors = volume_render([nerf_query(x, d) for x, d in samples])\n    loss = mse(colors, target_pixels)\n    loss.backward()  # 梯度回传到 MLP 和哈希表特征\n</code></pre>\n<p><strong>动机与背景</strong></p>\n<p>原始 NeRF 的瓶颈有两个：一是 Fourier 位置编码后需要较大的 MLP 才能表示高频细节，二是每条射线会在大量空空间里采样并多次调用网络。Instant-NGP 的思路是把“记忆场景细节”的负担从 MLP 转移到可训练空间数据结构中，让 MLP 变小、查询变快、训练更并行。</p>\n<p>多分辨率哈希编码把输入坐标 <span class=\"kb-math kb-math-inline\">x</span> 映射到多个网格层级。第 <span class=\"kb-math kb-math-inline\">l</span> 层分辨率通常按指数增长：</p>\n<div class=\"kb-math kb-math-display\">N_l=\\left\\lfloor N_{\\min}\\,b^l\\right\\rfloor,\\qquad\nb=\\exp\\left(\\frac{\\log N_{\\max}-\\log N_{\\min}}{L-1}\\right)</div>\n<p>低分辨率层学习大尺度结构，高分辨率层学习细节。与 dense grid 不同，每层只分配固定大小的哈希表，因此内存是 <span class=\"kb-math kb-math-inline\">O(LTF)</span>，不会随最高分辨率三次方爆炸。</p>\n<p><strong>哈希函数与碰撞</strong></p>\n<p>论文使用空间哈希：</p>\n<div class=\"kb-math kb-math-display\">h(\\mathbf{x})=\\left(\\bigoplus_{i=1}^{d}x_i\\pi_i\\right)\\bmod T</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">\\oplus</span> 是按位 XOR，<span class=\"kb-math kb-math-inline\">\\pi_i</span> 是不同的大素数。一个体素顶点的整数坐标被映射到哈希表索引，再查出可训练特征向量。由于 <span class=\"kb-math kb-math-inline\">T</span> 有限，碰撞不可避免；Instant-NGP 不显式解决碰撞，而是让优化过程自动分配容量。多分辨率结构也会缓解碰撞：同一对点即使在某一层冲突，在其他层通常不会完全冲突。</p>\n<div class=\"key-point\">💡 关键：哈希编码的表达力主要来自“可训练特征表 + 多分辨率插值”，小 MLP 更像局部特征解码器，而不是独自承担整场景记忆。</div>\n<p><strong>NeRF 中的渲染加速</strong></p>\n<p>在 NeRF 任务中，Instant-NGP 还维护 occupancy grid。训练过程中根据当前密度估计更新占用状态，ray marching 时跳过空体素；当射线累积不透明度已经足够高时，也可以停止后续采样。这直接减少 MLP 查询次数。哈希编码降低单次查询成本，occupancy grid 降低查询数量，两者相乘形成数量级加速。</p>\n<p><strong>训练/推理流程</strong></p>\n<p>每个采样点先被 hash encoding 编码为空间特征；观察方向通常用球谐编码；二者拼接后输入小型 MLP 输出 <span class=\"kb-math kb-math-inline\">\\sigma</span> 和 RGB。体渲染仍使用 NeRF 的 alpha compositing：</p>\n<div class=\"kb-math kb-math-display\">C(r)=\\sum_i T_i(1-\\exp(-\\sigma_i\\Delta_i))c_i</div>\n<p>训练目标仍是渲染颜色和真实像素之间的 MSE。也就是说，Instant-NGP 没有改变 NeRF 的成像模型，而是彻底优化了场景参数化和 GPU 执行路径。</p>\n<p><strong>与 NeRF/Plenoxels 的区别</strong></p>\n<p>NeRF 是纯隐式 MLP，紧凑但慢；Plenoxels 是显式稀疏体素，快但更依赖网格容量；Instant-NGP 位于二者之间。它用哈希网格显式存储可训练特征，用小 MLP 解码连续函数，因此兼顾高频表示能力、固定内存和快速优化。</p>",
+      "quiz": {
+        "q": "Instant-NGP 的多分辨率哈希编码为什么能显著减少训练时间？",
+        "options": [
+          "它删除了体渲染公式",
+          "它用可训练哈希特征表承担大部分空间记忆，使 MLP 更小且查询更快",
+          "它要求所有场景必须是单色",
+          "它只在 CPU 上执行插值"
+        ],
+        "answer": 1,
+        "explain": "哈希表特征提供高容量空间编码，小 MLP 只需解码特征；再结合 occupancy grid 和 CUDA 融合实现，训练和渲染都大幅加速。"
+      }
     },
     {
       "id": "mip_nerf_360",
@@ -828,13 +898,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "nerf",
       "motivation": "椭圆锥投射技术支持多样化相机模型的抗锯齿",
-      "summary": "ECC-NeRF 的核心目标是：椭圆锥投射技术支持多样化相机模型的抗锯齿。",
+      "summary": "ECC-NeRF 将 Mip-NeRF/Zip-NeRF 中的圆锥投射推广为由相机投影模型诱导的椭圆锥投射，针对针孔、鱼眼、全景等相机的非各向同性像素足迹构建更准确的抗锯齿 NeRF 表示。",
       "keyPoints": [
-        "核心动机：椭圆锥投射技术支持多样化相机模型的抗锯齿",
-        "演化来源：继承或改进自 mip_nerf",
-        "代表机构：IEEE"
+        "问题重定义：真实相机的像素光束通常不是标准圆锥，而会被投影模型扭曲为大小和形状不同的椭圆锥",
+        "多相机模型支持：推导针孔、鱼眼、全景相机下的 elliptic cone models",
+        "与 Mip-NeRF 集成：将圆锥台高斯近似替换为椭圆锥台高斯，保留集成位置编码 IPE 框架",
+        "与 Zip-NeRF 集成：把 anisotropic pixel footprint 注入 grid-based anti-aliasing 表示，提升多尺度细节",
+        "计算开销小：主要改变采样区域的协方差建模，不需要额外大网络",
+        "目标场景明确：面向多样相机模型的新视角合成，减少锯齿、模糊和尺度不一致"
       ],
-      "detail": "<p>椭圆锥投射技术支持多样化相机模型的抗锯齿</p>"
+      "detail": "<p><img alt=\"椭圆锥几何示意\" src=\"https://upload.wikimedia.org/wikipedia/commons/9/9b/Elliptical_Cone_Quadric.Png\" />\n<em>图：椭圆锥几何示意。ECC-NeRF 建模的是由相机投影诱导的各向异性像素光束；IEEE 页面未暴露稳定论文图直链，因此这里使用公开椭圆锥图说明核心几何对象。</em></p>\n<pre><code class=\"language-python\"># ECC-NeRF 椭圆锥投射伪代码\ndef ecc_frustum_gaussian(camera_model, pixel, t0, t1):\n    # 1. 根据相机模型计算该像素对应的中心射线和局部投影雅可比\n    ray_dir = camera_model.unproject(pixel)\n    J = camera_model.local_unprojection_jacobian(pixel)\n\n    # 2. 将像素面积从图像平面传播到射线垂直平面，得到椭圆截面\n    Sigma_pixel = pixel_covariance()          # e.g. box filter approximation\n    Sigma_ellipse = J @ Sigma_pixel @ J.T     # anisotropic footprint\n\n    # 3. 沿深度区间 [t0, t1] 近似为椭圆锥台高斯\n    mu_t, sigma_t2 = frustum_depth_moments(t0, t1)\n    Sigma_radial = scale_by_depth(Sigma_ellipse, t0, t1)\n    mu = ray_origin + mu_t * ray_dir\n    Sigma = sigma_t2 * outer(ray_dir, ray_dir) + lift_to_3d(Sigma_radial, ray_dir)\n\n    return mu, Sigma\n\ndef ecc_nerf_query(camera, pixel, bins):\n    encoded = []\n    for t0, t1 in bins:\n        mu, Sigma = ecc_frustum_gaussian(camera.model, pixel, t0, t1)\n        encoded.append(integrated_positional_encoding(mu, Sigma))\n    return nerf_mlp(encoded)\n</code></pre>\n<p><strong>动机与背景</strong></p>\n<p>Mip-NeRF 通过 cone casting 解决 NeRF 点采样造成的走样：一个像素不再是一条无限细射线，而是在空间中覆盖一个圆锥台区域，并用高斯近似该区域后计算 IPE。这个假设对理想针孔模型中心区域较合理，但现实相机并不总产生各向同性圆形 footprint。鱼眼、全景、强畸变镜头以及图像边缘区域都会让一个像素对应的 3D 光束呈现明显方向性。</p>\n<p>ECC-NeRF 的核心观察是：抗锯齿的本质不是“必须用圆锥”，而是“必须准确描述一个像素在 3D 中覆盖的面积”。当面积是椭圆而不是圆时，继续用圆锥会把不同方向的频率混在一起，可能在一个方向过度模糊，在另一个方向仍然走样。</p>\n<p><strong>从圆锥到椭圆锥</strong></p>\n<p>Mip-NeRF 的圆锥台高斯通常可以理解为：</p>\n<div class=\"kb-math kb-math-display\">\\Sigma = \\sigma_t^2 dd^T + \\sigma_r^2(I-dd^T)</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">d</span> 是射线方向，<span class=\"kb-math kb-math-inline\">\\sigma_t^2</span> 描述沿射线的深度方差，<span class=\"kb-math kb-math-inline\">\\sigma_r^2</span> 是垂直方向的各向同性半径方差。ECC-NeRF 将垂直方向替换为由相机模型导出的各向异性协方差：</p>\n<div class=\"kb-math kb-math-display\">\\Sigma = \\sigma_t^2 dd^T + E\n\\begin{bmatrix}\n\\sigma_a^2 &amp; 0 \\\\\n0 &amp; \\sigma_b^2\n\\end{bmatrix}\nE^T</div>\n<p>这里 <span class=\"kb-math kb-math-inline\">E=[e_1,e_2]</span> 是垂直于射线的局部正交基，<span class=\"kb-math kb-math-inline\">\\sigma_a,\\sigma_b</span> 是椭圆长短轴尺度。若 <span class=\"kb-math kb-math-inline\">\\sigma_a=\\sigma_b</span>，该表达退化为 Mip-NeRF 的圆锥模型。</p>\n<p><strong>相机模型如何进入</strong></p>\n<p>对任意相机投影/反投影函数 <span class=\"kb-math kb-math-inline\">\\pi^{-1}</span>，像素邻域的微小扰动可通过雅可比传播：</p>\n<div class=\"kb-math kb-math-display\">\\Sigma_{\\text{ray}} \\approx J_{\\pi^{-1}}\\,\\Sigma_{\\text{pixel}}\\,J_{\\pi^{-1}}^T</div>\n<p>这一步把图像平面中的一个像素盒式滤波区域映射到 3D 射线邻域。针孔相机在图像边缘、鱼眼相机在大视场区域、全景相机在经纬映射中都会产生不同的 <span class=\"kb-math kb-math-inline\">J_{\\pi^{-1}}</span>，因此椭圆轴长和方向随像素位置变化。</p>\n<div class=\"key-point\">💡 关键：ECC-NeRF 的“ECC”不是换一个网络，而是把采样区域的几何从圆形低通滤波改成相机感知的椭圆低通滤波。</div>\n<p><strong>与 Mip-NeRF/Zip-NeRF 的结合</strong></p>\n<p>在 Mip-NeRF 中，椭圆锥台仍可近似为高斯 <span class=\"kb-math kb-math-inline\">\\mathcal{N}(\\mu,\\Sigma)</span>，随后 IPE 使用同一类闭式形式：</p>\n<div class=\"kb-math kb-math-display\">\\mathbb{E}_{x\\sim\\mathcal{N}(\\mu,\\Sigma)}[\\sin(Px)]\n= \\sin(P\\mu)\\odot\\exp\\left(-\\frac{1}{2}\\operatorname{diag}(P\\Sigma P^T)\\right)</div>\n<p>差别在于 <span class=\"kb-math kb-math-inline\">\\Sigma</span> 不再是径向各向同性。高频衰减会随方向不同而不同，更贴近真实像素 footprint。集成到 Zip-NeRF 时，同样思想用于 grid feature 的抗锯齿采样，帮助 grid-based NeRF 避免在非圆形 footprint 下产生方向性 aliasing。</p>\n<p><strong>与传统 Mip-NeRF 的区别</strong></p>\n<p>Mip-NeRF 假设同一深度处像素覆盖近似圆盘；ECC-NeRF 假设覆盖区域是椭圆，并由具体 camera model 决定。前者是相机无关的尺度感知，后者是相机感知的各向异性尺度建模。因此 ECC-NeRF 更适合多相机、广角、全景和畸变明显的数据采集设置。</p>",
+      "quiz": {
+        "q": "ECC-NeRF 相比 Mip-NeRF 的关键改动是什么？",
+        "options": [
+          "把 NeRF 的体渲染公式替换为 2D 卷积",
+          "把圆锥像素光束推广为由相机模型诱导的椭圆锥光束",
+          "取消集成位置编码 IPE",
+          "只支持正交相机"
+        ],
+        "answer": 1,
+        "explain": "ECC-NeRF 认为真实相机像素 footprint 常是各向异性的椭圆区域，因此用椭圆锥台高斯替代 Mip-NeRF 的圆锥台高斯。"
+      }
     },
     {
       "id": "efficient_lvsm",
@@ -882,12 +966,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "gaussian_splatting",
       "motivation": "显式高斯基元+平铺光栅化实现实时高质量渲染",
-      "summary": "3DGS 的核心目标是：显式高斯基元+平铺光栅化实现实时高质量渲染。",
+      "summary": "3D Gaussian Splatting 用一组可优化的各向异性 3D 高斯显式表示辐射场，并通过可微的 tile-based splatting 光栅化实现高质量实时新视角合成，解决 NeRF 类方法训练/渲染慢的问题。",
       "keyPoints": [
-        "核心动机：显式高斯基元+平铺光栅化实现实时高质量渲染",
-        "代表机构：Inria"
+        "显式 3D 高斯表示：每个 primitive 包含位置、各向异性协方差、不透明度和球谐颜色系数",
+        "从 SfM 点云初始化：利用 COLMAP 等相机标定输出的稀疏点作为初始高斯中心",
+        "协方差可优化：用旋转 <span class=\"kb-math kb-math-inline\">R</span> 和缩放 <span class=\"kb-math kb-math-inline\">S</span> 参数化 <span class=\"kb-math kb-math-inline\">\\Sigma=RSS^TR^T</span>，保证半正定并表达各向异性几何",
+        "交替优化与密度控制：根据视图空间梯度 clone/split 高斯，并剪枝低不透明度或无效高斯",
+        "可微 tile-based rasterizer：按屏幕 tile 分配、排序并 alpha-blending 高斯，避免逐射线 MLP 查询",
+        "实时渲染：在 1080p 新视角合成中达到实时级帧率，同时保持接近或超过当时高质量 NeRF 方法的视觉质量"
       ],
-      "detail": "<p>显式高斯基元+平铺光栅化实现实时高质量渲染</p>"
+      "detail": "<p><img alt=\"3D Gaussian Splatting 优化与渲染流程\" src=\"https://ar5iv.labs.arxiv.org/html/2308.04079/assets/x2.png\" />\n<em>图：3DGS 从 SfM 稀疏点云初始化高斯，交替执行参数优化和密度控制，最终用 tile-based renderer 实时渲染。</em></p>\n<pre><code class=\"language-python\"># 3D Gaussian Splatting 训练伪代码\ngaussians = initialize_from_sfm_points(points)\n\nfor it in range(num_iters):\n    cam, target = sample_training_view()\n\n    # 1. 投影 3D 高斯到屏幕空间\n    splats = []\n    for g in gaussians:\n        Sigma3d = g.R @ g.S @ g.S.T @ g.R.T\n        mean2d, Sigma2d = project_gaussian(g.mu, Sigma3d, cam)\n        color = eval_spherical_harmonics(g.sh, cam.view_dir(g.mu))\n        splats.append((mean2d, Sigma2d, g.opacity, color, depth(g, cam)))\n\n    # 2. tile 分桶、按深度排序、alpha blending\n    image = tile_rasterize_and_blend(splats)\n\n    # 3. 图像损失反传到位置、协方差、不透明度、SH\n    loss = (1 - lam) * l1(image, target) + lam * dssim(image, target)\n    loss.backward()\n    optimizer.step()\n\n    # 4. 自适应密度控制\n    if it % densify_interval == 0:\n        gaussians = clone_or_split_high_gradient_gaussians(gaussians)\n        gaussians = prune_low_opacity_gaussians(gaussians)\n</code></pre>\n<p><strong>动机与背景</strong></p>\n<p>NeRF 用 MLP 表示连续辐射场，质量高但渲染需要沿每条射线大量采样并多次前向网络。Instant-NGP、Plenoxels 等方法大幅加速了训练或渲染，但在开放大场景中仍存在质量、速度、显存之间的取舍。3DGS 的关键转向是：放弃逐射线体采样，改用可直接光栅化的显式 primitive。</p>\n<p>每个 3D 高斯定义为：</p>\n<div class=\"kb-math kb-math-display\">G(x)=\\exp\\left(-\\frac{1}{2}(x-\\mu)^T\\Sigma^{-1}(x-\\mu)\\right)</div>\n<p>协方差用 <span class=\"kb-math kb-math-inline\">R,S</span> 参数化：</p>\n<div class=\"kb-math kb-math-display\">\\Sigma=RSS^TR^T</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">R</span> 控制朝向，<span class=\"kb-math kb-math-inline\">S</span> 控制三轴尺度。优化后，高斯会自然变成贴合表面的扁长椭球，从而用较少 primitive 表示复杂几何。</p>\n<p><strong>从 3D 高斯到 2D splat</strong></p>\n<p>渲染时，3D 高斯通过相机投影到图像平面。局部线性化投影的 2D 协方差为：</p>\n<div class=\"kb-math kb-math-display\">\\Sigma&#x27; = J W \\Sigma W^T J^T</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">W</span> 是世界到相机变换，<span class=\"kb-math kb-math-inline\">J</span> 是投影雅可比。投影后的 2D 椭圆高斯覆盖若干像素，像素颜色通过按深度排序的 alpha blending 得到：</p>\n<div class=\"kb-math kb-math-display\">C=\\sum_{i\\in\\mathcal{N}} c_i\\alpha_i\\prod_{j=1}^{i-1}(1-\\alpha_j)</div>\n<p>这里 <span class=\"kb-math kb-math-inline\">c_i</span> 来自球谐颜色系数，<span class=\"kb-math kb-math-inline\">\\alpha_i</span> 由不透明度和 2D 高斯权重共同决定。</p>\n<div class=\"key-point\">💡 关键：3DGS 保留了体渲染中“透明度累积”的成像直觉，但把昂贵的 ray marching 改成 GPU 友好的 splat rasterization。</div>\n<p><strong>密度控制为什么必要</strong></p>\n<p>SfM 点云通常稀疏且不均匀，如果只优化初始高斯，纹理丰富但几何复杂的区域会欠拟合；如果无约束增加高斯，显存和渲染开销会失控。3DGS 通过视图空间梯度识别需要更多表达能力的区域：小高斯可 clone，过大的高斯可 split；低不透明度或贡献小的高斯被 prune。这个交替过程让高斯数量随场景复杂度自适应增长。</p>\n<p><strong>tile-based rasterizer</strong></p>\n<p>直接对每个像素遍历所有高斯不可行。3DGS 先计算每个高斯覆盖的屏幕 tile，将高斯实例化到对应 tile，再按 tile 和深度排序。每个 tile 内并行执行前向 alpha blending；反向传播时记录/重构累积透明度，使颜色损失可以回传到高斯参数。由于这条路径高度适合 GPU，训练和实时浏览都显著加速。</p>\n<p><strong>与 NeRF 系列的区别</strong></p>\n<p>NeRF 是隐式连续函数，表达紧凑但查询昂贵；3DGS 是显式 primitive 集合，内存更大但渲染极快。NeRF 的质量依赖采样策略和 MLP 容量，3DGS 的质量依赖初始化、密度控制和高斯几何约束。后续大量 Gaussian Splatting 工作基本都围绕抗锯齿、几何正则、压缩、动态场景和语义编辑扩展这一显式表示。</p>",
+      "quiz": {
+        "q": "3DGS 能实现实时渲染的核心原因是什么？",
+        "options": [
+          "它仍然对每条射线执行大 MLP 查询",
+          "它把场景表示为可投影的显式 3D 高斯，并用 tile-based rasterizer 进行 splatting",
+          "它只渲染低分辨率灰度图",
+          "它完全不需要相机位姿"
+        ],
+        "answer": 1,
+        "explain": "3D 高斯可直接投影为 2D 椭圆 splat，GPU tile 分桶、排序和 alpha blending 比 NeRF 的逐点 MLP 查询快得多。"
+      }
     },
     {
       "id": "mip_splatting",
@@ -901,26 +1000,26 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "gaussian_splatting",
       "motivation": "3D平滑滤波器解决缩放时的走样问题",
-      "summary": "Mip-Splatting 从信号处理的采样定理出发，提出 **3D 平滑滤波器**（约束高斯基元的最大频率以消除放大时的高频伪影）和 **2D Mip 滤波器**（用物理意义明确的盒式滤波近似替代 dilation 以消除缩小时的走样），系统性地解决了 3D Gaussian Splatting 在不同采样率下的走样问题。",
+      "summary": "Mip-Splatting 从采样定理分析 3DGS 的多尺度走样问题，提出 3D smoothing filter 约束高斯最高频率，并用 2D Mip filter 替代固定 dilation，使 Gaussian Splatting 在放大和缩小时都更接近无锯齿渲染。",
       "keyPoints": [
-        "<strong>问题诊断</strong>：3DGS 的 dilation 机制引入尺度模糊性（scale ambiguity），导致放大时出现高频伪影（erosion），缩小时出现亮度异常",
-        "<strong>3D 平滑滤波器</strong>：基于训练视图的 Nyquist 频率上限，对每个 3D 高斯基元施加低通约束 <span class=\"kb-math kb-math-inline\">\\Sigma_k + \\frac{s}{\\hat{\\nu}_k} \\mathbf{I}</span>，防止学习到超出训练分辨率可表达范围的高频信号",
-        "<strong>2D Mip 滤波器</strong>：用高斯近似像素级盒式滤波器，将 2D 协方差替换为 <span class=\"kb-math kb-math-inline\">\\Sigma^{2D}_k + s\\mathbf{I}</span>，并引入归一化因子 <span class=\"kb-math kb-math-inline\">\\sqrt{|\\Sigma^{2D}_k| / |\\Sigma^{2D}_k + s\\mathbf{I}|}</span> 正确衰减小高斯的贡献",
-        "<strong>与 EWA 滤波器的区别</strong>：Mip 滤波器目标是精确近似单像素的盒式滤波，而 EWA 滤波器是经验性带宽限制（覆盖 3×3 像素区域），导致过度模糊",
-        "<strong>即插即用</strong>：基于 3DGS 开源代码，使用相同的损失函数、密度控制策略和超参数，仅增加两个滤波模块",
-        "<strong>多尺度基准</strong>：在 Blender 多尺度训练/测试中 PSNR 达 34.56（3DGS 仅 29.77）；单尺度训练多尺度测试中平均 PSNR 31.97（3DGS 仅 24.84）"
+        "问题诊断：原始 3DGS 缺少 3D 频率约束，且屏幕空间 dilation 会引入尺度模糊",
+        "3D smoothing filter：根据训练视图诱导的最大采样率限制高斯最小尺度，减少放大时的高频伪影",
+        "2D Mip filter：用近似像素盒式滤波的 2D 高斯滤波替代 dilation，缓解缩小时的 aliasing 和亮度膨胀",
+        "归一化因子：对滤波后的 2D 高斯贡献做能量校正，使远小于像素的高斯不会贡献过多不透明度",
+        "即插即用：保持 3DGS 的优化损失、密度控制和显式高斯框架，只修改滤波与投影处理",
+        "多尺度评估：在单尺度训练、多尺度测试和改变焦距/距离的场景中显著优于原始 3DGS 与 EWA 变体"
       ],
-      "detail": "<p><img alt=\"Mip-Splatting 框架概览\" src=\"https://arxiv.org/html/2311.16493v2/x1.png\" />\n<em>图：Mip-Splatting 方法概览。左：3D 平滑滤波器基于训练视图的最大采样率约束高斯基元频率；右：2D Mip 滤波器在渲染时对投影后的 2D 高斯施加像素级低通滤波。</em></p>\n<h5>问题分析：3DGS 的 Dilation 与尺度模糊性</h5>\n<p>3D Gaussian Splatting 使用 3D 高斯基元表示场景，通过 Splatting 将其投影到 2D 图像平面进行可微渲染。原始 3DGS 在投影后的 2D 协方差矩阵上添加一个固定的 dilation 项（0.3 像素），以确保每个高斯至少覆盖一个像素，避免数值不稳定。</p>\n<p>然而，论文指出 dilation 引入了<strong>尺度模糊性</strong>（scale ambiguity）：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{G}^{2D}_{k}(\\mathbf{x})_{\\text{dilation}} = e^{-\\frac{1}{2}(\\mathbf{x}-\\mathbf{p}_k)^T (\\boldsymbol{\\Sigma}^{2D}_k + \\epsilon \\mathbf{I})^{-1} (\\mathbf{x}-\\mathbf{p}_k)}</div>\n<p>这个 dilation 项使得优化器无法区分一个\"本身很小但被 dilation 放大\"的高斯和一个\"本身就是该大小\"的高斯。具体而言：</p>\n<ul>\n<li><strong>放大（zoom-in）时</strong>：小高斯在低分辨率训练时被 dilation 掩盖，放大后暴露出高频伪影（erosion effect）</li>\n<li><strong>缩小（zoom-out）时</strong>：dilation 不随分辨率变化而缩放，导致小高斯在低分辨率下贡献过多能量，产生亮度异常</li>\n</ul>\n<div class=\"key-point\">💡 关键：dilation 的根本问题在于它是一个<strong>与采样率无关的固定偏移</strong>，破坏了高斯基元的物理尺度信息。</div>\n<h5>3D 平滑滤波器：约束最大可表达频率</h5>\n<p>论文从采样定理出发：对于一个 3D 高斯基元 <span class=\"kb-math kb-math-inline\">k</span>，其在训练集中被观测到的最大采样率决定了它能可靠表达的最高频率。</p>\n<p><strong>采样间隔计算</strong>：对于第 <span class=\"kb-math kb-math-inline\">n</span> 个训练视图，像素间隔映射到 3D 空间的采样间隔为：</p>\n<div class=\"kb-math kb-math-display\">\\hat{T}_n = \\frac{d_n}{f_n}</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">d_n</span> 是相机到高斯中心的距离，<span class=\"kb-math kb-math-inline\">f_n</span> 是焦距。</p>\n<p><strong>最大采样率</strong>：取所有训练视图中的最大值：</p>\n<div class=\"kb-math kb-math-display\">\\hat{\\nu}_k = \\max_n \\frac{f_n}{d_n}</div>\n<p><strong>3D 低通滤波</strong>：将高斯与一个方差为 <span class=\"kb-math kb-math-inline\">\\frac{1}{2\\hat{\\nu}_k}</span> 的低通滤波器卷积，等价于增大协方差：</p>\n<div class=\"kb-math kb-math-display\">\\boldsymbol{\\Sigma}_k^{\\text{smooth}} = \\boldsymbol{\\Sigma}_k + \\frac{s}{\\hat{\\nu}_k} \\mathbf{I}</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">s</span> 是一个超参数（论文中取 0.2）。这确保了当渲染分辨率高于训练分辨率时，高斯基元不会产生超出其可表达范围的高频细节。</p>\n<div class=\"warn-box\">⚠️ 注意：最大采样率 <span class=\"kb-math kb-math-inline\">\\hat{\\nu}_k</span> 每 100 次迭代重新计算一次以提高效率，而非每次迭代都计算。</div>\n<h5>2D Mip 滤波器：物理意义明确的抗锯齿</h5>\n<p>在成像过程中，理想的像素值应是该像素区域内连续信号的积分，即与一个盒式滤波器（box filter）卷积。论文用高斯函数近似这个盒式滤波器：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{G}^{2D}_{k}(\\mathbf{x})_{\\text{mip}} = \\sqrt{\\frac{|\\boldsymbol{\\Sigma}^{2D}_k|}{|\\boldsymbol{\\Sigma}^{2D}_k + s\\mathbf{I}|}} \\cdot e^{-\\frac{1}{2}(\\mathbf{x}-\\mathbf{p}_k)^T (\\boldsymbol{\\Sigma}^{2D}_k + s\\mathbf{I})^{-1} (\\mathbf{x}-\\mathbf{p}_k)}</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">s</span> 取 0.1（近似覆盖单个像素）。</p>\n<p><strong>关键设计——归一化因子</strong>：</p>\n<div class=\"kb-math kb-math-display\">\\sqrt{\\frac{|\\boldsymbol{\\Sigma}^{2D}_k|}{|\\boldsymbol{\\Sigma}^{2D}_k + s\\mathbf{I}|}}</div>\n<p>这个因子确保当高斯远小于一个像素时（即 <span class=\"kb-math kb-math-inline\">\\boldsymbol{\\Sigma}^{2D}_k \\to 0</span>），其贡献被正确衰减至零。这与 dilation 的行为形成鲜明对比——dilation 会让极小的高斯仍然贡献完整的不透明度。</p>\n<pre><code class=\"language-python\"># Mip-Splatting 核心伪代码\n# 训练阶段\nfor iteration in range(30000):\n    # 每 100 次迭代更新 3D 采样率\n    if iteration % 100 == 0:\n        for k in gaussians:\n            nu_k = max(f_n / d_n(k) for n in training_views)\n\n    # 3D 平滑滤波：约束高频\n    for k in gaussians:\n        Sigma_3d_smooth = Sigma_3d[k] + (s_3d / nu_k) * I_3x3  # s_3d = 0.2\n\n    # Splatting 投影到 2D\n    Sigma_2d = project(Sigma_3d_smooth)  # JW Sigma W^T J^T\n\n    # 2D Mip 滤波：替代 dilation\n    for k in gaussians:\n        norm_factor = sqrt(det(Sigma_2d[k]) / det(Sigma_2d[k] + s_2d * I_2x2))  # s_2d = 0.1\n        Sigma_2d_mip = Sigma_2d[k] + s_2d * I_2x2\n        G_mip = norm_factor * gaussian(x, p_k, Sigma_2d_mip)\n\n    # Alpha compositing 渲染\n    C = sum(c_k * alpha_k * G_mip_k * prod(1 - alpha_j * G_mip_j) for j &lt; k)\n\n    # 标准 3DGS 损失\n    loss = (1 - lambda) * L1(C, C_gt) + lambda * SSIM(C, C_gt)\n    loss.backward()\n</code></pre>\n<h5>与 EWA Splatting 的对比</h5>\n<p>EWA（Elliptical Weighted Average）Splatting 同样在 2D 协方差上添加滤波器，但其设计目标和效果不同：</p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>特性</th>\n<th>Mip-Splatting (2D Mip Filter)</th>\n<th>EWA Splatting</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>设计目标</td>\n<td>近似单像素盒式滤波</td>\n<td>限制频率信号带宽</td>\n</tr>\n<tr>\n<td>滤波器大小</td>\n<td>覆盖 ~1 像素 (<span class=\"kb-math kb-math-inline\">s=0.1</span>)</td>\n<td>覆盖 ~3×3 像素（单位协方差）</td>\n</tr>\n<tr>\n<td>归一化</td>\n<td>有（正确衰减小高斯）</td>\n<td>无</td>\n</tr>\n<tr>\n<td>缩小效果</td>\n<td>清晰且无走样</td>\n<td>过度模糊</td>\n</tr>\n</tbody>\n</table></div>\n<h5>实验结果</h5>\n<p><strong>Blender 多尺度训练/测试</strong>（Table 1）：</p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>方法</th>\n<th>Full</th>\n<th>1/2</th>\n<th>1/4</th>\n<th>1/8</th>\n<th>Avg PSNR</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>3DGS</td>\n<td>33.65</td>\n<td>28.24</td>\n<td>24.78</td>\n<td>22.40</td>\n<td>29.77</td>\n</tr>\n<tr>\n<td>3DGS + EWA</td>\n<td>33.62</td>\n<td>32.11</td>\n<td>30.38</td>\n<td>27.93</td>\n<td>33.01</td>\n</tr>\n<tr>\n<td>Mip-NeRF</td>\n<td>35.74</td>\n<td>35.38</td>\n<td>33.90</td>\n<td>33.01</td>\n<td>34.51</td>\n</tr>\n<tr>\n<td><strong>Mip-Splatting</strong></td>\n<td><strong>35.50</strong></td>\n<td><strong>35.37</strong></td>\n<td><strong>34.21</strong></td>\n<td><strong>33.14</strong></td>\n<td><strong>34.56</strong></td>\n</tr>\n</tbody>\n</table></div>\n<p><strong>Blender 单尺度训练→多尺度测试</strong>（Table 2）：</p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>方法</th>\n<th>Full</th>\n<th>1/2</th>\n<th>1/4</th>\n<th>1/8</th>\n<th>Avg PSNR</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>3DGS</td>\n<td>33.33</td>\n<td>26.95</td>\n<td>21.38</td>\n<td>17.69</td>\n<td>24.84</td>\n</tr>\n<tr>\n<td>3DGS + EWA</td>\n<td>33.51</td>\n<td>31.66</td>\n<td>27.82</td>\n<td>24.63</td>\n<td>29.40</td>\n</tr>\n<tr>\n<td><strong>Mip-Splatting</strong></td>\n<td><strong>33.36</strong></td>\n<td><strong>34.00</strong></td>\n<td><strong>31.85</strong></td>\n<td><strong>28.67</strong></td>\n<td><strong>31.97</strong></td>\n</tr>\n</tbody>\n</table></div>\n<p><strong>MipNeRF 360 放大测试</strong>（Table 5，训练 1× 测试至 8×）：</p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>方法</th>\n<th>1×</th>\n<th>2×</th>\n<th>4×</th>\n<th>8×</th>\n<th>Avg PSNR</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>3DGS</td>\n<td>29.19</td>\n<td>23.50</td>\n<td>20.71</td>\n<td>19.59</td>\n<td>23.25</td>\n</tr>\n<tr>\n<td>3DGS + EWA</td>\n<td>29.30</td>\n<td>25.90</td>\n<td>23.70</td>\n<td>22.81</td>\n<td>25.43</td>\n</tr>\n<tr>\n<td><strong>Mip-Splatting</strong></td>\n<td><strong>29.39</strong></td>\n<td><strong>27.39</strong></td>\n<td><strong>26.47</strong></td>\n<td><strong>26.22</strong></td>\n<td><strong>27.37</strong></td>\n</tr>\n</tbody>\n</table></div>\n<p><strong>消融实验</strong>表明：去除 3D 平滑滤波器导致放大时高频伪影（PSNR 从 27.37 降至 26.93）；去除 2D Mip 滤波器主要影响缩小质量（PSNR 降至 27.23）；同时去除两者会因密度控制机制产生过多小高斯导致 OOM。</p>",
+      "detail": "<p><img alt=\"Mip-Splatting 走样问题\" src=\"https://ar5iv.labs.arxiv.org/html/2311.16493/assets/x1.png\" />\n<em>图：原始 3DGS 的 dilation 和缺少 3D 频率约束会在改变采样率时产生膨胀、侵蚀和高频伪影。</em></p>\n<p><img alt=\"Mip-Splatting 采样率约束\" src=\"https://ar5iv.labs.arxiv.org/html/2311.16493/assets/x2.png\" />\n<em>图：3D smoothing filter 使用训练视图中的最大采样率约束高斯基元，避免学习超出观测采样能力的高频结构。</em></p>\n<pre><code class=\"language-python\"># Mip-Splatting 核心伪代码\nfor iteration in range(num_iters):\n    if iteration % update_interval == 0:\n        for g in gaussians:\n            # 训练视图中该高斯被观察到的最大采样率\n            g.nu_hat = max(camera.focal / distance(camera, g.mu)\n                           for camera in training_cameras)\n\n    rendered = []\n    for g in gaussians:\n        # 1. 3D smoothing: 限制三维高频\n        Sigma3d = g.covariance + (s3d / g.nu_hat) * eye(3)\n\n        # 2. 投影为 2D Gaussian\n        mean2d, Sigma2d = project_gaussian(g.mu, Sigma3d, camera)\n\n        # 3. 2D Mip filter: 近似像素盒式滤波并做能量校正\n        Sigma_mip = Sigma2d + s2d * eye(2)\n        amp = sqrt(det(Sigma2d) / det(Sigma_mip))\n        splat = amp * gaussian_2d(pixel_grid, mean2d, Sigma_mip)\n        rendered.append(alpha_blend(g.color, g.opacity, splat))\n\n    loss = reconstruction_loss(rendered, target)\n    loss.backward()\n    optimizer.step()\n</code></pre>\n<p><strong>动机与背景</strong></p>\n<p>3DGS 在训练和测试分辨率接近时表现很好，但当焦距、相机距离或渲染分辨率变化时会出现强伪影。论文指出根因有两个：一是 3D 高斯可以在训练视图不可分辨的尺度上收缩，学到超过采样上限的高频信号；二是原始 3DGS 为了稳定优化，在 2D 协方差上添加固定 dilation，使极小高斯在屏幕上仍覆盖像素并贡献不透明度。</p>\n<p>固定 dilation 的渲染形式可理解为：</p>\n<div class=\"kb-math kb-math-display\">\\Sigma^{2D}_{\\text{dilated}}=\\Sigma^{2D}+\\epsilon I</div>\n<p>这会造成尺度模糊：一个真实很小但被 dilation 放大的高斯，与一个本来就较大的高斯在训练分辨率下可能渲染相似；当视角缩放变化时，二者行为不同，于是产生 erosion、过亮或锯齿。</p>\n<p><strong>3D smoothing filter</strong></p>\n<p>Mip-Splatting 根据训练视图估计每个高斯能被可靠观测到的最大采样率：</p>\n<div class=\"kb-math kb-math-display\">\\hat{\\nu}_k=\\max_n \\frac{f_n}{d_{n,k}}</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">f_n</span> 是第 <span class=\"kb-math kb-math-inline\">n</span> 个相机焦距，<span class=\"kb-math kb-math-inline\">d_{n,k}</span> 是相机到第 <span class=\"kb-math kb-math-inline\">k</span> 个高斯的距离。采样率越高，允许的高斯越小；采样率越低，必须施加更强平滑。实际做法是在 3D 协方差上加一个各向同性平滑项：</p>\n<div class=\"kb-math kb-math-display\">\\Sigma^{3D}_{k,\\text{smooth}}=\\Sigma^{3D}_{k}+\\frac{s}{\\hat{\\nu}_k}I</div>\n<p>这相当于对三维场景做低通滤波，使模型不再把训练图像无法支持的细节编码成退化的小高斯。</p>\n<p><strong>2D Mip filter</strong></p>\n<p>真实像素值是连续图像在一个像素面积上的积分，即盒式滤波。Mip-Splatting 用 2D Gaussian 近似该像素盒式滤波：</p>\n<div class=\"kb-math kb-math-display\">G_{\\text{mip}}(x)=\n\\sqrt{\\frac{|\\Sigma^{2D}|}{|\\Sigma^{2D}+sI|}}\n\\exp\\left(-\\frac{1}{2}(x-\\mu)^T(\\Sigma^{2D}+sI)^{-1}(x-\\mu)\\right)</div>\n<p>归一化因子非常关键。当投影高斯远小于一个像素时，<span class=\"kb-math kb-math-inline\">|\\Sigma^{2D}|\\to 0</span>，该因子趋近 0，高斯贡献被正确衰减；而 dilation 会让它仍像一个完整 splat 一样贡献能量。</p>\n<div class=\"key-point\">💡 关键：3D smoothing 主要解决 zoom-in 时暴露出的三维高频伪影；2D Mip filter 主要解决 zoom-out 时屏幕采样不足造成的 aliasing 和亮度错误。</div>\n<p><strong>与 EWA/原始 3DGS 的区别</strong></p>\n<p>EWA splatting 也会在屏幕空间做滤波，但其滤波范围更偏经验性，容易过度模糊。Mip filter 的目标是近似单像素盒式滤波，并通过归一化处理小高斯能量，因此在清晰度和抗锯齿之间更平衡。相比原始 3DGS，Mip-Splatting 没有改变高斯表示本身，而是让训练和渲染遵守采样率约束。</p>\n<p><strong>训练与推理流程</strong></p>\n<p>训练时周期性更新每个高斯的 <span class=\"kb-math kb-math-inline\">\\hat{\\nu}_k</span>，随后在投影前使用 3D smoothing；渲染时使用 2D Mip filter 替代 dilation。损失仍采用 3DGS 的图像重建损失，密度控制策略也基本保持。因此它可以视为 3DGS 的抗锯齿补丁，而不是新的场景表示范式。</p>",
       "quiz": {
-        "q": "Mip-Splatting 中 2D Mip 滤波器的归一化因子 √(|Σ²ᴰ| / |Σ²ᴰ + sI|) 的主要作用是什么？",
+        "q": "Mip-Splatting 中 2D Mip filter 的归一化因子主要解决什么问题？",
         "options": [
-          "加速渲染过程中的矩阵求逆运算",
-          "确保滤波后高斯的总能量守恒",
-          "当高斯投影远小于一个像素时正确衰减其贡献",
-          "将不同尺度的高斯归一化到相同的协方差范围"
+          "让所有高斯拥有相同颜色",
+          "当投影高斯远小于像素时正确衰减其贡献，避免 dilation 带来的亮度膨胀",
+          "完全跳过高斯深度排序",
+          "把 3D 高斯改成三角网格"
         ],
-        "answer": 2,
-        "explain": "当 Σ²ᴰ → 0（高斯远小于像素）时，归一化因子趋近于 0，正确地衰减了该高斯的贡献，避免了 dilation 中小高斯仍贡献完整不透明度的问题。"
+        "answer": 1,
+        "explain": "归一化因子随 |Σ²ᴰ| 变小而趋近 0，使小于像素的高斯不会像 dilation 那样贡献过多不透明度。"
       }
     },
     {
@@ -935,13 +1034,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "gaussian_splatting",
       "motivation": "渐进式传播策略优化高斯密度分布",
-      "summary": "GaussianPro 的核心目标是：渐进式传播策略优化高斯密度分布。",
+      "summary": "GaussianPro 将经典 MVS 的传播和 patch matching 引入 3DGS 密度控制，用已重建区域的深度/法线渐进式生成新高斯，并通过平面约束正则高斯形状，解决 SfM 稀疏初始化在低纹理大场景中导致的高斯分布不足问题。",
       "keyPoints": [
-        "核心动机：渐进式传播策略优化高斯密度分布",
-        "演化来源：继承或改进自 3dgs",
-        "代表机构：ICML"
+        "针对 3DGS 初始化依赖：低纹理道路、墙面等区域 SfM 点少，原始 clone/split 难以从无点区域生长出正确高斯",
+        "混合几何表示：将 3D 高斯渲染为 2D depth map 和 normal map，利用图像网格上的结构化邻域传播几何",
+        "Progressive Gaussian Propagation：通过 patch matching 将可靠深度/法线从已建模区域传播到欠建模区域",
+        "几何过滤与选择：使用多视图一致性过滤传播结果，并根据渲染深度与过滤深度差异选择需新增高斯的像素",
+        "平面约束优化：用传播法线监督渲染法线，并用 scale regularization 鼓励高斯变扁贴合表面",
+        "大场景收益明显：在 Waymo 数据集上相对 3DGS 提升约 1.15 dB PSNR，同时保持实时渲染速度"
       ],
-      "detail": "<p>渐进式传播策略优化高斯密度分布</p>"
+      "detail": "<p><img alt=\"GaussianPro 渐进式传播流程\" src=\"https://ar5iv.labs.arxiv.org/html/2402.14650/assets/x2.png\" />\n<em>图：GaussianPro 的 Progressive Propagation。由当前高斯渲染 depth/normal，patch matching 传播几何，经一致性过滤后反投影生成新高斯。</em></p>\n<pre><code class=\"language-python\"># GaussianPro 训练伪代码\ngaussians = initialize_3dgs_from_sfm()\n\nfor it in range(num_iters):\n    image, depth, normal = render_rgb_depth_normal(gaussians, camera)\n    loss = image_reconstruction_loss(image, target)\n\n    if it % propagation_interval == 0:\n        # 1. 在 2D 图像空间传播局部平面\n        prop_depth, prop_normal = patch_match_propagation(\n            rendered_depth=depth,\n            rendered_normal=normal,\n            reference_view=camera,\n            neighbor_views=select_neighbors(camera),\n        )\n\n        # 2. 几何一致性过滤\n        filt_depth, filt_normal, valid = multiview_filter(prop_depth, prop_normal)\n\n        # 3. 找到现有高斯未能解释的区域并新增高斯\n        mask = abs(filt_depth - depth) / depth &gt; sigma\n        new_points = backproject(mask, filt_depth, filt_normal, camera)\n        gaussians.add(initialize_gaussians(new_points, normals=filt_normal))\n\n    # 4. 平面约束\n    loss += beta * normal_consistency(rendered_normal, filt_normal, valid)\n    loss += gamma * min_scale_regularization(gaussians)\n    loss.backward()\n    optimizer.step()\n</code></pre>\n<p><strong>动机与背景</strong></p>\n<p>原始 3DGS 从 SfM 稀疏点云初始化，再根据梯度 clone/split 高斯。这个策略在纹理丰富区域有效，因为 SfM 已经提供了点，图像重建梯度也能指示哪里需要更密的 primitive。但大规模驾驶场景中存在大量低纹理表面，例如道路、墙体、天空边界附近的平面结构，SfM 往往没有足够点。没有初始高斯，就很难通过局部 split/clone 补出来。</p>\n<p>GaussianPro 的关键思想是借鉴 MVS：不要只在 3D 高斯集合内部做局部密度控制，而是把当前几何投影到 2D 图像空间，在规则像素网格上做深度/法线传播。2D 空间有天然邻域结构，适合从已建模区域向欠建模区域传播平面假设。</p>\n<p><strong>混合几何表示</strong></p>\n<p>对每个高斯，深度来自高斯中心投影到当前相机坐标系的 <span class=\"kb-math kb-math-inline\">z_i</span>。法线由协方差最短轴近似，因为优化后的表面高斯通常会变扁：</p>\n<div class=\"kb-math kb-math-display\">n_i = R_i[r,:],\\qquad r=\\arg\\min([s_1,s_2,s_3])</div>\n<p>然后像渲染颜色一样用 alpha blending 渲染 depth map 和 normal map。这样，离散无序的 3D 高斯被转换为结构化的 2D 几何图，便于后续 patch matching。</p>\n<p><strong>渐进式传播与 patch matching</strong></p>\n<p>每个像素的深度和法线可定义一个局部平面。对像素 <span class=\"kb-math kb-math-inline\">p</span>，论文从邻域像素选择多个平面候选，并用单应性把参考视图像素映射到邻近视图：</p>\n<div class=\"kb-math kb-math-display\">H=K\\left(W_{\\text{rel}}-\\frac{t_{\\text{rel}}n_{k_l}^{T}}{d_{k_l}}\\right)K^{-1}</div>\n<p>候选平面的优劣通过 NCC 颜色一致性评估。最一致的候选用于更新该像素的深度和法线。重复若干轮后，可靠几何可以从已有高斯覆盖区域传播到低纹理或缺失区域。</p>\n<div class=\"key-point\">💡 关键：GaussianPro 新增高斯的位置不是随机 clone/split 出来的，而是由多视图 patch matching 估计出的 depth/normal 反投影得到，因此更容易落在真实表面上。</div>\n<p><strong>几何过滤与新增高斯</strong></p>\n<p>传播结果可能有误，因此需要多视图几何一致性检查。过滤后，GaussianPro 比较过滤深度与当前渲染深度的相对差异：</p>\n<div class=\"kb-math kb-math-display\">\\frac{|\\bar{D}(p)-\\hat{D}(p)|}{\\hat{D}(p)}&gt;\\sigma</div>\n<p>满足阈值的区域说明现有高斯未能准确解释该表面，于是将这些像素按过滤深度和法线反投影回 3D，并初始化为新高斯加入优化。随着训练进行，新增高斯会继续被渲染、传播和优化，形成渐进式密度补全。</p>\n<p><strong>平面约束优化</strong></p>\n<p>3DGS 的图像损失并不直接约束高斯形状，可能出现高斯漂浮、朝向混乱或不贴合平面。GaussianPro 引入法线一致性：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{normal}=\\sum_{p\\in\\mathcal{Q}}\\|\\hat{N}(p)-\\bar{N}(p)\\|_1+\n\\left|1-\\hat{N}(p)^T\\bar{N}(p)\\right|</div>\n<p>并加入最小尺度正则 <span class=\"kb-math kb-math-inline\">\\mathcal{L}_{scale}</span>，鼓励高斯沿法线方向变薄：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{planar}=\\beta\\mathcal{L}_{normal}+\\gamma\\mathcal{L}_{scale}</div>\n<p>最终训练损失为 3DGS 图像重建损失加上平面约束。论文设置传播周期为固定迭代间隔，例如每 50 次迭代触发一次传播。</p>\n<p><strong>与 3DGS 的区别</strong></p>\n<p>3DGS 的密度控制是局部、梯度驱动、基于已有高斯的；GaussianPro 的密度控制是几何传播驱动的，可以在现有高斯不足的区域生成新 primitive。它特别适合低纹理大场景，因为这些区域图像梯度弱但几何连续性强，MVS 式传播正好能利用这种连续性。</p>",
+      "quiz": {
+        "q": "GaussianPro 为什么要把 3D 高斯渲染成 depth/normal map 后再做传播？",
+        "options": [
+          "因为 2D 图像空间有规则邻域，便于用 patch matching 从可靠区域向欠建模区域传播几何",
+          "因为 3DGS 无法渲染 RGB 图像",
+          "因为这样可以完全取消相机参数",
+          "因为所有高斯都必须变成球形"
+        ],
+        "answer": 0,
+        "explain": "3D 高斯集合拓扑不规则，不便直接搜索表面邻域；投影到 2D depth/normal map 后可使用 MVS 的平面传播和多视图一致性来生成新高斯。"
+      }
     },
     {
       "id": "langsplat",
@@ -955,13 +1068,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "gaussian_splatting",
       "motivation": "语言特征嵌入高斯点云实现语义级3D理解",
-      "summary": "LangSplat 的核心目标是：语言特征嵌入高斯点云实现语义级3D理解。",
+      "summary": "LangSplat 提出将 CLIP 语言特征蒸馏到 3D Gaussian Splatting 中，用带语言嵌入的高斯点云构建可实时查询的 3D language field，解决 NeRF 语言场渲染慢、边界模糊和多尺度查询低效的问题。",
       "keyPoints": [
-        "核心动机：语言特征嵌入高斯点云实现语义级3D理解",
-        "演化来源：继承或改进自 3dgs",
-        "代表机构：NTU"
+        "<strong>语言高斯表示</strong>：在每个 3D Gaussian 上附加多层级语言特征，使显式高斯点云同时承载外观、几何和开放词表语义",
+        "<strong>SAM 层级语义监督</strong>：利用 SAM 对每张训练图像生成 subpart、part、whole 三个语义层级的 mask，再对每个 mask 提取 CLIP embedding",
+        "<strong>场景级语言自编码器</strong>：将 512 维 CLIP 特征压缩到场景特定的低维 latent，降低显式高斯存储和 splatting 渲染成本",
+        "<strong>两阶段训练</strong>：先训练或加载 RGB 3DGS，再固定高斯几何与不透明度，仅优化语言 latent 特征",
+        "<strong>tile-based feature splatting</strong>：复用 3DGS 的瓦片光栅化，把语言特征像颜色一样 alpha 合成到视图平面",
+        "<strong>开放词表查询</strong>：渲染语言 latent 后用 decoder 还原 CLIP 空间，并与任意文本 query 的 CLIP embedding 计算相关性",
+        "<strong>效率优势</strong>：论文报告在 1440×1080 分辨率下相对 LERF 获得约 199× 的查询/渲染加速"
       ],
-      "detail": "<p>语言特征嵌入高斯点云实现语义级3D理解</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"LangSplat 语言场可视化\" src=\"https://langsplat.github.io/static/images/teaser.png\" />\n<em>图：LangSplat 官方项目页 teaser。图中对比了 LERF 与 LangSplat 学到的 3D 语言特征；LangSplat 的特征边界更贴近物体轮廓，体现了 SAM mask 监督和显式高斯语言特征的作用。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># LangSplat 训练与查询伪代码\ndef train_langsplat(images, cameras, pretrained_3dgs):\n    gaussians = load_rgb_gaussians(pretrained_3dgs)\n    freeze_geometry_opacity_color(gaussians)\n\n    clip_features = []\n    for image in images:\n        masks_by_level = SAM(image, levels=[&quot;subpart&quot;, &quot;part&quot;, &quot;whole&quot;])\n        for level, masks in masks_by_level.items():\n            for mask in filter_redundant_masks(masks):\n                feat = CLIP_image_encoder(crop_or_mask(image, mask))\n                assign_feature_to_pixels(level, mask, feat)\n                clip_features.append(feat)\n\n    autoencoder = train_scene_autoencoder(\n        clip_features,\n        loss=&quot;L1 + cosine&quot;,\n        latent_dim=3,\n    )\n\n    for step in range(30000):\n        view = sample_training_view(images, cameras)\n        target_latent = autoencoder.encode(pixel_clip_features(view))\n        rendered_latent = splat_language_features(gaussians, view.camera)\n        loss = distance(rendered_latent, target_latent)\n        update_only_language_features(gaussians, loss)\n\n    return gaussians, autoencoder.decoder\n\n\ndef open_vocab_query(gaussians, decoder, camera, text):\n    latent_map = splat_language_features(gaussians, camera)\n    clip_map = decoder(latent_map)\n    text_feat = CLIP_text_encoder(text)\n    relevancy = cosine_similarity(clip_map, text_feat)\n    return threshold_or_argmax(relevancy)\n</code></pre>\n<h5>动机与背景</h5>\n<p>LERF 等早期 3D language field 方法通常把 CLIP/DINO 特征蒸馏进 NeRF。这个路线能支持开放词表查询，但它要沿光线密集采样并体渲染特征，查询时还常要在多个尺度上重复渲染，所以高分辨率交互很慢。更关键的是，CLIP 本身是图像级或区域级对齐模型，不是像素级模型；用中心 crop 的多尺度 CLIP 特征监督 3D 点，会让同一个点在“物体整体、部件、子部件”之间语义混淆，边界也容易被背景和邻近物体污染。</p>\n<p>LangSplat 的核心判断是：3DGS 已经把场景显式表示为可实时 rasterize 的高斯集合，那么语言场也不必继续依赖 NeRF 的隐式体渲染。论文把每个高斯扩展为语言高斯，让高斯携带语言 latent <span class=\"kb-math kb-math-inline\">\\mathbf{l}_i^s</span>，其中 <span class=\"kb-math kb-math-inline\">s</span> 表示 SAM 定义的语义层级。渲染时语言特征与 RGB 一样按可见性和不透明度合成：</p>\n<div class=\"kb-math kb-math-display\">\\mathbf{L}^s(p)=\\sum_{i\\in \\mathcal{N}(p)} T_i \\alpha_i \\mathbf{l}_i^s,\\quad\nT_i=\\prod_{j&lt;i}(1-\\alpha_j)</div>\n<p>这里 <span class=\"kb-math kb-math-inline\">\\mathcal{N}(p)</span> 是覆盖像素 <span class=\"kb-math kb-math-inline\">p</span> 的高斯集合，<span class=\"kb-math kb-math-inline\">\\alpha_i</span> 是投影后高斯的不透明度贡献。直觉上，语言特征不再通过 MLP 对每个采样点查询，而是被显式绑定在高斯 primitive 上，依靠 3DGS 的排序和 alpha compositing 得到像素级语义图。</p>\n<h5>SAM 层级语义与 CLIP 特征</h5>\n<p>论文用 SAM 的 mask 层级来替代手工 crop 尺度。对输入图像中的网格点提示，SAM 可以生成不同粒度的 mask：subpart、part、whole。LangSplat 对每个层级分别去重、过滤低质量 mask，然后对 mask 区域提取 CLIP 图像特征，并把该特征赋给 mask 内像素：</p>\n<div class=\"kb-math kb-math-display\">\\mathbf{f}^s(p)=E_{\\text{CLIP}}\\left(I \\odot M^s(p)\\right)</div>\n<p>这一步解决了两个问题。第一，mask 边界来自 SAM，不是方形 crop，因此像素监督更贴近物体轮廓。第二，层级由 SAM 显式给出，查询时只需要在少数语义层级上比较相关性，而不是像 LERF 那样密集搜索很多物理尺度。</p>\n<h5>场景级自编码器</h5>\n<p>直接让每个高斯学习 512 维 CLIP embedding 会让显存、缓存和 rasterizer 带宽迅速膨胀。LangSplat 观察到单个场景里的语义区域远少于 CLIP 训练时覆盖的开放世界分布，因此可以训练一个场景级 autoencoder：</p>\n<div class=\"kb-math kb-math-display\">\\mathbf{z}=E_{\\phi}(\\mathbf{f}_{\\text{CLIP}}),\\quad\n\\hat{\\mathbf{f}}_{\\text{CLIP}}=D_{\\psi}(\\mathbf{z})</div>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{\\text{AE}}=\n\\|\\hat{\\mathbf{f}}_{\\text{CLIP}}-\\mathbf{f}_{\\text{CLIP}}\\|_1+\n\\lambda\\left(1-\\cos(\\hat{\\mathbf{f}}_{\\text{CLIP}},\\mathbf{f}_{\\text{CLIP}})\\right)</div>\n<p>论文实现中将 CLIP 特征压缩到 3 维 latent，这不仅节省内存，也让 latent 可直接作为 RGB-like 通道可视化。训练语言高斯时，目标不再是原始 CLIP 向量，而是 autoencoder encoder 输出的低维 latent；推理时再用 decoder 回到 CLIP 空间，与文本 embedding 计算余弦相似度。</p>\n<h5>训练与查询流程</h5>\n<p>LangSplat 通常不从零开始同时优化几何和语言，而是先使用标准 3DGS 获得高质量 RGB 高斯。随后固定高斯中心、协方差、不透明度等几何/外观参数，只优化语言 latent。这样做可以把语义学习限制在已有几何支架上，减少语言监督噪声对几何的破坏。</p>\n<p>开放词表查询时，给定文本 <span class=\"kb-math kb-math-inline\">q</span>，使用 CLIP text encoder 得到 <span class=\"kb-math kb-math-inline\">\\mathbf{t}_q</span>。模型对目标相机渲染三个层级的语言图，decoder 还原为 CLIP 特征图 <span class=\"kb-math kb-math-inline\">\\hat{\\mathbf{F}}^s</span>，再计算 relevancy：</p>\n<div class=\"kb-math kb-math-display\">R^s(p,q)=\\cos\\left(\\hat{\\mathbf{F}}^s(p), \\mathbf{t}_q\\right)</div>\n<p>定位任务取相关性最高的 3D/2D 位置，分割任务对相关性图阈值化或选取最大响应区域。由于底层是 splatting，整个查询过程接近普通 3DGS 渲染，远快于多尺度 NeRF feature rendering。</p>\n<div class=\"key-point\">💡 关键：LangSplat 的贡献不是“把 CLIP 特征塞进 3DGS”这么简单，而是同时处理了三件事：用 SAM 给出边界清晰的层级监督，用自编码器控制显式特征维度，用 3DGS rasterizer 保持高分辨率实时查询。</div>",
+      "quiz": {
+        "q": "LangSplat 使用场景级语言自编码器的主要目的是什么？",
+        "options": [
+          "把 RGB 图像压缩成低分辨率训练图",
+          "把高维 CLIP 特征压缩成场景特定低维 latent，降低显式高斯语言特征的存储和渲染成本",
+          "替代 SAM 完成图像分割",
+          "在没有相机位姿时估计 3DGS 的初始点云"
+        ],
+        "answer": 1,
+        "explain": "LangSplat 显式地为大量高斯存储语言特征，直接使用 512 维 CLIP 特征代价很高；场景级 autoencoder 利用单场景语义分布稀疏性，将特征压缩后再 splat。"
+      }
     },
     {
       "id": "thermal3d_gs",
@@ -1009,13 +1137,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "gaussian_splatting",
       "motivation": "正则化技术优化稀疏视角下的重建质量",
-      "summary": "USGS 的核心目标是：正则化技术优化稀疏视角下的重建质量。",
+      "summary": "USGS 指向 “Enhancing sparse view synthesis with unseen viewpoint regularization in 3D Gaussian splatting”，核心思想是在 3DGS 的稀疏视角训练中引入未见视角正则，缓解少量输入视角导致的过拟合、几何漂移和新视角伪影。",
       "keyPoints": [
-        "核心动机：正则化技术优化稀疏视角下的重建质量",
-        "演化来源：继承或改进自 3dgs",
-        "代表机构：arXiv"
+        "<strong>稀疏视角 3DGS 问题</strong>：标准 3DGS 依赖密集相机覆盖，少视角下高斯容易只拟合训练视图而无法泛化到未见视角",
+        "<strong>未见视角正则</strong>：围绕训练相机或场景包围盒采样虚拟视角，在这些视角上约束渲染结果的几何/外观一致性",
+        "<strong>面向泛化的优化目标</strong>：训练损失不只包含输入视图 photometric loss，还加入未见视角上的平滑、深度、结构或跨视角一致性项",
+        "<strong>兼容 3DGS 管线</strong>：保留高斯中心、协方差、不透明度、球谐颜色和 densification/pruning 机制，只在优化中增强监督",
+        "<strong>针对稀疏退化</strong>：重点抑制浮动高斯、过大高斯椭球、背景雾化、纹理粘连和新视角空洞等少视角常见问题",
+        "<strong>公开元信息修正</strong>：用户给定 arXiv 链接为占位符；可检索到的正式记录是 Pattern Recognition 170:112087，DOI 10.1016/j.patcog.2025.112087"
       ],
-      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"3DGS 基底流程图\" src=\"https://ar5iv.labs.arxiv.org/html/2308.04079/assets/x1.png\" />\n<em>图：3D Gaussian Splatting 原始方法的公开示意图。USGS 的论文链接目前是占位符，公开全文图不可稳定访问；这里用 3DGS 基底流程说明其插入位置：USGS 仍优化显式高斯集合，但在训练视图之外加入未见视角正则。</em></p>\n<h5>算法伪代码</h5>\n<p>```python</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"3DGS 基底流程图\" src=\"https://ar5iv.labs.arxiv.org/html/2308.04079/assets/x1.png\" />\n<em>图：3D Gaussian Splatting 原始方法的公开示意图。USGS 的论文链接目前是占位符，公开全文图不可稳定访问；这里用 3DGS 基底流程说明其插入位置：USGS 仍优化显式高斯集合，但在训练视图之外加入未见视角正则。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># USGS 风格的未见视角正则化训练伪代码\ndef train_usgs_sparse(images, cameras, sparse_colmap_points):\n    gaussians = initialize_from_sparse_points(sparse_colmap_points)\n\n    for step in range(num_steps):\n        cam_gt, image_gt = sample_training_view(cameras, images)\n        render_gt = render_3dgs(gaussians, cam_gt)\n        photo_loss = l1_ssim(render_gt.rgb, image_gt)\n\n        # 在训练相机附近或相机轨迹间插值采样未见视角\n        cam_unseen = sample_unseen_view(cameras, mode=&quot;interpolate_or_perturb&quot;)\n        render_unseen = render_3dgs(gaussians, cam_unseen)\n\n        # 正则项的公开细节有限，这里按“unseen viewpoint regularization”的核心整理\n        depth_reg = local_depth_smoothness(render_unseen.depth)\n        opacity_reg = suppress_floating_opacity(render_unseen.alpha)\n        consistency_reg = cross_view_consistency(\n            render_unseen,\n            nearest_training_views=cameras,\n        )\n\n        loss = photo_loss \\\n             + lambda_d * depth_reg \\\n             + lambda_o * opacity_reg \\\n             + lambda_c * consistency_reg\n\n        update_gaussians(gaussians, loss)\n\n        if should_densify(step):\n            densify_and_prune_with_sparse_view_guards(gaussians)\n\n    return gaussians\n</code></pre>\n<h5>动机与背景</h5>\n<p>3DGS 在密集输入视角下表现很好，因为每个高斯 primitive 能被多个视角反复约束：中心位置由多视角几何收敛，协方差由投影误差塑形，不透明度和颜色由多视角 photometric loss 共同修正。稀疏视角下这些条件不成立。某个高斯可能只在一两张训练图中可见，优化器只需要让训练图像素误差下降，就能把高斯放到错误深度或拉成过大的椭球；从训练相机看似乎正确，换到未见视角就出现雾状漂浮物、破碎几何或背景纹理粘到前景上。</p>\n<p>USGS 的标题把关键设计写得很直接：用 unseen viewpoint regularization 增强 sparse view synthesis。也就是说，训练时不要只问“在已有相机上是否重建得像”，还要问“从没有图像监督的邻近视角看是否仍像一个合理的 3D 场景”。这类方法的核心不是替换 3DGS 表示，而是在优化目标中加入未见视角上的几何和外观约束。</p>\n<h5>3DGS 基础目标</h5>\n<p>标准 3DGS 把场景表示为高斯集合：</p>\n<div class=\"kb-math kb-math-display\">G_i=\\{\\boldsymbol{\\mu}_i,\\mathbf{\\Sigma}_i,\\alpha_i,\\mathbf{c}_i\\}</div>\n<p>渲染到像素 <span class=\"kb-math kb-math-inline\">p</span> 时，按深度排序进行 alpha compositing：</p>\n<div class=\"kb-math kb-math-display\">C(p)=\\sum_{i\\in \\mathcal{N}(p)} T_i \\alpha_i \\mathbf{c}_i,\\quad\nT_i=\\prod_{j&lt;i}(1-\\alpha_j)</div>\n<p>密集视角训练通常优化：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{\\text{photo}}=(1-\\lambda)\\|I-\\hat{I}\\|_1+\\lambda \\mathcal{L}_{\\text{D-SSIM}}</div>\n<p>稀疏视角下，仅靠 <span class=\"kb-math kb-math-inline\">\\mathcal{L}_{\\text{photo}}</span> 是欠约束的。USGS 类方法会扩展为：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}=\n\\mathcal{L}_{\\text{photo}}+\n\\lambda_u\\mathcal{L}_{\\text{unseen}}+\n\\lambda_g\\mathcal{L}_{\\text{geometry}}</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">\\mathcal{L}_{\\text{unseen}}</span> 在虚拟相机上计算，用来惩罚不稳定的未见视角渲染；<span class=\"kb-math kb-math-inline\">\\mathcal{L}_{\\text{geometry}}</span> 通常约束深度平滑、法向一致、局部尺度或 opacity 分布。由于公开全文不可访问，具体项名和公式应以正式论文为准；这里给出的是与题名和 3DGS 稀疏视角问题一致的机制解读。</p>\n<h5>未见视角正则的直觉</h5>\n<p>未见视角可以由相机插值、邻近训练视角扰动、围绕场景中心的小幅轨道采样等方式生成。虽然这些视角没有真实 RGB 标签，但它们仍能产生自监督约束。例如，一个合理表面在相邻虚拟视角下的深度应该局部连续；同一个 3D 高斯投影到两个相近视角时，外观和 alpha 分布不应剧烈跳变；背景区域不应被高 opacity 的漂浮高斯覆盖。</p>\n<p>可以把 USGS 看成给 3DGS 增加“反过拟合压力”。训练视图 photometric loss 会推动模型解释已有像素，未见视角正则则阻止模型用只对训练视图成立的投机几何来解释像素。二者平衡后，高斯更倾向于落在真实表面附近，而不是漂浮在相机前方或被拉成过大的半透明面片。</p>\n<h5>与其他稀疏 3DGS 方法的区别</h5>\n<p>不少稀疏 3DGS 方法依赖外部深度估计、双模型 co-regularization、dropout、语义先验或扩散模型生成伪视图。USGS 的题名强调 unseen viewpoint regularization，因此重点更像是“从训练视图之外增加约束”，而不是完全依赖额外传感器或生成模型。它的优势是工程上容易接入现有 3DGS 优化循环：渲染虚拟视角、计算正则、反向传播即可。</p>\n<div class=\"warn-box\">⚠️ 注意：用户给定的 <code>https://arxiv.org/abs/2601.xxxxx</code> 明显是占位符。本文档保留输入 YAML 以满足交付规范；正文方法细节基于可检索 DOI 元信息、题名和稀疏视角 3DGS 的公开技术背景整理，不把未公开公式伪装成已核验论文原文。</div>",
+      "quiz": {
+        "q": "USGS 中“未见视角正则”的核心作用是什么？",
+        "options": [
+          "让 3DGS 只优化训练图像的 RGB 重建误差",
+          "在没有真实图像监督的虚拟视角上约束几何和渲染一致性，减少稀疏视角过拟合",
+          "把所有高斯替换为 NeRF MLP",
+          "用文本提示生成 3D 物体"
+        ],
+        "answer": 1,
+        "explain": "稀疏视角下训练图像误差不足以约束真实几何；未见视角正则通过虚拟相机检查渲染稳定性，使高斯分布更符合可泛化的 3D 结构。"
+      }
     },
     {
       "id": "colmap",
@@ -1064,13 +1206,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "reconstruction",
       "motivation": "深度学习驱动的多视角立体重建",
-      "summary": "MVSNet 的核心目标是：深度学习驱动的多视角立体重建。",
+      "summary": "MVSNet 提出端到端的多视角深度估计网络，通过可微单应性 warping 在参考相机视锥中构建 3D cost volume，再用 3D CNN 正则化和 soft argmin 回归深度图，解决传统 MVS 手工匹配和规则体素内存开销大的问题。",
       "keyPoints": [
-        "核心动机：深度学习驱动的多视角立体重建",
-        "演化来源：继承或改进自 colmap",
-        "代表机构：HKUST"
+        "<strong>逐参考视图深度估计</strong>：一次预测一个 reference image 的深度图，再通过深度融合得到点云",
+        "<strong>可微 homography warping</strong>：根据相机内外参和候选深度平面，把 source view 特征投影到 reference frustum",
+        "<strong>variance-based cost metric</strong>：用多视角特征方差聚合任意数量 source views，避免固定视角数限制",
+        "<strong>3D cost volume 正则化</strong>：用 encoder-decoder 3D CNN 聚合空间和深度维上下文，输出深度概率体",
+        "<strong>soft argmin 深度回归</strong>：对深度假设的概率分布求期望，得到连续深度估计",
+        "<strong>refinement network</strong>：用参考图像和初始深度图细化边界区域",
+        "<strong>基准结果</strong>：在 DTU 上训练评估，并在 Tanks and Temples 上展示无需微调的泛化能力"
       ],
-      "detail": "<p>深度学习驱动的多视角立体重建</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"MVSNet 网络结构\" src=\"https://ar5iv.labs.arxiv.org/html/1804.02505/assets/x1.png\" />\n<em>图：MVSNet 先提取 2D 图像特征，再通过可微 homography warping 构建 reference frustum 上的 cost volume，经过 3D CNN 正则化后回归深度图，并用参考图像细化边界。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># MVSNet 单参考视图深度估计伪代码\ndef mvsnet(reference, sources, ref_cam, src_cams, depth_values):\n    ref_feat = feature_net(reference)\n    src_feats = [feature_net(img) for img in sources]\n\n    warped_volumes = []\n    for feat, src_cam in zip(src_feats, src_cams):\n        planes = []\n        for d in depth_values:\n            H = homography(ref_cam, src_cam, depth=d)\n            planes.append(warp(feat, H))\n        warped_volumes.append(stack(planes, dim=&quot;depth&quot;))\n\n    ref_volume = repeat_along_depth(ref_feat, len(depth_values))\n    all_volumes = [ref_volume] + warped_volumes\n    cost_volume = variance(all_volumes, dim=&quot;view&quot;)\n\n    prob_volume = softmax(cost_regularization_3dcnn(cost_volume), dim=&quot;depth&quot;)\n    depth = sum(prob_volume[d] * depth_values[d] for d in range(len(depth_values)))\n    confidence = probability_around_argmax(prob_volume)\n    refined_depth = refinement_net(reference, depth)\n    return refined_depth, confidence\n</code></pre>\n<h5>动机与背景</h5>\n<p>传统 MVS 依赖手工相似性度量、窗口匹配、传播和滤波。它们在 Lambertian 表面和纹理丰富区域表现很好，但遇到低纹理、反光、重复纹理或遮挡时容易失败。早期学习式 MVS 如 SurfaceNet/LSM 尝试在规则 3D 体素中做学习，但规则体素内存随空间分辨率立方增长，难以扩展到真实大场景。</p>\n<p>MVSNet 的关键工程选择是把三维重建拆成“每个参考视图一张深度图”。深度图处在参考相机视锥中，分辨率是 <span class=\"kb-math kb-math-inline\">H\\times W\\times D</span>，比完整世界坐标体素更紧凑，也自然适配多视角图像投影。最终只需把多个参考视图的深度图做几何一致性筛选和融合，就能得到稠密点云。</p>\n<h5>可微 homography warping</h5>\n<p>对参考视图像素 <span class=\"kb-math kb-math-inline\">\\mathbf{x}</span> 和候选深度 <span class=\"kb-math kb-math-inline\">d</span>，MVSNet 将该点对应的 3D 点投影到第 <span class=\"kb-math kb-math-inline\">i</span> 个源视图。这个投影可写成深度相关单应矩阵：</p>\n<div class=\"kb-math kb-math-display\">\\mathbf{x}&#x27; \\sim \\mathbf{H}_i(d)\\mathbf{x}</div>\n<p>论文给出的形式为：</p>\n<div class=\"kb-math kb-math-display\">\\mathbf{H}_{i}(d)=\\mathbf{K}_{i}\\mathbf{R}_{i}\n\\left(\\mathbf{I}-\\frac{(\\mathbf{t}_{1}-\\mathbf{t}_{i})\\mathbf{n}_{1}^{T}}{d}\\right)\n\\mathbf{R}_{1}^{T}\\mathbf{K}_{1}^{T}</div>\n<p>直觉上，每个深度平面都定义了一次从 reference feature map 到 source feature map 的对齐。如果候选深度正确，多视图特征会在该深度平面上对齐；如果深度错误，特征方差会变大。</p>\n<h5>多视图 cost volume</h5>\n<p>MVSNet 对所有 warped feature volume 计算方差：</p>\n<div class=\"kb-math kb-math-display\">\\mathbf{C}=\\frac{1}{N}\\sum_{i=1}^{N}(\\mathbf{V}_i-\\bar{\\mathbf{V}})^2</div>\n<p>方差聚合有两个好处。第一，它对输入视角数量 <span class=\"kb-math kb-math-inline\">N</span> 不敏感，可以处理任意数量的 source views。第二，它直接度量多视图特征的一致性：真实表面深度处特征更一致，错误深度处特征分散。</p>\n<p>随后 3D CNN 在 <span class=\"kb-math kb-math-inline\">(u,v,d)</span> 三个维度上正则化 cost volume，把局部纹理、深度邻域和空间上下文结合起来。输出经 softmax 得到每个像素的深度概率分布 <span class=\"kb-math kb-math-inline\">P(d)</span>，再用 soft argmin/期望回归：</p>\n<div class=\"kb-math kb-math-display\">\\hat{d}=\\sum_{j=1}^{D} d_j P(d_j)</div>\n<h5>训练与推理流程</h5>\n<p>训练阶段使用 DTU 数据集的多视角图像、相机参数和真实深度监督。损失通常为预测深度与真实深度的 <span class=\"kb-math kb-math-inline\">L_1</span>：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}=\\sum_{\\mathbf{x}\\in \\Omega}\\left|\\hat{d}(\\mathbf{x})-d^*(\\mathbf{x})\\right|</div>\n<p>推理阶段对每张图选择若干邻近源视图，预测参考深度图和 confidence。后处理会基于 photometric confidence 与几何一致性过滤低质量深度，再把多个深度图反投影并融合成点云。</p>\n<p>MVSNet 与 COLMAP 的关系可以理解为“学习式深度估计模块替代传统 PatchMatch MVS 的核心匹配过程”。COLMAP 仍常用于相机位姿和稀疏点初始化，而 MVSNet 用神经网络完成密集深度推断。</p>\n<div class=\"key-point\">💡 关键：MVSNet 的突破不是单纯使用 CNN，而是把相机几何显式写进网络的 cost volume 构建过程，使网络既可端到端学习，又不丢掉多视角投影约束。</div>",
+      "quiz": {
+        "q": "MVSNet 为什么使用 variance-based cost metric 聚合多视角特征？",
+        "options": [
+          "为了让网络只能处理固定两个视角",
+          "为了用特征方差度量多视图一致性，并支持任意数量的 source views",
+          "为了避免使用相机内外参",
+          "为了直接输出三角网格"
+        ],
+        "answer": 1,
+        "explain": "正确深度处 warped features 应该一致，方差较小；方差聚合还能自然适配不同数量的输入视角。"
+      }
     },
     {
       "id": "deepsdf",
@@ -1155,13 +1312,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "reconstruction",
       "motivation": "卷积编码器提升局部特征表达能力",
-      "summary": "ConvONet 的核心目标是：卷积编码器提升局部特征表达能力。",
+      "summary": "ConvONet 将 Occupancy Networks 的全局 latent code 替换为卷积特征场，在查询点处插值局部 2D/3D 特征并预测占用概率，使连续隐式重建能保留局部细节并扩展到大规模室内场景。",
       "keyPoints": [
-        "核心动机：卷积编码器提升局部特征表达能力",
-        "演化来源：继承或改进自 occupancy_net",
-        "代表机构：MPI"
+        "<strong>卷积隐式表示</strong>：用 CNN/PointNet 编码输入点云或体素，生成规则 2D plane 或 3D grid 特征",
+        "<strong>局部特征查询</strong>：对任意 3D 查询点 <span class=\"kb-math kb-math-inline\">\\mathbf{p}</span>，在特征平面/体素网格上双线性或三线性插值得到 <span class=\"kb-math kb-math-inline\">\\psi(\\mathbf{p},\\mathbf{x})</span>",
+        "<strong>占用解码器</strong>：MLP/ResNet decoder 接收查询点坐标和局部特征，输出 <span class=\"kb-math kb-math-inline\">f_\\theta(\\mathbf{p},\\psi)\\in[0,1]</span>",
+        "<strong>三平面表示</strong>：用 <span class=\"kb-math kb-math-inline\">xy</span>、<span class=\"kb-math kb-math-inline\">xz</span>、<span class=\"kb-math kb-math-inline\">yz</span> 三个 canonical planes 平衡内存和表达力",
+        "<strong>体素网格表示</strong>：在小物体上可用 3D grid 捕获更完整的空间局部性",
+        "<strong>可扩展场景重建</strong>：通过 fully convolutional/sliding-window 思想处理 Matterport3D、ScanNet 等大场景",
+        "<strong>继承 ONet 优点</strong>：仍通过连续占用函数和 MISE/Marching Cubes 提取任意分辨率表面"
       ],
-      "detail": "<p>卷积编码器提升局部特征表达能力</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"ConvONet 局部特征表示\" src=\"https://ar5iv.labs.arxiv.org/html/2003.04618/assets/x2.png\" />\n<em>图：ConvONet 相比原始 Occupancy Network 的关键变化：不再只用一个全局形状 latent，而是在 3D 位置处查询卷积特征，使隐式函数同时依赖输入观测和局部空间位置。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># ConvONet 训练和网格提取伪代码\ndef train_convonet(observation, query_points, occupancies):\n    # observation 可以是点云、低分辨率体素或局部场景块\n    feature_maps = convolutional_encoder(observation)\n\n    predictions = []\n    for p in query_points:\n        local_feats = []\n        for grid_or_plane in feature_maps:\n            local_feats.append(interpolate(grid_or_plane, project(p)))\n        psi = concatenate(local_feats)\n        predictions.append(occupancy_decoder(p, psi))\n\n    loss = binary_cross_entropy(predictions, occupancies)\n    update_network(loss)\n\n\ndef reconstruct(feature_maps, resolution):\n    def occ_fn(p):\n        psi = interpolate_multiscale_features(feature_maps, p)\n        return occupancy_decoder(p, psi)\n\n    active_grid = MISE(occ_fn, initial_resolution=32, target_resolution=resolution)\n    mesh = marching_cubes(active_grid, threshold=0.5)\n    return mesh\n</code></pre>\n<h5>动机与背景</h5>\n<p>Occupancy Networks 用一个条件编码 <span class=\"kb-math kb-math-inline\">c(\\mathbf{x})</span> 表示整个输入，再让 decoder 判断任意点 <span class=\"kb-math kb-math-inline\">\\mathbf{p}</span> 是否被占用。这种连续隐式表示突破了体素分辨率限制，但全局 latent 容易成为瓶颈：局部几何细节、重复结构和大场景中的空间平移关系都被压缩到一个向量里，decoder 难以知道“这个查询点附近具体观测到了什么”。</p>\n<p>ConvONet 的核心思想是把隐式函数从</p>\n<div class=\"kb-math kb-math-display\">f_\\theta(\\mathbf{p}, c)</div>\n<p>改为</p>\n<div class=\"kb-math kb-math-display\">f_\\theta(\\mathbf{p}, \\psi(\\mathbf{p}, \\mathbf{x}))</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">\\psi(\\mathbf{p},\\mathbf{x})</span> 是在查询点附近提取的卷积特征。这样，占用预测不再只由全局形状向量决定，而是由局部观测和坐标共同决定。</p>\n<h5>特征场设计</h5>\n<p>论文系统比较了多种特征场。2D plane 表示把 3D 点投影到 canonical plane，例如 <span class=\"kb-math kb-math-inline\">xy</span>、<span class=\"kb-math kb-math-inline\">xz</span>、<span class=\"kb-math kb-math-inline\">yz</span>，并在对应特征图上双线性插值。三平面组合常写作：</p>\n<div class=\"kb-math kb-math-display\">\\psi(\\mathbf{p},\\mathbf{x})=\n\\psi_{xy}(p_x,p_y)\\oplus\n\\psi_{xz}(p_x,p_z)\\oplus\n\\psi_{yz}(p_y,p_z)</div>\n<p>3D grid 表示则在体素特征网格上三线性插值：</p>\n<div class=\"kb-math kb-math-display\">\\psi(\\mathbf{p},\\mathbf{x})=\\text{trilinear}(\\mathbf{F},\\mathbf{p})</div>\n<p>三平面更省内存，适合大场景；3D grid 的空间表达更直接，适合对象级重建或较小场景。二者都引入了卷积网络的平移等变归纳偏置，使模型能把局部几何模式复用到不同空间位置。</p>\n<h5>占用解码与训练目标</h5>\n<p>给定查询点 <span class=\"kb-math kb-math-inline\">\\mathbf{p}</span> 和局部特征 <span class=\"kb-math kb-math-inline\">\\psi</span>，decoder 输出占用概率：</p>\n<div class=\"kb-math kb-math-display\">o = f_\\theta(\\mathbf{p}, \\psi) \\in [0,1]</div>\n<p>训练时在空间中采样点并使用二元交叉熵：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}=-\\sum_i\n\\left[\no_i^*\\log f_\\theta(\\mathbf{p}_i,\\psi_i)\n(1-o_i^*)\\log(1-f_\\theta(\\mathbf{p}_i,\\psi_i))\n\\right]</div>\n<p>由于 <span class=\"kb-math kb-math-inline\">f_\\theta</span> 是连续函数，推理时可在任意分辨率上查询，占用等值面通过 MISE 加速采样，再用 Marching Cubes 提取网格。</p>\n<h5>与 Occupancy Networks 的区别</h5>\n<p>原始 ONet 的强项是连续拓扑自由表示，但它缺少局部结构归纳偏置；ConvONet 则把 CNN 的局部性、平移等变和层级特征注入隐式表示。对局部细节丰富的椅子、桌子、室内墙面和多房间结构，ConvONet 能保持更锋利的边界和更完整的结构。</p>\n<p>在大场景上，ConvONet 可以按空间块或 fully convolutional 方式编码输入点云，让同一个 decoder 在不同区域共享参数。这是它能从单物体扩展到 Matterport3D/ScanNet 室内场景的关键。</p>\n<div class=\"key-point\">💡 关键：ConvONet 的本质是“局部条件化的隐式函数”。连续隐式函数负责任意分辨率表面，卷积特征场负责把观测中的局部几何证据送到正确的查询位置。</div>",
+      "quiz": {
+        "q": "ConvONet 相比原始 Occupancy Networks 的关键改进是什么？",
+        "options": [
+          "只使用更深的全连接 MLP",
+          "在查询点处插值卷积特征，使占用预测依赖局部观测而非单一全局 latent",
+          "取消连续隐式函数，改用固定分辨率体素输出",
+          "只重建二维图像轮廓"
+        ],
+        "answer": 1,
+        "explain": "ConvONet 保留连续占用函数，但把条件信息组织为空间特征场，在每个查询点提取局部特征，因此细节和大场景扩展性更好。"
+      }
     },
     {
       "id": "neus",
@@ -1175,13 +1347,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "reconstruction",
       "motivation": "无偏体渲染+SDF实现高精度表面提取",
-      "summary": "NeuS 的核心目标是：无偏体渲染+SDF实现高精度表面提取。",
+      "summary": "NeuS 用神经 SDF 的零水平集表示表面，并提出一阶无偏的 SDF 体渲染权重，把 NeRF 的鲁棒优化和 SDF 的精确表面约束结合起来，实现无需前景 mask 也能高质量多视角表面重建。",
       "keyPoints": [
-        "核心动机：无偏体渲染+SDF实现高精度表面提取",
-        "演化来源：继承或改进自 deepsdf",
-        "代表机构：Zhejiang Univ"
+        "<strong>SDF 几何表示</strong>：用 <span class=\"kb-math kb-math-inline\">f_\\theta(\\mathbf{x})</span> 表示 signed distance，表面为 <span class=\"kb-math kb-math-inline\">f_\\theta(\\mathbf{x})=0</span>",
+        "<strong>颜色网络</strong>：用 <span class=\"kb-math kb-math-inline\">c_\\phi(\\mathbf{x},\\mathbf{v},\\mathbf{n},\\mathbf{z})</span> 建模视角相关颜色",
+        "<strong>SDF 诱导密度/权重</strong>：从 SDF 的 sigmoid 分布构造体渲染 opacity，避免普通 density field 表面阈值任意的问题",
+        "<strong>一阶无偏权重</strong>：设计让光线与零水平集交点附近贡献最大，减小 naive SDF-density 体渲染的几何偏差",
+        "<strong>遮挡感知</strong>：前方表面获得更大权重，处理多表面穿越和自遮挡",
+        "<strong>Eikonal 正则</strong>：约束 <span class=\"kb-math kb-math-inline\">\\|\\nabla f_\\theta(\\mathbf{x})\\|_2\\approx 1</span>，保持 SDF 的距离函数性质",
+        "<strong>多视角 RGB 监督</strong>：通过可微体渲染最小化渲染图像与输入图像差异，并用 Marching Cubes 提取零水平集网格"
       ],
-      "detail": "<p>无偏体渲染+SDF实现高精度表面提取</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"NeuS 无偏权重示意\" src=\"https://ar5iv.labs.arxiv.org/html/2106.10689/assets/x2.png\" />\n<em>图：NeuS 论文 Figure 2，对比 naive SDF-density 体渲染的权重偏差与 NeuS 的无偏权重函数。NeuS 希望最大权重落在 SDF 零水平集与相机光线的交点处。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># NeuS 训练伪代码\ndef train_neus(images, cameras, sdf_net, color_net):\n    for step in range(num_steps):\n        rays = sample_rays(images, cameras)\n        pts, deltas = sample_points_on_rays(rays)\n\n        sdf = sdf_net(pts)                         # f(x)\n        gradients = grad(sdf, pts)                 # normal = ∇f(x)\n        colors = color_net(pts, rays.dirs, gradients)\n\n        # NeuS 根据相邻采样点 SDF 的 sigmoid CDF 构造 alpha\n        cdf = sigmoid(inv_s * sdf)\n        alpha = neus_alpha_from_adjacent_cdf(cdf)\n        weights = alpha * cumulative_transmittance(alpha)\n        rgb = sum(weights * colors, dim=&quot;samples&quot;)\n\n        photo_loss = l1(rgb, rays.target_rgb)\n        eikonal_loss = ((norm(gradients) - 1.0) ** 2).mean()\n        loss = photo_loss + lambda_eik * eikonal_loss\n        update_networks(loss)\n\n    mesh = marching_cubes(lambda x: sdf_net(x), level=0.0)\n    return mesh\n</code></pre>\n<h5>动机与背景</h5>\n<p>NeRF 的 volume density 很适合优化新视角合成，但它不是严格几何表面。渲染质量高不等于能从任意 density threshold 提取出干净 mesh。IDR/DVR 等神经隐式表面方法直接用 SDF 或 occupancy 做 surface rendering，表面清晰，但梯度只来自射线与表面的局部交点，优化更容易陷入局部最小值，并常依赖前景 mask。</p>\n<p>NeuS 的目标是兼得二者优势：几何上用 SDF 的零水平集表示精确表面，优化上用 volume rendering 让一条光线上的多个采样点都能获得梯度。问题是，直接把 SDF 转成密度再套 NeRF 公式会产生系统性偏差：最大渲染权重不一定落在真实零水平集处，重建表面会沿光线方向偏移。</p>\n<h5>SDF 与颜色场</h5>\n<p>NeuS 用两个网络表示场景：</p>\n<div class=\"kb-math kb-math-display\">f_\\theta:\\mathbb{R}^3\\rightarrow \\mathbb{R}</div>\n<div class=\"kb-math kb-math-display\">c_\\phi:\\mathbb{R}^3\\times \\mathbb{S}^2\\times \\mathbb{R}^3\\times \\mathbb{R}^m\n\\rightarrow \\mathbb{R}^3</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">f_\\theta(\\mathbf{x})</span> 是 SDF，<span class=\"kb-math kb-math-inline\">\\nabla f_\\theta(\\mathbf{x})</span> 可作为法向；颜色网络接收点位置、视角方向、法向和几何特征，用于建模材质和视角相关外观。</p>\n<h5>无偏体渲染权重</h5>\n<p>NeuS 用 sigmoid CDF <span class=\"kb-math kb-math-inline\">\\Phi_s(f)=(1+e^{-sf})^{-1}</span> 描述 SDF 到概率的转换，其中 <span class=\"kb-math kb-math-inline\">s</span> 控制表面附近分布的尖锐程度。对相邻采样点 <span class=\"kb-math kb-math-inline\">\\mathbf{x}_i,\\mathbf{x}_{i+1}</span>，离散 opacity 可写成类似：</p>\n<div class=\"kb-math kb-math-display\">\\alpha_i=\n\\max\\left(\n\\frac{\\Phi_s(f(\\mathbf{x}_i))-\\Phi_s(f(\\mathbf{x}_{i+1}))}\n{\\Phi_s(f(\\mathbf{x}_i))},0\n\\right)</div>\n<p>随后仍按前向 alpha compositing 得到权重：</p>\n<div class=\"kb-math kb-math-display\">w_i=\\alpha_i\\prod_{j&lt;i}(1-\\alpha_j)</div>\n<p>直觉上，当光线从物体外部进入内部时，SDF 从正变负，<span class=\"kb-math kb-math-inline\">\\Phi_s(f)</span> 会快速下降；这个下降量对应光线在该区间命中表面的概率。NeuS 的推导保证在 SDF 一阶近似下，权重峰值位于零水平集附近，从而减少表面偏移。</p>\n<h5>训练损失与表面提取</h5>\n<p>NeuS 的 RGB 重建损失来自体渲染颜色：</p>\n<div class=\"kb-math kb-math-display\">\\hat{C}(\\mathbf{r})=\\sum_i w_i c_i</div>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{\\text{color}}=\\sum_{\\mathbf{r}}\\|\\hat{C}(\\mathbf{r})-C(\\mathbf{r})\\|_1</div>\n<p>同时加入 Eikonal 正则：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{\\text{eik}}=\n\\mathbb{E}_{\\mathbf{x}}\\left(\\|\\nabla f_\\theta(\\mathbf{x})\\|_2-1\\right)^2</div>\n<p>Eikonal 项保证 <span class=\"kb-math kb-math-inline\">f_\\theta</span> 更像真实距离函数，而不仅是任意符号场。训练完成后，用 Marching Cubes 在 <span class=\"kb-math kb-math-inline\">f_\\theta(\\mathbf{x})=0</span> 上提取 mesh。</p>\n<h5>与 NeRF、IDR 的区别</h5>\n<p>相对 NeRF，NeuS 的几何由 SDF 直接约束，表面阈值固定为零水平集，不需要在 density field 中猜阈值。相对 IDR/DVR，NeuS 使用体渲染获得更稳定的多点梯度传播，对自遮挡、薄结构和复杂拓扑更鲁棒，并且可以在没有前景 mask 的设置下工作。</p>\n<div class=\"key-point\">💡 关键：NeuS 不是简单的“SDF + NeRF”。真正关键是重新设计 SDF 到 alpha 权重的映射，让体渲染优化不会把表面系统性推离零水平集。</div>",
+      "quiz": {
+        "q": "NeuS 中一阶无偏权重设计主要解决什么问题？",
+        "options": [
+          "减少网络参数量",
+          "避免 naive SDF-density 体渲染导致最大权重偏离真实零水平集",
+          "让模型完全不需要相机位姿",
+          "把 SDF 改成离散体素"
+        ],
+        "answer": 1,
+        "explain": "NeuS 观察到直接用 SDF 构造密度会产生几何偏差，因此通过相邻 SDF 的 sigmoid CDF 构造 opacity，使权重峰值在一阶近似下对齐表面。"
+      }
     },
     {
       "id": "volsdf",
@@ -1195,13 +1382,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "reconstruction",
       "motivation": "体密度与SDF几何约束融合提升重建质量",
-      "summary": "VolSDF 的核心目标是：体密度与SDF几何约束融合提升重建质量。",
+      "summary": "VolSDF 将体渲染中的 volume density 定义为 SDF 经 Laplace CDF 变换后的函数，并推导 opacity 近似误差界来指导采样，从而把 NeRF 的可微体渲染与隐式表面的几何约束结合起来。",
       "keyPoints": [
-        "核心动机：体密度与SDF几何约束融合提升重建质量",
-        "演化来源：继承或改进自 neus",
-        "代表机构：Weizmann"
+        "<strong>密度由 SDF 决定</strong>：不再学习任意 density，而是令 <span class=\"kb-math kb-math-inline\">\\sigma(\\mathbf{x})=\\alpha\\Psi_\\beta(-d_\\Omega(\\mathbf{x}))</span>",
+        "<strong>Laplace CDF 变换</strong>：用可学习的 <span class=\"kb-math kb-math-inline\">\\alpha,\\beta</span> 控制表面附近密度厚度和强度",
+        "<strong>零水平集表面</strong>：最终几何从 SDF 的 <span class=\"kb-math kb-math-inline\">d_\\Omega(\\mathbf{x})=0</span> 提取，不依赖 density threshold",
+        "<strong>误差界采样</strong>：推导体渲染 opacity 近似误差上界，据此自适应增加采样点",
+        "<strong>形状/外观解耦</strong>：SDF 控制 density/geometry，radiance network 控制颜色，有利于交换几何与外观",
+        "<strong>无需前景 mask 的重建能力</strong>：在 DTU、BlendedMVS 等多视角数据上获得更高质量几何",
+        "<strong>Eikonal 正则</strong>：约束 SDF 梯度范数接近 1，保持隐式距离场性质"
       ],
-      "detail": "<p>体密度与SDF几何约束融合提升重建质量</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"VolSDF 方法示意\" src=\"https://ar5iv.labs.arxiv.org/html/2106.12052/assets/figures/teaser.jpg\" />\n<em>图：VolSDF 将输入多视角图像用于学习 radiance field，同时把 volume density 绑定到 SDF。几何从 SDF 零水平集提取，渲染仍使用体渲染积分。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># VolSDF 训练伪代码\ndef train_volsdf(images, cameras, sdf_net, radiance_net):\n    for step in range(num_steps):\n        rays = sample_rays(images, cameras)\n\n        # 根据 opacity 误差界自适应采样\n        intervals = init_uniform_intervals(rays)\n        while opacity_error_bound(intervals, sdf_net) &gt; eps:\n            intervals = upsample_intervals(intervals, sdf_net)\n\n        pts, deltas = sample_from_intervals(intervals)\n        sdf = sdf_net(pts)\n        sigma = alpha * laplace_cdf(-sdf, beta)\n        rgb_samples = radiance_net(pts, rays.dirs)\n\n        weights = volume_rendering_weights(sigma, deltas)\n        rgb = sum(weights * rgb_samples, dim=&quot;samples&quot;)\n\n        photo_loss = l1(rgb, rays.target_rgb)\n        eikonal_loss = ((norm(grad(sdf, pts)) - 1.0) ** 2).mean()\n        loss = photo_loss + lambda_eik * eikonal_loss\n        update_networks(loss)\n\n    return marching_cubes(lambda x: sdf_net(x), level=0.0)\n</code></pre>\n<h5>动机与背景</h5>\n<p>NeRF 把几何隐含在任意 density field 中，渲染效果可以很好，但提取几何时必须选择 density threshold。这个阈值没有明确物理或几何意义，所以网格常出现噪声、厚壳和浮动物。另一方面，IDR 等 surface rendering 方法使用隐式表面，几何清晰，但优化需要更强初始化和 mask，复杂遮挡下梯度传播不如体渲染稳定。</p>\n<p>VolSDF 的思路是：保留体渲染训练的稳定性，但不要让 density 自由漂移。它先学习一个 SDF <span class=\"kb-math kb-math-inline\">d_\\Omega(\\mathbf{x})</span>，再把 density 定义为 SDF 的确定函数。这样，density 的高值自然集中在表面附近，几何提取也直接取 SDF 零水平集。</p>\n<h5>SDF 到 density 的变换</h5>\n<p>VolSDF 使用 Laplace 分布的 CDF <span class=\"kb-math kb-math-inline\">\\Psi_\\beta</span>：</p>\n<div class=\"kb-math kb-math-display\">\\sigma(\\mathbf{x}) = \\alpha \\Psi_\\beta(-d_\\Omega(\\mathbf{x}))</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">d_\\Omega(\\mathbf{x})&lt;0</span> 表示物体内部，<span class=\"kb-math kb-math-inline\">d_\\Omega(\\mathbf{x})&gt;0</span> 表示外部。<span class=\"kb-math kb-math-inline\">\\beta</span> 控制表面过渡带的宽度，<span class=\"kb-math kb-math-inline\">\\alpha</span> 控制 density 强度。直觉上，越靠近或进入物体内部，density 越高；远离表面时 density 变低或趋于饱和，从而把渲染的吸收事件集中到表面附近。</p>\n<p>体渲染颜色仍为：</p>\n<div class=\"kb-math kb-math-display\">\\hat{C}(\\mathbf{r})=\n\\int_0^\\infty T(t)\\sigma(\\mathbf{x}(t))\\mathbf{c}(\\mathbf{x}(t),\\mathbf{v})dt</div>\n<div class=\"kb-math kb-math-display\">T(t)=\\exp\\left(-\\int_0^t \\sigma(\\mathbf{x}(s))ds\\right)</div>\n<p>这使 VolSDF 与 NeRF 一样可以用 RGB photometric loss 端到端训练。</p>\n<h5>误差界采样</h5>\n<p>体渲染需要沿每条光线离散采样。采样过少会让表面附近的 density 峰值被漏掉，采样过多又会拖慢训练。VolSDF 的重要贡献是利用 SDF 的 Lipschitz/距离函数性质推导 opacity 近似误差上界，并用这个上界指导自适应采样。</p>\n<p>流程上，模型先在光线上粗采样，估计每个区间的误差上界；如果某些区间误差仍大，就在这些区间继续细分或重采样，直到 bound 低于阈值。相比 NeRF 的固定粗细两阶段采样，VolSDF 的采样与当前 SDF 几何直接相关，更容易把样本集中在表面附近。</p>\n<h5>损失函数与表面提取</h5>\n<p>VolSDF 的主要训练目标包括 RGB 重建项和 Eikonal 项：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}=\n\\mathcal{L}_{\\text{rgb}}+\n\\lambda \\mathbb{E}_{\\mathbf{x}}\n\\left(\\|\\nabla d_\\Omega(\\mathbf{x})\\|_2-1\\right)^2</div>\n<p>如果数据提供 foreground mask，也可以加入 mask loss；但方法的核心并不依赖 mask。训练结束后，网格由 Marching Cubes 从 <span class=\"kb-math kb-math-inline\">d_\\Omega(\\mathbf{x})=0</span> 提取。</p>\n<h5>与 NeuS 的关系</h5>\n<p>VolSDF 和 NeuS 几乎同时提出，目标相近：用 SDF 约束体渲染几何。差异在于 VolSDF 显式把 density 定义为 SDF 的 Laplace CDF 变换，并强调 opacity 误差界和自适应采样；NeuS 更强调重新推导一阶无偏的 alpha/weight 公式，避免 SDF-density 的表面偏差。二者共同推动了 neural implicit surface reconstruction 从 NeRF density field 向 SDF-constrained volume rendering 转变。</p>\n<div class=\"key-point\">💡 关键：VolSDF 的核心是把“任意密度场”变成“由 SDF 决定的密度场”。几何不再是渲染副产物，而是直接控制渲染概率的主变量。</div>",
+      "quiz": {
+        "q": "VolSDF 为什么要把 volume density 定义为 SDF 的 Laplace CDF 变换？",
+        "options": [
+          "为了完全取消体渲染",
+          "为了让密度受几何 SDF 约束，使表面附近贡献集中，并可从零水平集提取几何",
+          "为了只支持单视角输入",
+          "为了避免使用任何神经网络"
+        ],
+        "answer": 1,
+        "explain": "VolSDF 将 density 绑定到 SDF，使体渲染优化具有明确几何归纳偏置；最终表面取 SDF=0，而不是任意 density threshold。"
+      }
     },
     {
       "id": "deocc_1to3",
@@ -1215,13 +1417,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "reconstruction",
       "motivation": "自监督多视角扩散模型11秒完成遮挡图像3D重建",
-      "summary": "Deocc-1-to-3 的核心目标是：自监督多视角扩散模型11秒完成遮挡图像3D重建。",
+      "summary": "DeOcc-1-to-3 提出一个单张遮挡图像到多视角去遮挡图像的自监督扩散框架，直接生成六个结构一致的新视角，再接入 InstantMesh 等 3D 重建模块完成遮挡物体的完整 3D 重建。",
       "keyPoints": [
-        "核心动机：自监督多视角扩散模型11秒完成遮挡图像3D重建",
-        "演化来源：继承或改进自 neus",
-        "代表机构：AAAI"
+        "<strong>遮挡感知多视角生成</strong>：输入单张 partially occluded image，输出六张去遮挡且结构一致的新视角图像",
+        "<strong>基于 Zero123++</strong>：不修改原始多视角扩散模型架构，通过 full fine-tuning 学会补全与新视角合成",
+        "<strong>自监督训练数据</strong>：从 Pix2Gestalt 的完整/遮挡图像对构造训练样本，无需人工 3D 标注",
+        "<strong>伪多视角监督</strong>：对完整图像用冻结多视角生成模型产生六视角 pseudo ground truth，用遮挡图像作为学生输入",
+        "<strong>统一去遮挡与视角合成</strong>：避免先 2D inpainting 再 3D reconstruction 的误差累积",
+        "<strong>下游兼容</strong>：生成的六视角结果可直接输入 InstantMesh 等 mesh-based reconstruction pipeline",
+        "<strong>Occ-LVIS benchmark</strong>：提出遮挡感知重建基准，覆盖不同遮挡程度、类别和 mask 模式"
       ],
-      "detail": "<p>自监督多视角扩散模型11秒完成遮挡图像3D重建</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"DeOcc-1-to-3 框架\" src=\"https://arxiv.org/html/2506.21544v1/x2.png\" />\n<em>图：DeOcc-1-to-3 论文 Figure 2。顶部构造遮挡图像与完整图像的伪多视角监督，中间全量微调多视角扩散模型，底部把预测六视角图像送入 3D reconstruction module。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># DeOcc-1-to-3 自监督训练与推理伪代码\ndef build_training_pair(full_image, occlusion_mask, frozen_mv_model):\n    occluded = apply_occlusion(full_image, occlusion_mask)\n    pseudo_views = frozen_mv_model.generate_six_views(full_image)\n    return occluded, pseudo_views\n\n\ndef train_deocc(student_mv_model, pix2gestalt_pairs):\n    for full_image, mask in pix2gestalt_pairs:\n        I_occ, target_views = build_training_pair(\n            full_image, mask, frozen_mv_model=teacher_zero123pp\n        )\n        noisy_latent, noise, t = diffusion_forward(target_views)\n        pred_noise = student_mv_model(noisy_latent, t, condition=I_occ)\n        loss = ((noise - pred_noise) ** 2).mean()\n        update(student_mv_model, loss)\n\n\ndef reconstruct_from_occluded_image(model, I_occ):\n    six_views = model.generate_six_views(I_occ)\n    mesh = InstantMesh(six_views)\n    return mesh\n</code></pre>\n<h5>动机与背景</h5>\n<p>单图 3D 重建已经受益于 Zero-1-to-3、Zero123++、MVDream、InstantMesh 等多视角生成与快速重建模型。这些模型通常假设输入物体可见完整；现实图像里物体常被其他物体、边界、手部或环境遮挡。一旦输入缺失局部结构，普通多视角扩散模型会把遮挡物当成目标的一部分，或在不同视角中对不可见区域产生互相矛盾的幻觉，最终导致 mesh 破碎、背面错误或法向异常。</p>\n<p>一个自然方案是先做 2D amodal inpainting，再做多视角生成。但 DeOcc-1-to-3 指出这个两阶段方案存在结构性问题：2D 修补不保证 3D 多视角一致，生成模型不知道哪些区域是高不确定性的补全部分，两个阶段无法联合优化，错误会向 3D 重建传播。</p>\n<h5>自监督训练构造</h5>\n<p>DeOcc-1-to-3 用自监督方式构造训练目标。设完整图像为 <span class=\"kb-math kb-math-inline\">I_{\\text{full}}</span>，随机遮挡后得到 <span class=\"kb-math kb-math-inline\">I_{\\text{occ}}</span>。冻结的多视角教师模型 <span class=\"kb-math kb-math-inline\">G</span> 对完整图像生成六视角伪监督：</p>\n<div class=\"kb-math kb-math-display\">\\langle I_{\\text{occ}}, G(I_{\\text{full}})\\rangle</div>\n<p>学生模型输入 <span class=\"kb-math kb-math-inline\">I_{\\text{occ}}</span>，目标是预测与 <span class=\"kb-math kb-math-inline\">G(I_{\\text{full}})</span> 一致的六视角结果。这样模型学到的不是“补一张图”，而是在遮挡输入条件下恢复一组结构一致的 3D-aware views。</p>\n<h5>扩散模型目标</h5>\n<p>论文基于 Zero123++ 的六视角 tiled output，使用标准 denoising objective。给定输入图像 <span class=\"kb-math kb-math-inline\">I_{\\text{input}}</span>、噪声 latent <span class=\"kb-math kb-math-inline\">x_t</span>、噪声 <span class=\"kb-math kb-math-inline\">\\epsilon</span> 和时间步 <span class=\"kb-math kb-math-inline\">t</span>，训练损失为：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{\\text{denoise}}=\n\\mathbb{E}_{x_0,\\epsilon,t}\n\\left[\n\\|\\epsilon-\\epsilon_\\theta(x_t,t\\mid I_{\\text{input}})\\|^2\n\\right]</div>\n<p>在 DeOcc-1-to-3 中，<span class=\"kb-math kb-math-inline\">I_{\\text{input}}</span> 是遮挡图像，<span class=\"kb-math kb-math-inline\">x_0</span> 对应完整图像经教师模型生成的六视角拼图。由于不改架构，模型能力主要来自 fine-tuning 数据分布：它学会把遮挡区域解释为缺失结构，并在六个预定义相机位姿上生成一致补全。</p>\n<h5>3D 重建集成</h5>\n<p>推理时，模型从单张遮挡图像直接输出六张 novel views，视角配置继承 Zero123++ 的固定六视角设计，例如两个 elevation 组合与六个 azimuth 方向。随后这些图像被送入 InstantMesh 等重建器，恢复 mesh 和法向。这个过程把难点从“直接从遮挡图回归 3D”转化为“先生成一致多视角去遮挡观测，再用成熟多视角重建模块恢复 3D”。</p>\n<p>用户元信息提到 11 秒完成遮挡图像 3D 重建，可理解为模型设计面向快速推理：生成固定数量视角，避免 SDS 式逐场景长时间优化。实际速度取决于 GPU、扩散采样步数和下游重建器配置。</p>\n<h5>Occ-LVIS 基准</h5>\n<p>论文还提出 Occ-LVIS benchmark，用于衡量遮挡场景下的重建质量。它覆盖不同遮挡比例、物体类别和 mask 形态，使方法不只在干净单物体输入上比较，而是面向真实遮挡分布评估。指标可包括新视角图像质量、3D 几何距离、法向一致性或下游 mesh 完整度。</p>\n<div class=\"key-point\">💡 关键：DeOcc-1-to-3 的核心是把 2D amodal completion 和 multi-view generation 合并成一个扩散任务，让模型在生成时同时考虑“补全什么”和“从其他视角看是否一致”。</div>",
+      "quiz": {
+        "q": "DeOcc-1-to-3 为什么不采用“先 2D inpainting，再 3D 重建”的两阶段方案？",
+        "options": [
+          "因为 2D inpainting 无法输出 RGB 图像",
+          "因为两阶段方案缺乏多视角一致性，补全误差会传递到视角生成和 3D 重建",
+          "因为扩散模型不能处理遮挡图像",
+          "因为 InstantMesh 只能接收单张图像"
+        ],
+        "answer": 1,
+        "explain": "DeOcc-1-to-3 将去遮挡和多视角生成联合微调，目标是一次输出结构一致的六视角结果，避免 2D 补全与 3D 推理脱节。"
+      }
     },
     {
       "id": "ilspr",
@@ -1235,13 +1452,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "reconstruction",
       "motivation": "提升机器人在智能制造环境中的空间感知能力",
-      "summary": "iLSPR 的核心目标是：提升机器人在智能制造环境中的空间感知能力。",
+      "summary": "iLSPR 提出面向智能制造的学习型场景点云配准框架，通过 MF-RPMN、几何基元数据生成和工业 CAD 模型库，把传感器采集的局部点云与高保真工件模型自动对齐，提升机器人对生产场景中物体位姿的空间感知精度。",
       "keyPoints": [
-        "核心动机：提升机器人在智能制造环境中的空间感知能力",
-        "演化来源：继承或改进自 colmap",
-        "代表机构：Elsevier"
+        "<strong>工业场景对象配准</strong>：从 RGB-D/深度相机采集的场景点云中分割工件点云，并与 CAD 模型点云配准",
+        "<strong>MF-RPMN 网络</strong>：Multi-Feature Robust Point Matching Network 同时利用原始几何和深度特征，学习鲁棒点匹配",
+        "<strong>GPDG 数据生成</strong>：Geometric-Primitive-based Data Generation 用机械设计常见几何基元合成训练点云，缓解工业数据稀缺",
+        "<strong>数字模型库</strong>：收集生产线目标对象的高保真 CAD/STL 模型，作为配准源模型和场景重建资产",
+        "<strong>ISOPR 数据集</strong>：在 NVIDIA Isaac Sim 中构建 Industrial Scene Object Point-cloud Registration benchmark，共 2000 个测试样本",
+        "<strong>真实系统验证</strong>：在机器人制造系统中验证，可用于工件位姿估计和数字化场景重建",
+        "<strong>公开性能</strong>：作者新闻稿报告 translational MAE 0.004、rotational MAE 0.297，相比 RPMNet 分别提升 20.0% 和 25.2%"
       ],
-      "detail": "<p>提升机器人在智能制造环境中的空间感知能力</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"iLSPR 工业场景点云配准流程\" src=\"https://raw.githubusercontent.com/macs-lab/iLSPR-inspection/main/Images/iLSPR.png\" />\n<em>图：iLSPR 官方仓库 Figure 1。机器人系统由机械臂、工件、平台和 RGB-D 相机组成；系统采集场景点云，分割出工件局部点云，再将对应 CAD 模型注册到场景中。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># iLSPR 推理与训练数据生成伪代码\ndef generate_gpdg_training_data(geometric_primitives, cad_library):\n    samples = []\n    for cad in cad_library:\n        primitive_composition = decompose_or_augment(cad, geometric_primitives)\n        for pose in random_poses():\n            full_model = sample_surface_points(primitive_composition)\n            partial_scan = simulate_depth_camera(full_model, pose)\n            samples.append((partial_scan, full_model, pose.R, pose.t))\n    return samples\n\n\ndef train_mf_rpmn(samples):\n    for det_points, gt_points, R_gt, t_gt in samples:\n        det_feat = point_feature_encoder(det_points)\n        gt_feat = point_feature_encoder(gt_points)\n        matches = robust_matching(det_points, gt_points, det_feat, gt_feat)\n        R_pred, t_pred = solve_rigid_transform(matches)\n        loss = pose_loss(R_pred, t_pred, R_gt, t_gt) + matching_loss(matches)\n        update_network(loss)\n\n\ndef infer_ilspr(scene_point_cloud, cad_library, mf_rpmn):\n    object_points = segment_by_predefined_bbox(scene_point_cloud)\n    best_model = select_candidate_model(object_points, cad_library)\n    R, t = mf_rpmn.register(object_points, best_model.point_cloud)\n    reconstructed_scene = place_cad_model(best_model, R, t)\n    return reconstructed_scene, R, t\n</code></pre>\n<h5>动机与背景</h5>\n<p>智能制造中的空间感知与通用三维重建不同。通用 SfM/MVS 或 SLAM 更关注场景整体几何是否完整，而工业机器人更关心目标工件的精确位置和姿态，误差往往要达到毫米级或接近毫米级才能服务抓取、装配、检测和加工。与此同时，工业数据通常少、对象类别由生产线决定，真实标注昂贵，普通点云配准方法容易在局部观测、遮挡和传感器噪声下失稳。</p>\n<p>iLSPR 把问题定义为 scene point-cloud registration：运行时相机看到的是包含平台、机械臂、工件和背景的场景点云，系统先依据预定义区域或检测模块取出工件局部点云，再把高保真 CAD 模型对齐到该局部观测。输出的刚体变换 <span class=\"kb-math kb-math-inline\">(\\mathbf{R},\\mathbf{t})</span> 既是工件位姿，也可用于将 CAD 模型放回数字场景。</p>\n<h5>MF-RPMN：多特征鲁棒匹配</h5>\n<p>点云刚体配准的目标是找到：</p>\n<div class=\"kb-math kb-math-display\">\\mathbf{P}_{gt}=\\mathbf{R}\\mathbf{P}_{det}+\\mathbf{t}</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">\\mathbf{P}_{det}</span> 是传感器检测到的局部点云，<span class=\"kb-math kb-math-inline\">\\mathbf{P}_{gt}</span> 是 CAD 模型采样点云。传统 ICP 对初值敏感，RPMNet/DCP 等学习方法在通用对象上有效，但工业零件常存在对称、孔洞、薄壁和局部可见问题。MF-RPMN 的设计动机是同时利用原始点坐标、法向等几何信息和网络学习到的深层特征，获得更稳健的点匹配。</p>\n<p>在配准网络中，匹配矩阵可理解为：</p>\n<div class=\"kb-math kb-math-display\">\\mathbf{M}_{ij}=\\text{softmatch}\\left(\n\\phi(\\mathbf{p}_i^{det}),\\phi(\\mathbf{p}_j^{gt}),\n\\mathbf{p}_i^{det},\\mathbf{p}_j^{gt}\n\\right)</div>\n<p>随后根据软对应估计刚体变换，常见做法是加权 Procrustes/SVD。iLSPR 的公开摘要强调 MF-RPMN 同时学习 raw data 和 deep features，这正是为了解决局部扫描与完整 CAD 之间的分布差异。</p>\n<h5>GPDG：几何基元数据生成</h5>\n<p>工业 CAD 零件通常由基础几何体通过拉伸、旋转、布尔运算等组合而成。GPDG 利用这种先验，用三角/四角/多边形棱柱、棱锥、圆柱、圆锥、球等几何基元合成或增强部件点云。相比单纯在 ModelNet40/ABC 上训练，这种数据更贴近机械零件的结构规则，也能低成本生成大量带精确位姿标签的配准样本。</p>\n<p>GPDG 的价值不只是“造数据”，而是把机械设计中的形状归纳偏置注入学习过程。网络见到更多孔、边、平面、柱面和对称结构组合后，在真实生产线零件上更容易形成可迁移的匹配特征。</p>\n<h5>ISOPR 数据集</h5>\n<p>iLSPR 官方仓库公开了 ISOPR 数据集说明。数据在 Isaac Sim 中模拟工业场景，包含 UR10 机械臂、半封闭平台、固定深度相机和工件。深度相机分辨率为 640×480，水平视场角 30°。工件从数字模型库中选择，随机平移范围约 <span class=\"kb-math kb-math-inline\">[-0.2m,0.2m]</span>，随机旋转范围约 <span class=\"kb-math kb-math-inline\">[-45^\\circ,45^\\circ]</span>。</p>\n<p>每个样本包含 CAD ground-truth 点云及法向、检测点云及法向、旋转矩阵 <span class=\"kb-math kb-math-inline\">\\mathbf{R}</span> 和平移向量 <span class=\"kb-math kb-math-inline\">\\mathbf{t}</span>。数据共 5 个 pkl 文件，每个 400 个样本，总计 2000 个测试样本。这个设置比通用点云 benchmark 更接近“传感器看到局部工件，系统需要恢复 CAD 模型位姿”的工业任务。</p>\n<h5>与 COLMAP/传统重建的区别</h5>\n<p>COLMAP 通过图像匹配、SfM、MVS 重建静态场景，适合从多视角照片恢复稀疏/稠密几何；iLSPR 面向的是已知工业对象模型与单次/少次传感器观测之间的精确刚体注册。它不试图从零恢复所有几何，而是利用 CAD 模型库把“识别并对齐工件”作为核心任务。</p>\n<div class=\"key-point\">💡 关键：iLSPR 的优势来自任务设定清晰：工业目标对象是已知 CAD 模型，难点不是开放世界重建，而是在有限、噪声、局部观测下把正确模型以高精度放到正确位置。</div>",
+      "quiz": {
+        "q": "iLSPR 中 GPDG 的主要作用是什么？",
+        "options": [
+          "把 RGB 图像转换为文本描述",
+          "利用机械几何基元生成传感器风格训练点云，缓解工业配准数据稀缺",
+          "替代刚体变换求解",
+          "将点云渲染成新视角图像"
+        ],
+        "answer": 1,
+        "explain": "GPDG 基于机械零件常见几何基元合成训练数据，使 MF-RPMN 在缺少大量真实标注时仍能学习工业对象的配准特征。"
+      }
     }
   ],
   "categories": {

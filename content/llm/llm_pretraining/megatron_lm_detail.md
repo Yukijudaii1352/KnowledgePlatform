@@ -1,82 +1,106 @@
-### Megatron-LM
+### Megatron-LM (Megatron-LM: Training Multi-Billion Parameter)
 
 ```yaml
 id: megatron_lm
 name: Megatron-LM
-full_name: 'Megatron-LM (Megatron-LM: Training Multi-Billion Parameter)'
-year: '2019'
+full_name: "Megatron-LM (Megatron-LM: Training Multi-Billion Parameter)"
+year: "2019"
 org: NVIDIA
-paper_url: https://arxiv.org/abs/1909.08053
+paper_url: "https://arxiv.org/abs/1909.08053"
 category: distributed
-parent: —
-motivation: 张量并行Transformer层内切分
+parent: "—"
+motivation: "张量并行Transformer层内切分"
 ```
 
 #### 📝 一句话总结
 
-Megatron-LM 提出面向 Transformer 的层内张量并行：按列/行切分 MLP GEMM，按 attention heads 切分 self-attention，并只在必要位置插入少量 collective 通信。它解决的是单卡显存无法容纳多十亿参数模型，而通用模型并行框架通信过重、实现复杂的问题。
+Megatron-LM 提出了一种面向 Transformer 的层内张量并行方案，通过按矩阵列/行和 attention head 切分 MLP、Self-Attention 与词表 embedding，在只插入少量 all-reduce 的情况下训练数十亿参数语言模型。
 
 #### 🎯 核心要点
 
-- 在 Transformer 层内部做 model parallelism，而不是只按层做 pipeline parallelism
-- MLP 第一层 GEMM 做 column parallel，GeLU 在各 GPU 本地计算；第二层 GEMM 做 row parallel 后 all-reduce
-- Self-attention 按 heads 切分，Q/K/V 和 attention computation 大部分本地完成
-- 每个 Transformer 层 forward/backward 只需少量通信操作，论文图示单层共 4 个主要通信点
-- 词表 embedding 和输出 logits 也可按 vocabulary 维度切分，降低大词表内存和通信
-- 可与 data parallel 组合成 hybrid model+data parallel，在 512 GPUs 上训练 8.3B 参数模型
-- 论文报告 15.1 PetaFLOPs sustained，模型并行弱扩展效率约 76-77%
+- 将 Transformer 层内部的 GEMM 做 tensor model parallel，而不是只按层做 pipeline parallel。
+- MLP 中第一层线性按列切分，GeLU 可在每张 GPU 本地独立执行；第二层线性按行切分，输出通过 all-reduce 合并。
+- Self-Attention 中 Q/K/V 按 attention head 或列维度切分，每张 GPU 计算一部分 head，输出投影再按行切分并 all-reduce。
+- 引入成对通信算子 \(f\) 与 \(g\)：一个 forward 恒等、backward all-reduce；另一个 forward all-reduce、backward 恒等。
+- 每个 Transformer layer 的主要并行区域只需 forward 两次 all-reduce、backward 两次 all-reduce。
+- 输入 embedding 按 vocabulary 维度切分；输出 embedding 与 cross-entropy 融合，避免 all-gather 巨大的 vocabulary logits。
+- LayerNorm、dropout、residual 等便宜操作在各 GPU 上复制执行，保持 GPU 主要时间花在大 GEMM 上。
+- 论文在 512 张 V100 GPU 上训练 8.3B GPT-2-like 模型，达到 15.1 PFLOPs 和 76% scaling efficiency，并报告 WikiText103、LAMBADA、RACE 上的 SOTA 结果。
 
 #### 🔬 深入细节
 
-![Megatron-LM Transformer 张量并行](https://ar5iv.labs.arxiv.org/html/1909.08053/assets/x3.png)
-*图：Megatron-LM 论文 Figure 3，展示 MLP 和 self-attention 中的列并行、行并行以及 forward/backward 通信算子。*
+![Megatron-LM MLP tensor parallel 示意图](https://ar5iv.labs.arxiv.org/html/1909.08053/assets/mlp_mp_2.png)
+*图：论文 Figure 3(a)。第一层 MLP 矩阵 \(A\) 按列切分，第二层矩阵 \(B\) 按行切分，GeLU 夹在两次 GEMM 中间但不需要跨卡同步。*
+
+![Megatron-LM Self-Attention tensor parallel 示意图](https://ar5iv.labs.arxiv.org/html/1909.08053/assets/attention_mp_2.png)
+*图：论文 Figure 3(b)。Q/K/V 与 attention heads 被分配到不同 GPU，本地完成一部分 head 的注意力计算，输出线性层后再合并。*
+
+Megatron-LM 的基本判断是：Transformer 的主要计算量集中在大矩阵乘法，而这些矩阵乘法具有天然可切分结构。对 MLP 块，设输入为 \(X\)，第一层权重为 \(A\)，第二层权重为 \(B\)，原始计算为：
+
+$$
+Y = \mathrm{GeLU}(XA), \quad Z = YB
+$$
+
+如果把 \(A\) 按列切分为 \([A_1, A_2]\)，则：
+
+$$
+Y = [Y_1, Y_2] = [\mathrm{GeLU}(XA_1), \mathrm{GeLU}(XA_2)]
+$$
+
+GeLU 是逐元素非线性，可以在每个分片上本地执行，不需要先把 \(XA_1\) 与 \(XA_2\) 聚合。这是设计的核心直觉：非线性函数不能跨加法随意交换，因此要选择一种切法，让非线性前不需要同步。随后把 \(B\) 按行切为 \(\begin{bmatrix}B_1 \\ B_2\end{bmatrix}\)，输出为：
+
+$$
+Z = YB = Y_1B_1 + Y_2B_2
+$$
+
+这个求和通过一次 all-reduce 完成。也就是说，MLP 中两个 GEMM 被“配对切分”：第一个 GEMM column-parallel，第二个 GEMM row-parallel，中间的 GeLU 完全本地化，最后只在必要位置同步。
 
 ```python
-# Megatron-LM Transformer 层张量并行伪代码
-def megatron_transformer_layer(x, tp_group):
-    # MLP: column parallel first GEMM
-    A_i = shard_columns(W_up, tp_group.rank)
-    h_i = gelu(x @ A_i)              # local, no communication before GeLU
+# Megatron-LM Transformer layer 的张量并行伪代码，world_size 张 GPU 组成一个 model-parallel group
+for layer in transformer_layers:
+    # Self-Attention: QKV column-parallel，按 head 分片
+    x_norm = layernorm_replicated(x)
+    q_i, k_i, v_i = column_parallel_qkv(x_norm, shard_id=rank)
+    attn_i = scaled_dot_product_attention(q_i, k_i, v_i)   # 每张 GPU 只算自己的 heads
+    attn_out_i = row_parallel_projection(attn_i, shard_id=rank)
+    attn_out = all_reduce_sum(attn_out_i)                  # g: forward all-reduce
+    x = x + dropout_replicated(attn_out)
 
-    # row parallel second GEMM, then reduce partial outputs
-    B_i = shard_rows(W_down, tp_group.rank)
-    mlp_partial = h_i @ B_i
-    mlp_out = all_reduce_sum(mlp_partial, group=tp_group)
-
-    # Attention: split heads across tensor-parallel ranks
-    Q_i, K_i, V_i = local_qkv_projection(x, head_shard=tp_group.rank)
-    ctx_i = attention(Q_i, K_i, V_i)
-    out_partial = ctx_i @ shard_rows(W_o, tp_group.rank)
-    attn_out = all_reduce_sum(out_partial, group=tp_group)
-
-    return layernorm_residual(x, attn_out, mlp_out)
+    # MLP: A column-parallel，B row-parallel
+    x_norm = layernorm_replicated(x)
+    hidden_i = gelu(x_norm @ A_i)                          # 不需要同步即可 GeLU
+    mlp_out_i = hidden_i @ B_i
+    mlp_out = all_reduce_sum(mlp_out_i)                    # g: forward all-reduce
+    x = x + dropout_replicated(mlp_out)
 ```
 
-**动机与背景：只靠数据并行无法突破单卡模型容量。** Data parallel 每张 GPU 都保存完整模型，参数、梯度和 optimizer state 都受单卡显存限制。GPipe 类 pipeline parallel 可以按层切分，但 Transformer 单层中的大矩阵和 attention heads 本身也可能很大，并且层切分会产生 pipeline bubble。Megatron-LM 选择直接在 Transformer 层内部切张量，让每个大 GEMM 分摊到多张 GPU。
+论文中的 \(f\) 与 \(g\) 是实现这个图的关键抽象。\(f\) 在 forward pass 中是 identity，在 backward pass 中对梯度 all-reduce；\(g\) 在 forward pass 中 all-reduce，在 backward pass 中是 identity。二者是共轭的 autograd function，因此可以用少量 PyTorch 自定义 autograd 代码实现，而不用新编译器或重写整个框架。直观上，\(f\) 让各 GPU 在前向拿到同样输入但反向时合并输入梯度；\(g\) 让分片输出在前向相加，反向时每个分片自然接收自己的梯度。
 
-**MLP 切分：利用 GeLU 的逐元素性质减少通信。** Transformer MLP 通常是 \(Y=\text{GeLU}(XA)B\)。Megatron 把 \(A\) 按列切成 \(A_i\)，各 GPU 计算 \(Y_i=\text{GeLU}(XA_i)\)。因为 GeLU 逐元素，不需要先合并 \(XA\)。再把 \(B\) 按行切成 \(B_i\)，每张 GPU 计算 \(Y_iB_i\)，最后 all-reduce 求和得到完整输出：
+Self-Attention 的切分利用了 multi-head attention 的结构。多个 attention head 在 softmax 前后基本独立，所以可以把 Q/K/V 的投影矩阵按列切分，使每张 GPU 负责一部分 head：
 
 $$
-Y = \sum_i \text{GeLU}(XA_i)B_i
+Q_i = XW^Q_i, \quad K_i = XW^K_i, \quad V_i = XW^V_i
 $$
 
-**Attention 切分：按 head 天然并行。** 多头 attention 本来就是多个 head 独立计算后 concat。Megatron 将 Q/K/V projection 和 attention heads 分给不同 tensor-parallel ranks，每张 GPU 只处理一部分 heads。attention 内部的 \(QK^\top\)、softmax、\(PV\) 都可本地完成，只在输出 projection 后合并 partial result。
+然后每张 GPU 本地计算 \(\mathrm{softmax}(Q_iK_i^\top / \sqrt{d})V_i\)。只有在 attention 输出投影时，需要像 MLP 第二层那样把行切分的结果求和。这样的好处是把最重的 attention-head 内部计算留在本地，通信只发生在 block 边界，而不是每个中间张量之后都同步。
 
-**通信设计：把 collective 放在 Transformer 子层边界。** 通用张量切分可能每个算子都要通信，而 Megatron 的切法利用 Transformer 结构，把通信压缩到少数 all-reduce。论文把 forward 中的通信算子抽象为 \(f\) 和 \(g\)：一个在 forward identity/backward all-reduce，另一个在 forward all-reduce/backward identity，从而让自动微分中通信位置简洁可控。
+Embedding 层也需要特殊处理。语言模型的输出 logits 维度是 vocabulary size，GPT-2 词表约五万量级，直接 all-gather logits 会产生很大的通信。Megatron-LM 把 input embedding 按 vocabulary 维度切分，并对 output embedding GEMM 与 cross-entropy loss 做融合：每张 GPU 只保留自己词表分片上的 logits，计算局部 loss 所需项，再通过较小的标量或向量归约得到全局 loss。这样避免了把 \(B \times S \times V\) 的大 logits 张量完整聚合到每张 GPU。
 
-**与 GPipe 的区别：层内切分 vs. 层间流水。** GPipe 把不同层放到不同设备，通信 activation；Megatron 把同一层的大矩阵分到多个设备，通信 partial sums。两者正交，现代大模型训练通常同时使用 tensor parallel、pipeline parallel、data parallel 和 optimizer sharding。
+与 GPipe 的层间流水线不同，Megatron-LM 的 2019 论文重点是层内切分：单个 Transformer layer 的参数、激活和计算被拆到多张 GPU 上。它与 pipeline parallelism 正交，后续大规模训练系统通常会组合 tensor parallel、pipeline parallel 和 data parallel。论文当时强调的工程价值在于“少量侵入式修改”：原有 PyTorch Transformer 只需替换线性层、QKV 投影、embedding 和通信函数，就能扩展到多 GPU model-parallel group。
 
-> 💡 关键：Megatron-LM 的工程美感在于只针对 Transformer 的 MLP 和 attention 两个结构做最小通信切分，而不是依赖通用图编译器。
+> ⚠️ 注意：张量并行并不是免费扩展。切得越细，每张 GPU 上的 GEMM 越小，通信占比越高；attention head 数也会影响切分粒度。Megatron-LM 的设计目标是让 GPU 仍然 compute-bound，即把 all-reduce 限制在少数必须同步的位置，并尽量复用 Transformer 里最规则的大矩阵乘法。
+
+论文还指出 BERT-like 模型放大时 layer normalization 的位置会影响训练稳定性。Megatron-LM 使用类似 GPT-2/BERT 常见的 pre-LN 风格，把 LayerNorm 放在 attention 和 MLP 子层输入侧，使更大 BERT 模型随规模增加仍能获得更好的下游结果。这部分不是张量并行本身，但说明大模型扩展同时依赖并行系统和可训练架构细节。
 
 #### 🧪 练习题
 
 ```yaml
-question: "Megatron-LM 为什么把 MLP 第一层按列切分？"
+question: "Megatron-LM 在 MLP 中为什么把第一层 GEMM 按列切分、第二层 GEMM 按行切分？"
 options:
-  - "因为 GeLU 可在每个分片的局部输出上独立计算，避免中间 all-gather"
-  - "因为列切分会删除反向传播"
-  - "因为只支持单层网络"
-  - "因为这样不需要任何 GPU 通信"
+  - "为了让 GeLU 在每个分片本地执行，并只在第二层输出处做一次 all-reduce"
+  - "为了把所有参数复制到每张 GPU，减少显存占用"
+  - "为了让每个 attention head 共享同一个 Q/K/V 投影"
+  - "为了完全消除 forward 和 backward 中的通信"
 answer: 0
-explain: "第一层列切分后各 GPU 得到一部分 hidden features，GeLU 是逐元素操作，可本地执行；第二层行切分后再 all-reduce 合并。"
+explain: "第一层列切分后 GeLU 可独立作用于每个输出分片；第二层行切分后各分片结果求和，用一次 all-reduce 合并即可。"
 ```

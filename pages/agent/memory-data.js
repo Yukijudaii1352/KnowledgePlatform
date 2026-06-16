@@ -1,5 +1,5 @@
 /**
- * memory-data.js — 由 pipeline/build.py 于 2026-06-15 18:08:18 自动生成。
+ * memory-data.js — 由 pipeline/build.py 于 2026-06-16 17:00:05 自动生成。
  * 源文件：content/agent/memory.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "memory",
     "topic_name": "Agent记忆",
     "page_title": "Agent记忆技术演进",
-    "page_subtitle": "2026-06-15 版",
+    "page_subtitle": "2026-06-16 版",
     "page_desc": "系统梳理Agent记忆从反思式文本记忆、陪伴型长期记忆，到结构化检索、OS式层级管理，再到2026年的统一短长时记忆、多模态可信记忆与神经符号记忆的演进路线。",
     "page_icon": "🧠",
     "hero_pills": [

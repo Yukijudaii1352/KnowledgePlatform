@@ -14,65 +14,86 @@ motivation: Sigmoid损失提升内存效率
 
 #### 📝 一句话总结
 
-SigLIP 用逐对 sigmoid 二分类损失替代 CLIP/ALIGN 的 softmax 对比损失，解决大 batch 训练中全局归一化带来的内存和通信压力。它保留双塔图文嵌入范式，但让每个图文 pair 的损失可独立计算。
+SigLIP 提出用逐对 sigmoid 二分类损失替代 CLIP/ALIGN 的 batch-level softmax 对比损失，解决大 batch 图文预训练中全局归一化带来的内存与通信压力。它保留双塔检索能力，同时让每个图文 pair 的损失项可独立计算，更适合资源受限或分块分布式训练。
 
 #### 🎯 核心要点
 
-- 提出 pairwise sigmoid loss：对 batch 内每个图文组合独立判断匹配或不匹配
-- 移除 softmax 分母的全局归一化，不需要同时持有完整全局相似度矩阵
-- 引入可学习温度 \(t\) 和偏置 \(b\)，其中偏置用于处理正负样本极度不均衡
-- 支持 chunked / ring-style 分布式实现，降低大 batch 训练的峰值内存
-- 在小 batch 下通常优于 softmax 基线，并发现 32k 左右 batch 已接近收益饱和
-- 保持 CLIP 式双编码器推理能力，可直接用于零样本分类和图文检索
+- 损失函数：把图文对齐从 \(N\) 类 softmax 分类改成 \(N^2\) 个 pairwise 二分类项，对角线为正样本，非对角线为负样本
+- 可学习参数：保留温度 \(t=\exp(t')\)，新增偏置 \(b\) 处理正负 pair 极度不均衡，论文使用负偏置初始化让训练先验接近“多数 pair 不匹配”
+- 计算优势：sigmoid loss 不需要对整行/整列相似度做全局 softmax 归一化，单个 pair 的损失只依赖自己的 logit
+- 分布式实现：支持 chunked/ring-style 交换文本或图像块，局部累加损失，避免每个设备完整物化 \(|B|\times|B|\) 全局相似度矩阵
+- 经验结论：在小于 16k 的 batch 下 sigmoid 明显优于 softmax，32k 左右 batch 已接近收益饱和，继续推到百万 batch 收益有限
+- 模型接口：沿用 CLIP 式图像塔与文本塔，推理阶段仍可做零样本分类、图文检索和向量库召回
 
 #### 🔬 深入细节
 
 ![SigLIP sigmoid loss 伪代码](https://raw.githubusercontent.com/ahmdtaha/distributed_sigmoid_loss/main/imgs/sigmoid_loss_pseudo_implementation.png)
-*图：SigLIP 论文 Algorithm 1 的 sigmoid loss 伪代码公开转存图。核心是构造对角线为正、非对角为负的标签矩阵，对所有 pair 做 log-sigmoid。*
+*图：SigLIP 论文 Algorithm 1 的 sigmoid loss 伪实现公开转存图。它构造对角线为 \(+1\)、非对角为 \(-1\) 的标签矩阵，并对所有图文组合累加 log-sigmoid 损失。*
 
 ```python
-# SigLIP 损失伪代码
-img = l2_normalize(image_encoder(images))
-txt = l2_normalize(text_encoder(texts))
+# SigLIP pairwise sigmoid loss 伪代码
+def siglip_loss(image_emb, text_emb, t_prime, bias):
+    t = exp(t_prime)
+    z_img = l2_normalize(image_emb)
+    z_txt = l2_normalize(text_emb)
 
-logits = img @ txt.T * exp(t_prime) + bias
-labels = 2 * eye(batch_size) - ones(batch_size, batch_size)  # +1 对角, -1 非对角
-loss = -log_sigmoid(labels * logits).sum() / batch_size
-loss.backward()
+    logits = z_img @ z_txt.T * t + bias
+    labels = 2 * eye(batch_size) - ones(batch_size, batch_size)  # +1 diagonal, -1 otherwise
+    loss = -log_sigmoid(labels * logits).sum() / batch_size
+    return loss
+
+# chunked distributed sketch
+for local_images, local_texts in device_batch:
+    img = image_encoder(local_images)
+    txt_block = text_encoder(local_texts)
+    total_loss = local_positive_and_negative_loss(img, txt_block)
+    for _ in range(num_devices - 1):
+        txt_block = send_to_next_and_receive_from_prev(txt_block)
+        total_loss += negative_loss_against_received_texts(img, txt_block)
+    total_loss.backward()
 ```
 
-CLIP 的 softmax 对比损失把每张图像看作一个 \(N\) 类分类问题：在 batch 中选出正确文本。这个设计效果很好，但分母需要同一行或同一列所有相似度，分布式训练时就要跨设备聚合大量嵌入和相似度。batch 越大，通信与内存压力越明显。
+CLIP/ALIGN 的 softmax 对比损失把每张图像看成一个 batch 内 \(N\) 类分类问题：正确文本是唯一正类，其余 \(N-1\) 个文本是负类；同时再做一次 text-to-image 方向。这个目标效果强，但它的概率分母依赖整行或整列所有相似度。分布式训练时，为了计算这些分母，通常要 all-gather 所有设备上的图像/文本嵌入，并在设备上物化大矩阵；batch size 越大，内存、通信、数值稳定化中的额外 pass 都越贵。
 
-SigLIP 改成二分类视角：给定任意图文 pair \((i,j)\)，只判断它是否匹配。令归一化图像向量为 \(x_i\)，文本向量为 \(y_j\)，标签为：
+SigLIP 的核心改写是把 batch 分类问题变成 pairwise binary classification。给定图像编码器 \(f(\cdot)\)、文本编码器 \(g(\cdot)\)，令 \(x_i=f(I_i)\)、\(y_j=g(T_j)\) 为 L2 归一化嵌入，标签为：
 
 $$
-z_{ij}=\begin{cases}
-1,& i=j\\
--1,& i\neq j
+z_{ij}=
+\begin{cases}
+1, & i=j \\
+-1, & i\neq j
 \end{cases}
 $$
 
-损失为：
+则 sigmoid loss 写作：
 
 $$
-\mathcal{L}=-\frac{1}{n}\sum_{i=1}^{n}\sum_{j=1}^{n}\log\sigma\left(z_{ij}(t\cdot x_i^\top y_j+b)\right)
+\mathcal{L}=-\frac{1}{|B|}
+\sum_{i=1}^{|B|}\sum_{j=1}^{|B|}
+\log\sigma\left(z_{ij}\left(t\,x_i^\top y_j+b\right)\right)
 $$
 
-其中 \(t\) 是可学习温度，\(b\) 是可学习偏置。偏置很重要，因为一个 batch 中只有 \(n\) 个正 pair，却有 \(n^2-n\) 个负 pair；若没有偏置，初始化时 sigmoid 容易给大量负样本过高概率。论文常用负偏置初始化，使模型先验更接近“绝大多数 pair 不匹配”。
+其中 \(t=\exp(t')\) 是可学习温度，\(b\) 是可学习偏置。温度仍然控制相似度尺度，偏置则是 SigLIP 相比朴素二分类对比损失的关键补丁：一个 batch 中正样本只有 \(|B|\) 个，负样本有 \(|B|^2-|B|\) 个，初始化时负样本项会压倒梯度。论文用负偏置初始化，使模型一开始就倾向于判断“随机图文 pair 不匹配”，避免早期优化步被类别不均衡强行拉偏。
 
-> 💡 关键：softmax 损失的一个正样本概率依赖整行/整列负样本；SigLIP 的每个 pair 损失只依赖自己的 logit，因此可以分块计算和累加。
+> 💡 关键：softmax 的一个样本概率必须“看见”整行或整列候选；SigLIP 的每个 \((i,j)\) 项是局部二分类损失，因此可以分块计算、交换块、累加标量损失。
 
-分布式实现中，SigLIP 可以让每个设备只物化一块图文相似度矩阵，计算完局部负样本损失后再交换文本块继续累加。这样不必在单设备上保留完整 \(B\times B\) 全局矩阵。实验上，sigmoid 在较小 batch 下优势明显；当 batch 增大到 32k 以上时，收益逐渐饱和，这为资源有限的图文预训练提供了更实际的训练配方。
+chunked 实现的直觉很简单。假设全局 batch 被切到 \(D\) 个设备上，每个设备有 \(b\) 对图文。设备先计算本地 \(b\times b\) 块，其中包含 \(b\) 个正 pair 和本地负 pair；随后把文本块按环形发送给下一个设备，每轮只计算当前图像块与收到文本块之间的负样本损失。重复 \(D-1\) 轮后，每个设备已经覆盖了所有跨设备负样本，但任一时刻只需保存一个小块相似度矩阵，而不是全局 \(|B|\times|B|\) 矩阵。
+
+与 softmax 的优化语义相比，SigLIP 也改变了 batch size 的角色。softmax 中 batch size 直接定义分类任务的类别数，batch 变大通常意味着每个正样本面对更多负类；sigmoid 中损失定义不依赖全局归一化，batch size 更多决定每步采样多少 pair、正负比例以及梯度估计质量。论文系统扫描 batch size 后发现，小 batch 下 sigmoid 优势明显；随着 batch 增大，softmax 会逐渐追上，但 32k 附近已经接近最优，继续扩大到数十万甚至百万 batch 的收益很快变小。
+
+在模型使用层面，SigLIP 不是新的跨模态融合架构，而是替换了 CLIP/ALIGN 训练目标。图像塔可用 ViT，文本塔为 Transformer；训练完成后依然输出可独立预计算的图像/文本向量。因此它对部署链路的影响集中在训练端：更低峰值内存、更简单的分布式 loss、更可接受的小资源训练配方；推理端仍然保持双塔模型的零样本分类和 ANN 检索优势。
+
+SigLIP 还解释了为什么“更大 batch”不是无限收益。超大 batch 会减少每个 epoch 的更新步数，若训练总样本数固定，优化动态可能变慢；同时许多负样本已经足够容易，继续增加随机负样本对梯度的信息量有限。sigmoid loss 的价值因此不只是能塞进更大 batch，而是把 batch size 从 loss 定义中解耦出来，让研究者可以根据硬件、数据噪声、训练时长和负样本比例选择更合理的点。
 
 #### 🧪 练习题
 
 ```yaml
-question: "SigLIP 相比 CLIP softmax 损失最关键的工程优势是什么？"
+question: "SigLIP 中引入可学习偏置 b 的主要原因是什么？"
 options:
-  - "完全不需要负样本"
-  - "每个图文 pair 的损失可独立计算，减少全局归一化带来的内存和通信压力"
-  - "必须使用目标检测器生成对象标签"
-  - "只能用于图像分类，不能用于检索"
+  - "让文本编码器输出更长的 token 序列"
+  - "补偿 batch 内正 pair 少、负 pair 多造成的二分类先验不均衡"
+  - "替代图像编码器中的位置编码"
+  - "保证推理阶段必须使用跨注意力重排序"
 answer: 1
-explain: "Sigmoid 损失把图文匹配变成逐对二分类，不需要 softmax 分母依赖整行或整列相似度，因此更容易分块和分布式计算。"
+explain: "Sigmoid loss 会对所有图文组合做二分类，一个 batch 中负 pair 数量远多于正 pair；负偏置初始化让模型从多数 pair 不匹配的合理先验开始训练。"
 ```

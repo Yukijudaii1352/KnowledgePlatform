@@ -1,83 +1,129 @@
-### orpo: 比值比偏好优化 (ORPO)
+### ORPO：比值比偏好优化（Odds Ratio Preference Optimization）
 
 ```yaml
 id: orpo
-full_name: 比值比偏好优化 (ORPO)
+full_name: "比值比偏好优化 (ORPO)"
 year: "2024"
-paper_url: https://arxiv.org/abs/2403.07691
-motivation: 单阶段对齐，无需参考模型
-parent: dpo
-category: direct_preference
+paper_url: "https://arxiv.org/abs/2403.07691"
+motivation: "单阶段对齐，无需参考模型"
+parent: "dpo"
+category: "direct_preference"
 ```
 
 #### 📝 一句话总结
 
-ORPO 把监督微调和偏好对齐合成一个单阶段目标：提高优胜回答的似然，同时用 odds ratio 惩罚拉开优胜与落败回答。
+ORPO 将 SFT 的负对数似然损失与 odds ratio 偏好惩罚合并到一个单阶段目标中，在不使用冻结参考模型和额外 DPO/RLHF 阶段的情况下同时完成指令适配与偏好对齐。
 
 #### 🎯 核心要点
 
-- **单阶段训练**：无需先 SFT 再偏好优化，SFT 损失和偏好损失同时出现。
-- **无参考模型**：不需要冻结一份 $\pi_{ref}$ 参与 log-ratio 计算。
-- **odds ratio**：用回答概率的 odds 比值衡量优胜回答相对落败回答的优势。
-- **简化资源**：减少训练阶段、显存和推理式参考打分开销。
-- **风险点**：参考模型约束消失后，更依赖 SFT 项和超参数控制语言质量。
+- 提出 reference-free、monolithic 的偏好优化流程：一个训练阶段内同时做 SFT 和偏好对齐。
+- 观察到普通 SFT 只提升 chosen response 的概率并不够，rejected response 的概率也可能随领域适配一起升高。
+- 使用 odds \(P/(1-P)\) 而非单纯概率比来衡量 chosen 相对 rejected 的可生成性优势。
+- 总损失为 \(\mathcal{L}_\text{SFT}+\lambda\mathcal{L}_\text{OR}\)，其中 \(\mathcal{L}_\text{OR}\) 用 log-sigmoid 最大化 chosen/rejected odds ratio。
+- 不需要 DPO 中的 \(\pi_\text{ref}\)，因此训练时少一个冻结模型，也减少每个 batch 的 forward 计算和显存占用。
+- 在 HH-RLHF、Binarized UltraFeedback、AlpacaEval、MT-Bench 等实验中验证了 125M 到 7B 规模模型上的有效性。
 
 #### 🔬 深入细节
 
-##### 示意图/图源
+![ORPO 与 RLHF/DPO/SFT 流程对比](https://ar5iv.labs.arxiv.org/html/2403.07691/assets/x2.png)
+*图：ORPO 将偏好惩罚直接附加到 SFT 目标中，不再需要先 SFT 再执行 DPO/RLHF，也不需要保留单独的参考模型。*
 
-![ORPO alignment comparison](https://ar5iv.labs.arxiv.org/html/2403.07691/assets/x2.png)
+ORPO 的动机来自一个很实际的现象：SFT 在 chosen responses 上训练时，会把模型推向目标对话/指令域，但这种领域适配也可能提升 rejected responses 的概率。也就是说，模型学会了“像这个数据集一样说话”，却未必学会了“避开坏回答风格”。传统 DPO 通常在 SFT 后再做一轮偏好优化，并依赖冻结的 SFT 模型作为参考；ORPO 试图把这两步合并。
 
-图源：ORPO 论文 HTML 图 2，对比 RLHF、DPO 等多阶段方法与 ORPO 单阶段对齐。
+首先定义序列级平均 log-likelihood：
 
-##### 算法/流程伪代码
+$$
+\log P_\theta(y|x)=\frac{1}{m}\sum_{t=1}^{m}\log P_\theta(y_t|x,y_{<t}).
+$$
+
+ORPO 不直接比较 \(P_\theta(y_w|x)\) 和 \(P_\theta(y_l|x)\)，而是比较 odds：
+
+$$
+\mathbf{odds}_\theta(y|x)=\frac{P_\theta(y|x)}{1-P_\theta(y|x)}.
+$$
+
+chosen over rejected 的 odds ratio 为：
+
+$$
+\mathbf{OR}_\theta(y_w,y_l)=
+\frac{\mathbf{odds}_\theta(y_w|x)}{\mathbf{odds}_\theta(y_l|x)}.
+$$
+
+ORPO 的总目标由两部分组成：
+
+$$
+\mathcal{L}_\text{ORPO}=\mathbb{E}_{(x,y_w,y_l)}
+\left[\mathcal{L}_\text{SFT}+\lambda\mathcal{L}_\text{OR}\right],
+$$
+
+其中 \(\mathcal{L}_\text{SFT}\) 是对 chosen response 的常规 causal LM NLL，\(\mathcal{L}_\text{OR}\) 是偏好项：
+
+$$
+\mathcal{L}_\text{OR}=-\log\sigma\left(
+\log\frac{\mathbf{odds}_\theta(y_w|x)}{\mathbf{odds}_\theta(y_l|x)}
+\right).
+$$
+
+这个形式可以理解为：如果 chosen 的 odds 已经明显大于 rejected，log-sigmoid 损失接近 0；如果 rejected 的 odds 不低，损失会变大，迫使模型降低 rejected 或提高 chosen。与 DPO 的最大区别是公式里没有 \(\pi_\text{ref}\)。ORPO 不需要衡量“当前策略相对参考策略变化多少”，而是在当前模型自身的 SFT 过程中直接塑造 chosen/rejected 的 odds 对比。
 
 ```python
-pi_theta = base_or_instruction_model
+# ORPO single-stage objective
+for batch in preference_loader:
+    x, y_w, y_l = batch.prompt, batch.chosen, batch.rejected
 
-for x, y_win, y_lose in preference_dataset:
-    nll = -log_prob(pi_theta, x, y_win)
+    logp_w = model.avg_logprob(x, y_w)
+    logp_l = model.avg_logprob(x, y_l)
 
-    p_w = exp(sequence_log_prob(pi_theta, x, y_win))
-    p_l = exp(sequence_log_prob(pi_theta, x, y_lose))
+    p_w = exp(logp_w)
+    p_l = exp(logp_l)
     odds_w = p_w / (1.0 - p_w + eps)
     odds_l = p_l / (1.0 - p_l + eps)
 
-    log_odds_ratio = log(odds_w / odds_l)
-    preference_loss = -log_sigmoid(log_odds_ratio)
-    loss = nll + lambda_orpo * preference_loss
+    sft_loss = -mean(logp_w)
+    odds_ratio_logit = log(odds_w + eps) - log(odds_l + eps)
+    or_loss = -mean(logsigmoid(odds_ratio_logit))
 
-    update(pi_theta, loss)
+    loss = sft_loss + lambda_or * or_loss
+    loss.backward()
+    optimizer.step()
 ```
 
-##### 方法解读
+论文还通过梯度解释 odds ratio 为什么适合放进 SFT。偏好项的梯度可写为两个因子的乘积：
 
-**1. ORPO 从 SFT 的副作用出发。** 标准 SFT 只提高示范回答概率，却没有显式压低不合适回答。ORPO 认为对齐训练应同时做两件事：让 chosen response 更可能，让 rejected response 相对更不可能。
+$$
+\nabla_\theta\mathcal{L}_\text{OR}=\delta(d)\cdot h(d),
+$$
 
-**2. odds ratio 是无参考的相对比较。** ORPO 使用
-$$
-odds_\theta(y|x)=\frac{P_\theta(y|x)}{1-P_\theta(y|x)}
-$$
-并最大化 chosen 相对 rejected 的 odds ratio。它不像 DPO 那样比较当前模型和参考模型，而是直接比较当前模型对两个回答的偏好。
+其中
 
-**3. 单阶段目标降低工程复杂度。** ORPO 的目标可概括为
 $$
-\mathcal{L}_{ORPO}=\mathcal{L}_{SFT}+\lambda\mathcal{L}_{OR}.
+\delta(d)=\left[1+\frac{\mathbf{odds}_\theta(y_w|x)}{\mathbf{odds}_\theta(y_l|x)}\right]^{-1},
 $$
-这让训练流程更接近普通微调，不需要额外奖励模型、PPO rollout 或参考模型前向。
 
-**4. 约束来源从参考模型转向 chosen NLL。** 没有 $\pi_{ref}$ 后，模型不再被显式拉回初始策略。ORPO 依赖 chosen response 的 NLL 维持语言能力和任务分布，因此数据质量、学习率和 $\lambda$ 对结果影响更明显。
+$$
+h(d)=\frac{\nabla_\theta\log P_\theta(y_w|x)}{1-P_\theta(y_w|x)}-
+\frac{\nabla_\theta\log P_\theta(y_l|x)}{1-P_\theta(y_l|x)}.
+$$
+
+当 chosen odds 已经高于 rejected odds 时，\(\delta(d)\) 变小，偏好项自动减弱；当模型仍然更容易生成 rejected response 时，\(\delta(d)\) 较大，更新会更强。\(h(d)\) 则把 chosen 和 rejected 的梯度做对比，分母 \(1-P\) 会在相应概率较高时改变梯度尺度，使模型在适配 chosen 风格的同时抑制 rejected 风格。
+
+> 💡 关键：ORPO 不是“只在 SFT 上加一个负样本交叉熵”。它用 odds ratio 建模 chosen 与 rejected 的相对可生成性，因此偏好信号始终是成对、动态的，而不是预先定义一个固定的禁用 token 集合。
+
+为什么不用简单 probability ratio？论文认为，在 SFT 与偏好对齐合并时，模型还处于领域适配阶段，过强地压低 rejected 可能导致退化。odds ratio 对 \(P\) 接近 0 或 1 的区域更敏感，配合 log-sigmoid 后能提供更合适的区分尺度：既让 chosen 相对 rejected 获得优势，又避免像单独的概率比目标那样需要通过过度压制 rejected 来制造 margin。
+
+从系统角度看，ORPO 的优势很直接。DPO 通常需要当前模型和参考模型都对 \(y_w,y_l\) 做 forward；RLHF 还要奖励模型与 PPO rollout。ORPO 只有一个正在训练的模型，对 chosen/rejected 各算一次 likelihood 即可。论文因此称其为 monolithic preference optimization：同一个目标同时承担领域适配、偏好区分和拒绝风格惩罚。
+
+ORPO 的局限也来自这个设计。由于没有参考模型，\(\lambda\) 控制的偏好项强度非常关键：太小会退化成普通 SFT，太大则可能牺牲语言建模和多样性。它适合已有明确 chosen/rejected pair 的训练集，并且特别适合希望降低显存、减少训练阶段、快速做指令模型对齐的场景。
 
 #### 🧪 练习题
 
 ```yaml
-question: ORPO 为什么被称为单阶段偏好优化？
+question: "ORPO 相比 DPO 的核心工程简化是什么？"
 options:
-  - A. 它在同一个目标中同时包含 chosen 的 NLL 和偏好 odds-ratio 项
-  - B. 它只训练奖励模型，不训练语言模型
-  - C. 它每次只允许一个 token 参与反向传播
-  - D. 它必须先完成 PPO 才能做 SFT
-answer: A
-explain: ORPO 将监督微调和偏好拉开合并在一个训练阶段中完成。
+  - "ORPO 删除了 chosen response，只训练 rejected response"
+  - "ORPO 不需要冻结参考模型，而是在 SFT 损失中直接加入 odds ratio 偏好项"
+  - "ORPO 必须先训练 reward model，再做 PPO"
+  - "ORPO 只适用于无标签预训练数据"
+answer: 1
+explain: "ORPO 的目标是 L_SFT + λL_OR，偏好项只依赖当前模型对 chosen/rejected 的 odds ratio，不需要 DPO 中的参考模型。"
 ```
-

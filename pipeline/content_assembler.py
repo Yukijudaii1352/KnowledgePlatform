@@ -743,18 +743,25 @@ def render_document(
     return "\n".join(parts).strip() + "\n", stats
 
 
+def is_topic_yaml(path: Path) -> bool:
+    """Return True for real topic YAML files, excluding sidecar source configs."""
+    if path.suffix not in {".yaml", ".yml"}:
+        return False
+    return not path.stem.endswith((".sources", ".survey"))
+
+
 def discover_yaml_sources(targets: list[str] | None = None) -> list[Path]:
     if targets:
         result = []
         for item in targets:
             path = Path(item).resolve()
-            if path.is_file() and path.suffix in {".yaml", ".yml"}:
+            if path.is_file() and is_topic_yaml(path):
                 result.append(path)
             elif path.is_dir():
-                result.extend(sorted(path.rglob("*.yaml")))
-                result.extend(sorted(path.rglob("*.yml")))
+                result.extend(p for p in sorted(path.rglob("*.yaml")) if is_topic_yaml(p))
+                result.extend(p for p in sorted(path.rglob("*.yml")) if is_topic_yaml(p))
         return sorted(dict.fromkeys(result))
-    return sorted(CONTENT_DIR.rglob("*.yaml"))
+    return [p for p in sorted(CONTENT_DIR.rglob("*.yaml")) if is_topic_yaml(p)]
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -1,9 +1,9 @@
-### tdpo: Token级直接偏好优化 (TDPO)
+### TDPO：Token级直接偏好优化 (TDPO)
 
 ```yaml
 id: tdpo
 full_name: Token级直接偏好优化 (TDPO)
-year: "2024"
+year: 2024
 paper_url: https://proceedings.mlr.press/v235/zeng24b.html
 motivation: Token级前向KL约束保持多样性
 parent: dpo
@@ -11,72 +11,94 @@ category: token_multimodal
 ```
 
 #### 📝 一句话总结
-
-TDPO 将 DPO 的句子级偏好优化细化到 token 级 MDP 视角，用 token 级前向 KL 约束保持生成多样性并缓解 DPO 的过度集中。
+TDPO 将 DPO 的整段回答级偏好优化改写为 token 级序列决策问题，在每个生成状态上引入 forward KL 约束，从而更细粒度地平衡偏好对齐与生成多样性。
 
 #### 🎯 核心要点
-
-- **来源说明**：manifest 中的 PMLR 链接指向相邻论文页；可读 TDPO 来源为 arXiv:2404.11999 和 PMLR v235/zeng24c。
-- **token 级视角**：把生成过程视为逐 token 决策，而不是只在完整回答上比较总分。
-- **前向 KL**：显式关注 $\mathrm{KL}(\pi_{ref}\|\pi_\theta)$，避免模型丢失参考分布中仍有价值的多样回答。
-- **DPO 兼容**：仍使用偏好对训练，不需要单独奖励模型或在线 PPO。
-- **目标效果**：在提高偏好胜率的同时，降低输出多样性坍缩风险。
+- Token 级建模：把 response 生成视为自回归 MDP，每个 prefix state 下选择下一个 token action。
+- Sequential KL 诊断：论文观察到 DPO 对 preferred 与 dispreferred responses 的 KL 增长不均衡，尤其 dispreferred 子集 KL 漂移更快。
+- Forward KL 约束：在 token 分布层面约束 `D_KL(πref || πθ)`，缓解 reverse KL 的 mode-seeking 与多样性下降。
+- Bradley-Terry token 化：通过 advantage/regret 形式把句级 BT 偏好概率连接到 token 级奖励差。
+- 两个实用版本：`TDPO_1` 直接加入 token-level KL 差异项，`TDPO_2` 用系数 `α` 与 stop-gradient 改善梯度稳定性。
+- 实验覆盖 IMDb 控制情感生成、Anthropic-HH 单轮对话、MT-Bench，并与 DPO、PPO-style RLHF 等基线比较。
 
 #### 🔬 深入细节
+> ⚠️ 元信息说明：任务 JSON 中的 `paper_url` 指向 PMLR `zeng24b`，该页实际是 tnGPS；TDPO 的官方 PMLR 条目为 `https://proceedings.mlr.press/v235/zeng24c.html`，arXiv 版本为 `https://arxiv.org/abs/2404.11999`。以下精读按 TDPO 官方论文正文整理，同时保留上方 YAML 与任务元信息一致。
 
-##### 示意图/图源
-
-![TDPO token-level KL analysis](https://ar5iv.labs.arxiv.org/html/2404.11999/assets/x1.png)
-
-图源：TDPO 论文 HTML 图 1 的一个面板；完整公开来源见 https://arxiv.org/abs/2404.11999 和 https://proceedings.mlr.press/v235/zeng24c.html。
-
-##### 算法/流程伪代码
+![TDPO 损失函数对比](https://arxiv.org/html/2404.11999v2/x4.png)
+*图：论文 Figure 2 对比 DPO、TDPO_1 与 TDPO_2 的损失结构。TDPO 在 DPO 的 log-ratio 偏好项之外，加入 preferred/dispreferred response 的 token 级 sequential KL 差异控制项。*
 
 ```python
-pi_ref = frozen_reference_model
-pi_theta = copy(pi_ref)
+# TDPO 训练伪代码，概括论文 Algorithm 1 与 Appendix B 实现
+for batch in preference_loader:
+    x, y_w, y_l = batch.prompt, batch.chosen, batch.rejected
 
-for x, y_win, y_lose in preference_dataset:
-    chosen_terms = []
-    rejected_terms = []
+    # policy 与 reference 都在 token 级输出词表分布
+    pi_logits_w, pi_logits_l = policy(x, y_w), policy(x, y_l)
+    ref_logits_w, ref_logits_l = reference(x, y_w), reference(x, y_l)
 
-    for t in tokens(y_win):
-        prefix = y_win[:t]
-        log_ratio = logp(pi_theta, y_win[t], x, prefix) - logp(pi_ref, y_win[t], x, prefix)
-        fwd_kl = kl(pi_ref.next_token_dist(x, prefix), pi_theta.next_token_dist(x, prefix))
-        chosen_terms.append(log_ratio - alpha * fwd_kl)
+    # token log-ratio reward: log πθ(token|prefix) - log πref(token|prefix)
+    delta_w = gather_logp(pi_logits_w, y_w) - gather_logp(ref_logits_w, y_w)
+    delta_l = gather_logp(pi_logits_l, y_l) - gather_logp(ref_logits_l, y_l)
 
-    for t in tokens(y_lose):
-        prefix = y_lose[:t]
-        log_ratio = logp(pi_theta, y_lose[t], x, prefix) - logp(pi_ref, y_lose[t], x, prefix)
-        fwd_kl = kl(pi_ref.next_token_dist(x, prefix), pi_theta.next_token_dist(x, prefix))
-        rejected_terms.append(log_ratio - alpha * fwd_kl)
+    # sequential forward KL: sum_t KL(πref(.|s_t) || πθ(.|s_t))
+    seqkl_w = forward_kl(ref_logits_w, pi_logits_w).sum(dim=-1)
+    seqkl_l = forward_kl(ref_logits_l, pi_logits_l).sum(dim=-1)
 
-    margin = beta * (sum(chosen_terms) - sum(rejected_terms))
-    loss = -log_sigmoid(margin)
-    update(pi_theta, loss)
+    if method == "TDPO_1":
+        value = delta_w.sum(dim=-1) - delta_l.sum(dim=-1) - (seqkl_l - seqkl_w)
+    else:  # TDPO_2
+        value = delta_w.sum(dim=-1) - delta_l.sum(dim=-1) - alpha * (seqkl_l - stop_grad(seqkl_w))
+
+    loss = -log_sigmoid(beta * value).mean()
+    optimizer.step(loss)
 ```
 
-##### 方法解读
+DPO 把一个完整回答 `y` 当作 bandit arm，对偏好对 `(x, y_w, y_l)` 直接比较整段 log probability ratio。TDPO 的问题意识是：LLM 并不是一次性吐出整段回答，而是在状态 `s_t=(x,y_{<t})` 下逐 token 采样。因此，只在 response 级别控制 KL 会掩盖 token 轨迹中的漂移。论文 Figure 1 先做了一个诊断：DPO 训练过程中 preferred 与 dispreferred response 的 sequential KL 增长不同步，dispreferred 子集往往偏离 reference 更快，这意味着 DPO 虽然在总体偏好上变好，却可能以牺牲局部 token 分布稳定性和多样性为代价。
 
-**1. TDPO 认为句子级 KL 过粗。** DPO 在完整回答层面计算 log-ratio 差，无法直接约束每个生成前缀下的 next-token 分布。若某些 token 位置被过度推向单一高偏好模式，模型可能在局部丢失多样性。
+TDPO 先定义 token 级 log-ratio 奖励：
 
-**2. token 级 MDP 更贴近自回归生成。** LLM 生成天然是状态 $s_t=(x,y_{<t})$、动作 $a_t=y_t$ 的序列决策。TDPO 将偏好优化拆到这些状态动作上，使每个 token 的策略变化都能被衡量和约束。
+$$
+\delta_t(y)=\log \pi_\theta(y_t\mid x,y_{<t})-\log \pi_{\mathrm{ref}}(y_t\mid x,y_{<t})
+$$
 
-**3. 前向 KL 针对 mode covering。** 反向 KL 更偏向 mode seeking，容易集中到少数高概率模式；前向 KL 更强调覆盖参考分布支持集。TDPO 在 token 级引入前向 KL，目的是让模型在偏好优化后仍保留合理备选表达。
+这仍然继承了 DPO 的“当前策略相对参考策略”思想，但粒度从整段回答拆到每个 token。然后定义 sequential forward KL：
 
-**4. 与 DPO 的关系是细化而非推翻。** TDPO 仍然从偏好对出发，保留直接优化的工程优点。它改变的是正则粒度：从完整序列层面的隐式约束，变成每个前缀状态下的分布约束，因此更适合分析和控制生成多样性。
+$$
+\mathrm{SeqKL}(y)=\sum_{t=1}^{|y|}D_{\mathrm{KL}}\left(\pi_{\mathrm{ref}}(\cdot\mid x,y_{<t})\,\Vert\,\pi_\theta(\cdot\mid x,y_{<t})\right)
+$$
+
+forward KL 的方向很关键。DPO/RLHF 中常见的 reverse KL 更偏 mode-seeking，容易让模型集中到少数高奖励模式；forward KL 更强调覆盖 reference 分布中有概率的 token，因此对保持语言多样性更友好。TDPO 并不是简单把 KL 加到整段 loss，而是比较 preferred 与 dispreferred 两条轨迹上的 KL 差异，让优化知道哪条轨迹偏离得更多。
+
+`TDPO_1` 可以写成如下形式：
+
+$$
+\mathcal{L}_{\mathrm{TDPO_1}}=-\mathbb{E}\left[\log\sigma\left(\beta\left(
+\sum_t\delta_t(y_w)-\sum_t\delta_t(y_l)-\left(\mathrm{SeqKL}(y_l)-\mathrm{SeqKL}(y_w)\right)
+\right)\right)\right]
+$$
+
+这个式子比 DPO 多了 `SeqKL(y_l)-SeqKL(y_w)`。如果 rejected response 的 KL 漂移过大，损失会惩罚这种“通过把坏回答推得很远来获得偏好差”的行为；如果 chosen response 需要适度偏离 reference 才能更好，则该项不会一刀切地禁止偏离。换句话说，TDPO 追求的不是让所有 token 都贴近 reference，而是让偏好改进与 KL 使用效率匹配。
+
+`TDPO_2` 进一步引入系数 `α` 和 stop-gradient：
+
+$$
+\mathcal{L}_{\mathrm{TDPO_2}}=-\mathbb{E}\left[\log\sigma\left(\beta\left(
+\sum_t\delta_t(y_w)-\sum_t\delta_t(y_l)-\alpha\left(\mathrm{SeqKL}(y_l)-\mathrm{sg}(\mathrm{SeqKL}(y_w))\right)
+\right)\right)\right]
+$$
+
+这里 `sg` 表示 stop-gradient。直觉上，preferred response 的 KL 项可以作为比较基准，但不让其梯度直接牵引模型；训练主要通过 rejected response 的 KL 约束来抑制不必要漂移。`α` 则提供一个连续旋钮：较大时更保守、更多样，较小时更接近 DPO 的偏好拉开方式。论文实验表明 TDPO 能在 reward/KL frontier 上取得比 DPO 更好的折中。
+
+> 💡 关键：TDPO 的创新不只是“按 token 求和”，而是把偏好优化中的奖励差、BT 概率和 KL 正则都放回自回归 token 轨迹里，让模型知道每个 prefix state 下的分布偏移是否值得。
 
 #### 🧪 练习题
-
 ```yaml
-question: TDPO 相比 DPO 主要把什么从句子级细化到了 token 级？
+question: "TDPO 为什么要引入 token 级 forward KL？"
 options:
-  - A. KL 约束和偏好优化中的策略变化分析
-  - B. tokenizer 的词表构造
-  - C. 人工标注员的身份信息
-  - D. 基础模型的预训练语料清洗
-answer: A
-explain: TDPO 将自回归生成看作逐 token 决策过程，并在 token 级施加前向 KL 约束。
+  - "为了完全移除 reference model"
+  - "为了只训练回答的最后一个 token"
+  - "为了在每个生成前缀上约束策略偏移，改善偏好对齐与多样性的折中"
+  - "为了把偏好数据改成多标签分类数据"
+answer: 2
+explain: "TDPO 认为整段级 KL 难以控制自回归生成轨迹中的局部漂移，因此用 token 级 forward KL 约束每个 prefix 下的分布变化。"
 ```
-

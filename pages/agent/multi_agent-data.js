@@ -1,5 +1,5 @@
 /**
- * multi_agent-data.js — 由 pipeline/build.py 于 2026-06-15 18:08:18 自动生成。
+ * multi_agent-data.js — 由 pipeline/build.py 于 2026-06-16 17:00:05 自动生成。
  * 源文件：content/agent/multi_agent.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "multi_agent",
     "topic_name": "多智能体协作",
     "page_title": "多智能体协作技术演进",
-    "page_subtitle": "2026-06-15 版",
+    "page_subtitle": "2026-06-16 版",
     "page_desc": "围绕角色分工、群体决策、通信拓扑与开放协议，梳理LLM多智能体从角色扮演、SOP工作流、辩论投票，到A2A互操作、层级决策与协同训练的演进主线。",
     "page_icon": "🤝",
     "hero_pills": [

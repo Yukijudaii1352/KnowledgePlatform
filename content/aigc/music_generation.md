@@ -357,15 +357,104 @@ motivation: 扩张因果卷积实现原始音频波形的自回归生成
 ```
 
 #### 📝 一句话总结
-WaveNet 的核心目标是：扩张因果卷积实现原始音频波形的自回归生成。
+WaveNet 提出用扩张因果卷积直接建模原始音频波形的自回归分布，解决了传统声码器和帧级声学模型难以生成自然细粒度波形的问题。它把音频生成从手工声学特征推进到端到端概率建模，并成为后续神经声码器、神经音频合成和音乐生成模型的基础。
 
 #### 🎯 核心要点
-- 核心动机：扩张因果卷积实现原始音频波形的自回归生成
-- 代表机构：Google DeepMind
+- **原始波形自回归建模**：将音频序列分解为 \(p(x)=\prod_t p(x_t \mid x_{<t})\)，逐采样点预测下一个量化值
+- **因果卷积**：卷积输出只依赖历史采样点，保证生成时不会看到未来信息
+- **扩张卷积栈**：用 dilation \(1,2,4,\ldots\) 指数级扩大感受野，在不显著增加层数和计算量的情况下覆盖更长上下文
+- **门控激活单元**：使用 \(\tanh\) 与 \(\sigma\) 的逐元素乘积提升非线性建模能力
+- **残差与跳连结构**：深层卷积堆叠通过 residual/skip connections 稳定训练，并汇聚多尺度特征输出 softmax 分布
+- **条件生成机制**：支持全局条件（说话人 ID）和局部条件（语言学特征、\(F_0\) 等），可用于 TTS 和音乐条件生成
+- **离散输出分布**：早期版本使用 \(\mu\)-law companding 将 16-bit 波形压缩为 8-bit 256 类分类任务
 
 #### 🔬 深入细节
-扩张因果卷积实现原始音频波形的自回归生成
+##### 核心示意图/框架图
 
+![WaveNet 残差块与整体架构](https://ar5iv.labs.arxiv.org/html/1609.03499/assets/x3.png)
+*图：WaveNet 的残差块和整体网络。输入波形经过多层扩张因果卷积，每层产生 residual 和 skip 输出，最后用 softmax 预测下一个音频采样值。*
+
+![WaveNet 扩张因果卷积](https://ar5iv.labs.arxiv.org/html/1609.03499/assets/x2.png)
+*图：dilation 逐层增大后，模型能用较少层数覆盖长时间感受野。*
+
+##### 算法伪代码
+
+```python
+# WaveNet 训练与采样核心流程
+
+def wavenet_block(x, cond=None, dilation=1):
+    h = causal_dilated_conv(x, dilation=dilation)
+    if cond is not None:
+        h = h + project_condition(cond)
+    z = tanh(filter_proj(h)) * sigmoid(gate_proj(h))
+    residual = x + residual_proj(z)
+    skip = skip_proj(z)
+    return residual, skip
+
+# 训练: teacher forcing
+for waveform in dataset:
+    x = mu_law_quantize(waveform)      # 256-way categorical target
+    h = embed(x[:, :-1])
+    skips = []
+    for dilation in [1, 2, 4, ..., 512] * num_stacks:
+        h, s = wavenet_block(h, cond=local_or_global_cond, dilation=dilation)
+        skips.append(s)
+    logits = output_network(sum(skips))
+    loss = cross_entropy(logits, x[:, 1:])
+    optimizer.step(loss)
+
+# 推理: 逐采样点自回归生成
+samples = [initial_value]
+for t in range(num_audio_samples):
+    logits = model(samples, cond)
+    next_x = sample_from_softmax(logits[-1])
+    samples.append(next_x)
+audio = inverse_mu_law(samples)
+```
+
+##### 方法解读
+
+WaveNet 的出发点是把音频当作极高频率的一维序列来建模。传统 TTS 或乐音合成常先预测声学特征，再依赖声码器合成波形；这种管线会引入手工特征和声码器假设。WaveNet 直接对原始波形给出概率分布：
+
+$$
+p(\mathbf{x})=\prod_{t=1}^{T}p(x_t \mid x_1,\ldots,x_{t-1})
+$$
+
+这意味着模型每一步只需要回答一个明确问题：在已有历史波形下，下一个采样点应该是什么。由于音频采样率可达 16 kHz 或更高，普通 RNN 难以稳定覆盖长上下文，普通因果卷积又需要极深网络才能获得足够感受野。WaveNet 的核心设计是扩张因果卷积：第 \(l\) 层以间隔 \(d_l\) 读取过去值，常用 \(d_l=2^l\)。这样感受野随层数指数增长，但输出长度保持不变。
+
+每个残差块包含门控激活：
+
+$$
+\mathbf{z}=\tanh(W_{f,k} * \mathbf{x}) \odot \sigma(W_{g,k} * \mathbf{x})
+$$
+
+其中 \(W_{f,k}\) 和 \(W_{g,k}\) 是第 \(k\) 层的滤波器和门控卷积核，\(\odot\) 是逐元素乘法。直觉上，\(\tanh\) 分支生成候选声学特征，\(\sigma\) 分支决定哪些信息通过。残差连接让深层网络保留输入路径，skip connection 把不同感受野的特征汇总到输出层，既利于优化，也让模型同时利用短期相位细节和较长的音素/乐句上下文。
+
+条件 WaveNet 在卷积层中加入条件项：
+
+$$
+\mathbf{z}=\tanh(W_f * \mathbf{x}+V_f^\top \mathbf{h}) \odot \sigma(W_g * \mathbf{x}+V_g^\top \mathbf{h})
+$$
+
+全局条件 \(\mathbf{h}\) 可以是说话人或乐器标签，局部条件可以是与时间对齐的语言学特征、音高或声学控制序列。局部条件通常先上采样到音频采样级别，再注入每个残差块。这个机制解释了为什么 WaveNet 不只是一个无条件波形模型，也能成为 TTS、音色迁移和神经声码器的组件。
+
+> 💡 关键：WaveNet 的突破不在于单个卷积层，而在于“严格因果 + 指数扩张 + 残差/跳连 + 离散概率输出”这一整套可训练的波形密度模型。
+
+##### 与传统方法的区别
+
+与 HMM、拼接式 TTS 或基于参数声码器的系统相比，WaveNet 不显式假设源-滤波器模型，也不把相位、频谱包络等拆成手工模块。与普通 RNN 音频模型相比，扩张卷积可以并行训练，teacher forcing 下整段序列的损失可一次计算；代价是推理仍然逐采样点串行，早期 WaveNet 采样速度非常慢。后续 Parallel WaveNet、WaveRNN、WaveGlow 等工作基本都在继承其波形建模质量的同时解决推理效率问题。
+
+#### 🧪 练习题
+```yaml
+question: "WaveNet 使用扩张因果卷积的主要目的是什么？"
+options:
+  - "把连续音频直接压缩成 MIDI token"
+  - "在不访问未来采样点的前提下，用较少层数获得更大的历史感受野"
+  - "让模型一次性并行生成所有音频采样点"
+  - "替代 softmax，使输出变成连续高斯分布"
+answer: 1
+explain: "扩张因果卷积保持自回归因果性，同时通过逐层增大的 dilation 指数级扩大感受野，使模型能利用更长的历史音频上下文。"
+```
 
 ### SampleRNN
 
@@ -384,16 +473,85 @@ motivation: 分层RNN结构优化长序列音频生成的内存效率
 ```
 
 #### 📝 一句话总结
-SampleRNN 的核心目标是：分层RNN结构优化长序列音频生成的内存效率。
+SampleRNN 提出用多层时间尺度的 RNN/MLP 层级结构逐采样点生成音频，解决单一自回归网络难以同时捕获长程结构和局部波形细节的问题。相比 WaveNet 的深层卷积堆叠，它把长序列依赖交给低频帧级 RNN，把采样级细节交给轻量 MLP。
 
 #### 🎯 核心要点
-- 核心动机：分层RNN结构优化长序列音频生成的内存效率
-- 演化来源：继承或改进自 wavenet
-- 代表机构：MILA
+- **层级自回归音频模型**：高层 frame-level RNN 以较粗时间粒度建模长期上下文，底层 sample-level MLP 预测单个采样点
+- **多时间尺度设计**：每个 tier 以不同帧长 \(FS^{(k)}\) 和上采样比例运行，逐层向更细粒度条件传递
+- **逐样本概率分解**：仍然建模 \(p(x)=\prod_i p(x_i\mid x_{<i})\)，但上下文摘要由层级 RNN 提供
+- **truncated BPTT 友好**：高层 RNN 在帧级运行，序列长度显著缩短，降低内存压力
+- **离散或连续输出均可**：论文实验包含 8-bit softmax 与 mixture density 等变体，主结果常用离散量化
+- **无条件端到端生成**：在语音、音乐和拟声数据集上不依赖外部声学特征，直接学习波形分布
 
 #### 🔬 深入细节
-分层RNN结构优化长序列音频生成的内存效率
+##### 核心示意图/框架图
 
+![SampleRNN 三层级结构](https://ar5iv.labs.arxiv.org/html/1612.07837/assets/x1.png)
+*图：SampleRNN 在时间步 \(i\) 的展开结构。高层 RNN 处理较长帧，输出经过上采样传给下一层；最低层 sample-level MLP 结合历史采样点预测当前采样。*
+
+##### 算法伪代码
+
+```python
+# SampleRNN K-tier 训练流程（简化）
+
+def frame_rnn_tier(prev_frames, upper_condition, hidden):
+    # prev_frames: 当前 tier 的历史帧片段
+    inp = linear(prev_frames) + upper_condition
+    h = rnn(inp, hidden)
+    return upsample(linear(h)), h
+
+for audio in dataset:
+    x = quantize(audio)
+    # 按不同 frame size 切块，例如 8、2、1 samples
+    conditions = None
+    hidden_states = init_hidden_states()
+    for k in reversed(range(1, K)):  # coarse -> fine
+        frame_seq = make_frames(x, frame_size=FS[k])
+        conditions, hidden_states[k] = frame_rnn_tier(
+            frame_seq.previous_frames(),
+            conditions,
+            hidden_states[k],
+        )
+
+    # sample-level MLP: 使用最近若干真实采样点和上层条件预测下一个采样
+    logits = sample_mlp(previous_samples=x[:, :-1], condition=conditions)
+    loss = cross_entropy(logits, x[:, 1:])
+    optimizer.step(loss)
+
+# 采样时所有 tier 自回归推进，每产生一个采样点就更新底层上下文
+```
+
+##### 方法解读
+
+SampleRNN 和 WaveNet 共享同一个概率目标：逐采样点预测原始波形。但它对“长上下文从哪里来”给出了不同答案。WaveNet 通过扩张卷积把感受野做大；SampleRNN 则显式划分时间尺度，让高层 RNN 每一步处理一段帧，低层模型只负责局部样本级细节。形式上，最低层仍输出：
+
+$$
+p(x_i \mid x_{<i})=\mathrm{Softmax}(f_\theta(x_{i-q},\ldots,x_{i-1}, c_i))
+$$
+
+其中 \(c_i\) 是上层 frame-level RNN 下传的条件向量，\(q\) 是 sample-level MLP 可见的短期历史长度。这样，局部相位和波形连续性由 MLP 直接看最近样本来保证，节奏、音色变化和音素级结构由更粗粒度 RNN 的隐藏状态提供。
+
+每个 frame-level tier 的输入不是单个采样点，而是长度为 \(FS^{(k)}\) 的非重叠帧。高层 tier 的输出通过线性层和重复/上采样对齐到下层时间分辨率。若有三层结构，最上层可能每 8 个采样更新一次，中间层每 2 个采样更新一次，底层每个采样更新一次。这个设计减少了高层 RNN 的有效序列长度，使它能在有限显存下处理更长音频片段。
+
+> 💡 关键：SampleRNN 的“层级”不是多层神经网络的普通堆叠，而是不同时间分辨率上的自回归分解；越高层越慢、越抽象，越低层越快、越贴近波形。
+
+训练时通常使用 teacher forcing：模型看到真实历史采样点，预测下一个量化值。推理时则必须逐样本生成，并把生成值反馈给下一步。由于高层 RNN 的状态可以缓存，采样时不需要每一步重算完整历史；但生成本质仍是串行的。论文还强调 truncated BPTT 的重要性，因为直接对数万采样点做完整反向传播代价过高。
+
+##### 与 WaveNet 的关系
+
+WaveNet 依赖无循环的扩张卷积，训练并行性更好；SampleRNN 依赖 RNN 隐状态，天然适合摘要长程历史。WaveNet 的每个采样点经过相同卷积栈，感受野由 dilation 决定；SampleRNN 的感受野由高层帧状态和 BPTT 截断共同决定。两者都能生成原始音频，但 SampleRNN 的工程重点是内存效率和层级时间抽象，这对早期长音频生成尤其有价值。
+
+#### 🧪 练习题
+```yaml
+question: "SampleRNN 中 frame-level RNN tier 的核心作用是什么？"
+options:
+  - "直接输出最终音频文件的频谱图"
+  - "在较粗时间尺度上汇总历史上下文，并把条件传给更细粒度层"
+  - "把 MIDI 事件转换为乐谱"
+  - "替代所有自回归采样，使音频一次生成完成"
+answer: 1
+explain: "SampleRNN 通过 frame-level RNN 在低频时间尺度建模长期依赖，再将其输出上采样为 sample-level MLP 的条件，从而兼顾长程结构和局部波形细节。"
+```
 
 ### NSynth
 
@@ -412,16 +570,90 @@ motivation: WaveNet自编码器学习乐器音色的潜在表示
 ```
 
 #### 📝 一句话总结
-NSynth 的核心目标是：WaveNet自编码器学习乐器音色的潜在表示。
+NSynth 提出 WaveNet-style autoencoder 来学习乐器单音的时间分布式潜在表示，并发布大规模 NSynth 数据集，解决神经音频合成缺少高质量、可控音色数据和可插值表示的问题。它把 WaveNet 从纯自回归生成扩展为可编码、可重建、可音色插值的神经乐器模型。
 
 #### 🎯 核心要点
-- 核心动机：WaveNet自编码器学习乐器音色的潜在表示
-- 演化来源：继承或改进自 wavenet
-- 代表机构：Google Magenta
+- **WaveNet 自编码器**：编码器从原始音频提取时间分布式 embedding，解码器用 WaveNet 在 embedding 条件下自回归重建波形
+- **时间分布式潜变量**：不是单一全局向量，而是约每 32 ms 一个 embedding，能捕获音色包络和动态变化
+- **音高条件控制**：可将 MIDI pitch one-hot 与 embedding 拼接，使音色表示更少纠缠音高
+- **NSynth 数据集**：305,979 个 4 秒单音样本，覆盖 1,006 种乐器、多个音高、力度、音源和乐器家族标注
+- **音色插值能力**：在 embedding 空间线性插值可生成介于两种乐器之间的新音色
+- **对比频谱自编码器**：论文比较 WaveNet AE 与基于频谱的 baseline，强调原始波形解码对听感和相位细节的优势
 
 #### 🔬 深入细节
-WaveNet自编码器学习乐器音色的潜在表示
+##### 核心示意图/框架图
 
+![NSynth WaveNet 自编码器结构](https://ar5iv.labs.arxiv.org/html/1704.01279/assets/NSynth_figs_Diagrams.png)
+*图：论文比较的两个模型。右侧 WaveNet autoencoder 用非因果卷积编码器提取时间 embedding，再用条件 WaveNet 解码原始波形。*
+
+##### 算法伪代码
+
+```python
+# NSynth WaveNet Autoencoder 核心流程
+
+for note_audio, pitch in nsynth_dataset:
+    # 1. 编码：从原始波形提取较低帧率的时间 embedding
+    z = encoder_noncausal_conv(note_audio)      # [T_embed, D]
+    z = average_pool(z, stride=512)             # 约 32 ms 一个 embedding
+
+    # 2. 可选音高条件：帮助 disentangle timbre and pitch
+    if use_pitch_condition:
+        z = concat(z, one_hot(pitch).repeat(T_embed))
+
+    # 3. 上采样到采样级，作为每层 WaveNet decoder 的局部条件
+    cond = nearest_neighbor_upsample(z, target_len=len(note_audio))
+
+    # 4. 自回归重建
+    logits = wavenet_decoder(previous_samples=note_audio[:-1], condition=cond)
+    loss = cross_entropy(logits, mu_law_quantize(note_audio[1:]))
+    optimizer.step(loss)
+
+# 音色插值
+z_mix = (1 - alpha) * encoder(audio_a) + alpha * encoder(audio_b)
+new_timbre = wavenet_decode(z_mix, pitch=target_pitch)
+```
+
+##### 方法解读
+
+NSynth 的问题意识来自早期神经音频模型的两难：WaveNet/SampleRNN 能生成高质量局部波形，但无条件模型缺少可控的全局表示；传统频谱自编码器有潜变量，但频谱重建和 Griffin-Lim 等相位恢复容易损失音质。NSynth 结合两者：用编码器学习潜在表示，用 WaveNet 解码器负责高保真波形生成。
+
+模型的生成分布可写为：
+
+$$
+p(\mathbf{x}\mid \mathbf{z}, y)=\prod_{t=1}^{T}p(x_t \mid x_{<t}, \mathrm{upsample}(\mathbf{z}), y)
+$$
+
+其中 \(\mathbf{z}\) 是编码器输出的时间 embedding，\(y\) 是可选 pitch 条件。这里的 \(\mathbf{z}\) 不像图像自编码器那样压成一个向量，而是保留时间轴。对乐器音色而言，起音、稳定段、衰减段都很关键；时间分布式 embedding 能作为“驱动函数”控制 WaveNet 解码器的动态行为。
+
+NSynth 数据集同样是核心贡献。每个样本是 4 秒单音：前 3 秒持续发声，最后 1 秒自然衰减；采样率 16 kHz；标注包含 pitch、velocity、instrument family、source 等。这个设计将复杂音乐生成问题拆成可控的单音合成任务，让模型能学习“同一个音高下不同乐器音色如何变化”和“同一乐器跨音高/力度如何变化”。
+
+> 💡 关键：NSynth 的 embedding 空间不是为了压缩音频本身，而是为了得到可插值、可控制的音色表示；WaveNet decoder 则负责把该表示还原为听感自然的波形。
+
+##### 训练与推理流程
+
+训练阶段，编码器和 WaveNet 解码器端到端优化重建交叉熵。编码器使用非因果卷积，因此可以同时查看音符的前后上下文；解码器保持因果性，只在生成第 \(t\) 个采样时看历史采样和上采样后的 embedding。推理时可以输入真实乐器音频得到 \(\mathbf{z}\)，也可以在两个 embedding 间插值：
+
+$$
+\mathbf{z}_{mix}=(1-\alpha)\mathbf{z}_A+\alpha\mathbf{z}_B
+$$
+
+再指定目标 pitch 让 decoder 合成新音色。论文展示这种线性插值不是简单音频叠加，而是在潜空间中形成更平滑的中间音色。
+
+##### 与传统方法的区别
+
+频谱自编码器通常在幅度谱上建模，重建时必须处理相位；WaveNet AE 直接输出波形概率，能保留更自然的瞬态和谐波结构。无条件 WaveNet 学到的是音频分布，不提供显式音色控制；NSynth 增加编码器后，模型具备分析-合成能力。对音乐生成后续工作而言，NSynth 的重要性不只是一个模型，而是证明了“可学习音频表示 + 神经解码器”可以成为乐器合成和音色迁移的基础范式。
+
+#### 🧪 练习题
+```yaml
+question: "NSynth 的 WaveNet autoencoder 为什么使用时间分布式 embedding，而不是单个全局向量？"
+options:
+  - "因为 WaveNet 只能接收二维图片输入"
+  - "为了保留起音、稳定段和衰减等随时间变化的音色动态"
+  - "为了避免使用任何自回归解码器"
+  - "为了把所有乐器强制映射到同一个音高"
+answer: 1
+explain: "乐器单音的音色随时间变化明显，时间分布式 embedding 能为 WaveNet 解码器提供局部动态条件，比单个全局向量更适合控制包络和细节。"
+```
 
 ### GANSynth
 
@@ -440,16 +672,101 @@ motivation: 基于GAN的频谱生成实现高质量乐器音色合成
 ```
 
 #### 📝 一句话总结
-GANSynth 的核心目标是：基于GAN的频谱生成实现高质量乐器音色合成。
+GANSynth 提出在高频率分辨率的时频表示上用 GAN 生成乐器单音，并用 log magnitude 加 instantaneous frequency 表示相位变化，解决波形 GAN 难以保持局部相干和 WaveNet 采样过慢的问题。它证明了对抗生成模型也能合成高质量、可潜空间插值的神经乐器音色。
 
 #### 🎯 核心要点
-- 核心动机：基于GAN的频谱生成实现高质量乐器音色合成
-- 演化来源：继承或改进自 nsynth
-- 代表机构：Google Magenta
+- **频谱域 GAN 合成**：不直接生成波形，而是生成 STFT/CQT 风格的频谱表示，再逆变换回音频
+- **instantaneous frequency 表示**：用相位差/瞬时频率代替原始 wrapped phase，缓解帧边界相位不连续问题
+- **高频率分辨率**：提高频率轴分辨率，使谐波结构和音高更容易被卷积 GAN 捕获
+- **Progressive GAN 架构**：借鉴图像生成中的渐进式训练，从低分辨率到高分辨率稳定生成
+- **音高条件生成**：输入 latent vector \(z\) 与 pitch one-hot，生成指定音高的 NSynth 乐器音色
+- **快速并行采样**：相比 WaveNet 逐采样点自回归，GANSynth 一次前向即可生成完整音频片段
+- **全局潜空间控制**：latent vector 控制整体音色，可进行球面插值生成连续音色变化
 
 #### 🔬 深入细节
-基于GAN的频谱生成实现高质量乐器音色合成
+##### 核心示意图/框架图
 
+![GANSynth 相位与瞬时频率动机图](https://ar5iv.labs.arxiv.org/html/1902.08710/assets/GANSynth_figs_motivation.png)
+*图：帧级音频表示中的相位对齐问题。论文用 instantaneous frequency 表示相邻帧相位变化，使生成模型更容易保持局部波形相干。*
+
+##### 算法伪代码
+
+```python
+# GANSynth 训练与合成核心流程
+
+def audio_to_if_spectrogram(x):
+    stft = STFT(x, window_size=2048, hop=256)
+    log_mag = log(abs(stft) + eps)
+    phase = angle(stft)
+    inst_freq = unwrap(phase[:, 1:] - phase[:, :-1]) / hop
+    return concat(log_mag, inst_freq)
+
+for audio, pitch in nsynth_dataset:
+    real_spec = audio_to_if_spectrogram(audio)
+    z = sample_normal([batch, latent_dim])
+    y = one_hot(pitch)
+
+    fake_spec = generator(z, y)
+    d_loss = discriminator_loss(D(real_spec, y), D(fake_spec.detach(), y))
+    update(D, d_loss)
+
+    g_loss = generator_loss(D(fake_spec, y))
+    update(G, g_loss)
+
+# 推理
+z = sample_or_interpolate_latent()
+spec = generator(z, one_hot(target_pitch))
+audio = inverse_spectrogram(log_mag=spec.mag, inst_freq=spec.ifreq)
+```
+
+##### 方法解读
+
+GANSynth 关注的是自回归音频模型的效率瓶颈。WaveNet 能产生高质量波形，但每个采样点都要依赖前一步，合成一段 4 秒音频需要大量串行步骤。GAN 可以并行生成整段样本，但直接在波形上做卷积生成很难保持周期信号的相位连续性，常出现噪声、拍频和不稳定谐波。
+
+论文的关键观察是：乐器单音的感知质量高度依赖局部周期结构，而 STFT 帧与真实基频周期通常不对齐。如果模型直接生成 wrapped phase，相位在 \(2\pi\) 边界处跳变，学习目标不连续。GANSynth 改用 instantaneous frequency：
+
+$$
+\omega_{t} = \mathrm{unwrap}(\phi_t-\phi_{t-1})
+$$
+
+其中 \(\phi_t\) 是相邻频谱帧的相位。这个量描述相位随时间的变化率，比绝对相位更平滑，也更贴近“某个频率分量正在以什么速度振荡”。生成后再从瞬时频率积分恢复相位，与 log magnitude 一起逆 STFT 得到波形。
+
+GANSynth 的生成器输入包括随机潜变量 \(z\) 和 pitch 条件 \(y\)。\(z\) 负责音色、演奏动态、谐波质感等全局属性，\(y\) 约束目标音高。训练目标是标准对抗学习：
+
+$$
+\min_G \max_D\ \mathbb{E}_{x\sim p_{data}}\log D(x,y)+
+\mathbb{E}_{z\sim p(z)}\log(1-D(G(z,y),y))
+$$
+
+实际架构采用 progressive growing，使生成器和判别器先学习低分辨率结构，再逐步加入高分辨率细节。由于 NSynth 的样本是固定长度单音，这种图像式生成范式比长篇音乐更容易成立。
+
+> 💡 关键：GANSynth 不是简单把谱图当图片生成；它的核心是选择对音频相位更友好的表示，使卷积 GAN 可以学到局部相干的周期结构。
+
+##### 训练与推理流程
+
+训练时先把真实音频转换为 log magnitude + instantaneous frequency 的双通道表示。判别器判断频谱表示是否来自真实数据，生成器学习欺骗判别器。推理时不需要自回归循环，只需采样一个 \(z\)，指定 pitch，一次生成完整频谱，再通过相位重建和逆变换得到音频。潜变量还支持球面插值：
+
+$$
+z(\alpha)=\mathrm{slerp}(z_1,z_2,\alpha)
+$$
+
+这样合成的音色会从一种乐器质感平滑过渡到另一种，而不是像波形线性混合那样只做响度交叉淡入淡出。
+
+##### 与 NSynth/WaveNet 的区别
+
+NSynth 的 WaveNet autoencoder 有显式编码器，适合分析真实音频并插值重建，但解码仍慢；GANSynth 没有编码器，直接从全局 latent vector 采样，速度快很多。WaveNet 在波形域直接建模，局部细节强但全局潜空间不自然；GANSynth 在频谱域建模，牺牲部分端到端纯波形原则，换取并行生成和可控潜空间。它更适合单音/音色合成，不直接解决长时曲式结构生成问题。
+
+#### 🧪 练习题
+```yaml
+question: "GANSynth 为什么用 instantaneous frequency 而不是直接生成原始相位？"
+options:
+  - "因为 instantaneous frequency 可以完全跳过逆 STFT"
+  - "因为相位在 2π 边界有不连续跳变，而相邻帧相位差更平滑、更利于保持局部周期相干"
+  - "因为它能把所有音频变成 MIDI 符号"
+  - "因为 GAN 不能处理幅度谱"
+answer: 1
+explain: "原始 wrapped phase 对学习器不友好，边界跳变会破坏连续性；instantaneous frequency 表示相位变化率，更平滑，便于生成相干谐波结构。"
+```
 
 ### Music Transformer
 

@@ -1,265 +1,119 @@
-### Mamba: Linear-Time Sequence Modeling with Selective State Spaces
+### Mamba: 曼巴 (Mamba)
 
 ```yaml
 id: mamba
 name: Mamba
-full_name: 曼巴(Mamba)
-year: 2023
-org: CMU / Princeton
+full_name: 曼巴 (Mamba)
+year: '2023'
+org: CMU/Princeton
+paper_url: https://arxiv.org/abs/2312.00752
 category: linear_attn
-parent: S4
-paper: https://arxiv.org/abs/2312.00752
-code: https://github.com/state-spaces/mamba
-motivation: 通过选择性状态空间模型实现线性时间序列建模，解决Transformer二次复杂度瓶颈
+parent: —
+motivation: 选择性状态空间模型线性时间扩展
 ```
 
----
+#### 📝 一句话总结
 
-## 📝 一句话总结
+Mamba 提出选择性状态空间模型 S6，让 \(\Delta\)、\(B\)、\(C\) 等 SSM 参数依赖输入 token，并用硬件感知 selective scan 高效执行，从而在保持线性时间和常数状态推理的同时获得接近 Transformer 的内容选择能力。
 
-Mamba 提出**选择性状态空间模型（Selective SSM / S6）**，通过让 SSM 参数（$\Delta$, $B$, $C$）依赖于输入实现内容感知的选择性过滤，配合硬件感知的并行扫描算法，在保持线性时间复杂度的同时达到甚至超越同规模 Transformer 的性能。
+#### 🎯 核心要点
 
----
+- 将传统 LTI SSM 改造成 selective SSM：\(B_t=s_B(x_t)\)、\(C_t=s_C(x_t)\)、\(\Delta_t=s_\Delta(x_t)\)，使模型能按内容写入、遗忘和读出状态
+- 选择性破坏卷积等价性，论文改用 recurrent scan，并通过 kernel fusion、parallel scan、recomputation 避免物化巨大状态
+- Mamba block 将 H3/SSM 分支与现代 gated MLP 思路合并，使用 input projection、depthwise Conv1D、SiLU、selective scan、gate 和 output projection
+- 训练和长序列处理复杂度随序列长度线性增长；自回归推理每层只维护固定 SSM state，不需要 KV cache
+- 选择性机制解决 S4 等固定动态模型在 selective copying、induction heads 等离散内容推理任务上的短板
+- 论文报告 Mamba 在语言、DNA、音频等多模态序列任务上表现强，Mamba-3B 可匹配约两倍规模 Transformer，并具备更高生成吞吐
 
-## 🎯 核心要点
+#### 🔬 深入细节
 
-| 维度 | 内容 |
-|------|------|
-| **解决的问题** | 先前 SSM（如 S4）是线性时不变（LTI）系统，无法进行内容感知推理；Transformer 虽有效但训练/推理复杂度为 $O(L^2)$ |
-| **核心思想** | **选择性机制**：让 SSM 的关键参数成为输入的函数，使模型能根据内容动态决定"记住什么、忘记什么" |
-| **关键创新** | ① 输入依赖的 $\Delta$, $B$, $C$ 参数化 ② 硬件感知并行扫描算法（kernel fusion + recomputation） ③ 简化的端到端架构（无需 Attention + MLP 交替） |
-| **复杂度** | 训练：$O(BLD N)$（线性于序列长度）；推理：$O(1)$ 每步（常数时间，类似 RNN） |
-| **效果** | Mamba-3B 在语言建模上匹配 Transformer-6B（2倍参数量）；推理吞吐量达 Transformer 的 5 倍；首个在 scaling law 上匹配强 Transformer++ 的非注意力模型 |
+##### 论文图与架构
 
----
+![Mamba selective SSM 总览](https://arxiv.org/html/2312.00752v2/x1.png)
+![Mamba block 架构](https://arxiv.org/html/2312.00752v2/x3.png)
+*图源：Mamba arXiv HTML Figure 1 和 Figure 3。第一张展示从固定 LTI SSM 到选择性 SSM 后需要硬件感知 scan；第二张展示 Mamba block 如何把 SSM 与 gated MLP 式结构合并。*
 
-## 🔬 深入细节
-
-### 架构示意图
-
-> **Mamba Block 架构**（对应论文 Figure 3）
->
-> 将 H3 block（SSM 架构基础）与 MLP block 合并为单一 Mamba block，同质堆叠：
-
-```
-Input x
-  │
-  ├──→ Linear Projection (expand D→ED) ──→ Conv1D ──→ SiLU ──→ Selective SSM ──→ ⊗
-  │                                                                                │
-  └──→ Linear Projection (expand D→ED) ──→ SiLU ─────────────────────────────────→ ⊗
-                                                                                   │
-                                                                          Linear Projection (ED→D)
-                                                                                   │
-                                                                              + Residual
-                                                                                   │
-                                                                              LayerNorm
-                                                                                   ↓
-                                                                               Output y
-```
-
-> **选择性 SSM 核心机制**（对应论文 Figure 1）
->
-> S4（LTI）→ S6（Selective）的关键变化：参数从固定变为输入依赖
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  S4 (LTI):  A, B, C, Δ 均为固定参数                          │
-│  → 可用卷积加速，但无法做内容感知推理                            │
-│                                                               │
-│  S6 (Selective):  B(x), C(x), Δ(x) 依赖输入                  │
-│  → 必须用递推(scan)计算，但能选择性记忆/遗忘                     │
-│  → 通过硬件感知算法(SRAM scan + kernel fusion)保持高效          │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### 伪代码
-
-**Algorithm 1: S4（传统 LTI SSM）**
+##### 核心伪代码
 
 ```python
-# Input:  x: (B, L, D)
-# Output: y: (B, L, D)
+# Mamba selective SSM layer (S6), simplified
+def mamba_block(x, state=None):
+    # x: [batch, length, d_model]
+    u, gate = linear_in(x).chunk(2, dim=-1)
+    u = silu(depthwise_conv1d(u))
 
-A = Parameter(shape=(D, N))        # 结构化 N×N 矩阵
-B = Parameter(shape=(D, N))        # 固定参数
-C = Parameter(shape=(D, N))        # 固定参数
-Delta = softplus(Parameter(D))     # 固定步长
+    # 输入依赖参数：每个 token 都生成自己的 Delta、B、C
+    delta = softplus(delta_bias + linear_delta(u))
+    B = linear_B(u)
+    C = linear_C(u)
+    A = negative_diagonal_parameter()  # shared across positions
 
-A_bar, B_bar = discretize(Delta, A, B)  # 离散化
-y = SSM(A_bar, B_bar, C)(x)             # 时不变：可用卷积或递推
-return y
+    # 离散化；实际实现不会把完整 [B,L,D,N] 状态写回 HBM
+    A_bar = exp(delta[..., None] * A)
+    B_bar = delta[..., None] * B[..., None, :]
+
+    y, new_state = selective_scan(A_bar, B_bar, C, u, state)
+    y = y * silu(gate)
+    return linear_out(y), new_state
+
+
+def selective_scan(A_bar, B_bar, C, u, state):
+    h = zeros_like_state() if state is None else state
+    outputs = []
+    for t in range(u.length):  # 真实 kernel 用 parallel prefix scan
+        h = A_bar[:, t] * h + B_bar[:, t] * u[:, t, :, None]
+        y_t = (C[:, t, None, :] * h).sum(dim=-1)
+        outputs.append(y_t)
+    return stack(outputs, dim=1), h
 ```
 
-**Algorithm 2: S6（选择性 SSM = Mamba 核心）**
+##### 机制拆解
 
-```python
-# Input:  x: (B, L, D)
-# Output: y: (B, L, D)
+Mamba 建立在结构化状态空间模型上。连续形式的 SSM 可写为
 
-A = Parameter(shape=(D, N))              # 结构化 N×N 矩阵（仍为固定参数）
-B = Linear_N(x)                          # (B,L,D) → (B,L,N)  输入依赖！
-C = Linear_N(x)                          # (B,L,D) → (B,L,N)  输入依赖！
-Delta = softplus(Parameter + Linear_R(x)) # (B,L,D)  输入依赖！
+$$
+h'(t)=Ah(t)+Bx(t),\qquad y(t)=Ch(t).
+$$
 
-# 离散化（逐时间步不同）
-A_bar = exp(einsum('bld,dn->bldn', Delta, A))   # (B,L,D,N)
-B_bar = einsum('bld,bln->bldn', Delta, B)       # (B,L,D,N)
+离散化后得到序列递推：
 
-# 选择性扫描（并行 scan，非卷积）
-h = zeros(B, D, N)
-for t in range(L):  # 实际用并行 prefix scan
-    h = A_bar[:, t] * h + B_bar[:, t] * x[:, t, :, None]
-    y[:, t] = einsum('bdn,bn->bd', h, C[:, t])
+$$
+h_t=\bar A h_{t-1}+\bar B x_t,\qquad y_t=C h_t,
+$$
 
-return y
+其中 \(\bar A=\exp(\Delta A)\)，\(\bar B\) 由 \(\Delta,A,B\) 的离散化规则得到。S4 等模型为了高效通常是 Linear Time-Invariant (LTI)：\(A,B,C,\Delta\) 对所有时间步固定。LTI 带来卷积等价性，训练时能把整段序列变成卷积并行计算，但代价是动态不看输入内容。
+
+论文指出，固定动态对文本这类离散、高信息密度序列不够。Selective Copying 任务需要模型只记住彩色/关键 token，忽略填充 token；Induction Heads 任务需要根据上下文触发关联回忆。固定卷积核只能按位置距离传播信息，无法基于当前 token 决定 “写入还是跳过”。Mamba 的关键改动是让部分 SSM 参数变成输入函数：
+
+$$
+B_t=s_B(x_t),\qquad C_t=s_C(x_t),\qquad \Delta_t=\operatorname{softplus}(s_\Delta(x_t)).
+$$
+
+直觉上，\(B_t\) 控制当前 token 写入状态的方式，\(C_t\) 控制从状态读出哪些信息，\(\Delta_t\) 控制状态更新步长。较大的 \(\Delta_t\) 会让 \(\bar A_t=\exp(\Delta_t A)\) 更强地衰减历史，效果接近重置并关注当前输入；较小的 \(\Delta_t\) 则让状态更接近保持，效果类似跳过当前输入。这相当于把 RNN 的门控直觉放入连续时间 SSM 框架。
+
+选择性带来一个直接工程问题：参数随时间变化后，模型不再是 LTI，不能像 S4 那样预先构造卷积核。朴素递推又会串行且需要保存形如 \([B,L,D,N]\) 的中间状态。Mamba 的 selective scan 使用三个技巧解决：kernel fusion 把参数离散化、递推和读出合并在一个 GPU kernel 中；parallel scan 利用仿射递推的结合律并行化前缀计算；recomputation 在反向传播时重算中间状态而不是全部存储。这样大状态主要停留在 SRAM/寄存器层级，HBM 只读写输入输出级别张量，思想上接近 FlashAttention 的 IO-aware 设计。
+
+Mamba block 也做了架构简化。传统 Transformer block 交替使用 attention 和 MLP，早期 SSM 架构也常把 SSM block 与 MLP block 分开。Mamba 将输入投影成主分支和门控分支，主分支经过短卷积提供局部混合，再进入 selective SSM，最后与 SiLU gate 相乘并输出投影。用公式概括：
+
+$$
+u=\operatorname{SiLU}(\operatorname{Conv1D}(XW_u)),\quad
+z=\operatorname{SiLU}(XW_z),\quad
+Y=W_o\left(\operatorname{S6}(u)\odot z\right).
+$$
+
+这种设计保留了 gated MLP 的非线性和通道扩展，同时把序列混合交给 S6；因此 Mamba 可以同质堆叠 block，而不需要显式 attention 层或独立 MLP 层。
+
+与 Transformer 相比，Mamba 不保存 KV cache，推理状态大小由层数、通道数和 SSM state size 决定，与已生成长度无关；训练成本也避免了 \(O(L^2)\) attention 矩阵。与 RetNet/RWKV 等递推架构相比，Mamba 的选择性参数直接作用在 SSM 的写入、读出和步长上，因而更强调内容感知状态压缩。它的风险也来自同一点：所有历史必须被压缩进有限状态，模型必须学会何时丢弃信息；论文的贡献在于用选择性和硬件实现把这个压缩过程做得足够强且足够快。
+
+#### 🧪 练习题
+
+```yaml
+question: "Mamba 中选择性 SSM 相比传统 S4/LTI SSM 的关键变化是什么？"
+options:
+  - "让 Delta、B、C 等参数依赖输入 token，从而按内容控制状态更新"
+  - "把所有参数固定为常数以便使用全局卷积"
+  - "在每层加入标准 softmax attention"
+  - "删除递推状态，只保留 FFN"
+answer: 0
+explain: "Mamba 的 S6 通过输入依赖的参数实现选择性写入、遗忘和读出；这破坏卷积等价性，但配合 selective scan 仍保持高效。"
 ```
-
-**Algorithm 3: 硬件感知实现**
-
-```python
-# 关键优化：避免在 HBM 中物化 (B,L,D,N) 大小的中间状态
-# 1. Kernel Fusion: 离散化 + scan 在 SRAM 中一次完成
-# 2. Parallel Scan: O(L) work, O(log L) span
-# 3. Recomputation: 反向传播时重算中间状态而非存储
-
-def selective_scan_fwd(x, Delta, A, B, C):
-    # 在 GPU SRAM 中：
-    #   - 从 HBM 加载 (B,L,D) 的输入
-    #   - 在 SRAM 中计算离散化 + scan
-    #   - 只写回 (B,L,D) 的输出到 HBM
-    #   - 不物化 (B,L,D,N) 的完整状态
-    pass
-
-def selective_scan_bwd(x, Delta, A, B, C, grad_y):
-    # 重新计算前向中间状态（recomputation）
-    # 避免存储 O(BLDN) 的激活值
-    pass
-```
-
-### 方法详解
-
-#### 1. 背景：连续状态空间模型
-
-Mamba 建立在**结构化状态空间模型（Structured SSM）**的基础上。SSM 将输入序列 $x(t) \in \mathbb{R}$ 通过隐状态 $h(t) \in \mathbb{R}^N$ 映射到输出 $y(t) \in \mathbb{R}$：
-
-**连续形式：**
-
-$$h'(t) = Ah(t) + Bx(t)$$
-
-$$y(t) = Ch(t)$$
-
-其中 $A \in \mathbb{R}^{N \times N}$，$B \in \mathbb{R}^{N \times 1}$，$C \in \mathbb{R}^{1 \times N}$。
-
-**离散化（ZOH）：** 通过步长 $\Delta$ 将连续系统离散化：
-
-$$\bar{A} = \exp(\Delta A)$$
-
-$$\bar{B} = (\Delta A)^{-1}(\exp(\Delta A) - I) \cdot \Delta B$$
-
-离散递推形式：
-
-$$h_t = \bar{A} h_{t-1} + \bar{B} x_t$$
-
-$$y_t = C h_t$$
-
-#### 2. 核心创新：选择性机制
-
-**问题：** S4 等 LTI 模型的 $A$, $B$, $C$, $\Delta$ 均为固定参数，对所有输入 token 施加相同的动态变换。这导致：
-- 无法根据内容决定记住/遗忘（如 Selective Copying 任务）
-- 无法根据上下文产生不同输出（如 Induction Heads 任务）
-
-**解决方案：** 让关键参数成为输入 $x_t$ 的函数：
-
-$$s_B(x) = \text{Linear}_N(x), \quad B_t \in \mathbb{R}^{B \times L \times N}$$
-
-$$s_C(x) = \text{Linear}_N(x), \quad C_t \in \mathbb{R}^{B \times L \times N}$$
-
-$$s_\Delta(x) = \text{Broadcast}_D(\text{Linear}_R(x)), \quad \Delta_t \in \mathbb{R}^{B \times L \times D}$$
-
-**$\Delta$ 的直觉解释：**
-- **大 $\Delta$** → $\bar{A} \to 0$：重置隐状态，聚焦当前输入（"选择"当前 token）
-- **小 $\Delta$** → $\bar{A} \to I$：保持隐状态，忽略当前输入（"跳过"当前 token）
-- 这本质上是 RNN 门控机制的连续推广（类比 LSTM/GRU 的遗忘门）
-
-**$B$ 和 $C$ 的直觉解释：**
-- 选择性 $B$：控制输入 $x_t$ 是否写入隐状态 $h_t$（输入门）
-- 选择性 $C$：控制隐状态 $h_t$ 是否读出到输出 $y_t$（输出门）
-
-**为什么 $A$ 不需要选择性？** 因为 $A$ 通过 $\bar{A} = \exp(\Delta A)$ 与 $\Delta$ 交互，$\Delta$ 的选择性已经隐含了 $\bar{A}$ 的选择性。
-
-#### 3. 硬件感知并行算法
-
-选择性 SSM 是时变系统，无法展开为全局卷积。朴素递推是 $O(BLDN)$ 且串行。Mamba 通过三个技术实现高效计算：
-
-| 技术 | 作用 |
-|------|------|
-| **Kernel Fusion** | 将离散化、scan、乘法融合为单个 CUDA kernel，避免 HBM 读写 |
-| **Parallel Scan** | 利用 scan 的结合律，$O(\log L)$ 深度并行化递推 |
-| **Recomputation** | 反向传播时重算中间状态，将激活内存从 $O(BLDN)$ 降至 $O(BLD)$ |
-
-核心思想：**状态 $h \in \mathbb{R}^{B \times L \times D \times N}$ 只在 GPU SRAM 中存在，不写回 HBM**。这类似 FlashAttention 的 IO 感知设计。
-
-#### 4. 简化架构设计
-
-Mamba 将 H3 的"SSM block + MLP block"交替结构简化为单一同质 block：
-
-- **扩展因子** $E = 2$：输入维度 $D$ 扩展到 $ED$
-- **参数量**：每个 block 约 $3ED^2$（两个输入投影 $2ED^2$ + 一个输出投影 $ED^2$）
-- **两个 Mamba block ≈ 一个 Transformer block**（$2 \times 6D^2 = 12D^2$，匹配 MHA + MLP）
-- 使用 SiLU/Swish 激活（对应 SwiGLU 变体）
-- 可选 LayerNorm（受 RetNet 启发）
-
-#### 5. 与 Transformer 的关键对比
-
-| 特性 | Transformer | Mamba |
-|------|-------------|-------|
-| 训练复杂度 | $O(L^2 D)$ | $O(LDN)$，线性 |
-| 推理复杂度 | $O(L)$ per token (KV cache) | $O(1)$ per token |
-| 推理内存 | $O(L)$ KV cache | $O(DN)$ 固定状态 |
-| 内容感知 | ✅ Attention 天然内容感知 | ✅ 选择性参数实现 |
-| 长序列 | 受限于 $O(L^2)$ | 线性扩展，百万级序列 |
-| 推理吞吐 | 基准 | **5× 吞吐提升** |
-
-#### 6. 关键实验结果
-
-**语言建模（Pile 数据集）：**
-- Mamba 是首个在 scaling law 上匹配 Transformer++（PaLM/LLaMA 配方）的非注意力模型
-- Mamba-3B 的零样本下游任务表现匹配同数据训练的 Transformer-6B（Pythia-6B）
-- 在 125M 到 1.3B 参数规模上，Mamba 持续优于 RWKV、RetNet 等其他亚二次模型
-
-**其他领域：**
-- **DNA 序列建模**：在长程基因组分类（Species DNA，序列长度 1024-32768）上显著优于 HyenaDNA
-- **音频建模**：在音频波形生成上优于 SaShiMi（基于 S4 的音频模型）
-
-**效率基准：**
-- 序列长度 2K-1M 上，Mamba 的训练吞吐量随长度线性扩展
-- A100 80GB GPU 上，Mamba-3B 的推理吞吐量约为同规模 Transformer 的 5 倍
-- 支持百万级序列长度的训练和推理
-
----
-
-## 🧪 练习题
-
-### 概念理解
-
-1. **为什么 S4 等 LTI-SSM 无法解决 Selective Copying 任务？** 请从卷积核的角度解释。
-
-2. **Mamba 中 $\Delta$ 参数的选择性机制如何类比 LSTM 的门控？** 当 $\Delta \to \infty$ 和 $\Delta \to 0$ 时，递推行为分别是什么？
-
-3. **为什么 Mamba 不需要让 $A$ 矩阵也具有选择性？** 请从离散化公式 $\bar{A} = \exp(\Delta A)$ 的角度解释。
-
-### 技术深入
-
-4. **推导题：** 给定连续 SSM $h'(t) = Ah(t) + Bx(t)$，使用零阶保持（ZOH）离散化，推导 $\bar{A} = \exp(\Delta A)$ 和 $\bar{B} = (\Delta A)^{-1}(\exp(\Delta A) - I) \cdot \Delta B$ 的过程。
-
-5. **计算题：** 假设 batch size $B=8$，序列长度 $L=4096$，模型维度 $D=2048$，SSM 状态维度 $N=16$。
-   - S6 的中间状态 $h$ 的完整形状是什么？占用多少内存（FP16）？
-   - 为什么 Mamba 的硬件感知算法要避免在 HBM 中物化这个张量？
-
-6. **设计题：** 如果要将 Mamba 的选择性机制应用到传统 LSTM 中，你会如何修改 LSTM 的门控机制？与原始 LSTM 相比有什么优势？
-
-### 扩展思考
-
-7. **Mamba 使用实数值 SSM 而非复数值 SSM，论文认为这与数据模态有关。** 请解释为什么复数值可能对连续信号（音频）有帮助，而对离散信号（文本）不必要。
-
-8. **对比分析：** Mamba 的"选择性"与 Transformer 的"注意力"本质上都是实现内容感知。请分析两者在以下方面的异同：(a) 信息压缩方式 (b) 长程依赖建模 (c) 计算效率。

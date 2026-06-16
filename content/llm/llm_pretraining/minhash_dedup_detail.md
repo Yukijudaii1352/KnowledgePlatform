@@ -1,10 +1,9 @@
-### MinHash LSH
-
+### MinHash LSH：文档级近重复去重
 ```yaml
 id: minhash_dedup
 name: MinHash LSH
 full_name: MinHash局部敏感哈希去重 (MinHash LSH Deduplication)
-year: '2022'
+year: "2022"
 org: 学术界
 paper_url: https://aclanthology.org/2022.acl-long.577/
 category: data
@@ -13,73 +12,88 @@ motivation: 局部敏感哈希实现文档级去重
 ```
 
 #### 📝 一句话总结
-
-MinHash LSH 去重通过把文档转成 n-gram 集合并用短签名近似 Jaccard 相似度，在海量语料中高效发现近重复文档。ACL 2022 去重论文将其实现为 NearDup，用于移除 C4 等数据集中的文档级近重复，从而降低记忆化和训练/验证污染。
+MinHash LSH 去重用 n-gram 集合的 Jaccard 相似度近似来发现大规模语料中的近重复文档，解决网页预训练数据里模板化、轻微改写、字段替换导致的“非精确但高度重复”问题。论文中的 NearDup 方法先用 MinHash 快速召回候选文档对，再用编辑相似度和连通分量聚类决定要删除的重复样本。
 
 #### 🎯 核心要点
-
-- 来源于 ACL 2022 *Deduplicating Training Data Makes Language Models Better*，论文同时提出 NearDup 和 ExactSubstr 两类去重工具
-- MinHash 利用“签名相等概率等于 Jaccard 相似度”的性质，避免对所有文档做二次方两两比较
-- NearDup 先对文档做空格分词，再构造连续 5-gram 集合，并保留哈希最小值组成签名
-- LSH 将相似签名放入同一桶中，只对候选对做精确或近似相似度验证
-- 论文将 edit similarity 大于 0.8 的候选文档视为重复，并按 cluster 删除副本
-- 对 C4 可发现大规模重复簇，包括数千乃至数十万级的近重复文档簇
-- 去重后的模型在无提示生成中复制训练文本的比例显著下降，训练/验证重叠也更可控
+- 目标是文档级近重复去重：处理“主体相同但城市、日期、URL、商品名等字段略有变化”的网页模板文本。
+- 将文档表示为 5-gram 集合，用 Jaccard 相似度衡量两个文档的 n-gram 重叠程度。
+- 使用 MinHash 签名近似 Jaccard，相比全量文档两两比较，将候选召回扩展到 C4、RealNews、Wiki-40B、LM1B 等大规模语料。
+- 论文实现中使用 5-gram、9000 维签名，并按论文记号设置 \(b=20,r=450\) 控制相似文档发生碰撞的概率曲线。
+- 对 MinHash 召回的候选对再计算 edit similarity，只有编辑相似度大于 0.8 才判定为重复。
+- 将重复文档对构成图，边表示一对近重复文档，再用连通分量形成重复簇，每簇只保留一个代表文档。
+- 发现 C4、RealNews 等网页语料中存在大量近重复；C4 中 3.04% 训练样本被 NearDup 标记为近重复，最大近重复簇可达 250,933 个样本。
+- 去重后模型无提示生成中复制训练文本的 token 比例下降约一个数量级，并且在若干验证集上不损害甚至改善困惑度。
 
 #### 🔬 深入细节
-
-![NearDup 在 C4 上发现的近重复簇](https://ar5iv.labs.arxiv.org/html/2107.06499/assets/x1.png)
-*图：论文 Figure 1，NearDup 在 C4 上得到的近重复簇大小分布，显示网页语料存在大量重复文档簇。*
+![NearDup 在 C4 上发现的近重复簇规模分布](https://ar5iv.labs.arxiv.org/html/2107.06499/assets/x1.png)
+*图：NearDup 在 C4 上得到的近重复簇规模分布；绝大多数簇很小，但也存在数千甚至数十万样本的大簇，说明网页模板重复会形成长尾风险。*
 
 ```python
-# MinHash LSH 文档级近重复去重伪代码
-def minhash_lsh_dedup(documents, ngram_size=5, threshold=0.8):
-    signatures = {}
-    for doc_id, text in enumerate(documents):
-        tokens = whitespace_tokenize(text)
-        shingles = set(ngrams(tokens, ngram_size))
-        signatures[doc_id] = minhash_signature(shingles, num_hashes=K)
+# NearDup / MinHash LSH 文档级近重复去重伪代码
+for doc_id, text in corpus:
+    tokens = bpe_tokenize(text)
+    shingles = set(ngrams(tokens, n=5))
+    signature[doc_id] = minhash(shingles, signature_size=9000)
 
-    buckets = defaultdict(list)
-    for doc_id, sig in signatures.items():
-        for band in split_into_lsh_bands(sig):
-            buckets[(band.index, band.hash())].append(doc_id)
+candidate_pairs = set()
+for bucket in lsh_buckets(signature, b=20, r=450):
+    for doc_i, doc_j in all_pairs(bucket):
+        candidate_pairs.add((doc_i, doc_j))
 
-    duplicate_edges = []
-    for candidate_ids in buckets.values():
-        for i, j in candidate_pairs(candidate_ids):
-            if edit_similarity(documents[i], documents[j]) > threshold:
-                duplicate_edges.append((i, j))
+graph = UnionFind()
+for doc_i, doc_j in candidate_pairs:
+    jaccard = exact_jaccard(ngrams(doc_i, 5), ngrams(doc_j, 5))
+    if jaccard < 0.8:
+        continue
+    sim = 1 - edit_distance(tokens(doc_i), tokens(doc_j)) / max(len(doc_i), len(doc_j))
+    if sim > 0.8:
+        graph.union(doc_i, doc_j)
 
-    clusters = union_find(duplicate_edges)
-    return keep_one_document_per_cluster(documents, clusters)
+for cluster in graph.connected_components():
+    keep = choose_representative(cluster, prefer_validation_or_test=True)
+    remove_all_except(cluster, keep)
 ```
 
-**动机与背景：网页数据的重复并不总是完全相同。** Common Crawl 中常见镜像站、模板页面、转载文章、带不同时间戳或广告栏的页面。如果只做精确哈希，许多“几乎一样”的文档不会被识别；如果做全量编辑距离比较，复杂度又是 \(O(n^2)\)，无法处理亿级文档。MinHash LSH 的价值在于用可控误差把候选对数量降到可处理范围。
+MinHash LSH 的动机是，精确哈希只能删除完全相同的段落或文档，却无法捕捉网页语料中更常见的“近重复”：广告页、旅游页、商品页、新闻聚合页往往共享大段模板，只替换地点、日期、价格或标题。论文给出的 C4 例子中，两段航班广告文本结构几乎相同，但出发地、目的地和月份不同；如果只做字符串完全匹配，这类重复会留在训练集中，模型会反复看到同一种模板，从而更容易记忆模板化文本并污染验证集。
 
-**核心机制：用集合相似度近似文档相似度。** 对文档 \(x_i\) 和 \(x_j\)，把它们表示成 5-gram 集合 \(S_i,S_j\)，Jaccard 相似度为：
+形式化地，每个文档 \(x_i\) 被转为 n-gram 集合 \(d_i\)。两个文档的真实相似度可用 Jaccard 指数表示：
 
 $$
-J(S_i,S_j)=\frac{|S_i\cap S_j|}{|S_i\cup S_j|}
+J(d_i,d_j)=\frac{|d_i\cap d_j|}{|d_i\cup d_j|}
 $$
 
-MinHash 的关键性质是：对随机哈希排列，两个集合最小哈希值相同的概率等于它们的 Jaccard 相似度。因此只需保存若干个最小哈希值作为签名，就能用签名相似度估计文档相似度。LSH 再把签名切成 bands，使高相似文档更可能落入同一桶，低相似文档大多不会比较。
+如果对所有文档对都精确计算 \(J\)，复杂度接近 \(O(N^2)\)，在数亿文档规模上不可行。MinHash 的关键性质是：对集合应用随机哈希并取最小哈希值时，两个集合得到相同最小哈希的概率等于它们的 Jaccard 相似度。多个 hash 组成签名后，签名相同/部分相同的概率就能作为 Jaccard 的近似筛选器。
 
-**训练流程中的作用：候选生成和验证分开。** NearDup 并不是只看 MinHash 桶就删除文档，而是把 LSH 作为候选生成器：先快速找可能重复的文档对，再计算 edit similarity 做验证，阈值大于 0.8 才建边。所有重复边形成图，连通分量就是近重复簇；保留一个代表文档，删除其余副本。这样做兼顾召回、精度和工程可扩展性。
+论文的 NearDup 采用 5-gram 与 9000 个 MinHash 值，并给出候选召回概率：
 
-**与 suffix array 去重的区别：文档级近似 vs 子串级精确。** MinHash 适合发现整篇文档高度相似但局部字段不同的情况；suffix array 更适合发现长段文本逐字重复但所在文档整体并不相似的情况。论文发现两者互补：网页语料既有近重复页面，也有长重复段落。MinHash 删除的是整篇文档，通常更干净；suffix array 删除的是重复子串，能保留文档中非重复部分。
+$$
+\Pr(d_i,d_j\mid J(d_i,d_j)=s_{ij})=1-(1-s_{ij}^{b})^{r}
+$$
 
-> 💡 关键：MinHash LSH 的工程意义是把“所有文档两两比较”的不可行问题，转化为“只验证高概率候选对”的可扩展去重问题。
+其中按论文记号 \(b=20,r=450\)。这个函数的作用是形成一条陡峭的 S 型过滤曲线：当 \(s_{ij}\) 接近 0.8 时，文档对很可能进入候选集；当相似度明显低于阈值时，碰撞概率迅速下降。这样可以用局部敏感哈希把“可能重复”的对召回出来，而不是枚举所有文档对。
+
+召回候选后，NearDup 不直接删除，而是再做精确过滤。论文要求候选对的实际 Jaccard 足够高，并计算 token 序列的编辑相似度：
+
+$$
+\operatorname{EditSim}(x_i,x_j)=1-\frac{\operatorname{EditDistance}(x_i,x_j)}{\max(|x_i|,|x_j|)}
+$$
+
+只有当 \(\operatorname{EditSim}>0.8\) 时，这对文档才被连边。这个二阶段设计很重要：MinHash 负责高召回、低成本地缩小搜索空间，edit similarity 负责减少误删，避免仅共享大量常见 n-gram 的不同文档被错误合并。
+
+最后，NearDup 把所有判定重复的文档对构成图，图中的连通分量就是近重复簇。删除策略不是按边逐对删除，而是按簇保留一个代表，其余移除；当重复跨越 train/validation/test 时，论文优先保留测试或验证样本，从训练集中移除重叠内容，以降低评测泄漏。这个策略解决了一个常见陷阱：如果 A 近似 B、B 近似 C，即使 A 和 C 未直接比较成重复，它们也应被视为同一模板族。
+
+实验层面，NearDup 在网页数据上的影响很大：论文报告 C4 有 3.04% 训练样本被标记为近重复，RealNews 达到 13.63%，而人工整理程度更高的 Wiki-40B 只有 0.39%。去重不仅减少数据体积，还显著降低模型生成训练集原文的比例；无提示生成中，原始 C4 训练的 XL 模型有超过 1% token 属于 50-token 训练集拷贝片段，而 NearDup/ExactSubstr 去重模型下降到约十分之一量级。
+
+> 💡 关键：MinHash LSH 去重的价值在于“近似召回 + 精确复核 + 簇级删除”，它不是为了找完全相同文档，而是为了在数亿网页文档中高效发现模板化近重复。
 
 #### 🧪 练习题
-
 ```yaml
-question: "MinHash 在文档去重中的核心用途是什么？"
+question: "NearDup 为什么在 MinHash 候选召回后还要计算 edit similarity？"
 options:
-  - "训练语言模型的 tokenizer"
-  - "近似估计 n-gram 集合的 Jaccard 相似度并生成候选重复文档"
-  - "逐字扫描所有重复子串"
-  - "替代语言识别模型"
+  - "因为 MinHash 只能处理图片，不能处理文本"
+  - "为了在高召回候选中进一步过滤，降低共享常见 n-gram 导致的误删"
+  - "为了把文档转换成 UTF-8 字节并训练 tokenizer"
+  - "为了让所有文档长度完全一致"
 answer: 1
-explain: "MinHash 签名相似度可近似 Jaccard 相似度，配合 LSH 能高效找到可能近重复的文档对。"
+explain: "MinHash 用于快速找到可能相似的文档对，但候选中仍可能有假阳性；edit similarity > 0.8 是更严格的复核条件。"
 ```

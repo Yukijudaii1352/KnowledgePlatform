@@ -1,154 +1,119 @@
-### CinePile：面向长视频理解的问答数据集与基准
+### CinePile：基于音频描述对齐的长视频问答基准
 
 ```yaml
 id: cinepile
 name: CinePile
-full_name: "CinePile: A Long Video Question Answering Dataset and Benchmark"
-year: "2024"
-org: "University of Maryland, Adobe Research"
-paper_url: "https://arxiv.org/abs/2405.08813"
-category: "benchmark"
-parent: "—"
-motivation: "利用音频描述(AD)作为视觉代理标注，结合LLM自动化生成多选问答，构建大规模长视频多模态理解基准"
+full_name: 长视频QA基准 (CinePile)
+year: '2024'
+org: Google
+paper_url: https://arxiv.org/abs/2405.08813
+category: classic
+parent: movieqa
+motivation: 真实长视频音频对齐基准
+topic_id: mm_video
+yaml_path: /mnt/dhwfile/raise/user/wanghaoyu/KnowledgePipeline/content/mm/mm_video.yaml
+output_path: /mnt/dhwfile/raise/user/wanghaoyu/KnowledgePipeline/content/mm/mm_video/cinepile_detail.md
 ```
 
 #### 📝 一句话总结
 
-CinePile 提出了一种基于音频描述（Audio Descriptions）和 LLM 自动化问答生成的可扩展流水线，构建了包含约 30 万训练样本和 5000 测试样本的长视频多模态理解基准，揭示了当前最优视频 LLM（~60%）与人类表现（~73%）之间仍存在显著差距。
+CinePile 构建了一个面向真实长视频理解的多选问答基准，用电影音频描述（Audio Descriptions）作为高质量视觉代理标注，再通过 LLM 模板生成、质量过滤和人工审查得到大规模长视频 QA 数据。
 
 #### 🎯 核心要点
 
-- **大规模数据集**：训练集 298,888 个 MCQ，测试集 4,940 个 MCQ，来自 9,396 个电影片段（平均时长约 160 秒）
-- **音频描述（AD）作为视觉代理标注**：利用为视障人群制作的专业旁白描述替代昂贵的人工视觉标注，天然包含场景、动作、表情等视觉信息
-- **自动化问答生成流水线**：从人工问答数据集中提取 86 个问题模板，再由 GPT-3.5/GPT-4 基于 AD+字幕+元数据自动生成 MCQ
-- **多维度质量过滤**：包括退化问题检测（仅凭选项即可作答）、视觉依赖性评估（去除字幕后能否回答）、难度分级（Gemini Pro 能否答对）
-- **5 大问题类别**：角色与关系动态（CRD）、叙事与情节分析（NPA）、场景与技术分析（STA）、时间推理（TEMP）、主题探索（TH）
-- **全面模型评估**：涵盖 GPT-4o、GPT-4V、Gemini 1.5 Pro、Claude 3 Opus 等商业模型及 mPLUG-Owl、Video-ChatGPT、MovieChat 等开源模型
-- **人类基线**：普通人类 73.21%，论文作者 86.00%；最优模型 GPT-4o 仅 59.65%
+- 数据来自英文电影片段，最终保留 9,396 个视频片段，平均长度约 160 秒
+- 规模为 303,828 个 MCQ，其中训练集 298,887 条、测试集 4,941 条，每个视频约 32 个问题
+- 利用 Audio Descriptions 对齐 YouTube MovieClips 片段，把专为视障人群编写的场景旁白转化为视觉描述代理
+- 用 WhisperX 转录音频，用 WhereIsAI/UAE-Large-V1 句向量和 rolling window 将电影级 AD 定位到片段级 AD
+- 从 MovieQA、TVQA、Perception Test 的约 30,000 个人工问题中抽取模板，最终人工合并为 86 个问题模板
+- 问题类别覆盖 CRD、NPA、STA、TEMP、TH，强调角色关系、叙事、场景技术、时间推理和主题理解
+- 引入退化问题检测、educated guessing 检测、adversarial refinement、vision reliance、hardness 等质量控制指标
+- 模型评测显示 Gemini 1.5 Pro 约 60.12%，普通人类 73.21%，作者 86.00%，长视频多模态理解仍有明显差距
 
 #### 🔬 深入细节
 
-##### 核心框架总览
+![CinePile 自动 QA 生成与过滤流程](https://ar5iv.labs.arxiv.org/html/2405.08813/assets/x3.png)
+*图：CinePile 从场景文本标注和问题模板出发，生成 MCQ 并通过多阶段过滤/修复得到最终数据*
 
-![CinePile 示例与问答展示](https://ar5iv.labs.arxiv.org/html/2405.08813/assets/x1.png)
-*图 1：CinePile 数据集的样例电影片段及对应的多选问答示例，涵盖不同问题类别*
+CinePile 的核心洞察是：很多电影已经存在由专业人员编写的 Audio Descriptions（AD），这些旁白会在对话间隙描述角色动作、表情、空间位置、关键物体和场景变化。传统视频 caption 往往过度描述表面视觉内容，而 AD 更接近“为了理解剧情必须知道的视觉信息”。因此，CinePile 不直接让人工逐帧标注，而是把 AD 当作视觉代理标注，用它生成需要看视频才能回答的问题。
 
-CinePile 的核心贡献在于提出了一套**可扩展的长视频问答数据集构建流水线**，整个流程分为四个阶段：数据收集、问题模板生成、自动化 QA 生成、质量过滤。
+数据对齐分两层。第一层是音频转录：论文用 WhisperX 转录 YouTube 电影片段音频和整部电影的 AD 音轨，以获得更准确的词级时间戳。第二层是片段定位：取 YouTube 片段转录的开头 3 行和结尾 3 行，用 WhereIsAI/UAE-Large-V1 编码，再在整部电影 AD 转录中用 rolling window 搜索最匹配的开始和结束位置。对齐后得到的片段级文本同时包含 visual description 和 dialogue，论文称为 scene-text-annotation。
 
-##### 数据收集与预处理
+由于 AD 转录混合了视觉旁白和角色台词，CinePile 还训练了一个句子分类器来拆分二者。具体做法是在 MAD 数据集标注上 fine-tune BERT-Base，加二分类头区分 visual description 与 dialogue，80/20 划分训练和验证，验证准确率约 96%。这个步骤很关键，因为后续的 vision reliance 与纯视觉/对话依赖分析都需要知道问题是否真的依赖视觉描述。
 
-数据来源于 YouTube 上的电影片段，每个片段平均时长约 160 秒。对于每个视频，系统提取以下多模态信息：
+模板生成不是手写几个固定问题类型，而是从现有人工视频 QA 数据集中抽象出来。CinePile 从 MovieQA、TVQA、Perception Test 收集约 30,000 个问题，先用 GPT-3.5 把人名和实体替换成代词，避免句向量聚类被专名主导；去重后得到 17,575 个唯一问题。随后用 WhereIsAI/UAE-Large-V1 嵌入并 k-means 聚类，MovieQA/TVQA 侧实验 \(k=10,50,100\) 后选 \(k=50\)，Perception Test 因主题较少选 \(k=20\)。每个 cluster 随机抽 10 个问题给 GPT-4 归纳模板，生成约 300 个候选模板，再人工删并合并为 86 个。
 
-1. **音频描述（Audio Descriptions, AD）**：通过 WhisperX 从视频的描述性音轨中转录获得。AD 是专为视障人群制作的旁白，在对话间隙描述场景中的视觉元素（角色外貌、动作、环境等），是天然的高质量视觉标注
-2. **对话字幕**：从主音轨中转录的角色对话
-3. **元数据**：电影名称、年份、类型等信息
-
-> 💡 关键：音频描述（AD）是本文的核心创新点之一。相比传统的人工视觉标注，AD 由专业人员为视障人群制作，天然包含丰富的视觉语义信息，且已大量存在于电影资源中，无需额外标注成本。
-
-##### 问题模板生成流水线
-
-![问题模板生成流水线](https://ar5iv.labs.arxiv.org/html/2405.08813/assets/x2.png)
-*图 2：问题模板生成流水线——从现有人工问答数据集中提取、泛化并聚类生成 86 个可复用模板*
-
-模板生成分三步：
-
-1. **收集种子问题**：从 MovieQA、TVQA、Perception Test 等现有人工标注数据集中收集约 30,000 个问题
-2. **泛化为模板**：使用 GPT-3.5 将具体问题中的实体替换为占位符（如将"Harry 为什么离开？"泛化为"{character} 为什么离开？"），生成通用问题模板
-3. **聚类去重**：使用 Sentence-BERT 对模板进行嵌入，通过余弦相似度聚类（阈值 0.7），最终得到 86 个独特的问题模板
-
-这些模板覆盖 5 大类别：
-- **角色与关系动态（CRD）**：占比最大，关注角色互动与情感变化
-- **叙事与情节分析（NPA）**：围绕核心故事线和情节发展
-- **场景与技术分析（STA）**：需要视觉解读的环境和拍摄技术问题
-- **时间推理（TEMP）**：涉及事件顺序和时间关系
-- **主题探索（TH）**：关于影片深层主题和象征意义
-
-##### 自动化 QA 生成与过滤
-
-![自动化 QA 生成与过滤流程](https://ar5iv.labs.arxiv.org/html/2405.08813/assets/x3.png)
-*图 4：自动化 QA 生成与过滤流程——从多模态输入到最终高质量 MCQ 的完整管线*
+QA 生成阶段先让 Gemini 从 86 个模板中为每个场景选出 20 个相关模板，再随机取 5-6 个模板交给 GPT-4/Gemini 生成多选题。输入包括 scene-text-annotation、模板名、prototype question 和系统提示。论文特别强调两个 prompt 细节：给 prototype question 能减少幻觉并提升干扰项质量；要求模型给 rationale 能提升问题可验证性。最终每个视频大约生成 32 个 MCQ，每个问题包含 1 个正确答案和 4 个干扰项。
 
 ```python
-# CinePile QA 生成伪代码
-for video in movie_clips:
-    # 1. 提取多模态信息
-    ad = whisperx_transcribe(video.ad_track)        # 音频描述
-    dialogue = whisperx_transcribe(video.main_track)  # 对话字幕
-    metadata = get_movie_metadata(video)               # 元数据
-    
-    # 2. 构建上下文
-    context = f"AD: {ad}\nDialogue: {dialogue}\nMetadata: {metadata}"
-    
-    # 3. 从86个模板中采样，生成MCQ
-    for template in sample_templates(k=32):
-        prompt = f"{context}\n\nBased on the above, generate a MCQ following: {template}"
-        mcq = gpt4_generate(prompt)  # 含1个正确答案 + 4个干扰项
-        
-    # 4. 质量过滤
-    for mcq in generated_mcqs:
-        # 退化检测：仅给选项，不给上下文，看LLM能否答对
-        if llm_can_answer_without_context(mcq):
-            mcq.mark_degenerate()
-        # 视觉依赖性：去除AD仅保留对话，看能否答对
-        if llm_can_answer_without_ad(mcq):
-            mcq.vision_reliant = False
-        # 难度分级：Gemini Pro能否答对
-        if gemini_pro_correct(mcq):
-            mcq.hard = False
+# CinePile 数据构建流程伪代码
+for clip in youtube_movie_clips:
+    clip_transcript = whisperx_transcribe(clip.audio)
+    movie_ad_transcript = whisperx_transcribe(full_movie_audio_description(clip.movie))
+
+    start_query = embed(first_3_lines(clip_transcript))
+    end_query = embed(last_3_lines(clip_transcript))
+    start, end = rolling_window_match(movie_ad_transcript, start_query, end_query)
+
+    scene_text = movie_ad_transcript[start:end]
+    visual_desc, dialogue = bert_sentence_classifier(scene_text)
+    scene_annotation = merge_with_timestamps(visual_desc, dialogue)
+
+    relevant_templates = gemini_select_top20(scene_annotation, template_bank)
+    sampled_templates = random_sample(relevant_templates, k=5_or_6)
+
+    mcqs = []
+    for template in sampled_templates:
+        mcqs.extend(gpt_or_gemini_generate_mcq(scene_annotation, template))
+
+    for q in mcqs:
+        q.degenerate = lm_answers_without_context(q.question, q.choices)
+        q.vision_reliant = not gemini_answers_with_dialogue_only(q, dialogue)
+        q.hard = not gemini_answers_with_full_scene_text(q, scene_annotation)
+        if q.degenerate:
+            q = adversarial_refine_until_unanswerable(q, max_rounds=5)
+
+    save_valid_questions(mcqs)
 ```
 
-**退化问题过滤**是关键的质量控制步骤。具体做法是将问题和选项（不含任何上下文）提供给 Gemini Pro，如果模型仅凭选项就能选出正确答案，说明该问题存在设计缺陷（如正确答案明显更长、更具体），需要被标记为退化问题。测试集中约 4.5% 的问题被过滤。
+质量控制比普通自动合成数据更重。退化问题指答案已经隐含在问题中，例如“粉色房子是什么颜色”；educated guessing 指不用看视频也能靠常识猜中。论文用 Gemini、GPT-3.5 Turbo、Phi-1.5 在“只给问题和选项、不提供上下文”的条件下检测弱问题。如果多个模型都能答对，就说明题目可能泄漏答案。随后使用 LLaMA 3.1 70B 做 adversarial refinement：让模型解释为什么能猜中，再把这个 rationale 反馈给生成模型改写问题或选项，最多迭代 5 轮。最终约 90.94% 的训练弱问答、90.24% 的测试弱问答被修复，无法修复的约 80 条测试问题被移除。
 
-**视觉依赖性评估**通过去除音频描述（AD），仅保留对话字幕来测试。如果模型在缺少视觉信息的情况下仍能正确回答，则该问题不依赖视觉。测试集中 33.21% 的问题被标记为视觉依赖型。
+Vision reliance 与 hardness 是 CinePile 的两个诊断指标。可以把视觉依赖写成：
 
-##### 模型评估与结果分析
+$$
+\operatorname{VR}(q)=
+\mathbb{1}[\hat{a}_{\text{Gemini}}(q,\text{dialogue only}) \ne a^\star]
+$$
 
-评估采用两阶段响应解析：首先归一化模型输出，提取选项字母（A-E）和对应文本；然后与答案键进行匹配比较。
+如果只给 dialogue 时 Gemini 答错，则该问题被标记为依赖视觉。Hardness 则更严格：给模型用于生成问题的完整 scene-text-annotation（包含 visual descriptions 和 subtitles）仍答错的问题，会被认为对模型困难，并由作者进一步审查。
 
-核心实验结果：
+退化检测也可以抽象为：
 
-| 模型 | 平均 | CRD | NPA | STA | TEMP | TH |
-|------|------|-----|-----|-----|------|-----|
-| 人类 | 73.21 | 82.92 | 75.00 | 73.00 | 75.52 | 64.93 |
-| 作者 | 86.00 | 92.00 | 87.50 | 71.20 | 100.0 | 75.00 |
-| GPT-4o | 59.65 | 66.54 | 77.22 | 52.76 | 42.39 | 62.33 |
-| GPT-4V | 58.04 | 65.37 | 80.97 | 47.42 | 42.01 | 70.37 |
-| Gemini 1.5 Pro | 59.08 | 63.44 | 63.88 | 59.52 | 37.50 | 68.42 |
-| Claude 3 Opus | 44.72 | 49.64 | 61.11 | 38.86 | 32.60 | 44.87 |
-| Video-ChatGPT | 15.44 | 17.31 | 15.05 | 15.79 | 7.14 | 23.38 |
-| MovieChat | 4.61 | 4.95 | 4.29 | 5.23 | 2.48 | 4.21 |
+$$
+\operatorname{Weak}(q)=
+\mathbb{1}\left[
+\frac{1}{|\mathcal{M}|}
+\sum_{m\in\mathcal{M}}
+\mathbb{1}[\hat{a}_m(q,\text{choices only})=a^\star]
+\ge \tau
+\right]
+$$
 
-![模型在全部问题与困难问题上的表现对比](https://ar5iv.labs.arxiv.org/html/2405.08813/assets/x9.png)
-*图 8：各模型在 CinePile 测试集上全部问题 vs 困难问题的表现对比*
+其中 \(\mathcal{M}\) 是用于检测的语言模型集合。这个指标不直接评价视频理解，而是保护 benchmark：如果只靠问题和选项就能答对，那么它不应进入评测集。
 
-**关键发现**：
+CinePile 的评测协议是多选准确率，但模型输出并不总是规整的 A-E 选项。因此论文使用两阶段解析：先规范化模型回答，抽取选项字母和可能出现的选项文本；再与答案 key 比较，允许在只有字母或只有文本出现时按对应部分匹配。这个细节对开源模型尤其重要，因为许多模型会复述字幕、生成长段解释或输出未列出的选项。
 
-1. **商业模型 vs 人类**：最优商业模型（GPT-4o, ~60%）与人类（~73%）之间存在约 13% 的差距，表明长视频多模态理解仍是重大挑战
-2. **Gemini 1.5 Pro 的视觉优势**：在视觉依赖性最高的"场景与技术分析"类别中，Gemini 1.5 Pro（59.52%）显著优于 GPT-4V（47.42%），得益于其原生长上下文多模态处理能力
-3. **GPT-4 的叙事优势**：在"叙事与情节分析"类别中，GPT-4V（80.97%）大幅领先 Gemini 1.5 Pro（63.88%）
-4. **开源模型严重落后**：OSS 模型表现极差（<16%），主要原因并非能力不足，而是**无法遵循指令格式**——频繁输出无关文本、复述字幕、重述选项等
-5. **困难子集**：所有模型在困难子集上下降 15-20%，但相对排名基本不变，Gemini 1.5 Pro 在困难子集上超越 GPT-4 模型
-
-> ⚠️ 注意：开源模型的低分数部分源于评估管线的局限性——这些模型经常不按要求输出选项字母，而是生成冗长的自由文本，导致答案提取失败。论文通过子串匹配和 BertScore/CIDEr 等传统指标进行了补充评估，但相对排名未变。
-
-##### 与现有数据集的对比
-
-CinePile 相比现有数据集的核心优势：
-- **规模**：~305k 问题，远超 MovieQA（14.9k）、TVQA（152.5k）等
-- **视频长度**：平均 ~160 秒，远超 EgoSchema（180s 但仅限自我中心视频）、TVQA（76s）
-- **真正多模态**：需要同时理解视觉和对话才能回答，而非仅依赖对话（如 MovieQA）
-- **问题多样性**：86 个自动化模板覆盖 5 大类别，远超固定模板的数据集
-- **可扩展性**：基于 AD 的自动化流水线可低成本扩展到更多电影
+实验结果显示，CinePile 不是只靠单帧或字幕就能解决的简单 benchmark。普通人类约 73.21%，作者在仔细观看和回看条件下约 86.00%；商业模型中 Gemini 1.5 Pro--001 约 60.12%，GPT-4o 约 56.06%；开源模型中 LLaVA-OV 7B 约 49.34%。同时，使用 CinePile 训练集对 Video-LLaVA 进行 LoRA 微调后，准确率从 25.72% 提升到 44.16%，说明这个数据集不仅能评测长视频理解，也能作为 instruction tuning 数据改善开源视频模型。
 
 #### 🧪 练习题
 
 ```yaml
-question: "CinePile 使用什么作为视觉信息的代理标注来避免昂贵的人工视觉标注？"
+question: "CinePile 为什么使用 Audio Descriptions 作为视觉代理标注？"
 options:
-  - "自动生成的视频描述（Video Captioning 模型输出）"
-  - "音频描述（Audio Descriptions，为视障人群制作的专业旁白）"
-  - "从电影剧本中提取的场景描述"
-  - "通过目标检测模型生成的物体标签序列"
+  - "AD 是自动目标检测器输出，包含更精确的边界框"
+  - "AD 是为视障人群编写的人工场景旁白，通常覆盖理解剧情所需的关键视觉信息"
+  - "AD 只包含角色对话，适合训练纯文本问答模型"
+  - "AD 可以替代所有模型评测，不需要原始视频输入"
 answer: 1
-explain: "CinePile 的核心创新之一是利用音频描述（AD）——专为视障人群在对话间隙描述视觉场景的专业旁白——作为视觉信息的代理标注，既保证了高质量的视觉语义覆盖，又避免了昂贵的人工标注成本。"
+explain: "CinePile 利用 AD 中的人写视觉描述来低成本构造长视频 QA；评测时模型仍需要从原始视频和对话中回答，不会看到 AD。"
 ```

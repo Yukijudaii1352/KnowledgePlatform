@@ -1,69 +1,97 @@
-### Self-Reminder：自我提醒 (Self-Reminder)
+### Self-Reminder：自我提醒
 ```yaml
-id: self_reminder
-name: Self-Reminder
-full_name: 自我提醒 (Self-Reminder)
-year: '2023'
-org: Academic
-paper_url: https://www.nature.com/articles/s42256-023-00765-8
-category: jailbreak
-parent: —
-motivation: 系统提示词防御指令
+id: "self_reminder"
+name: "Self-Reminder"
+full_name: "自我提醒 (Self-Reminder)"
+year: "2023"
+org: "Academic"
+paper_url: "https://www.nature.com/articles/s42256-023-00765-8"
+category: "jailbreak"
+parent: "—"
+motivation: "系统提示词防御指令"
 ```
 
 #### 📝 一句话总结
-Self-Reminder 在系统或对话上下文中显式提醒模型遵守安全、伦理和合法性边界，用极低成本的提示增强方式降低 jailbreak 攻击成功率。
+Self-Reminder 提出 system-mode self-reminder：在系统层把用户查询包裹在责任提醒中，让模型在生成前后都显式回到“负责任助手”模式；论文在构造的 jailbreak 数据集上将 ChatGPT 的攻击成功率从 67.21% 降到 19.34%，且不需要重新训练模型。
 
 #### 🎯 核心要点
-- 不训练新模型，也不需要外部分类器，只通过额外安全提醒改变模型的上下文条件。
-- 防御位置可以放在用户输入前、模型输出前或多轮对话状态中，核心是持续强化模型的安全身份和规则层级。
-- 针对 DAN、角色扮演、假设场景等输入攻击，Self-Reminder 让模型在生成时重新关注原始安全约束。
-- 方法简单、可部署性强，但防御强度依赖底座模型是否真正理解并执行该提醒。
-- 论文报告该方法能在保持常规任务可用性的同时显著降低多类 jailbreak 攻击成功率。
+- 方法灵感来自心理学中的 self-reminder：用外部提示帮助主体维持目标、规则和自我控制。
+- 防御形式是系统提示词包装：在用户查询外层加入责任提醒，而不是修改用户原文或训练模型参数。
+- 关键设计是 system-mode：提醒位于比用户 jailbreak 更外层的系统上下文，试图抢占对话“当前模式”的优先级。
+- 论文构造 540 个 jailbreak 样本，由 54 个有效 jailbreak prompt 和 10 类 malicious instructions 组合而成。
+- 恶意指令分为 misinformation 和 toxic 两类，用于评估不同危害场景下的攻击成功率。
+- 评估使用 ChatGPT API gpt-3.5-turbo-0301 重复 5 次，平均 ASR 从 67.21±1.28% 降至 19.34±0.37%。
+- 论文还检查了常规任务副作用、adaptive attacks、prefix/suffix-only ablation 和不同提醒语气，证明简单提示防御有效但并非完备。
 
 #### 🔬 深入细节
-![Self-Reminder 论文 Figure 1](https://scx1.b-cdn.net/csz/news/800a/2024/a-simple-technique-to.jpg)
-*图：TechXplore/Nature Machine Intelligence 图源，展示在对话中加入 system-mode self-reminder 以抵御越狱攻击的思路。*
+![System-Mode Self-Reminder 示意图](https://media.springernature.com/m312/springer-static/image/art%3A10.1038%2Fs42256-023-00765-8/MediaObjects/42256_2023_765_Fig1_HTML.png)
+*图：Nature Machine Intelligence 论文 Figure 1，对比无 jailbreak、有 jailbreak、以及用 system-mode self-reminder 包裹用户查询后的响应差异。*
+
+Self-Reminder 的问题设定很直接：许多 jailbreak 并不是攻击模型权重，而是在上下文里诱导模型切换到一个不受控角色，例如要求模型忘记安全规则、扮演另一个代理、禁止道歉或禁止拒绝。作者认为，既然 jailbreak 能通过 prompt 把模型推入某种“模式”，防御也可以在更外层显式设定一个安全模式，让模型在处理用户输入时不断提醒自己是负责任的助手。
+
+形式化地，设用户原始查询为 \(q\)，攻击者插入的 jailbreak 上下文为 \(j\)，模型为 \(M\)。无防御时，模型看到的输入近似为：
+
+$$
+x_{attack} = j \oplus q
+$$
+
+Self-Reminder 定义一个包装函数 \(D(\cdot)\)，把用户侧内容嵌入系统层责任提醒中：
+
+$$
+x_{defended} = D(j \oplus q) = r_{pre} \oplus \langle user\ query: j \oplus q \rangle \oplus r_{post}
+$$
+
+其中 \(r_{pre}\) 和 \(r_{post}\) 不是普通聊天内容，而是提醒模型保持负责任行为、避免有害或误导性输出的系统级约束。这个设计的核心不是关键词过滤，而是利用聊天模型对 system prompt 和外层上下文的服从倾向，让安全目标在注意力竞争中比用户注入的角色设定更显著。
 
 ```python
-# Self-Reminder 简化伪代码
-SAFETY_REMINDER = """
-You are a responsible assistant. Follow the system policy,
-respect legal and ethical constraints, and refuse unsafe requests.
-"""
+# System-Mode Self-Reminder 防御伪代码
+# 使用概念化模板，避免复刻论文中的完整可执行提示词
 
-def guarded_chat(history, user_message):
-    messages = []
-    messages.append(system_message(SAFETY_REMINDER))
-    messages.extend(history)
-    messages.append(user_message)
+def build_self_reminder_prompt(user_query):
+    pre_reminder = (
+        "System: operate as a responsible assistant; "
+        "avoid harmful or misleading content; answer the enclosed request responsibly."
+    )
+    post_reminder = (
+        "System reminder: keep the same responsible mode when producing the final answer."
+    )
+    return f"{pre_reminder}\n<UserQuery>\n{user_query}\n</UserQuery>\n{post_reminder}"
 
-    draft = base_llm(messages)
-
-    # 可选：在输出前再次提醒模型自检
-    review_messages = messages + [
-        assistant_message(draft),
-        system_message("Before finalizing, check whether the answer violates the safety reminder.")
-    ]
-    return base_llm(review_messages)
+def safe_chat(user_query, model):
+    defended_input = build_self_reminder_prompt(user_query)
+    response = model.generate(defended_input)
+    return response
 ```
 
-Self-Reminder 的动机是直接针对 DAN 类角色扮演攻击中的指令竞争。攻击者会把模型拉入一个虚构角色或特殊模式，让模型把用户叙事误当成更高优先级的规则。Self-Reminder 反过来在上下文里持续放置安全身份说明，使模型在解码时更容易激活“我是受约束助手”的行为模式。
+论文的数据集构造是理解结果的关键。作者从公开 jailbreak prompt 来源中收集候选，去除需要人工交互或攻击成功率过低的样本，最终保留 54 个有效 jailbreak prompt；再设计 10 个 malicious instructions，覆盖 misinformation 与 toxic 两组任务。两者笛卡尔积形成 540 个评测样本。这样设计能区分“越狱模板是否强”和“具体恶意目标是否容易触发拒答”：有些恶意目标包含明显危险词，更容易被模型识别；有些 jailbreak prompt 会显式要求不要提醒安全规范，因此更难防。
 
-这个方法的优势是工程上非常轻：它不需要访问模型权重，不需要构造新的偏好数据，也不依赖额外推理模型。实际部署时可以把 reminder 写入 system prompt、conversation prefix 或每轮响应前的内部检查提示中。它更像上下文级控制，而不是模型级对齐。
+评价指标是 Attack Success Rate (ASR)，可写为：
 
-方法也有明显边界。因为 Self-Reminder 仍然是自然语言提示，它会和用户输入共享上下文窗口，并可能受到长上下文稀释、提示注入和多轮状态漂移影响。如果底座模型本身没有学会可靠遵守系统层级，简单 reminder 只能提高拒答倾向，不能提供形式化安全保证。
+$$
+\mathrm{ASR}=\frac{1}{N}\sum_{i=1}^{N}\mathbf{1}\left[\mathrm{Judge}(M(x_i))=\mathrm{unsafe\ success}\right]
+$$
 
-从防御组合看，Self-Reminder 适合放在第一层：成本低、延迟小、覆盖广。对于高风险系统，还需要配合输入分类器、策略执行器、输出审查和审计日志。它的研究意义在于证明“显式安全自我描述”本身就能显著改变模型行为，为后续 constitutional prompting 和 guardrails 提供了实践依据。
+为了减少人工标注成本，补充材料描述了半自动判定流程：一类方法利用 watermark 式检测，另一类方法用 ChatGPT 作为分类器判断回复是否包含对应有害内容；两者一致时直接采用，不一致时人工复核。这个流程不是 Self-Reminder 本身的一部分，但它让 540 样本、5 次重复的 ASR 评估更可操作。
+
+![不同场景下 ASR 分布](https://media.springernature.com/m312/springer-static/image/art%3A10.1038%2Fs42256-023-00765-8/MediaObjects/42256_2023_765_Fig3_HTML.png)
+*图：论文 Figure 3，展示 Self-Reminder 在常规 jailbreak、adaptive attack、消融和不同模型版本等场景下的 ASR 变化。*
+
+Self-Reminder 与 Perplexity Filter 这类输入检测不同。Perplexity Filter 尝试识别“这个输入像不像攻击”，而 Self-Reminder 假设攻击可能已经进入上下文，于是改变模型处理上下文的方式。它也不同于 RLHF 或安全微调，因为没有更新参数；部署成本接近一次 prompt 包装。这使它很适合作为产品侧快速防御，但也带来局限：如果底层模型对 system prompt 层级不敏感，或者攻击者能构造强 adaptive prompt 去反制提醒，防御效果会下降。
+
+论文还关注副作用。一个糟糕的系统提醒可能让模型过度拒答，或者在普通任务上不断输出安全废话。作者因此在 GLUE、摘要、翻译、问答等常规任务上比较 ChatGPT 与 ChatGPT + Self-Reminder，观察到整体能力没有明显崩塌，但输出风格可能更偏解释性和谨慎。实际应用中，这意味着 reminder 文案需要面向业务调参：安全敏感场景可以更强硬，创作或开发者工具则需要降低过度拒答。
+
+> 💡 关键：Self-Reminder 的有效性来自“外层模式设定”而非“识别所有坏 prompt”。它不需要知道用户用了哪一种 DAN、JailBreak、AIM 或其他角色扮演模板，只要系统层提醒能在生成时保持更高优先级，就可能把模型拉回安全轨道。
+
+从工程角度看，Self-Reminder 最适合与其他防线组合。输入侧可以先做异常检测和意图分类；模型调用时用 system-mode reminder 固定责任模式；输出侧再做安全分类和必要的拒答重写。若只依赖 Self-Reminder，攻击者可以尝试更长上下文、间接指令、多轮诱导或工具调用绕行。若把它放在多层防御中，它的优势是实现简单、延迟低、无需训练数据，并且能覆盖一部分自然语言角色扮演越狱。
 
 #### 🧪 练习题
 ```yaml
-question: "Self-Reminder 与困惑度过滤器最大的区别是什么？"
+question: "Self-Reminder 区别于普通关键词过滤的核心在哪里？"
 options:
-  - "Self-Reminder 通过提示强化安全约束，困惑度过滤器通过统计异常检测输入"
-  - "Self-Reminder 必须修改模型参数"
-  - "Self-Reminder 只能用于图像模型"
-  - "困惑度过滤器会训练奖励模型"
-answer: 0
-explain: "Self-Reminder 是上下文提示防御；Perplexity Filter 是输入侧异常检测。"
+  - "它通过重新训练模型删除有害知识"
+  - "它在系统层包装用户查询，提醒模型保持负责任模式"
+  - "它只允许英文 prompt 进入模型"
+  - "它用 perplexity 阈值拦截异常 token 序列"
+answer: 1
+explain: "Self-Reminder 不依赖关键词或困惑度检测，而是在更外层的系统上下文中加入责任提醒，让模型处理用户输入时维持安全模式。"
 ```

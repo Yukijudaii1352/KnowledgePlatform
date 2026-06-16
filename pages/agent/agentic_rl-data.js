@@ -1,5 +1,5 @@
 /**
- * agentic_rl-data.js — 由 pipeline/build.py 于 2026-06-15 18:08:17 自动生成。
+ * agentic_rl-data.js — 由 pipeline/build.py 于 2026-06-16 17:00:04 自动生成。
  * 源文件：content/agent/agentic_rl.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "agentic_rl",
     "topic_name": "Agentic RL",
     "page_title": "Agentic RL 技术演进",
-    "page_subtitle": "2026-06-15 版",
+    "page_subtitle": "2026-06-16 版",
     "page_desc": "从 WebGPT、SayCan 的交互式反馈原型，到 Reflexion、Voyager 的语言自改进，再到 WebRL、WebAgent-R1、AgentRL、AgentJet 等端到端训练栈，以及 iStar、Agent-RRM、VPR、Q-Evolve 等奖励与信用分配方法，系统梳理面向 Agent 的强化学习主线与 2026 年最新进展。",
     "page_icon": "🤖",
     "hero_pills": [

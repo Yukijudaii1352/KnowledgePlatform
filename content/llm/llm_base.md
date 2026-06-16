@@ -327,178 +327,112 @@ motivation: 自注意力替代循环卷积
 ```
 
 #### 📝 一句话总结
-Transformer 提出了第一个完全基于自注意力机制的序列转换架构，用多头自注意力（Multi-Head Self-Attention）替代循环和卷积，在 WMT 2014 英德/英法翻译任务上以更少训练时间达到 SOTA，奠定了后续 GPT、BERT 等所有大语言模型的基石。
+Transformer 提出完全基于注意力机制的 encoder-decoder 序列转换架构，用多头自注意力和位置编码替代循环、卷积结构，解决了 RNN 训练串行、长程依赖路径长的问题。它在 WMT 2014 机器翻译上以更低训练成本达到当时领先结果，并成为后续 GPT、BERT 等大模型的基础架构。
 
 #### 🎯 核心要点
-- 提出 **Multi-Head Scaled Dot-Product Attention**：通过 Query、Key、Value 三组线性投影并行计算多子空间注意力，捕获不同表征子空间中的依赖关系
-- 设计 **Encoder-Decoder 堆叠架构**：Encoder 和 Decoder 各由 N=6 个相同层堆叠，每层含自注意力子层和逐位置前馈网络（FFN），均包裹残差连接 + LayerNorm
-- **Decoder 引入因果掩码（Masked Self-Attention）**：在自注意力中屏蔽未来位置，确保自回归生成的因果关系
-- **Encoder-Decoder Attention**：Decoder 中额外插入交叉注意力子层，Query 来自 Decoder，Key/Value 来自 Encoder 输出
-- **位置编码（Positional Encoding）**：用固定正弦/余弦函数注入序列位置信息，使无递归的注意力模型能感知 token 顺序
-- **Scaling Factor** \(\frac{1}{\sqrt{d_k}}\)：缩放点积防止维度增大导致的 softmax 梯度消失
-- 英德翻译：28.4 BLEU（超过集成模型 >2 BLEU），英法翻译：41.0 BLEU（8 张 P100 训练 3.5 天）
-- 完全并行化训练：相比 RNN 按时间步串行，自注意力允许同时计算序列所有位置的表示，大幅缩短训练时间
-- 泛化能力验证：在英语成分句法解析任务上也取得优异结果，证明架构通用性
+- 提出只依赖 attention 的序列转换模型，不使用 RNN 或 CNN 来传递序列状态。
+- 采用 encoder-decoder 堆叠结构：原论文 base 模型中 encoder 和 decoder 各堆叠 6 层。
+- 每个 encoder 层包含 multi-head self-attention 与 position-wise FFN，并配合 residual connection 与 layer normalization。
+- 每个 decoder 层额外加入 encoder-decoder attention，并用 masked self-attention 阻止当前位置访问未来 token。
+- 定义 scaled dot-product attention：用 \(QK^\top / \sqrt{d_k}\) 控制点积幅度，避免 softmax 进入梯度很小的饱和区。
+- 使用 multi-head attention：把 Q/K/V 投影到多个子空间并行计算，使模型能同时捕获局部、长程、句法或对齐关系。
+- 用正弦/余弦位置编码补充 token 顺序信息，使无递归模型仍能感知绝对与相对位置。
+- 训练上使用 Adam、warmup + inverse square-root 学习率调度、dropout、label smoothing 和 beam search 解码。
+- 复杂度权衡明确：训练并行度远高于 RNN，任意两个位置的依赖路径为 \(O(1)\)，代价是全局自注意力的 \(O(n^2)\) 序列长度开销。
 
 #### 🔬 深入细节
-##### 核心示意图
-
-![Transformer 架构图](https://ar5iv.labs.arxiv.org/html/1706.03762/assets/figures/fig-1.png)
-
-*图 1：Transformer 整体架构。左侧为 Encoder（N=6 层堆叠），右侧为 Decoder（N=6 层堆叠）。Encoder 每层含 Multi-Head Self-Attention + FFN，Decoder 额外插入一个 Encoder-Decoder Attention。*
-
-##### 算法伪代码
+![Transformer 架构图](https://arxiv.org/html/1706.03762v7/Figures/ModalNet-21.png)
+*图：Transformer 的 encoder-decoder 总体结构。左侧 encoder 由自注意力和前馈网络堆叠，右侧 decoder 在 masked self-attention 之后通过 cross-attention 读取 encoder 输出。*
 
 ```python
-# Scaled Dot-Product Attention
-def ScaledDotProductAttention(Q, K, V, mask=None):
-    # Q, K, V: [batch, heads, seq_len, d_k]
-    scores = Q @ K.transpose(-2, -1) / sqrt(d_k)   # 缩放点积
+def scaled_dot_product_attention(Q, K, V, mask=None):
+    scores = (Q @ K.T) / sqrt(d_k)
     if mask is not None:
-        scores = scores.masked_fill(mask == 0, -1e9)  # 因果/填充掩码
-    attn_weights = softmax(scores)                    # [batch, heads, L, L]
-    return attn_weights @ V                           # 加权求和
+        scores = scores.masked_fill(mask == 0, -float("inf"))
+    weights = softmax(scores, dim=-1)
+    return weights @ V
 
-# Multi-Head Attention
-def MultiHeadAttention(Q, K, V, d_model=512, h=8):
-    # 1. 线性投影到多子空间
-    Q_proj = [Q @ W_q_i for W_q_i in W_q]   # 每个 head 对应 d_k = d_model / h
-    K_proj = [K @ W_k_i for W_k_i in W_k]
-    V_proj = [V @ W_v_i for W_v_i in W_v]
-    # 2. 并行关注意力
-    heads = [ScaledDotProductAttention(Q_i, K_i, V_i) for Q_i, K_i, V_i
-             in zip(Q_proj, K_proj, V_proj)]
-    # 3. 拼接并投影
-    concat = concat(heads)               # [batch, seq_len, d_model]
-    return concat @ W_o                  # 最终输出投影
+def multi_head_attention(x_q, x_k, x_v, heads, mask=None):
+    head_outputs = []
+    for h in range(heads):
+        Q = x_q @ W_q[h]
+        K = x_k @ W_k[h]
+        V = x_v @ W_v[h]
+        head_outputs.append(scaled_dot_product_attention(Q, K, V, mask=mask))
+    return concat(head_outputs) @ W_o
 
-# Encoder Layer
-def EncoderLayer(x):
-    # Sublayer 1: Multi-Head Self-Attention
-    attn_out = MultiHeadAttention(x, x, x)
-    x = LayerNorm(x + attn_out)          # 残差 + LN
-    # Sublayer 2: Position-wise FFN
-    ff_out = FFN(x)                      # ReLU(w1*x+b1)w2+b2, d_ff=2048
-    return LayerNorm(x + ff_out)         # 残差 + LN
+def encoder_layer(x):
+    x = layer_norm(x + multi_head_attention(x, x, x, heads=8))
+    x = layer_norm(x + feed_forward(x))  # max(0, xW1+b1)W2+b2
+    return x
 
-# Decoder Layer
-def DecoderLayer(x, enc_output):
-    # Sublayer 1: Masked Multi-Head Self-Attention（因果掩码）
-    x = LayerNorm(x + MultiHeadAttention(x, x, x, causal_mask=True))
-    # Sublayer 2: Encoder-Decoder Attention
-    cross = MultiHeadAttention(Q=x, K=enc_output, V=enc_output)
-    x = LayerNorm(x + cross)
-    # Sublayer 3: FFN
-    return LayerNorm(x + FFN(x))
+def decoder_layer(y, encoder_output):
+    y = layer_norm(y + multi_head_attention(y, y, y, heads=8, mask=causal_mask))
+    y = layer_norm(y + multi_head_attention(y, encoder_output, encoder_output, heads=8))
+    y = layer_norm(y + feed_forward(y))
+    return y
 
-# 训练：Teacher Forcing + Cross-Entropy Loss
-# 推理：自回归生成，每次预测下一个 token，拼接后继续解码
+def transformer(source_tokens, target_prefix):
+    src = token_embedding(source_tokens) + sinusoidal_position_encoding(source_tokens)
+    memory = repeat(encoder_layer, times=6)(src)
+    tgt = token_embedding(target_prefix) + sinusoidal_position_encoding(target_prefix)
+    decoded = repeat(decoder_layer, times=6)(tgt, memory)
+    return softmax(decoded @ W_vocab)
 ```
 
-##### 动机与背景：为什么需要 Transformer？
+Transformer 的出发点是计算图路径和并行性。RNN 必须按时间步递推，训练样本内部很难并行，而且两个相距 \(n\) 的 token 之间要经过 \(O(n)\) 次状态变换；卷积模型能并行，但要靠多层堆叠或扩张卷积扩大感受野。Transformer 让序列内任意两个位置在一个 self-attention 层中直接交互，把长程依赖路径缩到常数级，同时可以用矩阵乘法一次性处理整段序列。
 
-2017 年之前，序列转换任务（机器翻译、文本生成等）主要由 RNN 及其变体（LSTM、GRU）主导。这些模型的核心缺陷在于**顺序计算**：生成位置 t 必须等待位置 t−1 完成，无法并行化。虽然卷积网络（ConvS2S、ByteNet）缓解了串行问题，但它们在建模长距离依赖时，需要堆叠多层来扩大感受野，路径长度仍随距离线性增长（O(n)）。
+Scaled dot-product attention 的公式是：
 
-注意力机制此前已在 Seq2Seq 中作为 RNN 的补充出现（Bahdanau Attention, 2014），用于动态对齐 Encoder 和 Decoder 的隐藏状态。Transformer 的核心洞察是：**注意力本身可以是唯一的依赖建模工具**——只要添加位置编码来注入顺序信息，就可以完全舍弃递归。
+$$
+\mathrm{Attention}(Q,K,V)=\mathrm{softmax}\left(\frac{QK^\top}{\sqrt{d_k}}\right)V
+$$
 
-> 💡 关键动机：用常数级操作路径 O(1) 替代 RNN 的 O(n) 长程依赖路径，同时实现训练时的完全并行化。
+其中 \(Q\) 表示“当前位置要找什么”，\(K\) 表示“每个位置提供什么索引”，\(V\) 表示“被取出的内容”。如果不除以 \(\sqrt{d_k}\)，高维向量点积的方差会随 \(d_k\) 增大，softmax 容易接近 one-hot，导致梯度变小。缩放项的作用不是改变注意力语义，而是让注意力分数处在更稳定的数值区间。
 
-##### 核心机制：逐块拆解
+Multi-head attention 的设计解决了单头注意力“平均掉不同关系”的问题：
 
-**1. Scaled Dot-Product Attention（缩放点积注意力）**
+$$
+\mathrm{MultiHead}(Q,K,V)=\mathrm{Concat}(\mathrm{head}_1,\ldots,\mathrm{head}_h)W^O
+$$
 
-给定 Query 矩阵 Q、Key 矩阵 K 和 Value 矩阵 V（维度均为 d_model），注意力函数通过三步计算：
+$$
+\mathrm{head}_i=\mathrm{Attention}(QW_i^Q,KW_i^K,VW_i^V)
+$$
 
-$$ \text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right) V $$
+原论文 base 设置使用 \(h=8\)、\(d_{model}=512\)、每头 \(d_k=d_v=64\)。每个头在独立投影空间里学习一种对齐模式，例如相邻词依赖、远距离指代、源-目标词对齐等。由于每头维度降低，多头总计算量接近单个全维注意力，但表达能力更强。
 
-- **点积** \(QK^T\)：计算 Query 和所有 Key 的相似度得分矩阵 [seq_len, seq_len]
-- **缩放因子** \(\frac{1}{\sqrt{d_k}}\)：当 d_k 较大时，点积值方差会增大，导致 softmax 进入饱和区（梯度极小）。除以 \(\sqrt{d_k}\) 使方差稳定在 1
-- **Softmax**：将得分归一化为概率分布，每个位置获得对所有位置（含自身）的注意力权重
-- **加权求和**：用注意力权重对 V 加权，输出每个位置的上下文表示
+Encoder 和 decoder 的职责不同。Encoder 的 self-attention 可以看到源序列所有位置，输出一组上下文表示；decoder 的第一层 attention 必须使用 causal mask，将未来位置对应的 logits 置为 \(-\infty\)，保证自回归生成时第 \(t\) 个 token 只能依赖 \(<t\) 的前缀；decoder 的第二个 attention 是 cross-attention，query 来自 decoder 当前状态，key/value 来自 encoder 输出，相当于在每个生成步动态读取源句信息。
 
-> ⚠️ 注意：加性注意力（Bahdanau）和点积注意力理论复杂度相似，但点积可高度利用矩阵乘法的硬件优化，实际更快且空间效率更高。
+因为 attention 本身没有顺序概念，Transformer 在输入 embedding 上加位置编码。论文采用固定正弦/余弦形式：
 
-**2. Multi-Head Attention（多头注意力）**
+$$
+PE_{(pos,2i)}=\sin\left(\frac{pos}{10000^{2i/d_{model}}}\right)
+$$
 
-单一注意力只能捕获一种"联想模式"。Transformer 将 Q/K/V 通过 h=8 组不同的线性投影映射到 d_k=d_v=64 维子空间：
+$$
+PE_{(pos,2i+1)}=\cos\left(\frac{pos}{10000^{2i/d_{model}}}\right)
+$$
 
-$$ \text{MultiHead}(Q, K, V) = \text{Concat}(\text{head}_1, \ldots, \text{head}_h) W^O $$
+不同维度对应不同频率，模型可以组合这些信号来判断绝对位置；同时，由于三角函数的线性关系，固定偏移 \(k\) 的位置编码可由当前位置编码线性表示，这给学习相对位置提供了有用归纳偏置。论文也测试了可学习位置 embedding，效果接近，但固定正弦编码更自然地支持长度外推。
 
-$$ \text{head}_i = \text{Attention}(QW_i^Q, KW_i^K, VW_i^V) $$
+训练流程仍是标准 teacher forcing。源句经过 encoder 一次计算得到 memory；目标句右移后输入 decoder，模型在每个位置预测下一个 token，并用交叉熵训练。优化器使用 Adam，\(\beta_1=0.9\)、\(\beta_2=0.98\)、\(\epsilon=10^{-9}\)，学习率先 warmup 后按步数平方根倒数衰减；dropout 和 label smoothing 分别改善泛化和过度自信。推理时 encoder 输出可缓存，decoder 逐 token 自回归生成，原论文使用 beam search 和长度惩罚。
 
-- 8 个 head 各关注不同模式：论文附录可视化显示，部分 head 专注相邻位置（局部语法），部分 head 关注远距离指代关系（如"its" 关注所指名词）
-- 各 head 计算完全独立，可以并行执行
-- 拼接后经 \(W^O \in \mathbb{R}^{d_{model} \times d_{model}}\) 投影回原维
+与 RNN/CNN 的关键区别不只是模块替换，而是信息流拓扑改变。RNN 将序列压进一个逐步更新的隐藏状态，优势是天然顺序建模，劣势是串行；CNN 通过局部核和层数扩大上下文，优势是并行，劣势是长距离路径仍依赖深度；Transformer 让每一层的每个位置都能全局读取其它位置，所以更适合大规模并行训练。后续长上下文工作，如 Transformer-XL、稀疏注意力、线性注意力，主要是在保留这种全局交互思想的同时降低 \(O(n^2)\) 成本或扩展上下文长度。
 
-**3. Position-wise Feed-Forward Network（逐位置前馈网络）**
+> 💡 关键：Transformer 的真正突破是把序列建模的“时间递推”改成“内容寻址”，用 attention 权重决定信息从哪些 token 流向当前 token。
 
-每个位置独立应用相同的两层全连接：
-
-$$ \text{FFN}(x) = \max(0, xW_1 + b_1)W_2 + b_2 $$
-
-- 内层维度 d_ff = 2048（扩大4倍），外层降回 d_model = 512
-- "逐位置"意味着不同位置共享参数但独立计算——类似1×1卷积
-- 为模型引入非线性变换能力，注意力模块仅做线性加权
-
-**4. Positional Encoding（位置编码）**
-
-由于注意力没有内置的顺序概念，Transformer 在 Encoder/Decoder 底层的 input embedding 上直接叠加位置向量：
-
-$$ PE_{(pos, 2i)} = \sin\left(\frac{pos}{10000^{2i/d_{model}}}\right) $$
-
-$$ PE_{(pos, 2i+1)} = \cos\left(\frac{pos}{10000^{2i/d_{model}}}\right) $$
-
-- 偶数维用 sin，奇数维用 cos，不同频率对应不同波长（2π ~ 20000π）
-- 选择正弦函数是因为模型可以学习相对位置：对于任意固定偏移 k，\(PE_{pos+k}\) 可以表示为 \(PE_{pos}\) 的线性函数
-- 实验证明学习的位置嵌入效果相同，但正弦版本可外推到训练时未见过的序列长度
-
-**5. 残差连接 + Layer Normalization**
-
-每个子层输出都经过：
-
-$$ \text{output} = \text{LayerNorm}(x + \text{Sublayer}(x)) $$
-
-- 残差连接确保深层网络的梯度流畅通，缓解退化问题
-- LayerNorm 在特征维归一化，与 BatchNorm（batch 维）相比不依赖 batch size，适合序列长度变化场景
-- 注意：论文中使用 Post-LN（先子层再LN加残差），后续研究（Pre-LN）将 LN 移至子层前更稳定，但原理一致
-
-##### 训练与推理流程
-
-**训练阶段（Teacher Forcing）**：
-1. 源语言句子经 Input Embedding + Positional Encoding 送入 Encoder，6 层堆叠处理得到上下文表示 z
-2. 目标语言句子（含起始符 <SOS>）经同理编码送入 Decoder
-3. Decoder 的 Masked Self-Attention 确保位置 i 只能看到位置 < i 的内容（因果掩码矩阵上三角为 −∞）
-4. Decoder Cross-Attention 从 Encoder 输出 z 中提取源语言信息
-5. 最后一层输出经线性投影 + softmax 预测下一个 token 概率，与真实标签计算交叉熵损失
-
-**关键训练超参数**：
-- 优化器：Adam，\(\beta_1=0.9, \beta_2=0.98, \epsilon=10^{-9}\)
-- 学习率调度：warmup_steps 内线性增加，之后按 step 的平方根倒数衰减：\(lr = d_{model}^{-0.5} \cdot \min(step^{-0.5}, step \cdot warmup\_steps^{-1.5})\)
-- 正则化：Dropout（rate=0.1）应用于每个子层输出、embeddings 和位置编码；Label Smoothing（\(\epsilon_{ls}=0.1\)）降低过拟合
-
-**推理阶段（自回归解码）**：
-1. Encoder 处理源语言序列（一次计算，结果可缓存）
-2. Decoder 逐步生成：起始符送入后预测第一个 token，将该 token 拼接到序列末尾再次解码，直到生成结束符 <EOS> 或达到最大长度
-3. 使用 Beam Search（beam size=4，\(\alpha=0.6\) 长度惩罚）提升解码质量
-
-##### 与传统方法的对比
-
-| 维度 | RNN (LSTM/GRU) | 卷积 (ConvS2S) | **Transformer** |
-|------|----------------|----------------|-----------------|
-| 长程依赖路径 | O(seq_len) | O(log_k(seq_len)) | **O(1)** (单层内任意位置直接交互) |
-| 训练并行度 | 串行，无法并行 | 可并行 | **完全并行** |
-| 每层计算复杂度 | O(n·d²) | O(k·n·d²) | O(n²·d)（自注意力）；可优化 |
-| 位置信息 | 隐式（通过时间步） | 隐式（通过卷积层序） | **显式正弦编码** |
-| 解释性 | 弱 | 弱 | **强（注意力权重可视化）** |
-
-> 💡 关键洞察：Transformer 将最大路径长度从 O(n) 降为 O(1)，这是其在极长序列上仍能有效建模依赖的根本原因。代价是自注意力的 O(n²) 内存需求，后续的稀疏注意力、线性注意力等变体均围绕解决此外展开。
-
-##### 重要变体与后续影响
-
-- **BERT**（2018）：只用 Transformer Encoder，双向自注意力 + 掩码语言模型预训练
-- **GPT**（2018）：只用 Transformer Decoder，单向因果注意力 + 自回归预训练
-- **Vision Transformer (ViT)**：将图像切块视为序列，Transformer 成功跨界计算机视觉
-- **Transformer-XL**：引入段循环机制和相对位置编码，突破固定长度上下文限制
+#### 🧪 练习题
+```yaml
+question: "Transformer 中 scaled dot-product attention 除以 \\(\\sqrt{d_k}\\) 的主要原因是什么？"
+options:
+  - "让每个注意力头拥有不同参数量"
+  - "降低点积分数方差，避免 softmax 饱和导致梯度过小"
+  - "把绝对位置编码转成相对位置编码"
+  - "减少 decoder 的自回归生成步数"
+answer: 1
+explain: "当 \\(d_k\\) 增大时，未缩放点积容易取值过大，使 softmax 接近饱和。除以 \\(\\sqrt{d_k}\\) 能稳定分数尺度。"
+```
 
 ### GPT
 
@@ -842,90 +776,98 @@ motivation: 分段递归缓解上下文截断
 ```
 
 #### 📝 一句话总结
-Transformer-XL 通过在 Transformer 中引入段级循环机制（Segment-Level Recurrence）和相对位置编码（Relative Positional Encoding），解决了标准 Transformer 无法建模超出固定上下文长度的长程依赖问题，实现了比 RNN 长 80%、比普通 Transformer 长 450% 的有效上下文，评估速度提升高达 1800 倍，并在五个主流语言建模基准上取得 SOTA。
+Transformer-XL 在标准 Transformer 语言模型中加入分段级递归和相对位置编码，使当前片段能复用前一片段的隐藏状态，从而突破固定上下文长度并缓解上下文碎片化。它解决了 vanilla Transformer 训练时片段之间无信息流、推理时重复计算严重的问题，是长上下文 Transformer 的早期关键架构。
 
 #### 🎯 核心要点
-- 核心动机：分段递归缓解上下文截断
-- 演化来源：继承或改进自 transformer
-- 代表机构：CMU / Google Brain
+- 提出 segment-level recurrence：把上一片段各层隐藏状态缓存为 memory，作为当前片段 attention 的额外 key/value 上下文。
+- 使用 stop-gradient 连接相邻片段，使训练类似截断 BPTT：前向可复用历史，反向梯度仍限制在当前片段，控制显存和计算成本。
+- 解决 context fragmentation：当前片段开头 token 不再只能依赖片段内很短前缀，而能看到前一片段的语义上下文。
+- 指出绝对位置编码与状态复用冲突：缓存状态在新片段中被复用时，绝对位置编号会混淆，因此必须改用相对位置编码。
+- 提出新的 relative positional encoding 打分分解，包括 content-based addressing、content-dependent positional bias、global content bias、global positional bias 四项。
+- 推理时复用历史 hidden states，避免每预测一个 token 都从头处理完整窗口，论文报告在 enwiki8 上相对 vanilla Transformer 可达到 1,800+ 倍评估加速。
+- 在 WikiText-103、enwiki8、text8、One Billion Word、Penn Treebank 等语言建模基准上刷新当时困惑度或 bpc 结果，并展示千 token 级连贯生成能力。
 
 #### 🔬 深入细节
-##### 1. Vanilla Transformer 语言模型的局限性
+![Transformer-XL 分段递归机制](https://ar5iv.labs.arxiv.org/html/1901.02860/assets/x3.png)
+*图：Transformer-XL 的训练阶段分段递归。上一段的隐藏状态被固定并缓存，作为当前段的扩展上下文；绿色路径表示当前 token 可以直接注意到历史片段中的 hidden states。*
 
-标准方法（Al-Rfou et al., 2018）将语料切分为等长段，每段独立训练 Transformer，段间无信息流动。这带来两个关键问题：
+```python
+# Transformer-XL segment-level recurrence, simplified
 
-- **最大依赖长度受限**：理论上自注意力可捕捉任意长依赖，但因段长常设数百 token（字符级约几百），实际依赖长度被硬性截断。
-- **上下文碎片化（Context Fragmentation）**：简单按固定长度切分不顾语义边界，导致前段末尾和后段开头本应连续的上下文被割裂，模型在前几个位置的预测缺少足够前文。
+memory = init_empty_memory(num_layers)
 
-评估时采用滑动窗口：每步右移一位重新计算整段，虽利用最长上下文但极其低效。
+for segment in stream_as_segments(tokens, length=L):
+    h = [None] * (num_layers + 1)
+    h[0] = token_embedding(segment)
 
-> **图 1（论文 Fig.1）**：Vanilla Transformer 训练时一段只预测一段（a），评估时每次只预测最后一个位置，然后整体右移一位重新计算（b）。
+    for layer in range(1, num_layers + 1):
+        # Reuse previous segment states as fixed memory.
+        mem = stop_gradient(memory[layer - 1])
+        extended_context = concat(mem, h[layer - 1], dim="time")
 
-##### 2. 段级循环与状态复用
+        # Query comes from current segment; key/value come from memory + current segment.
+        q = h[layer - 1] @ W_q[layer]
+        k_content = extended_context @ W_k_content[layer]
+        v_content = extended_context @ W_v[layer]
 
-**核心公式。**令第 τ 段的第 n 层隐状态为 h_τ^n ∈ R^{L×d}（L 为段长，d 为隐维度）。处理段 s_{τ+1} 时，将前段第 n-1 层的隐状态缓存并拼接：
+        rel_pos = relative_sinusoidal_positions(query_len=len(segment), key_len=len(extended_context))
+        attn_score = relative_attention_score(q, k_content, rel_pos, u[layer], v_bias[layer])
+        attn_out = softmax(mask_future(attn_score)) @ v_content
+        h[layer] = feed_forward(layer_norm(attn_out + h[layer - 1]))
 
-$$\tilde{h}_{τ+1}^{n-1} = [\text{SG}(h_τ^{n-1}) \;\circ\; h_{τ+1}^{n-1}]$$
+    # Cache latest hidden states for the next segment.
+    for layer in range(num_layers):
+        memory[layer] = keep_last(concat(memory[layer], h[layer]), mem_len)
+```
 
-其中 SG 为 stop-gradient（前段表示固定不计算梯度）。然后用 $\tilde{h}_{τ+1}^{n-1}$ 生成 Key 和 Value，用 $h_{τ+1}^{n-1}$ 生成 Query：
+标准 Transformer 语言模型在长文本上通常把语料切成固定长度片段，然后在每个片段内部做因果 self-attention。这个做法计算方便，但有两个硬伤。第一，最长依赖被片段长度上界截断，片段外信息完全不可见；第二，切片往往不尊重句子或段落边界，片段开头 token 缺少必要前文，形成 context fragmentation。推理阶段也不理想：为了让每个新 token 用到最长窗口，vanilla Transformer 往往把窗口右移一位并重新计算整个窗口，历史状态不能复用，成本极高。
 
-$$q_{τ+1}^n = h_{τ+1}^{n-1} W_q^\top,\quad k_{τ+1}^n = \tilde{h}_{τ+1}^{n-1} W_k^\top,\quad v_{τ+1}^n = \tilde{h}_{τ+1}^{n-1} W_v^\top$$
+Transformer-XL 的第一项核心改动是 segment-level recurrence。设第 \(\tau\) 个片段在第 \(n-1\) 层的隐藏状态为 \(\mathbf{h}_{\tau}^{n-1}\)，上一片段的对应隐藏状态为 \(\mathbf{h}_{\tau-1}^{n-1}\)。当前层计算前先拼接一个扩展上下文：
 
-注意力计算与标准 Transformer 相同。梯度仅沿当前段回传，不跨段。
+$$
+\tilde{\mathbf{h}}_{\tau}^{n-1}=[\mathrm{SG}(\mathbf{h}_{\tau-1}^{n-1})\circ \mathbf{h}_{\tau}^{n-1}]
+$$
 
-> **图 2（论文 Fig.2）**：段级循环示意图。训练时（a）前一 4-token 段（初始为紫色）的隐状态被缓存（蓝色框），拼接到当前段作为扩展上下文。评估时（b）可复用更多前段，加速显著。
+其中 \(\mathrm{SG}\) 是 stop-gradient，\(\circ\) 表示沿时间维拼接。然后当前片段的 query 只来自当前片段，而 key/value 来自“历史 memory + 当前片段”：
 
-**Memory 扩展。**具体实现中使用长度为 M 的 memory m_τ^n 缓存多个前段的隐状态。训练时 M = L（段长），评估时 M 可增为数倍 L，GPU 内存允许时缓存更多前文。
+$$
+\mathbf{q}_{\tau}^{n}=\mathbf{h}_{\tau}^{n-1}W_q^n,\quad
+\mathbf{k}_{\tau}^{n}=\tilde{\mathbf{h}}_{\tau}^{n-1}W_{k,E}^n,\quad
+\mathbf{v}_{\tau}^{n}=\tilde{\mathbf{h}}_{\tau}^{n-1}W_v^n
+$$
 
-**评估加速。**因前段表示直接复用，enwiki8 上评估速度比 Vanilla Transformer 快 1800+ 倍。
+$$
+\mathbf{h}_{\tau}^{n}=\mathrm{TransformerLayer}(\mathbf{q}_{\tau}^{n},\mathbf{k}_{\tau}^{n},\mathbf{v}_{\tau}^{n})
+$$
 
-##### 3. 相对位置编码（Relative Positional Encoding）—— 解决状态复用的关键技术
+这个设计让当前片段的每个位置都可以 attend 到上一片段的缓存表示，但梯度不会穿回上一片段，因此显存不会随全文长度线性爆炸。多层网络连续应用这种机制后，信息会跨片段逐层传播，最大可利用依赖长度随层数和片段长度近似线性增长，而不是被单个 segment length 固定封死。
 
-**动机。**标准 Transformer 使用绝对位置编码 U ∈ R^{L_max×d}，每段内位置 1,2,...,L 的编码固定。但引入循环后，前段位置 1 和当前段位置 1 编码相同——模型无法区分，产生时序混淆。
+> 💡 关键：Transformer-XL 的 memory 不是 RNN 那样只传一个最终 hidden state，而是缓存一整段 hidden state 序列。这样当前 token 能用 attention 选择历史中不同位置的信息，保留了 Transformer 的直接长距离连接优势。
 
-**重新推导。**标准 Transformer 的注意力分数（单头，忽略缩放因子）可分解为：
+第二项核心改动是相对位置编码。直接把标准绝对位置编码搬到 recurrence 上会出错：上一片段缓存的第 \(i\) 个位置和当前片段的第 \(i\) 个位置可能带着相同绝对位置向量，模型无法判断二者在真实时间轴上的先后距离。Transformer-XL 因此不再把绝对位置静态加到输入 embedding 中，而是在每层 attention score 中注入相对距离 \(i-j\)。单头注意力中，位置 \(i\) 对位置 \(j\) 的打分可写成四项：
 
-$$A_{i,j}^{\text{abs}} = \underbrace{E_{x_i}^\top W_q^\top W_k E_{x_j}}_{(a)} + \underbrace{E_{x_i}^\top W_q^\top W_k U_j}_{(b)} + \underbrace{U_i^\top W_q^\top W_k E_{x_j}}_{(c)} + \underbrace{U_i^\top W_q^\top W_k U_j}_{(d)}$$
+$$
+A_{i,j}^{\mathrm{rel}}=q_i^{\top}k_{E,j}+q_i^{\top}W_{k,R}R_{i-j}+u^{\top}k_{E,j}+v^{\top}W_{k,R}R_{i-j}
+$$
 
-Transformer-XL 将其改为基于相对距离的公式：
+这里 \(q_i\) 是当前位置 query，\(k_{E,j}\) 是内容 key，\(R_{i-j}\) 是相对距离的正弦编码，\(u\) 和 \(v\) 是可学习全局偏置。四项分别有清晰含义：\(q_i^{\top}k_{E,j}\) 做内容寻址；\(q_i^{\top}W_{k,R}R_{i-j}\) 表示“当前内容想关注多远”；\(u^{\top}k_{E,j}\) 是全局内容偏置；\(v^{\top}W_{k,R}R_{i-j}\) 是全局位置偏置。相较 Shaw 等相对位置方法，Transformer-XL 保留 sinusoidal relative encoding 的外推归纳偏置，并把内容 key 与位置 key 的投影矩阵分开。
 
-$$A_{i,j}^{\text{rel}} = \underbrace{E_{x_i}^\top W_q^\top W_{k,E} E_{x_j}}_{(a)} + \underbrace{E_{x_i}^\top W_q^\top W_{k,R} R_{i-j}}_{(b)} + \underbrace{u^\top W_{k,E} E_{x_j}}_{(c)} + \underbrace{v^\top W_{k,R} R_{i-j}}_{(d)}$$
+这种位置设计和 memory 机制是配套的。只有 recurrence 而没有相对位置，模型会在复用缓存时产生时间混淆；只有相对位置而没有 recurrence，仍然无法跨片段传递历史信息。两者结合后，训练时可固定片段长度，评估时可以把 memory length 设得更长，因为相对距离编码比训练过的绝对位置编号更容易外推到长上下文。
 
-**四个关键改动**：
-1. **(b)(d)** 将绝对位置编码 U_j 替换为基于相对距离 i−j 的编码 R_{i−j}（可学习的正弦编码矩阵）。
-2. **(c)(d)** 新增可学习向量 u 和 v 替代 U_i^\top W_q^\top，因为 Query 位置对注意力应无偏置效果——对不同位置 Query 使用相同偏置。
-3. **Key 权重分拆**：W_k 分为 W_{k,E}（内容映射）和 W_{k,R}（位置映射），分别处理内容向量和位置向量。
-4. **(d)** 将 U_i^\top W_q^\top W_k U_j 重构为与 Query 无关的形式 v^\top W_{k,R} R_{i-j}。
+从计算流程看，Transformer-XL 在训练阶段像截断 BPTT：每个 segment 做一次前向和反向，上一段 hidden states 作为固定 memory。推理阶段则更像缓存式自回归模型：旧片段的各层表示保留在 memory 中，新片段只需计算新增 token 的表示，不需要每次滑窗都从头重算历史。这就是论文能报告大幅评估加速的原因。它不仅扩大有效上下文，也把“长上下文语言模型”从重复窗口计算推进到状态复用范式。
 
-这样一来，位置信息仅依赖相对距离 i−j，前段和当前段的位置编码不再冲突，状态复用自然成立。
-
-> **伪代码（直观理解）**：
-> ```
-> def rel_attn(Q, K, V, R, u, v, W_kE, W_kR):
->     A_content = Q @ (W_kE @ K).T          # (a) 内容-内容
->     A_pos    = Q @ (W_kR @ R).T           # (b) 内容-位置
->     bias_c   = u @ (W_kE @ K).T           # (c) 全局内容偏置
->     bias_p   = v @ (W_kR @ R).T           # (d) 全局位置偏置
->     return softmax(A_content + A_pos + bias_c + bias_p) @ V
-> ```
-
-##### 4. 消融实验与关键发现
-
-**WikiText-103 消融**（Table 6）：同时使用递归机制和相对位置编码才取得最优结果。绝对位置编码仅与 "half loss"（仅对段后半位置计算损失）配合才有效，因为前半位置训练时注意力长度过短导致泛化差。全模型可将训练时的 128 注意长度扩展至评估时的 640，PPL 随注意长度增加持续下降。
-
-**One Billion Word 控制实验**：该数据集不要求长程依赖，任何提升仅归因于解决上下文碎片化。Transformer-XL 仍显著优于 baseline，验证了递归机制消除碎片化的独立价值。
-
-##### 5. 生成能力
-
-论文展示了 Transformer-XL 生成连贯长文章的能力。在给定种子段落后，模型能持续生成数千 token、主题一致的文本，远超标准 Transformer 的生成质量。
+与后来的长上下文 Transformer 相比，Transformer-XL 的思路朴素但影响很大。它没有依赖稀疏注意力、检索索引或外部记忆库，而是在标准 Transformer 内部加入可缓存的 hidden-state recurrence；它也没有把长上下文问题只看作位置编码问题，而是同时处理信息流、位置一致性和推理效率。对于现代 LLM，KV cache 已成为自回归推理的基础设施，Transformer-XL 则是较早系统性说明“Transformer 状态可以跨片段复用，并且位置编码必须随之改造”的代表工作。
 
 #### 🧪 练习题
 ```yaml
-1. 标准 Transformer 语言模型的 context fragmentation 问题具体指的是什么？为什么简单 padding 到句边界在实践中未被广泛采用？
-2. Transformer-XL 的段级循环机制中，前段隐状态通过 SG（stop-gradient）固定。如果允许梯度跨段回传（类似 BPTT），会带来什么利弊？
-3. 推导标准 Transformer 注意力分数分解为四项 (a)(b)(c)(d) 的过程，并说明 Transformer-XL 为何必须将绝对位置编码改为相对位置编码。
-4. 为什么 Transformer-XL 在评估时能比 Vanilla Transformer 快 1800 倍？请从计算量和缓存复用的角度分析。
-5. 如果将 Transformer-XL 的 memory 长度 M 从训练时的 L 增加到评估时的 3L，会对模型的注意力模式产生什么影响？
+question: "Transformer-XL 为什么不能直接复用标准 Transformer 的绝对位置编码？"
+options:
+  - "因为缓存的历史状态与当前片段可能共享相同绝对位置编号，导致模型无法区分真实相对距离"
+  - "因为绝对位置编码会让模型参数量变成两倍"
+  - "因为绝对位置编码只能用于图像，不能用于文本"
+  - "因为相对位置编码会完全取消 attention mask"
+answer: 0
+explain: "Transformer-XL 复用上一片段 hidden states 时，需要知道当前 query 与历史 key 的相对距离；绝对位置编号在跨片段缓存下会造成时间混淆。"
 ```
 
 ### GPT-2
@@ -945,453 +887,84 @@ motivation: 规模化带来零样本迁移
 ```
 
 #### 📝 一句话总结
-GPT-2 首次系统性地验证了一个颠覆性假设：**将语言模型规模和数据量扩展到足够大后（1.5B 参数 / 40GB WebText），模型无需任何微调即可通过自然语言 prompt 在多项 NLP 任务上实现零样本迁移**，效果甚至超越当时的有监督 SOTA——这一发现直接揭示了"规模化（scale）"是通向通用语言智能的关键路径，并奠定了 GPT-3、ChatGPT 等后续革命的范式基础。
+GPT-2 提出用更大规模的 decoder-only Transformer 在高质量 WebText 上做纯自回归语言建模，解决了传统 NLP 任务依赖显式监督和任务专用微调的问题。它的核心发现是：当模型、数据和上下文窗口足够大时，同一个语言模型可以通过自然语言提示在阅读理解、翻译、摘要、问答等任务上产生零样本迁移能力。
 
 #### 🎯 核心要点
-- **范式创新**：提出"语言模型即无监督多任务学习器"——将所有 NLP 任务统一建模为条件概率 \\(p(output\|input)\\)，任务规格以自然语言形式嵌入上下文，无需任何下游标注数据或参数更新
-- **数据质量驱动**：构建 WebText 数据集（约 800 万文档、40GB），通过 Reddit 用户外链（≥3 karma）作为隐含质量信号进行筛选，远优于 Common Crawl 等粗爬数据
-- **四规模模型族**：发布 117M（对标 GPT-1）/ 345M / 762M / 1542M（1.5B）四种规格，上下文窗口统一 1024 tokens，系统研究容量-性能关系
-- **架构微创新**：Transformer decoder-only 架构上将 Layer Normalization 移至**每个子块输入端**（pre-norm），并在最终 block 后追加额外 LN，显著改善深层训练稳定性
-- **BPE 分词**：采用改进的 Byte-Pair Encoding，vocab size = 50257，禁止跨字符类别合并，实现字符级全覆盖与词级语义密度的平衡，无 `<unk>` token
-- **零样本评估覆盖 8 基准**：包括阅读理解（CoQA）、翻译（WMT-14 En-Fr/En-De）、摘要（CNN/Daily Mail）、问答（Natural Questions）、语言建模（PTB/WikiText-2/LAMBADA/Children's Book Test）
-- **惊人结果**：1.5B 模型在 7/8 任务上零样本达到或超越当时特定任务 SOTA；Children's Book Test 上超越人类水平；性能与规模呈平滑幂律关系（\\(r>0.93\\)）
-- **生成能力**：可生成连贯长文本，但存在重复、事实错误、主题漂移等局限性——模型仍显著欠拟合 WebText，容量远未饱和
+- 训练目标保持极简：只优化 next-token prediction，不引入任务标签、任务头或多任务监督损失。
+- 数据集使用 WebText：从 Reddit 高赞外链采样约 800 万网页、约 40GB 文本，强调文档质量和领域多样性。
+- 模型是 GPT 的直接规模化版本：最大 GPT-2 为 1542M 参数、48 层、`d_model=1600`、上下文长度 1024。
+- 输入表示使用 byte-level BPE，词表扩展到 50,257，使模型可以给任意 Unicode 字符串赋概率并减少预处理不一致。
+- 零样本任务通过自然语言序列化完成：把 `task`、`input`、`output` 都写成同一段文本，估计 \(p(\text{output}\mid\text{input},\text{task})\)。
+- 架构细节包括 pre-LN、最终 self-attention block 后额外 LayerNorm、残差路径初始化按深度缩放 \(1/\sqrt{N}\)。
+- 论文展示模型规模与零样本能力的强相关：1542M 模型在 8 个语言建模基准中 7 个达到 zero-shot SOTA，并在 LAMBADA、CBT、Winograd 等任务上显著提升。
 
 #### 🔬 深入细节
-##### 1. 核心机制图
-
-*图 1：GPT-2 将翻译、阅读理解、摘要等任务统一建模为条件语言生成。训练阶段仅执行标准自回归语言建模；零样本推理时，通过自然语言 prompt（如 "Translate to French: ... =>"）隐式指定任务类型和期望输出格式。*
-
-具体而言：
-- **训练时**：`p(下一个token | 前文所有token)`，语料中天然包含"任务描述→答案"的文本片段
-- **推理时**：`p(答案 | 任务描述 + 输入)`，模型根据上下文自动推断任务模式
-- **关键洞察**：不需要显式的"任务 ID"或"输出层切换"——条件分布的变化全部由 token 序列的统计规律驱动
-
-##### 2. 算法伪代码
+![GPT-2 官方发布页示意图](https://images.ctfassets.net/kftzwdyauwt9/8df9d1ca-5128-41d0-81527fd4752f/488482a9bebc41f8d72e1d0d423a5891/better-language-models.jpg?fm=webp&q=90&w=3840)
+*图：OpenAI 官方 GPT-2 发布页配图。论文 Figure 1 的主信息是 WebText 语言模型的 zero-shot 任务表现随模型规模增大而系统提升。*
 
 ```python
-# ==========================================
-# GPT-2 训练与零样本推理完整流程
-# ==========================================
+# GPT-2 的核心训练与零样本使用流程
+model = DecoderOnlyTransformer(
+    vocab_size=50257,
+    context_length=1024,
+    layers=48,
+    d_model=1600,
+)
 
-# --- 数据预处理 ---
-def build_webtext():
-    """
-    从 Reddit 出链网页构建 WebText
-    过滤条件：
-      - 链接来自 ≥3 karma 的 Reddit 帖子
-      - 提取正文 (dragnet + newspaper3k)
-      - 去重 (MinHash LSH)
-      - 移除所有 Wikipedia 文档 (防止测试集污染)
-    """
-    documents = []
-    for link in reddit_outlinks:
-        if link.karma < 3:
-            continue
-        html = fetch(link.url)
-        text = extract_content(html)  # 正文提取
-        if len(text) > 100:
-            documents.append(text)
-
-    documents = deduplicate(documents)      # MinHash LSH 去重
-    documents = remove_wikipedia(documents)  # 防污染
-    return documents  # ~800万文档, ~40GB
-
-# --- 分词 ---
-class GPT2BPE:
-    """
-    改进的 Byte-Pair Encoding
-    vocab_size = 50257
-    关键改进：禁止跨字符类别合并
-      字母类 / 数字类 / 标点类 分别处理
-      避免半字符半标点的混乱 token
-    """
-    def encode(self, text):
-        # 返回 token id 序列
-        pass
-
-    def decode(self, tokens):
-        # 返回原始字符串
-        pass
-
-# --- 模型定义 ---
-class GPT2Block(nn.Module):
-    """
-    Pre-norm Transformer Decoder Block
-    GPT-2 的关键架构创新：LN 移到输入侧
-    """
-    def __init__(self, d_model, n_heads):
-        self.ln_1 = LayerNorm(d_model)         # 注意力前 LN
-        self.attn = MaskedMultiHeadAttention(
-            d_model, n_heads
-        )                                     # 因果自注意力
-        self.ln_2 = LayerNorm(d_model)         # FFN前 LN
-        self.ffn = FFN(d_model * 4, d_model)  # GELU 激活
-
-    def forward(self, x):
-        # Pre-norm + residual
-        a = self.attn(self.ln_1(x))  # 先 norm 再 attention
-        x = x + a                      # residual
-
-        f = self.ffn(self.ln_2(x))   # 先 norm 再 FFN
-        x = x + f                      # residual
-        return x
-
-class GPT2(nn.Module):
-    """
-    GPT-2 完整模型
-    规格 (1.5B):
-      n_layers=48, d_model=1600, n_heads=25
-      context_len=1024, vocab_size=50257
-    """
-    def __init__(self, config):
-        self.token_emb = nn.Embedding(
-            config.vocab_size, config.d_model
-        )
-        self.pos_emb = nn.Parameter(
-            torch.randn(config.context_len, config.d_model)
-        )
-        self.blocks = nn.ModuleList([
-            GPT2Block(config.d_model, config.n_heads)
-            for _ in range(config.n_layers)
-        ])
-        self.final_ln = LayerNorm(config.d_model)  # 额外最终 LN
-        self.lm_head = nn.Linear(
-            config.d_model, config.vocab_size
-        )
-
-    def forward(self, input_ids):
-        x = self.token_emb(input_ids) + self.pos_emb[:input_ids.size(1)]
-        for block in self.blocks:
-            x = block(x)
-        x = self.final_ln(x)
-        logits = self.lm_head(x)  # [B, T, vocab_size]
-        return logits
-
-# --- 训练 ---
-def train_gpt2():
-    model = GPT2(config_1542M)   # 1.5B 规格
-
-    # 优化器配置
-    optimizer = AdamW(
-        model.parameters(),
-        lr=0.0,                   # 通过 scheduler 控制
-        betas=(0.9, 0.999),
-        eps=1e-8,
-        weight_decay=0.01
-    )
-
-    # 学习率调度：cosine, 2000 step warmup
-    scheduler = CosineAnnealingLR(
-        optimizer,
-        T_max=1_000_000,          # 100万 steps
-        warmup_steps=2000
-    )
-
-    # 主循环
-    for step, batch in enumerate(dataloader):
-        # batch: input_ids [512, 1024]  # batch_size=512
-        logits = model(batch)                    # [512, 1024, 50257]
-
-        # 标准语言模型损失：预测下一个 token
-        loss = F.cross_entropy(
-            logits[:, :-1].reshape(-1, 50257),   # 预测位置 1..T
-            batch[:, 1:].reshape(-1)              # 目标位置 1..T
-        )
-
+for document in WebText:
+    tokens = byte_level_bpe(document)
+    for window in sliding_windows(tokens, length=1024):
+        x = window[:-1]
+        y = window[1:]
+        logits = model(x)
+        loss = cross_entropy(logits, y)
         loss.backward()
-        grad_norm = clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
-        scheduler.step()
         optimizer.zero_grad()
 
-        if step % 1000 == 0:
-            print(f"Step {step}: loss={loss.item():.4f}, "
-                  f"lr={scheduler.get_lr()[0]:.2e}")
-
-# --- 零样本推理 ---
-def zero_shot_inference(model, task_description, input_text):
-    """
-    零样本执行下游任务 - 核心创新点
-
-    参数:
-      model: 预训练好的 GPT-2
-      task_description: 自然语言任务描述
-      input_text: 具体输入
-
-    示例:
-      task_description = "Translate to French:"
-      input_text = "Hello world"
-
-    拼接后 prompt:
-      "Translate to French: Hello world =>"
-
-    模型自回归生成，期望输出 "Bonjour le monde"
-    """
-    # 构建完整 prompt
-    prompt = f"{task_description} {input_text} =>"
-    input_ids = bpe_tokenizer.encode(prompt)
-
-    # 自回归生成
-    generated = []
-    context = torch.tensor([input_ids])
-
-    for _ in range(100):  # 最大生成长度
-        with torch.no_grad():
-            logits = model(context)         # [1, len, 50257]
-            next_logits = logits[0, -1, :]  # 取最后一个位置
-
-            # Top-k 采样 (k=40)
-            top_k_values, top_k_indices = torch.topk(
-                next_logits, k=40
-            )
-            probs = F.softmax(top_k_values / temperature, dim=-1)
-            next_token = top_k_indices[
-                torch.multinomial(probs, 1)
-            ]
-
-            generated.append(next_token.item())
-            context = torch.cat([
-                context,
-                next_token.unsqueeze(0).unsqueeze(0)
-            ], dim=1)
-
-            # 遇到结束标记则停止
-            if next_token == eos_token_id:
-                break
-
-    return bpe_tokenizer.decode(generated)
-
-
-# --- 任务示例 ---
-def example_zero_shot_tasks(model):
-    """GPT-2 零样本执行各类 NLP 任务"""
-
-    tasks = {
-        "翻译": {
-            "prompt": "Translate to French: Hello, how are you? =>",
-            "expected": "Bonjour, comment allez-vous?"
-        },
-        "阅读理解": {
-            "prompt": (
-                "Passage: Paris is the capital of France. "
-                "It has a population of 2.1 million. "
-                "\nQuestion: What is the capital of France?\n"
-                "Answer:"
-            ),
-            "expected": "Paris"
-        },
-        "摘要": {
-            "prompt": (
-                "Article: [很长的新闻文章内容...]\n\n"
-                "TL;DR:"
-            ),
-            "expected": "[简洁摘要]"
-        },
-        "问答": {
-            "prompt": "Q: Who wrote the play Romeo and Juliet?\nA:",
-            "expected": "William Shakespeare"
-        }
-    }
-
-    for name, task in tasks.items():
-        result = zero_shot_inference(model, "", task["prompt"])
-        print(f"任务 {name}: {result}")
+# 下游任务不增加新头，也不微调参数，只把任务写进 prompt
+def zero_shot_infer(task, input_text):
+    prompt = serialize_as_natural_language(task, input_text)
+    return autoregressive_decode(model, prompt)
 ```
 
-##### 3. 动机与背景
+GPT-2 的方法论起点是把语言建模视为通用的序列概率估计。对一段符号序列 \(x=(s_1,\ldots,s_n)\)，模型分解联合概率：
 
-在 GPT-2 (2019) 之前，NLP 领域的主导范式是 **"预训练 + 有监督微调"**（如 GPT-1、BERT、ELMo）。这种范式的核心痛点是：
+$$
+p(x)=\prod_{i=1}^{n}p(s_i\mid s_1,\ldots,s_{i-1})
+$$
 
-| 痛点 | 具体表现 | 代价 |
-|------|----------|------|
-| **标注依赖** | 每个新任务需数千到数十万标注样本 | 标注成本高、时间长 |
-| **泛化脆弱** | 微调模型易过拟合训练分布的虚假统计相关性 | 分布偏移时性能骤降 |
-| **任务碎片化** | 不同任务需不同输出层和损失函数 | 无法形成统一框架 |
-| **能力局限** | 模型仅学会"如何适配特定任务"，而非"如何理解任务本身" | 跨任务迁移困难 |
+训练时最小化负对数似然：
 
-GPT-2 的核心洞察是颠覆性的：**如果语料中包含 "Translate to French: Hello -> Bonjour" 这样的自然文本片段，那么足够大的语言模型就能从这些隐式示例中学会"翻译"这一概念——无需任何显式监督信号。** 这本质上是将"任务学习"归约为"语境条件概率建模"。
+$$
+\mathcal{L}(\theta)=-\sum_{i=1}^{n}\log p_\theta(s_i\mid s_{<i})
+$$
 
-数学上，传统范式把每个任务建模为 \\(p*{task}(y|x)\\)（需要单独训练），而 GPT-2 将其统一为 \\(p(y|x, task\\_context)\\)，其中 \\(task\\_context\\) 是以自然语言描述的，因此可以泛化到训练时未见过的任务组合。
+这个公式本身没有写任何“翻译”“摘要”“问答”的监督项，但论文的关键观察是：互联网页面中天然包含大量任务演示。例如“英文句子 + 法文翻译”“问题 + 文档 + 答案”“文章 + TL;DR 摘要”都可以被视为同一类序列预测样本。只要语料足够多样，最大化整段文本似然就会迫使模型学习这些隐式格式，从而在推理时通过 prompt 激活相应能力。
 
-##### 4. 核心机制详解
+与显式多任务学习相比，GPT-2 不需要为每个任务设计数据集、标签格式、任务头或损失权重。传统 supervised multitask 可以写成 \(p(\text{output}\mid\text{input},\text{task})\)，但通常要人工提供 \((\text{task},\text{input},\text{output})\) 三元组；GPT-2 的做法是让自然语言本身承担 task conditioning 的角色，把任务描述、输入和待生成输出串接为同一 token 序列。这样，下游任务从“训练一个新模型”变成“构造一个让语言模型续写的上下文”。
 
-**4.1 统一条件概率框架——"一切皆生成"**
+架构上，GPT-2 基本沿用 GPT 的 decoder-only Transformer：每个位置只能看见左侧上下文，自注意力输出经过前馈层和残差连接。论文做了几处对大模型训练很重要的工程修改：LayerNorm 移到每个子块输入处，类似 pre-activation ResNet；最后一个 self-attention block 后再加 LayerNorm；残差层初始化按 \(1/\sqrt{N}\) 缩放，避免 48 层模型中残差信号随深度累积过大。最大模型上下文从 GPT 的 512 增加到 1024 token，批大小为 512，这让模型可以利用更长的文档级依赖。
 
-GPT-2 的根本创新在于将所有 NLP 任务统一为同一数学形式：
+输入表示是 GPT-2 的另一处关键设计。论文使用 byte-level BPE，而不是依赖固定词级词表或语言特定 tokenizer。直觉上，纯 byte 表示过长、学习困难，纯 word 表示又无法稳健覆盖拼写、罕见词、代码和多语言字符；byte-level BPE 在二者之间折中，既能把常见片段合并为较短 token，又保留对任意字符串建模的能力。这也是 GPT-2 可以直接评测不同语言建模基准、减少 `<UNK>` 与预处理差异的原因。
 
-$$p(output|input) = \prod_{i=1}^{n} p(token_i|token*{<i}, input)$$
+训练流程没有“预训练后微调”的第二阶段。论文在评测中明确强调 no training or fine-tuning：模型参数固定，只通过不同 prompt 诱导任务。例如阅读理解可以把文档、对话历史和 `A:` 作为条件让模型续写答案；摘要可以在文章后追加 `TL;DR:`；翻译可以给出自然语言中常见的双语表达模式。这个设置比 GPT-1 更激进：GPT-1 证明了预训练表示对微调有帮助，而 GPT-2 进一步证明了规模化语言模型本身会在零样本下显现任务能力。
 
-其中 \\(input\\) 是拼接后的上下文字符串，包含：
-- **任务规格**：以自然语言描述（如 `"Translate to French:"`）
-- **具体内容**：需要处理的实际输入（如 `"Hello world"`）
-- **格式标记**：提示模型开始输出的符号（如 `"=>"` 或 `"\\nA:"`）
+> 💡 关键：GPT-2 的“无监督多任务”不是显式地训练多个任务，而是把互联网文本中的自然语言任务演示都归入同一个自回归建模目标。
 
-这意味着：
-1. **训练时**：模型仅需最大化 \\(p(下一个token|前文)\\)，语料中的各种任务示例被隐式学习
-2. **推理时**：用户通过选择合适的 prompt 前缀来"激活"模型内部学到的对应能力
-3. **无需架构修改**：同一模型可以在翻译、问答、摘要间自由切换，只需改变输入文本
-4. **无需参数更新**：零样本——模型权重在预训练后完全冻结
-
-**4.2 架构细节：Pre-norm Transformer Decoder**
-
-GPT-2 基于 GPT-1 的 decoder-only Transformer，但做了关键改进：
-
-```
-GPT-1 (Post-norm):
-  x → Attention(x) → LayerNorm(x + a) → FFN(x) → LayerNorm(x + f)
-
-GPT-2 (Pre-norm):
-  x → LayerNorm(x) → Attention(x) → x + a  → LayerNorm(x) → FFN(x) → x + f
-```
-
-**Pre-norm 的优势**：
-- 梯度流动更顺畅：LN 在残差路径之前，避免梯度在深层被压缩
-- 训练更稳定：允许更大学习率，减少对 warmup 的依赖
-- 收敛更快：实验表明 pre-norm 在大规模模型中表现更好
-
-**额外最终 LN**：在最后一个 Transformer block 后追加一层 LayerNorm，使得输出嵌入的尺度更稳定，有助于下游语言建模头的训练。
-
-**完整架构栈（1.5B 模型）**：
-```
-Input Tokens
-  │
-  ├─ Token Embedding (vocab_size=50257, d_model=1600)
-  └─ Positional Embedding (max_len=1024, d_model=1600)
-      │
-      ├─ LayerNorm
-      ├─ [ GPT2Block ] × 48  ← pre-norm, residual
-      │    ├─ LN → Masked Multi-Head Attn(25 heads) → (+residual)
-      │    └─ LN → FFN(d_ff=6400, GELU) → (+residual)
-      ├─ LayerNorm (终结)
-      └─ Linear(1600, 50257) → Softmax → 下一个 token 概率分布
-```
-
-**4.3 BPE 分词——字符与词的平衡术**
-
-GPT-2 使用的 Byte-Pair Encoding 有以下特点：
-
-| 特性 | 说明 | 意义 |
-|------|------|------|
-| Vocab size | 50257 | 足够表达丰富语义 |
-| 基础单元 | 字节（bytes） | 覆盖所有 Unicode 字符 |
-| 合并策略 | **禁止跨类别合并** | 字母/数字/标点独立处理 |
-| `<unk>` 处理 | **无 `<unk>` token** | 所有输入均可编码 |
-| 英文效率 | ~0.7 词/token | 3-4× 压缩率 |
-
-**改进 BPE 的关键设计**：标准 BPE 会生成 `the.` 这样混合词与标点的 token，导致泛化能力下降。GPT-2 强制 BPE 不在字母、数字、标点三种类别间合并，保证了 token 的语义纯净性。
-
-**4.4 WebText——数据质量即是模型质量**
-
-| 维度 | 详情 |
-|------|------|
-| **来源** | Reddit 上获得 ≥3 karma 的帖子所引用的外部链接 |
-| **规模** | ~800 万文档，去重后 ~40 GB 纯文本 |
-| **筛选逻辑** | Reddit 点赞隐含人类质量判断——高赞帖子的链接通常更优质 |
-| **正文提取** | 使用 dragnet + newspaper3k 提取主体内容 |
-| **去重** | MinHash Locality-Sensitive Hashing (LSH) 去重 |
-| **防污染** | 显式移除所有 Wikipedia 内容（因 Wikipedia 常作为下游测试数据） |
-| **质量对比** | 远优于 Common Crawl 等全量爬虫数据，更干净、更连贯 |
-
-**4.5 四种模型规格与训练细节**
-
-| 参数量 | 层数 | d_model | 注意力头数 | d_ff | 参数量 |
-|--------|------|---------|-----------|------|--------|
-| 117M | 12 | 768 | 12 | 3072 | ~117M |
-| 345M | 24 | 1024 | 16 | 4096 | ~345M |
-| 762M | 36 | 1280 | 20 | 5120 | ~762M |
-| **1542M** | **48** | **1600** | **25** | **6400** | **~1542M** |
-
-**训练超参数**：
-- 优化器：Adam（\\(\beta_1=0.9, \beta_2=0.999, \epsilon=10^{-8}\\)），学习率 0→max→0 余弦调度
-- Warmup：2000 steps，从 0 线性升温
-- Batch size：512 个样本/step
-- 训练步数：100 万 steps（约 100 个 epoch over WebText）
-- 序列长度：1024 tokens
-- Dropout：0.1（正则化）
-- 权重初始化：\\(\mathcal{N}(0, 0.02)\\)，残差层按 \\(1/\sqrt{层数}\\) 缩放
-
-##### 5. 零样本评估结果
-
-GPT-2 在 8 个 NLP 基准上进行零样本评估，核心发现如下：
-
-**5.1 语言建模任务**
-
-| 数据集 | 117M | 345M | 762M | 1542M | 此前 SOTA |
-|--------|------|------|------|-------|-----------|
-| Penn Treebank (PPL) | 35.76 | - | - | **18.34** | 37.7 |
-| WikiText-2 (PPL) | 29.85 | - | - | **13.72** | 47.3 |
-| LAMBADA (PPL) | 36.18 | 16.87 | 10.65 | **8.63** | 36.1 |
-| LAMBADA (Acc%) | 56.72 | 61.73 | 64.34 | **66.68** | 56.25 |
-| Children's Book Test (Acc%) | - | - | - | **93.30%** | 85.7% (人类) |
-
-> 🔥 **LAMBADA 困惑度从 36.18 降至 8.63（降低 76%），准确率提升 10 个百分点**
-
-**5.2 下游任务零样本**
-
-| 任务 | 指标 | 117M | 1542M | 当时 SOTA | 备注 |
-|------|------|------|-------|-----------|------|
-| CoQA (阅读理解) | F1 | 27.1 | **55.5** | 89.0 (有监督) | 零样本回答 |
-| WMT-14 En→Fr | BLEU | 8.3 | **11.5** | 41.2 | 直出翻译 |
-| WMT-14 En→De | BLEU | 4.9 | **7.3** | 34.8 | 德语更弱 |
-| CNN/DM (摘要) | ROUGE-1 | 18.0 | **22.3** | 39.6 | 零样本摘要 |
-| Natural Questions | F1 | 1.2 | **4.1** | - | 开放域QA |
-
-**关键结论**：
-1. **幂律增长**：所有任务上模型性能随参数量平稳增长，无饱和迹象
-2. **容量远未耗尽**：1.5B 模型在 WebText 上仍欠拟合——训练 loss 和验证 loss 之间仍有显著差距
-3. **困惑度强预测下游性能**：在同一数据集上，语言建模困惑度与零样本下游性能的相关系数 \\(r>0.93\\)
-4. **翻译不对称**：英→法 BLEU (11.5) 显著优于英→德 (7.3)，因为 WebText 中法语内容更多
-5. **摘要的涌现**：模型能直接输出文章摘要，只需在文末加 `TL;DR:` 标记
-
-##### 6. 局限性分析
-
-GPT-2 论文坦率地讨论了以下局限性：
-
-| 局限 | 表现 | 原因 |
-|------|------|------|
-| **重复生成** | 长文本中出现循环短语 | 缺乏全局规划机制 |
-| **事实错误** | 生成内容与事实不符 | 仅从统计模式学习，无知识校验 |
-| **主题漂移** | 生成逐渐偏离原始主题 | 注意力在长上下文中衰减 |
-| **世界知识不完整** | 对专业知识、冷门事实表现差 | 训练数据覆盖不均 |
-| **抽象推理薄弱** | 逻辑推理、数学计算能力有限 | 纯语言建模目标的局限 |
-| **生成不可控** | 无法精确控制输出风格/立场 | 仅靠 prompt 引导，无条件控制 |
-
-##### 7. 与传统方法的系统对比
-
-| 维度 | 传统范式 (GPT-1/BERT) | GPT-2 |
-|------|----------------------|-------|
-| **学习范式** | 预训练 → 有监督微调 | **预训练 → 零样本** |
-| **下游数据** | 每任务需数千标注样本 | **零标注** |
-| **任务建模** | 每个任务独立建模 | **统一条件语言生成** |
-| **模型规模** | GPT-1: 117M; BERT: 340M | 最高 1542M (12.8× GPT-1) |
-| **数据规模** | BooksCorpus (4.6GB) | WebText (~40GB, 8.7×) |
-| **数据质量** | 书籍语料 | Reddit 外链 (社群筛选) |
-| **LN 策略** | Post-norm | **Pre-norm** |
-| **分词** | BPE+空格 | **改进 BPE（禁跨类合并）** |
-| **上下文窗口** | 512 tokens | 1024 tokens (2×) |
-| **泛化方式** | 微调适配 | **prompt 激活** |
-| **根本哲学** | "学会适应任务" | **"学会理解任务"** |
-
-GPT-2 的核心贡献**不在于架构的颠覆性创新**，而在于系统性地验证了一个深刻的假设：**当语言模型足够大、数据足够丰富时，许多 NLP 能力会作为语言建模的副产品"涌现"出来**——这一洞见直接催生了 GPT-3、InstructGPT、ChatGPT 等后续变革，并将 NLP 研究的主流方向从"精巧的任务特定设计"扭转到"规模 + 数据 + prompt 工程"。
+论文结果的主要含义不是 GPT-2 在所有下游任务上已经可用，而是 zero-shot 曲线随参数量单调改善。1542M 模型在 LAMBADA 上取得 8.63 perplexity 和 63.24% accuracy，在 Winograd Schema Challenge 上达到 70.70%，并在多个语言建模数据集上超过当时的专用系统。不过论文也指出，摘要、翻译、问答等开放任务仍远不稳定，很多表现只是“开始学会任务”的证据，而不是完成任务的工程系统。
 
 #### 🧪 练习题
 ```yaml
-question: "GPT-2 如何在不进行任何微调的情况下执行翻译任务？"
+question: "GPT-2 为什么能够在没有下游微调的情况下尝试翻译、摘要、问答等任务？"
 options:
-  - "通过在预训练阶段混合了翻译任务的标注数据"
-  - "将翻译任务视为条件语言生成，用自然语言提示 p(target|source, 'Translate to...') 激活模型内部学到的翻译能力"
-  - "使用特定语言的 task token 在模型内部切换翻译模式"
-  - "通过强化学习对模型输出进行自校准以提升翻译质量"
+  - "因为它为每个任务训练了独立的分类头"
+  - "因为 WebText 中存在自然语言形式的任务演示，统一的自回归目标会学习这些模式"
+  - "因为 byte-level BPE 会自动生成监督标签"
+  - "因为模型在评测集上继续训练了若干步"
 answer: 1
-explain: "GPT-2 将一切 NLP 任务统一建模为条件概率 p(output|input)。翻译时，只需拼接 'Translate to French: 英文句子 =>' 的 prompt，模型根据训练语料中见过的类似模式自回归生成法文译文，无需任何参数更新或任务特定组件。"
+explain: "GPT-2 的关键是把 task、input、output 都看作自然语言序列的一部分；大规模 WebText 中的隐式任务演示让 next-token prediction 学到零样本迁移模式。"
 ```
-
----
-
-*论文链接：https://d4mucfpksywv.cloudfront.net/better-language-models/language_models_are_unsupervised_multitask_learners.pdf*
-
-*Radford, Alec, et al. "Language models are unsupervised multitask learners." OpenAI blog 1.8 (2019): 9.*
 
 ### T5
 
@@ -1410,141 +983,83 @@ motivation: 所有任务转成文本生成
 ```
 
 #### 📝 一句话总结
-T5 提出了 Text-to-Text Transfer Transformer 框架，把所有 NLP 任务统一成条件文本生成问题，并通过 C4 语料、encoder-decoder Transformer、span corruption 预训练和大规模消融实验，总结出一套影响后续预训练与 prompt 范式的实践准则。
+T5 提出了 Text-to-Text Transfer Transformer，把分类、翻译、摘要、问答、回归等 NLP 任务全部改写成“输入文本 -> 输出文本”的条件生成问题，并用 C4、span corruption 和系统性消融总结了预训练迁移的工程准则。
 
 #### 🎯 核心要点
-- **文本到文本统一范式**：输入总是字符串，输出也总是字符串；分类任务输出类别名，回归任务输出数字文本，翻译和摘要输出目标文本。
-- **任务前缀机制**：输入中显式加入 `"translate English to German:"`、`"summarize:"`、`"cola sentence:"` 等自然语言前缀，用同一模型区分任务。
-- **C4 数据集**：提出 Colossal Clean Crawled Corpus，从 Common Crawl 中经过去重、语言过滤、质量过滤、坏词/模板过滤等流程构建大规模英文预训练语料。
-- **Span Corruption 预训练目标**：随机遮盖连续文本片段而不是孤立 token，用 `<extra_id_0>` 等 sentinel token 替换输入片段，并要求 decoder 依次生成被遮盖片段。
-- **系统性消融**：围绕架构、目标、数据集、训练策略和迁移方法进行了约 70 个实验，比较 encoder-decoder、decoder-only、prefix LM、MLM、span corruption 等选择。
-- **相对位置偏置**：使用相对位置表示，让模型更自然地处理不同长度输入，并支撑从 small/base 到 11B 的规模扩展。
-- **多任务迁移经验**：T5 显示数据清洗质量、合适预训练目标、充分训练步数和统一输出格式比堆叠任务特定 head 更关键。
+- 统一 text-to-text 接口：所有任务的输入和输出都是字符串，分类标签也作为文本生成。
+- 使用任务前缀：如 `translate English to German:`、`summarize:`、`cola sentence:`，用输入 token 显式指定任务。
+- 采用 encoder-decoder Transformer：encoder 双向理解输入，decoder 自回归生成目标文本。
+- 构建 C4 语料：从 Common Crawl 中清洗出大规模英文网页文本，去除模板、短文本、代码、非英文和重复内容。
+- 预训练目标为 span corruption：随机遮盖连续片段，用 sentinel token 替换输入，并让 decoder 生成被遮盖片段。
+- 系统比较架构和目标：评估 encoder-decoder、decoder-only、prefix LM、MLM、deshuffling、span corruption 等选择。
+- 使用相对位置偏置和 AdaFactor 等工程设置，支撑从小模型到 11B 参数模型的扩展。
 
 #### 🔬 深入细节
-##### 1. 为什么需要 text-to-text 统一
+![T5 text-to-text 框架示意](https://ar5iv.labs.arxiv.org/html/1910.10683/assets/x1.png)
+*图：T5 将翻译、问答、分类等任务统一为输入文本到目标文本的生成过程。*
 
-在 T5 之前，NLP 预训练模型通常要为不同任务接不同的 head：分类任务用 softmax 分类头，抽取式问答预测 span 起止位置，翻译或摘要使用 seq2seq decoder。这导致预训练目标、微调目标和任务接口并不统一。T5 的核心判断是：如果所有任务都能被表示成“给定输入文本，生成目标文本”，那么模型结构、损失函数、推理方式和迁移方式都能统一。
+```python
+# T5 的 text-to-text 训练流程
+def format_example(task, raw_example):
+    if task == "translation":
+        x = "translate English to German: " + raw_example.english
+        y = raw_example.german
+    elif task == "classification":
+        x = "sst2 sentence: " + raw_example.sentence
+        y = "positive" if raw_example.label == 1 else "negative"
+    elif task == "summarization":
+        x = "summarize: " + raw_example.article
+        y = raw_example.summary
+    return x, y
 
-形式上，T5 使用标准条件生成概率：
+def span_corrupt(tokens, noise_density=0.15, mean_span_len=3):
+    spans = sample_spans(tokens, noise_density, mean_span_len)
+    corrupted, target = [], []
+    cursor = 0
+    for i, (start, end) in enumerate(spans):
+        sentinel = f"<extra_id_{i}>"
+        corrupted += tokens[cursor:start] + [sentinel]
+        target += [sentinel] + tokens[start:end]
+        cursor = end
+    corrupted += tokens[cursor:]
+    target += [f"<extra_id_{len(spans)}>"]
+    return corrupted, target
+
+for text in C4:
+    x, y = span_corrupt(tokenize(text))
+    logits = t5_encoder_decoder(input_ids=x, decoder_input_ids=shift_right(y))
+    loss = cross_entropy(logits, y)
+    update(model, loss)
+```
+
+T5 的出发点是接口统一。在 BERT、GPT 和许多早期迁移学习系统中，不同任务常需要不同的输出层：分类用 softmax head，抽取式问答预测 span 起止位置，生成任务使用 decoder。T5 把这些差异压到数据格式里，模型始终学习同一个条件概率：
 
 $$
 p_\theta(y \mid x)=\prod_{t=1}^{|y|}p_\theta(y_t \mid y_{<t}, x)
 $$
 
-其中 \(x\) 是带任务前缀的输入文本，\(y\) 是目标答案文本。分类任务不再输出类别 id，而是输出 `"positive"`、`"entailment"`、`"acceptable"` 等标签字符串；回归任务输出类似 `"4.2"` 的数字字符串。这个设计牺牲了一点任务特定 head 的直接性，但换来了统一的建模接口。
+其中 \(x\) 是带任务前缀的输入文本，\(y\) 是目标文本。分类任务输出 `"entailment"` 或 `"positive"`，回归任务输出数字字符串，翻译和摘要则输出目标句子或摘要。这样做让预训练、微调和推理都使用同一套最大似然训练目标。
 
-##### 2. Span Corruption 预训练目标
+论文的另一个关键贡献是 C4。Common Crawl 原始文本规模巨大，但充满重复、导航栏、代码、非自然语言和低质量页面。T5 通过启发式清洗保留自然英文文本，例如要求句子终止符、过滤短页面、去掉包含特定脏词列表的页面、去掉含代码特征的页面，并做三句片段级去重。C4 的意义不是“越大越好”，而是为可复现的大规模预训练提供更干净的网页语料。
 
-T5 比较了语言模型、BERT-style MLM、deshuffling、span corruption 等多个目标，最终发现 span corruption 是最稳健的选择。它不是随机遮盖单个 token，而是随机选择若干连续 span，用不同 sentinel token 代替，decoder 再按顺序恢复这些 span。
+T5 最终采用 span corruption，而不是简单逐 token MLM。输入中连续片段被替换成 `<extra_id_0>`、`<extra_id_1>` 等 sentinel token；decoder 的目标序列则按顺序生成每个 sentinel 后面的原始片段。例如原句中的两个片段被遮盖后，输入只保留上下文和哨兵标记，输出只包含被遮盖内容。这比完整语言建模更省 decoder 计算，也比独立 token MLM 更强调长程语义恢复。
 
-```python
-def t5_span_corruption(tokens, noise_density=0.15, mean_span_len=3):
-    """
-    简化版 T5 span corruption:
-    输入: 原始 token 序列
-    输出: corrupted_input, target_output
-    """
-    spans = sample_non_overlapping_spans(
-        tokens,
-        total_masked=int(len(tokens) * noise_density),
-        mean_len=mean_span_len,
-    )
+架构选择上，T5 的实验显示 encoder-decoder 是 text-to-text 迁移中最稳健的结构。encoder 可以双向读取完整输入，适合理解前提、问题、文章或待翻译句子；decoder 只在目标端做因果生成。相比 decoder-only LM，它不需要把输入和输出串在同一条单向序列里绕路建模；相比 encoder-only，它天然支持开放式文本生成。
 
-    corrupted = []
-    target = []
-    cursor = 0
-    for i, (start, end) in enumerate(spans):
-        sentinel = f"<extra_id_{i}>"
-        corrupted.extend(tokens[cursor:start])
-        corrupted.append(sentinel)
-        target.append(sentinel)
-        target.extend(tokens[start:end])
-        cursor = end
+T5 也把“任务说明”变成了模型输入的一部分。前缀的具体措辞被当作超参数，但论文发现合理前缀已经足够稳定。这一思想直接连接到后来的指令微调和 prompt 范式：任务控制不再是模型外部的分支逻辑，而是数据样本本身的一段文本。
 
-    corrupted.extend(tokens[cursor:])
-    target.append(f"<extra_id_{len(spans)}>")
-    return corrupted, target
-```
-
-例如原文：
-
-```text
-Thank you for inviting me to your party last week.
-```
-
-可能被变成：
-
-```text
-input : Thank you <extra_id_0> me to your party <extra_id_1> week.
-target: <extra_id_0> for inviting <extra_id_1> last <extra_id_2>
-```
-
-这个目标有三个好处：第一，连续片段遮盖比单 token MLM 更依赖长程上下文；第二，只需要生成被遮盖文本，训练比完整自回归 LM 更高效；第三，sentinel token 让输入与输出之间有清晰对齐，适合 encoder-decoder 架构。
-
-##### 3. 架构选择：为什么 encoder-decoder 胜出
-
-T5 的实验重点不是发明一种全新 Transformer，而是系统比较已有结构在迁移学习中的表现。论文比较了三类架构：
-
-| 架构 | 输入注意力 | 输出注意力 | 典型用途 | T5 结论 |
-|------|------------|------------|----------|---------|
-| Encoder-Decoder | 双向 | 因果 | 翻译、摘要、问答 | 综合效果最好 |
-| Decoder-only LM | 因果 | 因果 | 自回归语言建模 | 可用但迁移较弱 |
-| Prefix LM | prefix 双向、target 因果 | 因果 | 条件生成 | 接近但不如完整 encoder-decoder 稳定 |
-
-Encoder-decoder 的优势在于职责分离：encoder 可以双向读取完整输入，适合理解分类、问答和摘要上下文；decoder 负责自回归生成目标文本。相比 decoder-only，T5 在输入理解任务上不用让模型通过单向上下文“绕路”重建输入信息。
-
-##### 4. C4 数据清洗与训练策略
-
-C4 的意义不只是“数据量大”，而是强调可复现的清洗流程。T5 从 Common Crawl 中抽取英文网页文本，移除重复、低质量、非自然语言、代码片段、模板化内容和不适合建模的页面。论文的一个重要经验是：在固定训练预算下，干净语料通常比更大的脏语料更有价值。
-
-训练时，T5 使用相同的 text-to-text 接口做预训练和微调。微调阶段只改变输入前缀和目标文本，不改变模型结构。例如：
-
-```text
-translate English to German: That is good.
--> Das ist gut.
-
-sst2 sentence: This movie is surprisingly warm.
--> positive
-
-summarize: <long article>
--> <short summary>
-```
-
-这种格式后来直接影响了指令微调和 prompt engineering：任务说明不再是模型外的控制逻辑，而是输入序列本身的一部分。
-
-##### 5. 核心实验发现
-
-T5 的价值很大程度来自消融结论：
-
-- **span corruption 优于普通 MLM 和 deshuffling**：连续片段恢复更贴近真实文本生成，也能更好利用 encoder-decoder。
-- **encoder-decoder 是最稳健的迁移架构**：尤其在需要理解完整输入后生成答案的任务上表现更好。
-- **数据清洗很关键**：C4 的高质量过滤显著提升预训练收益。
-- **多任务预训练并非总是无条件更好**：任务混合比例、训练步数和模型容量都会影响迁移效果。
-- **规模扩展有效但不是唯一因素**：T5-11B 表现强，但论文同样强调目标、数据和格式的系统选择。
-
-> 💡 关键：T5 把“预训练模型如何迁移到所有 NLP 任务”从零散技巧整理成可比较的工程系统。它不是只贡献一个模型，而是贡献了统一接口、统一目标和统一实验框架。
-
-##### 6. 与 BERT、GPT 的差异
-
-| 模型 | 架构 | 预训练目标 | 下游接口 | 代表优势 |
-|------|------|------------|----------|----------|
-| BERT | encoder-only | MLM + NSP | 多任务 head | 双向理解 |
-| GPT/GPT-2 | decoder-only | causal LM | prompt/生成 | 自回归生成 |
-| T5 | encoder-decoder | span corruption | text-to-text | 统一理解与生成 |
-
-BERT 更像通用文本编码器，GPT 更像通用文本生成器，T5 则把“理解后生成”作为统一入口。因此在摘要、翻译、问答、分类等任务上，它能用同一训练和推理路径完成任务。
+> 💡 关键：T5 的价值不只是一个模型名，而是一套把 NLP 任务统一成生成问题的可复现实验框架。
 
 #### 🧪 练习题
 ```yaml
-question: "T5 的 span corruption 与 BERT-style MLM 的关键区别是什么？"
+question: "T5 的 span corruption 与 BERT 式 MLM 的核心区别是什么？"
 options:
-  - "T5 只遮盖标点符号，BERT 遮盖普通词"
-  - "T5 遮盖连续文本片段并用 sentinel token 让 decoder 生成这些片段"
-  - "T5 不使用 Transformer，只使用 RNN"
-  - "T5 只用于分类任务，不能用于生成任务"
+  - "T5 只遮盖标点，BERT 只遮盖名词"
+  - "T5 遮盖连续片段并让 decoder 生成这些片段"
+  - "T5 不使用 Transformer"
+  - "T5 只训练分类 head"
 answer: 1
-explain: "T5 将连续 span 替换为 <extra_id_k>，decoder 按顺序生成被遮盖片段；这比单 token MLM 更强调长程上下文和条件生成能力。"
+explain: "T5 使用 sentinel token 替换连续 span，目标端生成被遮盖片段；这与 BERT 常见的独立 token 恢复不同。"
 ```
 
 ### GPT-3
@@ -1689,55 +1204,131 @@ motivation: Top1路由简化万亿MoE
 ```
 
 #### 📝 一句话总结
-Switch Transformer通过将标准Transformer的FFN层替换为基于Top-1路由的稀疏专家混合（MoE）模块，在相同计算资源下实现高达7倍的预训练加速，成功将语言模型规模扩展至万亿参数，同时保持简洁性和训练稳定性。
+Switch Transformer 提出把 Transformer/T5 中的 dense FFN 替换为 top-1 路由的稀疏专家 FFN，解决了传统 MoE 路由复杂、通信开销大和训练不稳定的问题。它用每个 token 只激活一个专家的简单机制，在近似保持每 token FLOPs 的同时把参数规模扩展到万亿级。
 
 #### 🎯 核心要点
-- 核心动机：Top1路由简化万亿MoE
-- 演化来源：继承或改进自 t5
-- 代表机构：Google Research
+- 核心架构是 Switch FFN：用稀疏专家层替换 Transformer block 中的前馈网络层，attention 结构保持不变。
+- 路由策略从 MoE 的 top-k 简化为 top-1：每个 token 只发往概率最高的一个专家，降低计算、通信和实现复杂度。
+- Router 使用 softmax gate：先计算 \(p_i(x)=\mathrm{softmax}(W_r x)_i\)，再选择 \(\arg\max_i p_i(x)\)。
+- Switch 层输出为选中专家输出乘以 gate value：\(y=p_{e(x)}(x)E_{e(x)}(x)\)，其中 \(e(x)\) 是 top-1 专家。
+- Expert capacity 用 capacity factor 控制每个专家最多处理的 token 数，过载 token 通过残差路径跳过该专家层。
+- 训练加入可微的负载均衡辅助损失 \(\alpha N\sum_i f_iP_i\)，鼓励 token 分配和 router 概率都接近均匀。
+- 论文以 T5 为基座，在 C4 span-corruption 预训练中展示最高 7x+ pre-training speedup，并在 mT5 101 种语言上普遍收益。
+- 工程改进包括 selective precision、专家初始化缩放、稀疏模型 fine-tuning 正则增强，以及 data/model/expert parallelism 组合。
 
 #### 🔬 深入细节
-**1. 问题背景与动机**
-- 传统稠密Transformer（如T5）的算力需求随模型规模平方增长（$O(L^2)$），难以向万亿参数扩展。
-- 稀疏MoE（Mixture-of-Experts）通过将FFN层拆分为多个独立的“专家”子网络，每个token仅激活部分专家，将计算量从平方降为线性或亚线性，但现有实现（如GShard）仍存在路由复杂、负载不均、训练不稳定等挑战。
+![Switch Transformer 编码器块示意图](https://ar5iv.labs.arxiv.org/html/2101.03961/assets/x3.png)
+*图：论文 Figure 2。Switch Transformer 将 dense FFN 替换为 Switch FFN，router 为每个 token 独立选择一个专家，并用对应 gate value 缩放专家输出。*
 
-**2. Switch Transformer架构**
-- **基础结构**：在标准Transformer的Block中，每隔一个FFN层替换为MoE层（通常每隔1层替换），其余层保持不变（包括自注意力层和非MoE的FFN）。
-- **Switch Routing**：
-  - 每个token通过Router网络（一个小型全连接层）计算出与各专家匹配的分数 $s_i$，取最大分数的专家 $p = \operatorname{argmax}(s_i)$，将token仅发送给专家 $p$。
-  - 对比Top-k（k≥2），Switch Routing无需额外的散度和归约，实现更简单，且同等计算量下可容纳更多专家或更大模型维度。
-- **容量因子（Capacity Factor, CF）**：
-  - 每个专家的容量 $C = \text{CF} \times \frac{\text{tokens_per_batch}}{\text{num_experts}}$，CF>1.0时为溢出token分配额外空间，CF<1.0时强制丢弃超出容量token。
-  - 实验表明CF=1.0~1.25即可平衡效率与质量，丢弃率<1%。
-- **负载均衡损失**：
-  - 辅助损失 $\mathcal{L}_{\text{aux}} = \alpha \cdot N \cdot \sum_{i=1}^N f_i \cdot P_i$，其中 $f_i$ 是分配给专家 $i$ 的token比例，$P_i$ 是Router分配给专家 $i$ 的平均概率。
-  - 该损失鼓励均匀分配，与主任务损失联合优化，$\alpha$ 为平衡系数（通常 $10^{-2}$ 量级）。
+![Switch Transformer expert capacity 示意图](https://ar5iv.labs.arxiv.org/html/2101.03961/assets/x4.png)
+*图：论文 Figure 3。capacity factor 决定每个专家的 token 缓冲区大小；过小会丢 token，过大则浪费通信和计算。*
 
-**3. 训练稳定性技术**
-- **Selective Precision**：标准bfloat16训练MOE时易发散，Switch Transformer在Router计算和Expert内部部分操作使用float32，其余低精度，达到bfloat16的速度（仅慢约10%~20%）与float32的稳定性。
-- **专家初始化**：新增加的MoE层专家权重从已训练的dense FFN权重初始化，所有专家共享相同初始值，再在训练中分化。实验表明该方法能大幅降低早期训练方差并加速收敛。
-- **专家丢弃（Expert Dropout）**：在训练初期以一定概率随机丢弃某些专家输出，作为一种正则化手段，提升模型鲁棒性并轻微提升下游性能。
+```python
+# Switch FFN 的核心逻辑，省略设备并行细节
 
-**4. 实验与扩展性**
-- **步数基准扩展**：固定训练步数（如100k步），增加专家数（2→256个），Switch-Base模型在C4困惑度持续下降，显示出超线性的扩展收益（更低的perplexity和更高的速度）。
-- **时间基准扩展**：固定实际训练时间（TPU 4x4拓扑），Switch Transformer相比T5-Large达到约7倍加速；在16-expert配置下，以相同训练时长获得显著更低的perplexity。
-- **与稠密模型对比**：给定相同FLOPs预算，Switch模型预训练质量优于稠密模型；即使用更大规模的稠密模型对比，Switch仍具优势，证明稀疏性的效率增益。
-- **下游任务Fine-tuning**：Switch-Base在SuperGLUE上取得81.3分，相比T5-Base（74.6）有显著提升，且仅需更少量训练步数即达峰值。
-- **蒸馏**：将7.4B参数的Switch-Base（已fine-tune）蒸馏至223M的T5-Base，模型尺寸缩减99%，但仍保留30%的质量增益（SuperGLUE从74.6提升至76.6），验证稀疏知识可被高效压缩至小模型。
-- **多语言**：在mC4（101种语言）上，mSwitch-Base相比mT5-Base，所有语言负对数困惑度（NLL）均显著提升，尤其低资源语言改善明显。
-- **万亿参数**：Switch-XXL（64专家，~1.6T参数）在C4上训练，达到T5-XXL（11B参数）的同等质量时，所需计算步数减少4倍；且通过优化模型并行与数据并行策略，成功在TPU v3 Pod上实现高效训练。
+def switch_ffn(tokens, experts, router_w, capacity_factor, alpha=1e-2):
+    # tokens: [T, d_model]
+    logits = tokens @ router_w                  # [T, num_experts]
+    probs = softmax(to_float32(logits), axis=-1)
 
-**5. 设计决策消融**
-- **容量因子影响**：CF=1.0时约2% token被丢弃，CF=1.25降至<0.1%，且质量损失极小；CF<1.0导致质量明显下降，因此推荐CF≥1.0。
-- **路由频率**：每隔1层使用MoE（every other layer）性能最佳；每层都使用MoE会导致显存和计算开销过大。
-- **专家数**：增加专家数并保持每步激活的专家总数不变（通过Top-1实现），持续提升质量，说明稀疏性本身带来容量增益。
+    # top-1 routing: 每个 token 只选择一个专家
+    gate, expert_id = top1(probs)               # [T], [T]
+    expert_mask = one_hot(expert_id, num_experts)
 
-**6. 实现与代码**
-- 官方提供JAX和Tensorflow两种实现，代码开源（https://github.com/google-research/t5x）。
-- 模型并行与数据并行结合：专家按维度分区，结合mesh-tensorflow实现高效分布式训练。
+    # 负载均衡损失：f 是真实 dispatch 占比，P 是 router 概率占比
+    f = mean(expert_mask, axis=0)               # fraction of tokens per expert
+    P = mean(probs, axis=0)                     # fraction of probability mass
+    aux_loss = alpha * num_experts * sum(f * P)
 
-**7. 总结与影响**
-Switch Transformer以极简的Top-1路由设计，成功克服MoE长期以来的工程实现与训练稳定性难题，将稀疏模型的效率优势转化为实际预训练加速和规模扩展，为后续GLaM、PaLM等大型MoE模型奠定基础。其核心贡献在于证明：**简单的稀疏路由+精心设计的负载均衡和训练技巧即可将Transformer推向万亿参数，且保持高可用性**。
+    # expert capacity：每个专家最多处理固定数量 token
+    capacity = ceil((len(tokens) / num_experts) * capacity_factor)
+    positions = cumsum_per_expert(expert_mask)
+    keep = positions < capacity
+
+    outputs = zeros_like(tokens)
+    for i, expert in enumerate(experts):
+        selected = (expert_id == i) & keep
+        outputs[selected] = gate[selected, None] * expert(tokens[selected])
+
+    # overflow token 在实际 Transformer block 中主要依赖残差连接保留表示
+    return outputs, aux_loss
+```
+
+Switch Transformer 的动机是把“参数规模”和“每 token 计算量”解耦。普通 dense Transformer 每个 token 都经过同一套 FFN 参数；如果直接把模型加宽或加深，参数、显存、FLOPs 都同步增长。MoE 的想法是准备多个专家 \(E_1,\ldots,E_N\)，但每个 token 只调用其中一部分专家，因此总参数可以很大，单个 token 的实际计算仍接近一个 FFN。Switch 的贡献在于把此前较复杂的 top-k MoE 路由简化到 top-1，让稀疏化更容易稳定扩展。
+
+传统 MoE 对 token 表示 \(x\) 计算 router logits：
+
+$$
+h(x)=W_r x
+$$
+
+然后得到专家概率：
+
+$$
+p_i(x)=\frac{e^{h_i(x)}}{\sum_{j=1}^{N}e^{h_j(x)}}
+$$
+
+top-k MoE 会选择集合 \(\mathcal{T}\) 中的多个专家并线性组合：
+
+$$
+y=\sum_{i\in\mathcal{T}}p_i(x)E_i(x)
+$$
+
+Switch 的变化是令 \(|\mathcal{T}|=1\)。若 \(e(x)=\arg\max_i p_i(x)\)，则输出近似为：
+
+$$
+y=p_{e(x)}(x)E_{e(x)}(x)
+$$
+
+这个设计看似更“硬”，但论文发现它反而更好用。top-1 让每个 token 只需要一次专家 FFN 计算，expert capacity 可以比 top-2 至少减半；跨设备通信也更简单，因为 token 不需要被复制到多个专家再聚合。Router 仍可训练的关键在于 gate value \(p_{e(x)}(x)\) 出现在输出中，梯度可以通过被选中专家的概率回传到 router，虽然 \(\arg\max\) 本身不可微。
+
+容量控制是 Switch 能否高效运行的核心工程问题。每个专家在编译图中必须有固定 batch shape，因此论文定义：
+
+$$
+\text{expert capacity}=\left(\frac{\text{tokens per batch}}{\text{number of experts}}\right)\times\text{capacity factor}
+$$
+
+capacity factor 大于 1 会为负载不均衡预留缓冲，但会增加空槽位、通信和内存；capacity factor 太小则会发生 token overflow。论文的实现中，如果某个专家已满，溢出的 token 不经过该 Switch FFN，而是在 Transformer block 的残差连接中继续向后传播。因此，capacity factor 和负载均衡损失共同决定了稀疏层是否既高效又不损害质量。
+
+负载均衡损失是避免“所有 token 都挤到少数专家”的关键。设一个 batch 有 \(T\) 个 token，\(f_i\) 是实际被派发到专家 \(i\) 的 token 比例：
+
+$$
+f_i=\frac{1}{T}\sum_{x\in B}\mathbf{1}\{\arg\max p(x)=i\}
+$$
+
+\(P_i\) 是 router 给专家 \(i\) 的平均概率质量：
+
+$$
+P_i=\frac{1}{T}\sum_{x\in B}p_i(x)
+$$
+
+辅助损失为：
+
+$$
+\mathcal{L}_{\text{aux}}=\alpha\cdot N\sum_{i=1}^{N}f_iP_i
+$$
+
+当 \(f\) 和 \(P\) 都接近均匀分布 \(1/N\) 时，该点积最小。这里 \(f\) 由 hard routing 产生，不可微；\(P\) 可微，因此损失仍能推动 router logits 变得更均衡。论文使用 \(\alpha=10^{-2}\)，认为它足以快速平衡负载，又不会压过主交叉熵目标。
+
+训练流程继承 T5 的 span-corruption 预训练：在 C4 中遮蔽 15% token，把连续 mask span 替换为 sentinel token，模型预测缺失内容。Switch 不是改 attention，而是改 FFN，因此它可以直接嵌入 T5-Base、T5-Large、mT5 等架构。实验中，Switch-Base 与 dense T5-Base 保持相近 FLOPs per token，但通过增加专家数获得更多参数容量；论文报告在固定资源下可达到 7x 量级的预训练速度优势，大规模模型对 T5-XXL 也有约 4x speedup。
+
+论文还强调 Switch 的稳定训练不是只靠 top-1 路由。Selective precision 指 router 相关计算使用 float32，而其余大部分计算可用 bfloat16，从而降低低精度下 router 抖动；初始化缩放降低专家层激活方差，帮助更多专家扩展；fine-tuning 时对专家层使用更强 dropout/正则，缓解稀疏专家在小数据任务上的过拟合。换言之，Switch 的算法核心很短，但能扩到万亿参数依赖一整套路由、容量、精度和并行策略。
+
+> 💡 关键：Switch Transformer 不是让每个 token 使用“更多计算”，而是让不同 token 使用“不同参数”。这就是它能在近似固定 FLOPs 下增加总参数量的原因。
+
+与 dense scaling 相比，Switch scaling 增加的是专家维度；与早期 MoE 相比，它牺牲 top-2 聚合的表达冗余，换来 top-1 路由的简单性、吞吐和更低通信成本。这个取舍非常适合大规模预训练：当 batch 很大、专家很多、设备很多时，减少一次专家通信和一次 FFN 计算比理论上更平滑的 top-k 混合更有价值。
+
+#### 🧪 练习题
+```yaml
+question: "Switch Transformer 将 MoE 的 top-k 路由改为 top-1 路由，最直接的收益是什么？"
+options:
+  - "每个 token 会同时利用所有专家，因此表达能力最大"
+  - "每个 token 只经过一个专家，降低路由计算、专家计算和跨设备通信"
+  - "不再需要负载均衡损失"
+  - "可以完全移除 Transformer 的 attention 层"
+answer: 1
+explain: "Switch 的核心简化是 top-1 routing；它仍需要负载均衡和 attention，但每个 token 只发送到一个专家，因此计算和通信更低。"
+```
 
 ### RoPE
 
@@ -2039,167 +1630,111 @@ motivation: 数据参数等比计算最优
 ```
 
 #### 📝 一句话总结
-在给定计算预算下，当前的大语言模型严重欠训练（undertrained）——模型太大而数据太少。通过三种互补方法，本文发现：**模型参数量与训练数据量应等比例缩放**，并据此训练出 70B 的 Chinchilla，以相同算力在大量下游任务上一致超越 Gopher（280B）、GPT-3（175B）等更大模型。
+Chinchilla 提出在固定训练计算量下应同时、近似等比例扩展模型参数量和训练 token 数，解决了当时大模型“参数过大、训练数据不足”的计算分配问题。它用与 Gopher 相同的训练 FLOPs 训练 70B 参数模型和 1.4T token，证明更小但训练更充分的模型可以优于 280B 级模型。
 
 #### 🎯 核心要点
-- 核心动机：数据参数等比计算最优
-- 演化来源：继承或改进自 gpt3
-- 代表机构：DeepMind
+- 研究问题是固定 compute budget \(C\) 下如何选择参数量 \(N\) 和训练 token 数 \(D\)，而不是单纯扩大参数量。
+- 论文训练并分析 400 多个 Transformer LM，规模从约 70M 到 16B+ 参数，训练数据从 5B 到 500B token。
+- 三种估计方法分别是固定模型尺寸扫 token、IsoFLOP profiles、拟合参数化 loss function。
+- 核心损失模型为 \(\hat L(N,D)=E+A/N^\alpha+B/D^\beta\)，把误差拆成不可约熵、模型容量不足和训练 token 不足三部分。
+- 计算近似采用 \(\mathrm{FLOPs}\approx 6ND\)，在约束 \(6ND=C\) 下寻找最小 loss 的 \((N,D)\)。
+- 结论是 compute 增长时 \(N\) 和 \(D\) 应接近等比例扩展，明显不同于 Kaplan scaling law 中更偏向增大参数的建议。
+- Chinchilla 实例为 70B 参数、1.4T token，与 Gopher 280B 参数、300B token 使用相同 FLOPs，但下游表现更强且推理成本更低。
+- 论文强调数据集规模和质量成为继续 scaling 的关键瓶颈，不能只把预算投入更大参数量。
 
 #### 🔬 深入细节
-##### 1. 问题背景与动机
-自 GPT-3 问世以来，业界普遍追求更大的模型（Megatron-Turing NLG 530B, Gopher 280B, PaLM 540B），但训练数据量的增长相对滞后。这些大模型是否接近计算最优？本文通过系统性地探索模型大小和数据量的联合优化空间来回答这一问题。
+![Chinchilla compute-optimal scaling 示意图](https://ar5iv.labs.arxiv.org/html/2203.15556/assets/x1.png)
+*图：论文 Figure 1。三种估计方法都预测当时的大型 LM 位于“参数过大、token 不足”的区域；Chinchilla 以更少参数和更多 token 接近 compute-optimal 前沿。*
 
-核心问题：**给定固定的 FLOP 预算 $C$，如何分配模型大小 $N$ 和训练 tokens 数 $D$ 以最小化损失？**
-
-##### 2. 三种估计最优缩放的方法
-
-###### Approach 1：固定模型大小，变化训练步数
-- 训练 4 种不同大小的模型（70M ~ 16B 参数），每种模型训练 4 种不同的 tokens 数。
-- 对每个模型大小，拟合损失关于训练步数的曲线。
-- **结论**：大模型在更多数据下边际收益持续显著，提示现有大模型欠训练。
-
-###### Approach 2：固定计算预算，变化模型大小（IsoFLOP）
-- 固定 9 种 FLOP 预算（$6\times10^{18}$ ~ $3\times10^{21}$），每种预算下训练不同大小的模型。
-- 对每个 IsoFLOP 曲线，抛物线插值找出最优模型大小。
-- **关键发现**：最优模型大小 $N_{opt}$ 与计算量 $C$ 的关系为 $N_{opt} \propto C^{a}$，其中 $a \approx 0.50$；最优 tokens 数 $D_{opt} \propto C^{b}$，$b \approx 0.50$。
-
-###### Approach 3：参数化损失函数拟合
-- 拟合参数化损失函数：$\hat{L}(N, D) = E + \frac{A}{N^\alpha} + \frac{B}{D^\beta}$
-- 使用 Huber loss + L-BFGS 优化器拟合 ~400 个训练运行的数据点
-- 拟合结果：$E \approx 1.69$（不可约损失，即自然文本固有熵），$\alpha \approx 0.34$，$\beta \approx 0.28$
-- 在约束 $C \approx 6ND$（Transformer 的计算近似）下，推导出最优 $N_{opt}$ 和 $D_{opt}$
-
-```
-计算预算约束（估计）：
-FLOPs ≈ 6 N D  （forward + backward 近似）
-因此给定 C，在 N-D 空间上找到使 L 最小的 (N, D)。
-```
-
-**三种方法结果一致**：模型大小与数据量应大致等比例增长。
-
-##### 3. 与 Kaplan 的差异分析
-| 对比维度 | Kaplan et al. (2020) | 本文 (Chinchilla) |
-|---|---|---|
-| $N_{opt} \propto C^p$ | $p \approx 0.73$ | $p \approx 0.46$ |
-| $D_{opt} \propto C^q$ | $q \approx 0.27$ | $q \approx 0.54$ |
-| 损失函数形式 | 仅用 $N$ 参数化 | 联合参数化 $N$ 和 $D$ |
-| $E$（不可约损失） | 未显式建模 | 显式估计 $E \approx 1.69$ |
-| 学习率调度 | 固定 steps | Cosine schedule with warmup |
-| 关键结论 | 模型增长优先 | 数据与模型等比例增长 |
-
-差异来源：Kaplan 未显式建模数据维度，且优化方法侧重于模型参数量。
-
-##### 4. Chinchilla 的配置与训练
-- **参数**：70B（Transformer decoder-only），80 层，8192 维度，64 个注意力头
-- **训练数据**：1.4T tokens（MassiveText 数据集，与 Gopher 相同来源）
-- **优化器**：AdamW，学习率余弦衰减，warmup 2000 步
-- **上下文窗口**：2048 tokens
-- **硬件**：TPU v3/v4 pod
-- **训练 FLOPs**：约 $5.9 \times 10^{23}$
-
-##### 5. 实验结果图解
-
-```
-          Chinchilla vs 同等算力大模型
-┌─────────────────────────────────────────────┐
-│ 模型        参数     数据量       MMLU      │
-│ Gopher      280B     300B        60.0%     │
-│ GPT-3       175B     300B         ~54%     │
-│ MT-NLG      530B     270B         ~62%     │
-│ Jurassic-1  178B     300B         ~55%     │
-│ Chinchilla  70B      1.4T        67.5%     │
-└─────────────────────────────────────────────┘
-```
-
-- Chinchilla 在 **MMLU** 上达 67.5%，优于 Gopher (+7.5%)，且仅 1/4 参数
-- **语言建模**（The Pile 验证 PP）：Chinchilla 9.35 vs Gopher 10.05
-- **Big-Bench**：Chinchilla 在 56/62 项任务上优于 Gopher
-- **推理效率**：Chinchilla 内存占用减少 ~4×，推理延迟降低 ~3×
-
-##### 6. 数据重复的影响
-实验发现：在相同训练 tokens 总数下，使用唯一数据 vs 重复数据（2×, 4×, 8×, 16× epoch）的比较：
-- **≤4 epoch**：损失与不重复数据几乎相同
-- **>4 epoch**：收益递减明显，额外 epoch 带来的改善远小于新数据
-- **实践建议**：若数据充足，避免过多 epoch；若数据有限，适度重复（~4 epoch）可接受
-
-##### 7. 核心公式详解与推导
-
-**参数化损失模型**：
-$$\hat{L}(N, D) = E + \frac{A}{N^\alpha} + \frac{B}{D^\beta}$$
-
-其中：
-- $E$：不可约损失（irreducible loss），代表数据分布的固有熵，完美模型也无法突破的下界
-- $A/N^\alpha$：模型容量不足导致的损失，随参数量增大而减小
-- $B/D^\beta$：数据不足导致的损失，随训练数据量增大而减小
-
-**最优分配推导（简化版）**：
-给定 $C \approx 6 N D$，代入损失函数：
-$$\hat{L}(N, C) = E + \frac{A}{N^\alpha} + \frac{B}{(C/6N)^\beta}$$
-
-对 $N$ 求导并令其为 0：
-$$\frac{\partial \hat{L}}{\partial N} = -\alpha A N^{-(\alpha+1)} + \beta B (C/6)^{-\beta} N^{\beta-1} = 0$$
-
-整理得：
-$$N_{opt} \propto C^{\frac{\beta}{\alpha+\beta}}$$
-
-代入 $\alpha \approx 0.34$, $\beta \approx 0.28$：
-$$N_{opt} \propto C^{0.452} \approx C^{0.46}$$
-$$D_{opt} = \frac{C}{6N_{opt}} \propto C^{0.548} \approx C^{0.54}$$
-
-**伪代码：计算最优模型大小**
 ```python
-def compute_optimal_N_D(C, E=1.69, A=406.4, B=410.7,
-                        alpha=0.34, beta=0.28):
-    """
-    C: 可用 FLOP 预算
-    Returns: (N_opt, D_opt)
-    """
-    # 数值优化（最小化损失函数）
-    from scipy.optimize import minimize_scalar
+# Chinchilla 风格的 compute-optimal scaling 估计流程
+runs = []
 
-    def loss_given_N(log_N):
-        N = 10**log_N
-        D = C / (6 * N)
-        return E + A/(N**alpha) + B/(D**beta)
+for N in model_sizes:                         # 约 70M 到 16B+
+    for D in token_budgets:                   # 约 5B 到 500B
+        model = TransformerLM(num_params=N)
+        schedule = cosine_schedule(length_tokens=D)
+        loss = train_and_measure_loss(model, tokens=D, schedule=schedule)
+        C = 6 * N * D                         # 训练 FLOPs 近似
+        runs.append((N, D, C, loss))
 
-    result = minimize_scalar(loss_given_N,
-                            bounds=(7, 12),
-                            method='bounded')
-    N_opt = 10**result.x
-    D_opt = C / (6 * N_opt)
-    return N_opt, D_opt
+# 方法 1：从训练曲线 envelope 中找每个 compute 下的最低 loss
+frontier_1 = lower_envelope(runs, key="C", value="loss")
+
+# 方法 2：固定 FLOPs 切片，拟合 loss-vs-params 的 valley
+frontier_2 = []
+for C0 in flops_grid:
+    points = select_isoflop_points(runs, C0)
+    N_star = argmin_parabola_fit(points, x="log_N", y="loss")
+    D_star = C0 / (6 * N_star)
+    frontier_2.append((C0, N_star, D_star))
+
+# 方法 3：拟合 L_hat(N,D)，再在 6ND=C 约束下优化
+loss_law = fit_huber_loss_model(runs, form="E + A/N^alpha + B/D^beta")
+for C0 in target_compute_budgets:
+    N_star, D_star = minimize(loss_law, constraint=lambda N, D: 6 * N * D == C0)
 ```
 
-##### 8. 实验设计亮点
-- **最大计算预算**：$3.2\times10^{21}$ FLOPs，比 Kaplan et al. 的最大实验大 ~3 个数量级
-- **模型大小范围**：70M ~ 16B（Approach 1）；多尺寸（Approach 2）
-- **学习率调度**：使用 cosine schedule，对每个模型大小和训练步数单独调优学习率
-- **验证集**：使用独立的验证集评估损失，避免过拟合
+Chinchilla 论文把大模型 scaling 的核心问题从“更大模型是否更好”改写为“给定训练 FLOPs，参数和数据怎么配比最优”。形式化地，令 \(N\) 为非 embedding 参数量，\(D\) 为训练 token 数，\(L(N,D)\) 为最终预训练 loss。目标是在训练计算量固定时求：
 
-##### 9. 工作局限
-- 以 Transformer 的自回归语言建模损失为唯一优化目标，未考虑下游任务性能（尽管下游结果一致验证了发现）
-- 假设计算预算与 $6ND$ 成比例（对 Transformer 良好近似，对 MoE 等架构可能不同）
-- 主要在英文数据集上验证
-- "最优" 仅针对预训练损失，未考虑微调、RLHF 等后续阶段的影响
+$$
+N_{\mathrm{opt}}(C),D_{\mathrm{opt}}(C)=\arg\min_{N,D\;\mathrm{s.t.}\;\mathrm{FLOPs}(N,D)=C}L(N,D)
+$$
+
+在 dense Transformer LM 中，论文沿用近似：
+
+$$
+\mathrm{FLOPs}(N,D)\approx 6ND
+$$
+
+这个约束说明，如果预算 \(C\) 固定，参数量增加就必然减少可训练 token 数；反之，更多 token 需要缩小模型。Chinchilla 的贡献不是提出新架构，而是重新估计这个 trade-off 的最优点。
+
+第一种方法固定一组模型尺寸，给每个模型训练不同 token horizon，并从完整训练曲线上抽取在每个 FLOPs 水平下的最低 loss envelope。然后对 envelope 上的最优 \(N\) 与 \(D\) 拟合幂律：
+
+$$
+N_{\mathrm{opt}}\propto C^a,\quad D_{\mathrm{opt}}\propto C^b
+$$
+
+该方法得到 \(a\approx0.50,b\approx0.50\)。直觉上，当 compute 扩大 10 倍时，不应主要把预算用于把模型变大，而应让模型大小和训练 token 数都约按平方根比例增长。
+
+第二种方法是 IsoFLOP profiles：固定若干 FLOPs 预算，训练不同参数量的模型，并根据 \(D=C/(6N)\) 自动确定 token 数。对每条固定 FLOPs 曲线，loss 关于参数量会出现一个 valley：模型太小会容量不足，模型太大则 token 不够、训练不足。论文对每条曲线拟合抛物线来找 valley，再拟合 \(N_{\mathrm{opt}}\) 和 \(D_{\mathrm{opt}}\) 随 \(C\) 的幂律，得到 \(a\approx0.49,b\approx0.51\)，与第一种方法几乎一致。
+
+第三种方法拟合参数化损失函数：
+
+$$
+\hat L(N,D)=E+\frac{A}{N^\alpha}+\frac{B}{D^\beta}
+$$
+
+其中 \(E\) 表示自然文本的不可约熵或理想生成过程下限，\(A/N^\alpha\) 表示模型容量有限带来的函数逼近误差，\(B/D^\beta\) 表示训练 token 有限和优化步数有限带来的误差。论文用 Huber loss 拟合 \((A,B,E,\alpha,\beta)\)，再在 \(6ND=C\) 下求解析近似：
+
+$$
+N_{\mathrm{opt}}(C)=G\left(\frac{C}{6}\right)^a,\quad D_{\mathrm{opt}}(C)=G^{-1}\left(\frac{C}{6}\right)^b
+$$
+
+$$
+G=\left(\frac{\alpha A}{\beta B}\right)^{1/(\alpha+\beta)},\quad a=\frac{\beta}{\alpha+\beta},\quad b=\frac{\alpha}{\alpha+\beta}
+$$
+
+该方法得到 \(a\approx0.46,b\approx0.54\)，仍然支持“数据和参数接近等比扩展”。这与 Kaplan et al. 先前建议形成鲜明对比：Kaplan 的指数约为 \(a=0.73,b=0.27\)，意味着 compute 增长时更偏向扩模型，而 Chinchilla 认为当时的大模型显著 undertrained。
+
+Chinchilla 本身是这个 scaling law 的验证实验。DeepMind 用与 Gopher 相同的 compute budget，不再训练 280B 参数、约 300B token 的模型，而是训练 70B 参数、1.4T token 的模型。两者 FLOPs 类似，但 Chinchilla 参数少 4 倍、训练 token 多约 4 倍。论文报告 Chinchilla 在大量下游任务上超过 Gopher、GPT-3、Jurassic-1 和 Megatron-Turing NLG，并在 MMLU 上达到约 67.5%/67.6% 的 5-shot 平均准确率。
+
+架构上，Chinchilla 没有引入颠覆性结构，而是沿用 Gopher 风格的 dense autoregressive Transformer。它有 80 层、64 个 attention heads、key/value size 128、\(d_{model}=8192\)，FFN size 为 \(4d_{model}\)。训练细节包括使用 MassiveText、AdamW、略微修改的 SentencePiece tokenizer、不做 NFKC normalisation，并用 bfloat16 前后向加 float32 optimizer state。论文的重点是证明“训练分配”比“架构花样”更能解释当时的性能差距。
+
+> 💡 关键：Chinchilla law 的工程启示是，同样的钱不一定应该训练最大模型；如果数据 token 不够，较小模型训练更久会同时改善质量、降低推理成本和降低微调成本。
+
+与 GPT-3/Gopher 时代的做法相比，Chinchilla 把 scaling 的瓶颈从模型参数转向高质量数据。Table 3 的外推显示，175B 参数模型若要 compute-optimal 需要数万亿 token；280B 级模型需要更多 token 和更大 FLOPs 才合理。这也解释了后来 LLM 训练越来越重视数据去重、质量过滤、长尾覆盖和多 epoch 风险控制：如果最优策略要求更多 token，数据工程就成为模型 scaling 的一等公民。
 
 #### 🧪 练习题
 ```yaml
-**Level 1 — 概念理解**
-1. 为什么 "Chinchilla 70B 比 Gopher 280B 更强" 这一事实与新缩放定律一致？
-2. 不可约损失 $E$ 的物理含义是什么？它由什么因素决定？
-
-**Level 2 — 公式推导**
-3. 从损失函数 $\hat{L}(N,D)$ 出发，推导 $N_{opt} \propto C^{\beta/(\alpha+\beta)}$。
-4. 若 $\alpha$ 远小于 $\beta$（即数据带来的改进比模型容量改进衰减更快），最优 $N_{opt}$ 应如何倾向于 $N$ 还是 $D$？
-
-**Level 3 — 实践思考**
-5. 组织有 1e24 FLOPs 的预算，应采用 Chinchilla 定律还是 Kaplan 定律来设计模型？估算两种方案下的模型大小和收益。
-6. 数据重复实验的结论在实际中如何应用？若你只有 500B 高质量 tokens，但想训练一个需要 1T tokens 的计算最优模型，应该重复数据还是缩小模型？
-
-**Level 4 — 批判性思考**
-7. Chinchilla 定律以最小化预训练 loss 为目标。你认为这对实际应用（如 chatbot、代码生成）是否足够？提示：考虑 alignment tax、instruct tuning 等。
-8. 许多后续工作（LLaMA, Mistral 等）使用了远超出 Chinchilla 定律的训练数据量（"overtrain" 小模型）。这些做法与 Chinchilla 定律矛盾吗？为什么？
+question: "Chinchilla 论文相对于 Kaplan scaling law 最关键的修正是什么？"
+options:
+  - "训练更大模型时应该固定训练 token 数"
+  - "在固定 compute 下，模型参数量和训练 token 数应接近等比例扩展"
+  - "MoE 路由比 dense Transformer 更 compute-optimal"
+  - "语言模型 loss 与训练数据量无关"
+answer: 1
+explain: "Chinchilla 通过三种估计方法发现 N 和 D 的最优 scaling 指数都接近 0.5，说明许多大模型参数偏大、训练 token 不足。"
 ```
 
 ### PaLM
@@ -2219,136 +1754,73 @@ motivation: 540B稠密模型验证规模化
 ```
 
 #### 📝 一句话总结
-PaLM是Google Research于2022年提出的5400亿参数稠密decoder-only Transformer语言模型，通过Pathways系统在6144块TPU v4芯片上实现46.2%的模型FLOPS利用率（MFU），在29项NLP基准的28项上刷新Few-shot SOTA，首次验证了稠密模型在500B+规模的可行性与涌现能力。
+PaLM 训练了 540B 参数的稠密 decoder-only Transformer，用 Pathways 在 6144 块 TPU v4 上实现跨 Pod 高效训练，验证了 500B+ 稠密语言模型继续规模化仍能带来 few-shot、推理、多语言和代码能力提升。它的核心贡献是把超大稠密模型的训练系统、架构细节和涌现评估连成了一次完整规模化实验。
 
 #### 🎯 核心要点
-- 核心动机：540B稠密模型验证规模化
-- 演化来源：继承或改进自 gpt3
-- 代表机构：Google Research
+- 提出 8B、62B、540B 三档 PaLM 稠密自回归语言模型，最大模型 540B 参数、训练约 780B tokens。
+- 使用 Pathways 系统跨两个 TPU v4 Pod 训练，合计 6144 芯片，并采用 pod 级二路数据并行加 pod 内模型/数据并行。
+- 训练效率以 MFU（Model FLOPs Utilization）衡量，PaLM 540B 达到 46.2% MFU 和 57.8% HFU。
+- 架构采用 decoder-only Transformer，并结合 SwiGLU、Parallel Layers、Multi-Query Attention、RoPE、无 bias 等规模化友好的设计。
+- 数据集包含网页、社交媒体对话、书籍、代码、维基百科、新闻等高质量文本，词表为 256k SentencePiece。
+- 论文系统评估英语 NLP、BIG-bench、GSM8K、代码、多语言任务，并观察到若干任务随规模出现非连续跃迁。
+- PaLM 代表的是 GPT-3 路线的“更大稠密模型”验证，后续也为 Chinchilla/LLaMA 等更重视数据-参数配比的工作提供了强基线。
 
 #### 🔬 深入细节
-##### 1. 模型架构设计
-
-PaLM采用标准decoder-only Transformer架构，但引入了五项关键修改：
-
-**SwiGLU激活函数**：MLP中间层使用`Swish(xW) · xV`形式的门控激活，需要3次矩阵乘法（相对于ReLU的2次）。Shazeer(2020)在计算量等价实验中证明，虽然SwiGLU增加33%的矩阵乘法，但收敛质量提升显著。540B模型中d_ff = 4 × d_model = 73728。
-
-**Parallel Layers**：将标准串行公式`y = x + MLP(LN(x + Attention(LN(x))))`改为并行公式`y = x + MLP(LN(x)) + Attention(LN(x))`。核心收益是MLP和Attention的输入矩阵乘法可融合，在8B模型上有轻微质量下降，62B+则质量无损，训练速度提升约15%。
-
-**Multi-Query Attention**：标准多头注意力将输入投影为[k,h]形状的KQV张量，Multi-Query将K/V投影为[1,h]（所有头共享），仅Q保持[k,h]。自回归解码时K/V共享显著降低内存带宽，训练质量中性。
-
-**RoPE位置编码**：采用旋转位置编码(RoPE)替代绝对/相对位置编码，对长序列具有更好的长度外推能力。
-
-**无偏置设计**：所有dense kernel和LayerNorm均不使用偏置项，发现这对大规模模型训练稳定性有帮助。
-
-| 超参数 | PaLM 8B | PaLM 62B | PaLM 540B |
-|--------|---------|----------|-----------|
-| 层数 | 32 | 64 | 118 |
-| d_model | 4096 | 8192 | 18432 |
-| 注意力头数 | 16 | 32 | 48 |
-| 头维度 | 256 | 256 | 256 |
-| 参数量 | 8.63B | 62.50B | 540.35B |
-| 批次大小 | 256→512 | 512→1024 | 512→1024→2048 |
-
-##### 2. 训练基础设施与Pathways系统
-
-**TPU v4 Pod配置**：每个Pod包含3072块TPU v4芯片（768台主机），PaLM 540B使用2个Pod通过数据中心网络(DCN)连接共6144芯片。Pod内使用12路模型并行+256路全分片数据并行（Xu et al.的"2D finalized"方案），跨Pod使用2路数据并行。
-
-**Pathways的跨Pod数据并行**：单个Python客户端将训练batch对半分发到两个Pod，每个Pod独立执行前向+反向计算梯度，然后跨Pod传输梯度并累加，各Pod并行更新参数得到bitwise-identical的权重。关键是跨Pod梯度传输的bursty特性——每步每对主机交换约1.3GB梯度，聚合burst达81Tbps，通过将数据拆分小块多路径路由来缓解拥塞。
-
-**MFU指标**：PaLM提出Model FLOPs Utilization替代HFU。MFU = 观测tokens/s ÷ 理论最大tokens/s（仅算前向+反向所需FLOPs，不含rematerialization）。PaLM 540B达46.2%，对比GPT-3 21.3%、Gopher 32.5%、MT-NLG 30.2%。硬件FLOPs利用率（含rematerialization）为57.8%。
-
-![Pathways系统架构图](https://ar5iv.labs.arxiv.org/html/2204.02311/assets/figures/palm_pathways.png)
-
-**路径系统数据流伪代码**：
+![PaLM Pathways 跨 TPU Pod 数据并行示意图](https://ar5iv.labs.arxiv.org/html/2204.02311/assets/x3.png)
+*图：论文 Figure 2 的 Pathways 执行图面板，展示跨两个 TPU v4 Pod 的前向/反向、梯度传输和优化器更新流程。*
 
 ```python
-# Pathways跨Pod数据并行（简化）
-def pathways_data_parallel(batch, pod_a, pod_b):
-    # 1. 数据分片
-    batch_a, batch_b = batch[:len(batch)//2], batch[len(batch)//2:]
+# PaLM/Pathways 跨 Pod 训练流程伪代码
+def train_palm_with_pathways(global_batch, pod_a, pod_b, optimizer):
+    # 每个 pod 内部持有同一模型的分片副本，使用模型并行 + fully sharded data parallel
+    batch_a, batch_b = split(global_batch, parts=2)
 
-    # 2. 并行前向+反向（Pod内模型+数据并行）
-    grad_a = pod_a.forward_backward(batch_a)  # 异步gang-scheduling
-    grad_b = pod_b.forward_backward(batch_b)
+    # 1. pod 内并行执行前向和反向
+    grads_a = pod_a.forward_backward(batch_a)
+    grads_b = pod_b.forward_backward(batch_b)
 
-    # 3. 跨Pod梯度交换（仅交换对应分片参数的梯度）
-    pod_a.send_grads(grad_a, to=pod_b)
-    pod_b.send_grads(grad_b, to=pod_a)
+    # 2. pod 之间只交换对方需要累加的梯度分片
+    remote_for_a = pathways_send_recv(grads_a, source=pod_a, target=pod_b)
+    remote_for_b = pathways_send_recv(grads_b, source=pod_b, target=pod_a)
 
-    # 4. 梯度累加+参数更新（分片内bitwise-identical）
-    pod_a.optimizer_step(grad_a + pod_a.recv_grads())
-    pod_b.optimizer_step(grad_b + pod_b.recv_grads())
+    # 3. 两侧累加本地和远端梯度，独立执行同一优化器更新
+    full_grads_a = add_sharded_gradients(grads_a, remote_for_a)
+    full_grads_b = add_sharded_gradients(grads_b, remote_for_b)
+    pod_a.params = optimizer.step(pod_a.params, full_grads_a)
+    pod_b.params = optimizer.step(pod_b.params, full_grads_b)
+
+    # 更新后两个 pod 的参数保持 bitwise-identical
+    assert same_parameters(pod_a.params, pod_b.params)
 ```
 
-##### 3. 训练数据与优化设置
+PaLM 的第一层意义是系统工程：540B 稠密模型不能只靠常规单集群数据并行训练。论文用 Pathways 将一个 Python client 发出的 sharded dataflow program 调度到两个 TPU v4 Pod，每个 Pod 内部使用 12 路模型并行和 256 路 fully sharded data parallel；跨 Pod 则做二路数据并行。每一步中两个 Pod 各自处理半个 batch，完成反向传播后交换梯度，再各自累加并更新参数，从而在没有流水线并行的情况下把训练扩展到 6144 芯片。
 
-**780B tokens语料混合**：社交媒体对话50% > 过滤网页27% > 书籍13% > GitHub代码5% > 维基百科4% > 新闻1%。所有模型仅在数据上训练1个epoch（相同shuffle）。网页质量通过分类器评分并按比例采样。代码来自GitHub开源仓库，过滤了copyleft许可证，覆盖24种语言（Java/HTML/JavaScript/Python/PHP/C#/XML/C++/C等），Levenshtein距离去重。词汇表使用SentencePiece 256k tokens，完全无损可逆（保留所有空白符，OOV Unicode拆为UTF-8字节token）。
+这种设计刻意避开了 pipeline parallelism 的 bubble 和微批次权重重复加载问题，但代价是跨数据中心网络的梯度传输会非常突发。论文报告每步对应主机之间要交换约 GB 级梯度，聚合带宽峰值很高，因此 Pathways 需要把传输拆成小块并走多路径路由。PaLM 用 MFU 而不是只看 HFU，是因为 rematerialization 等实现会改变硬件实际执行 FLOPs；MFU 更接近“按模型理论前反向 FLOPs 计算，系统每秒真正处理了多少 token”。
 
-**Adafactor优化器细节**：
-- 学习率：前10000步10^{-2}，随后以1/√k衰减
-- 动量β1=0.9，β2使用特殊调度：β2=1.0−k^{-0.8}（比标准β2=0.99更适合大规模模型，因稀有embedding token的短窗口二阶矩估计更不稳定）
-- 全局梯度裁剪阈值：1.0
-- 权重初始化：kernel使用fan-in方差缩放W~N(0,1/√n_in)，embedding初始化E~N(0,1)
-- 共享输入输出embedding，预softmax logits缩放1/√n
+架构上，PaLM 仍是 GPT-3 风格的自回归 decoder-only Transformer，但做了几处面向大规模训练和推理的改动。SwiGLU 用门控前馈层增强表达能力；Parallel Layers 让 attention 和 MLP 从同一个归一化输入并行计算，便于融合矩阵乘并提升吞吐；Multi-Query Attention 让所有 query heads 共享 key/value，降低自回归解码时 KV cache 带宽；RoPE 用旋转位置编码注入相对位置信息；去掉 dense kernel 和 LayerNorm bias 则简化参数与训练行为。这些设计单独看都不是 PaLM 首创，但 PaLM 证明它们能在 540B 稠密规模上组合工作。
 
-**训练动态**：PaLM 540B训练约25500步（一个epoch），平均吞吐238.3K tokens/s（batch size=2048时），跨2 Pod吞吐为单Pod的1.95倍（97%完美弱扩展效率），性能损失来自反向传播与跨Pod梯度归约无法重叠。
+训练目标仍是标准 next-token prediction。若输入 token 序列为 \(x_1,\dots,x_T\)，模型优化：
 
-##### 4. BIG-Bench涌现能力分析
+$$
+\mathcal{L}(\theta)=-\sum_{t=1}^{T}\log p_\theta(x_t \mid x_{<t})
+$$
 
-PaLM在BIG-Bench(150+任务)上验证了规模带来的涌现效应——模型能力在某一规模阈值处突然出现而非平滑增长。
+优化器使用 Adafactor，学习率先保持较大初值再按步数衰减，并配合全局梯度裁剪。PaLM 的数据混合约 780B tokens，覆盖对话、网页、书籍、代码、维基百科和新闻；256k SentencePiece 词表帮助多语言和代码场景保留更细的可逆文本信息。这里的关键不是“有监督任务微调”，而是在统一预训练目标下测试规模本身能否提升 few-shot 适应能力。
 
-**BIG-Bench涌现**：540B在58/150任务上超越人类平均水平（估计人类基线），62B和8B均远低于此水平。涌现最显著的任务包括：逻辑推理（Logic Grid Puzzle）、笑话解释、逻辑谬误检测、复杂问答等需要多步推理的任务。
+评估结果显示，PaLM 540B 在大量英文 NLP 基准、BIG-bench、数学推理、代码生成和多语言任务上明显强于 8B/62B，并在部分 BIG-bench 任务中出现规模跃迁。论文把这种现象描述为 discontinuous improvements：从小模型到中等模型变化不大，但到 540B 后能力突然显现。这个观察推动了后来关于 emergence、chain-of-thought 和规模阈值的讨论，不过也要注意，PaLM 同时消耗了极高训练算力；Chinchilla 随后会指出，在同样或相近预算下，数据-参数配比可能比继续堆参数更关键。
 
-**数学推理**：GSM8K上8-shot从8B的4.2%→62B的28.7%→540B的56.9%（接近GPT-3 175B+calculator的60%），MGSM多语言数学推理也展示了类似涌现。链式思维(Chain-of-Thought)提示进一步将GSM8K提升至58%。
-
-**代码生成**：HumanEval pass@1从8B的0.9%→62B的11.6%→540B的26.2%，在MBPP上也有类似趋势。540B超越了未经微调的Codex 12B（28.8% vs 26.2%但参数大45倍）。
-
-![BIG-Bench涌现曲线](https://ar5iv.labs.arxiv.org/html/2204.02311/assets/figures/bigbench_emergence.png)
-
-**涌现现象深入解读**：PaLM的BIG-Bench结果是大规模语言模型研究中涌现能力的标志性证据。关键洞察在于：从8B到62B（7.7倍参数量）的性能增长相对平缓，而从62B到540B（8.6倍）却出现了质的飞跃——在逻辑推理、笑话解释等任务上直接超越人类基线。这暗示存在某个关键参数阈值（可能在100B−300B区间），一旦跨过，模型就能解锁抽象推理模式，而非仅仅在已有模式上做更好的统计插值。这种现象对"更大的模型只是更好的模式匹配器"这一观点提出了根本性质疑，暗示规模化本身可能带来质变。
-
-##### 5. NLP基准评估全景
-
-PaLM在29项广泛使用的NLP基准测试上进行了全面评估：
-
-**语言理解**：SuperGLUE上540B Few-shot超越T5-11B微调模型；ANLI自然语言推理上提升显著。
-
-**知识问答**：TriviaQA(64-shot) 81.4%、WebQuestions(64-shot) 43.5%、Natural Questions(64-shot) 39.6%均刷新闭卷问答SOTA；TruthfulQA上展示了真实性问题。
-
-**多语言**：尽管训练数据仅22%非英语，540B在多语言摘要（XL-Sum）8-shot超越此前微调SOTA，WMT翻译任务zero-shot大幅领先。这说明大量英语数据中蕴含的通用语言能力可有效迁移到低资源语言。
-
-**推理与常识**：ARC-Challenge 53.0%、PIQA 84.2%、WinoGrande 81.7%、StrategyQA 67.9%等commonsense任务上均有竞争力表现。在需要多步推理的StrategyQA上，PaLM首次展示了接近人类的推理性能。
-
-![PaLM NLP评估雷达图](https://ar5iv.labs.arxiv.org/html/2204.02311/assets/figures/palm_nlp_benchmarks.png)
-
-##### 6. 偏见与毒性评估
-
-PaLM进行了Winogender共指消解（性别-职业偏见）、种族/宗教提示续写共现分析、毒性续写三个维度的评估：
-
-- Winogender准确率随规模提升，540B在1-shot和few-shot均刷新SOTA
-- 共现分析显示模型可能错误肯定刻板印象（如将穆斯林与恐怖主义关联），且该行为跨规模一致
-- 540B和62B的毒性水平略高于8B，但模型续写的毒性与提示文本毒性高度相关（而人类续写无此相关性），说明模型更受提示风格驱动
+> ⚠️ 注意：PaLM 的“算法贡献”不只是 540B 参数本身，而是大模型训练系统、架构选择、数据混合、优化设置和评估协议的组合；离开 Pathways 训练栈，很难复现这一级别的稠密模型训练效率。
 
 #### 🧪 练习题
 ```yaml
-1. PaLM使用并行层(Parallel Layers)替代标准串行层，在8B模型上有轻微质量下降但在62B+上无损。请从优化景观(optimization landscape)角度分析：为什么并行化对小型模型不利而对大型模型中性？提示：考虑残差连接在两种规模下的梯度流差异。
-
-2. 计算PaLM 540B的前向+反向理论FLOPs（设序列长度2048、每token约等于参数量FLOPs），并基于238.3K tokens/s的实际吞吐和46.2% MFU，反推TPU v4 Pod的理论峰值FLOPs。将其与Jouppi et al.(2020)报告的TPU v4每芯片275 TFLOPS进行对比。
-
-3. PaLM在22%非英语数据条件下实现了多语言SOTA。这可能归因于(a)英语中习得的通用语言能力迁移；(b)256k大词汇表的设计；(c)大规模模型的跨语言泛化增强。请设计一个消融实验方案来区分这三种假设。
-
-4. BIG-Bench上PaLM在58/150任务超越人类平均表现，这种"涌现"现象的临界点是否可预测？请结合Kaplan等人的scaling laws讨论：如果继续扩大参数规模，涌现任务比例将如何变化？有什么理论可以解释涌现的突然性？
-
----
-
-**参考文献**:
-- Chowdhery, A., et al. "PaLM: Scaling Language Modeling with Pathways." arXiv:2204.02311, 2022.
-- Shazeer, N. "GLU Variants Improve Transformer." arXiv:2002.05202, 2020.
-- Wang, B. & Komatsuzaki, A. "GPT-J-6B: A 6 Billion Parameter Autoregressive Language Model." 2021.
-- Su, J., et al. "RoFormer: Enhanced Transformer with Rotary Position Embedding." arXiv:2104.09864, 2021.
-- Xu, Y., et al. "GPipe: Efficient Training of Large Neural Networks using Pipeline Parallelism." arXiv:2108.07258, 2021.
-- Barham, P., et al. "Pathways: Asynchronous Distributed Dataflow for ML." MLSys, 2022.
+question: "PaLM 使用 Pathways 跨两个 TPU v4 Pod 训练时，pod 级并行的关键步骤是什么？"
+options:
+  - "把模型层按顺序切成流水线，每个 Pod 只保存连续若干层"
+  - "两个 Pod 各处理一半 batch，交换梯度后各自执行相同参数更新"
+  - "一个 Pod 只训练 embedding，另一个 Pod 只训练 Transformer block"
+  - "每个 Pod 训练独立模型，最后对 logits 做 ensemble"
+answer: 1
+explain: "PaLM 540B 使用 pod 级二路数据并行：每个 Pod 内完成前向/反向，跨 Pod 交换并累加梯度，再并行更新以保持参数一致。"
 ```
 
 ### LLaMA
@@ -2368,108 +1840,85 @@ motivation: 公开数据训练高效小模型
 ```
 
 #### 📝 一句话总结
-LLaMA 提出了一系列 7B-65B 参数的高效基础语言模型，**仅使用公开可获取的数据集**训练 1-1.4T tokens，证明了在给定推理预算下，较小模型配合更多数据可超越大得多的模型，其中 LLaMA-13B 在多数 benchmark 上超越 GPT-3(175B)，LLaMA-65B 与 Chinchilla-70B 和 PaLM-540B 竞争。
+LLaMA 提出了一组 7B 到 65B 的高效基础语言模型，用纯公开数据和更多训练 token 证明“小模型长训练”可以在推理成本更低的前提下达到或超过更大闭源模型的效果。
 
 #### 🎯 核心要点
-- 提出 4 种规模模型：LLaMA-7B、13B、33B、65B，全部基于 Transformer 架构
-- 仅使用公开数据集训练（CommonCrawl、C4、GitHub、Wikipedia、Books、ArXiv、StackExchange），总计 1.4T tokens
-- 采用 Pre-normalization + RMSNorm、SwiGLU 激活函数、RoPE 旋转位置编码等架构改进
-- LLaMA-13B 在 8 个常识推理 benchmark 上全面超越 GPT-3(175B)
-- 使用高效实现：xformers 因果多头注意力、手动反向传播、模型/序列并行、激活与梯度通信重叠
-- 遵循 Chinchilla 缩放定律：在给定计算预算下，较小模型 + 更多数据优于大模型 + 较少数据
-- 全模型开源给研究社区（需申请）
+- 模型族覆盖 7B、13B、33B、65B；7B/13B 训练 1.0T token，33B/65B 训练 1.4T token，全局 batch 为 4M token。
+- 训练语料全部来自公开可获取数据：CommonCrawl、C4、GitHub、Wikipedia、Books、ArXiv、StackExchange。
+- 采用 decoder-only Transformer，并集成 RMSNorm 预归一化、SwiGLU 前馈激活、RoPE 旋转位置编码。
+- 使用 SentencePiece BPE tokenizer，数字按单个 digit 切分，未知 UTF-8 字符 fallback 到 byte。
+- 优化器为 AdamW，使用 cosine learning-rate schedule、2000 warmup steps、0.1 weight decay、1.0 gradient clipping。
+- 工程侧使用高效 causal attention、activation checkpointing、model/sequence parallelism 和通信计算重叠来提升训练吞吐。
+- 核心设计目标不是“最大参数量”，而是在给定推理预算下获得最佳性能；LLaMA-13B 在多数 benchmark 上超过 GPT-3 175B，65B 接近 Chinchilla-70B 与 PaLM-540B。
 
 #### 🔬 深入细节
-##### 1. 模型架构
-
 ![LLaMA 训练损失曲线](https://ar5iv.labs.arxiv.org/html/2302.13971/assets/x1.png)
-*图 1: LLaMA-7B/13B/33B/65B 在 1-1.4T tokens 上的训练损失曲线，batch size 统一为 4M tokens。*
+*图：LLaMA 7B、13B、33B、65B 随训练 token 增加的 loss 曲线；33B/65B 训练到 1.4T token，小模型训练到 1.0T token。*
 
-LLaMA 基于标准 Transformer 架构（Vaswani et al., 2017），吸收了后续多项改进：
+```python
+# LLaMA 预训练核心流程（按论文方法整理）
+public_sources = ["CommonCrawl", "C4", "GitHub", "Wikipedia", "Books", "ArXiv", "StackExchange"]
+model = DecoderOnlyTransformer(norm="RMSNorm", ffn="SwiGLU", position="RoPE")
+optimizer = AdamW(beta1=0.9, beta2=0.95, weight_decay=0.1)
+scheduler = CosineSchedule(warmup_steps=2000, final_lr_ratio=0.1)
 
-| 改进 | 来源 | 说明 |
-|------|------|------|
-| **Pre-normalization** | GPT-3 | 在每个 Transformer 子层**输入**前归一化，而非输出后，提升训练稳定性 |
-| **RMSNorm** | Zhang & Sennrich (2019) | 使用 RMSNorm 而非 LayerNorm 作为归一化函数 |
-| **SwiGLU 激活** | PaLM (Shazeer, 2020) | 将 ReLU 替换为 SwiGLU，使用 $\\frac{2}{3}4d$ 维度（PaLM 为 $4d$） |
-| **RoPE 位置编码** | GPTNeo (Su et al., 2021) | 移除绝对位置编码，每层加入 Rotary Positional Embeddings |
+for batch in stream_tokens(public_sources, batch_tokens=4_000_000):
+    x = sentencepiece_bpe(batch, split_digits=True, byte_fallback=True)
+    logits = model(x[:, :-1])
+    loss = cross_entropy(logits, x[:, 1:])
+    loss.backward()
+    clip_grad_norm_(model.parameters(), 1.0)
+    optimizer.step()
+    scheduler.step()
+```
 
-##### 2. 模型超参数
+LLaMA 的问题设定来自 Chinchilla scaling law 之后的一个实际矛盾：如果只按训练 compute 最优来选模型，模型可能仍然太大，线上推理成本很高；而服务一个基础模型时，推理预算往往比一次性训练预算更关键。因此论文把目标改成“在多个推理预算点上获得尽可能强的模型”，选择训练较小的 decoder-only Transformer，但让它们看远多于传统设置的 token。论文中特别指出，虽然 Chinchilla 建议 10B 模型约配 200B token，但他们观察到 7B 模型在超过 1T token 后仍持续变好，这就是 LLaMA 选择长训练的直接依据。
 
-| 参数 | 7B | 13B | 33B | 65B |
-|------|-----|-----|------|------|
-| 层数 | 32 | 40 | 60 | 80 |
-| 头数 | 32 | 40 | 52 | 64 |
-| 嵌入维度 | 4096 | 5120 | 6656 | 8192 |
-| 学习率 | 3.0e-4 | 3.0e-4 | 1.5e-4 | 1.5e-4 |
-| Batch size | 4M tokens | 4M tokens | 4M tokens | 4M tokens |
+核心训练目标仍是标准自回归语言建模：给定 token 序列 \(x_1,\ldots,x_T\)，模型最大化下一个 token 的条件概率，等价于最小化负对数似然：
 
-##### 3. 训练数据配比
+$$
+\mathcal{L}_{\text{LM}}(\theta)=-\frac{1}{T}\sum_{t=1}^{T}\log p_\theta(x_t\mid x_{<t})
+$$
 
-| 数据子集 | 采样比例 | 轮数 (1.4T) | 磁盘大小 |
-|----------|----------|-------------|----------|
-| CommonCrawl | 67.0% | 1.10 | ~3.3TB |
-| C4 | 15.0% | 1.06 | ~750GB |
-| GitHub | 4.5% | 0.64 | ~100GB |
-| Wikipedia | 4.5% | 2.45 | ~20GB |
-| Books | 4.5% | 2.23 | ~80GB |
-| ArXiv | 2.5% | 1.06 | ~92GB |
-| StackExchange | 2.0% | 1.03 | ~78GB |
+这个目标看似普通，但 LLaMA 的关键在于数据和预算组合。预训练数据中 CommonCrawl 占 67%，C4 占 15%，GitHub、Wikipedia、Books 各占 4.5%，ArXiv 占 2.5%，StackExchange 占 2%。这些语料的共同约束是公开可获取、可支持研究发布，而不是依赖“Books 2TB”或社交媒体对话这类不可复现数据源。数据侧还进行了去重、语言识别、质量过滤、许可证过滤等处理，使得开放模型能在透明数据来源下逼近闭源模型能力。
 
-##### 4. 优化器与训练细节
+架构上，LLaMA 没有提出全新的 Transformer 结构，而是把当时被证明有效的组件组合成稳定高效的 decoder-only 模型。预归一化把每个子层输入先做 RMSNorm：
 
-优化器配置：
-- **AdamW**: $\\beta_1=0.9, \\beta_2=0.95$
-- **Cosine 学习率调度**: 最终 LR = 10% 最大 LR，2,000 步 warmup
-- **Weight decay**: 0.1，Gradient clipping: 1.0
+$$
+\operatorname{RMSNorm}(x)=\frac{x}{\sqrt{\frac{1}{d}\sum_{i=1}^{d}x_i^2+\epsilon}}\odot g
+$$
 
-高效训练实现：
-1. **因果多头注意力优化**：使用 xformers 库，不存储注意力权重，不计算被 mask 的 key/query scores（参考 Rabe & Staats, 2021; Dao et al., 2022）
-2. **减少激活重计算**：手动实现 Transformer 层反向传播，仅保存在反向传播中计算昂贵的激活（如 linear 层输出），而非依赖 PyTorch autograd
-3. **模型与序列并行**：减少总体内存使用（Korthikanti et al., 2022）
-4. **计算与通信重叠**：尽可能重叠激活计算与 GPU 间 all_reduce 通信
+这样做的直觉是让 attention 和 FFN 子层看到尺度更稳定的输入，降低大规模训练时梯度爆炸或深层不稳定的风险。前馈层用 SwiGLU 替代 ReLU，常见写法为：
 
-训练硬件：所有模型在 **A100-80GB GPU** 上训练，LLaMA-65B 使用 2,048 块 GPU 处理 1.4T tokens 耗时约 21 天。
+$$
+\operatorname{FFN}(x)=\left(\operatorname{Swish}(xW_1)\odot xW_3\right)W_2
+$$
 
-##### 5. 核心实验结果
+SwiGLU 通过门控分支控制信息流，比普通 ReLU FFN 更有表达能力；论文还把隐藏维度设为 \(\frac{2}{3}\cdot4d\)，在性能和计算量之间折中。
 
-**常识推理 (Table 3) - 零样本性能：**
+位置编码使用 RoPE，而不是绝对位置 embedding。RoPE 的做法是在每层 attention 的 query/key 上施加与位置相关的旋转，使相对位置信息自然进入点积注意力：
 
-| 模型 | BoolQ | PIQA | SIQA | HellaSwag | WinoGrande | ARC-e | ARC-c | OBQA |
-|------|-------|------|------|-----------|------------|-------|-------|------|
-| GPT-3 175B | 60.5 | 81.0 | — | 78.9 | 70.2 | 68.8 | 51.4 | 57.6 |
-| Chinchilla 70B | 83.7 | 81.8 | 51.3 | 80.8 | 74.9 | — | — | — |
-| PaLM 540B | 88.0 | 82.3 | — | 83.4 | 81.1 | 76.6 | 53.0 | 53.4 |
-| LLaMA 7B | 76.5 | 79.8 | 48.9 | 76.1 | 70.1 | 72.8 | 47.6 | 57.2 |
-| LLaMA 13B | 78.1 | 80.1 | 50.4 | 79.2 | 73.0 | 74.8 | 52.7 | 56.4 |
-| LLaMA 33B | 83.1 | 82.3 | 50.4 | 82.8 | 76.0 | 80.0 | 57.8 | 58.6 |
-| **LLaMA 65B** | **85.3** | **82.8** | **52.3** | **84.2** | **77.0** | **78.9** | **56.0** | **60.2** |
+$$
+q_m^\top k_n \rightarrow (R_m q)^\top(R_n k)
+$$
 
-> LLaMA-65B 在所有 benchmark 上超过 Chinchilla-70B（除 BoolQ），LLaMA-13B 全面超越 GPT-3(175B)。
+其中 \(R_m\) 和 \(R_n\) 是由 token 位置决定的旋转矩阵。直觉上，RoPE 让注意力分数依赖相对距离 \(m-n\)，比固定绝对位置表更适合长序列泛化，也避免为每个位置学习单独参数。
 
-**其他 benchmark 亮点：**
-- **NaturalQuestions** (Table 4)：LLaMA-65B 零样本 26.4%、5-shot 35.1%，与 PaLM-540B 持平
-- **TriviaQA** (Table 5)：LLaMA-65B 零样本 68.2%（高于 GPT-3 的 64.3%），5-shot 达 71.6%
-- **RACE-middle** (Table 6)：LLaMA-65B 67.9% vs PaLM-540B 68.1%
-- **MMLU** (Table 7)：LLaMA-65B 5-shot 63.4%，接近 PaLM-540B 的 69.3%
-- **MATH/GSM8k** (Table 8)：数学推理能力随模型规模稳定增长
+工程优化也是 LLaMA 能训练 65B 模型的关键。论文使用 xFormers 风格的 memory-efficient causal attention，不存完整 attention matrix，也不计算 causal mask 会屏蔽掉的 query-key 分数；再通过 activation checkpointing 只保留线性层输出等昂贵激活，减少反向传播显存压力。模型并行和序列并行负责把参数、激活和序列维度拆到多卡上，通信计算重叠则尽量隐藏 all-reduce 的开销。最终 65B 模型在 2048 张 80GB A100 上约可达到 380 tokens/sec/GPU，1.4T token 训练约 21 天。
 
-##### 6. 偏置与毒性评估
+与 GPT-3、PaLM、Chinchilla 等闭源或半闭源系统相比，LLaMA 的创新不是某个单点公式，而是一个可复现的训练配方：公开数据、长 token 训练、高效 Transformer 组件、以及面向推理预算的模型尺寸选择。它直接影响了后续开源 LLM 生态，因为 13B 级模型可在单卡或少量 GPU 上运行，却能在常识推理、问答、阅读理解、代码等任务上接近或超过更大模型。
 
-- **CrowS-Pairs (Table 12)**：LLaMA-65B 在 9 类偏置上的整体分数为 66.4（vs OPT-175B 67.2）
-- **WinoGender (Table 13)**：LLaMA 模型在 "their/them/someone" 代词上的共指消解准确率优于 "her/her/she" 和 "his/him/he"，表明存在性别偏置
-- **TruthfulQA (Table 14)**：LLaMA-65B 在 truthful 和 truthful*informative 指标与 GPT-3 相当，但仍存在幻觉问题
-
-##### 7. 碳足迹 (Table 15)
-
-| 模型 | GPU 小时 | 总功耗 | 碳排放 (tCO₂eq) |
-|------|----------|--------|-----------------|
-| OPT-175B | 809,472 | 356 MWh | 137 |
-| BLOOM-175B | 1,082,880 | 475 MWh | 183 |
-| LLaMA-7B | 82,432 | 36 MWh | 14 |
-| LLaMA-13B | 135,168 | 59 MWh | 23 |
-| LLaMA-33B | 530,432 | 233 MWh | 90 |
-| LLaMA-65B | 1,022,362 | 449 MWh | 173 |
+#### 🧪 练习题
+```yaml
+question: "LLaMA 相比单纯扩大参数量的路线，最核心的效率思想是什么？"
+options:
+  - "用 encoder-decoder 架构替代 decoder-only 架构"
+  - "在推理预算约束下，用较小模型训练更多公开 token"
+  - "主要依赖人工标注指令数据提升能力"
+  - "用检索系统替代参数化语言模型"
+answer: 1
+explain: "LLaMA 的核心是让较小模型看更多 token，从而在服务成本更低的情况下达到强性能；它仍是 decoder-only 自回归 Transformer。"
+```
 
 ### GPT-4
 
@@ -2488,168 +1937,91 @@ motivation: 可预测扩展到多模态前沿
 ```
 
 #### 📝 一句话总结
-> GPT-4 提出了一个大规模多模态 Transformer 语言模型，通过可预测扩展（predictable scaling）方法将文本与视觉能力统一在一个自回归框架中，在多项人类考试与专业基准上达到人类顶尖水平，同时系统性地构建了安全性对齐流程。
+GPT-4 技术报告提出并评估了一个可接收图像和文本输入、输出文本的大规模多模态 Transformer，并把“可预测扩展”和 RLHF 后训练作为训练前沿模型时降低失控风险和提升对齐质量的核心方法。
 
 #### 🎯 核心要点
-- **多模态输入输出**：GPT-4 接受图像和文本交织输入，输出纯文本，是 OpenAI 首个公开的大规模多模态模型
-- **可预测扩展（Predictable Scaling）**：基于小规模模型的计算规律，在训练前就能高精度预测最终大模型的 loss，无需昂贵的大规模试错
-- **极度广泛的基准验证**：覆盖学术考试（SAT/AP/BAR/LSAT/GRE）、多语言理解（MMLU 各语种子集）、代码竞赛（LeetCode/Codeforces）、图像理解等多维基准
-- **人类考试顶尖表现**：在 BAR（律师资格）中达前 10%，SAT 数学 700+/800，GRE Verbal 169/170，全面超越 GPT-3.5
-- **安全与对齐前置**：在预训练完成后即引入 RLHF（Reinforcement Learning from Human Feedback）及基于规则的奖励模型（RBRM）来校准模型行为，拒绝有害指令的能力大幅提升
-- **技术细节罕有公开**：报告刻意不披露模型参数量、训练数据构成、架构细节和具体训练成本，以强调能力评估和安全性而非技术实现
-- **Visual grounding 能力的系统评估**：首次大规模测试了 LLM 对图表、截图、手写文字和复杂排版文档中的信息提取与推理能力
-- **Code generation 飞跃**：在 LeetCode 等算法题上准确率远超 GPT-3.5，能处理复杂多文件工程任务
-- **可操纵性（Steerability）大幅增强**：通过 System Message 机制实现灵活的风格、角色和语气切换，Tool Use 能力内置支持
+- GPT-4 是 Transformer-style 模型，预训练目标是文档中的 next-token prediction，可接收 image/text 输入并生成 text 输出。
+- 报告明确不披露模型大小、硬件、训练 compute、数据构造和具体架构细节，原因是竞争和安全影响。
+- 预训练后使用 RLHF 进行行为微调，提升事实性、遵循用户意图和期望行为。
+- 可预测扩展是核心工程方法：用小于 GPT-4 约 1,000x 到 10,000x compute 的模型拟合 scaling law，预测最终 loss 和 HumanEval 能力。
+- Loss prediction 使用带 irreducible loss 的幂律形式 \(L(C)=aC^b+c\)，并在训练早期、不使用中途结果的情况下预测 GPT-4 最终 loss。
+- 能力评估覆盖专业考试、MMLU、多语言 MMLU、HumanEval 等；例如模拟律师考试成绩位于考生前 10% 左右。
+- 安全流程包括 50+ 领域专家红队测试、额外安全 RLHF prompts、以及 rule-based reward models (RBRMs) 作为模型辅助安全奖励信号。
+- 报告同时强调 GPT-4 仍有幻觉、有限上下文窗口、不会从经验中持续学习等限制。
 
 #### 🔬 深入细节
-##### 1. 模型架构与设计哲学
+![GPT-4 可预测扩展损失图](https://ar5iv.labs.arxiv.org/html/2303.08774/assets/x1.png)
+*图：用较小模型拟合幂律曲线预测 GPT-4 在内部代码数据集上的最终 loss；绿色点为 GPT-4，虚线为基于小模型的预测。*
 
-GPT-4 本质上是一个 **Transformer-based 的自回归预训练模型**，但与 GPT-3 相比，其设计哲学发生了根本性转变：
+```python
+# GPT-4 技术报告披露的高层训练与预测流程（细节被报告有意省略）
+small_runs = []
+for compute in compute_grid(max_compute="GPT-4 / 1000 to GPT-4 / 10000"):
+    m = train_transformer_next_token(compute=compute, data="public + licensed + third-party")
+    loss = evaluate(m, dataset="internal codebase not in training set")
+    humaneval = evaluate_pass_rate(m, dataset="HumanEval subset")
+    small_runs.append((compute, loss, humaneval))
 
-**从 Scaling Law 到 Predictable Scaling**
+loss_law = fit_power_law(small_runs, form="L(C)=a*C**b+c")
+humaneval_law = fit_capability_law(small_runs)
+register_predictions(loss_law, humaneval_law)
 
-传统大模型训练遵循 Kaplan et al. (2020) 的 scaling law —— 即模型性能随参数量、数据量和计算量呈幂律关系。但这种方法的问题在于：你必须实际训练每个规模的模型才能知道最终性能。
-
-GPT-4 的关键创新在于 **Predictable Scaling**：OpenAI 团队开发了一套方法，使得在训练最终大模型之前，可以通过小型模型的训练结果高精度预测最终大模型的 loss。具体做法：
-
-1. 使用相同的数据分布和架构在小规模模型上训练
-2. 拟合 loss 曲线并外推至大模型规模
-3. 实际大模型的最终 loss 与预测值高度吻合（"few percent" 误差内）
-
-这使得 OpenAI 能在大规模训练前就做出架构和超参数决策，大幅降低了训练风险。
-
-**多模态架构（推测）**：
-
-虽然论文未公开具体架构，但基于 OpenAI 后续披露和相关工作，GPT-4 大概率采用了类似 Flamingo (Alayrac et al., 2022) 的视觉编码器 + 语言模型的设计：
-- 视觉输入经 ViT 编码器转为 patch embedding
-- 通过交叉注意力层或 Q-Former 结构将视觉 token 注入 Transformer 层
-- 文本和视觉 token 在统一的序列中进行自回归预测
-
-##### 2. 训练流程
-
-GPT-4 的训练分为两个主要阶段：
-
-**第一阶段：预训练（Pretraining）**
-
-- 在大规模互联网语料上进行下一个 token 预测的自回归训练
-- 使用 Predictable Scaling 方法在小型模型上验证训练稳定性
-- 具体训练数据、硬件配置、训练时长均未公开
-
-**第二阶段：后训练对齐（Post-training Alignment）**
-
-这是 GPT-4 报告中最具方法论创新的部分：
-
-1. **RLHF (Reinforcement Learning from Human Feedback)**：
-   - 收集人类偏好标注：对同一 prompt 的多个生成回答进行排名
-   - 训练 Reward Model 来预测人类偏好
-   - 使用 PPO 算法优化模型以最大化奖励信号
-
-2. **Rule-Based Reward Model (RBRM)**：
-   - 针对安全敏感场景，引入基于规则的奖励模型作为 RLHF 的补充
-   - 分类器自动检测模型输出的拒绝/遵从行为
-   - 当分类器高置信度判定拒绝（refusal）时给予正向奖励
-
-3. **System Message 机制**：
-   - GPT-4 在 RLHF 阶段就被训练来理解和遵循 system message
-   - 用户可通过自然语言定义模型的人格、语气、角色和边界条件
-   - 这一机制成为后来 ChatGPT 和 API 的核心功能
-
-##### 3. 核心公式与机制
-
-**自回归语言建模目标**：
-
-L = - Σ_{t=1}^{T} log P_θ(x_t | x_{<t})
-
-其中 x_t 是序列中第 t 个 token，θ 为模型参数。
-
-**Predictable Scaling 的 Loss 外推**：
-
-设 N 为模型规模指标（如有效参数量），OpenAI 发现 loss 遵循：
-
-L(N) = L_∞ + (N_0 / N)^α
-
-其中 L_∞ 为不可约 loss，N_0 和 α 为拟合参数。通过在小 N 下拟合这些参数，可以外推预测大 N 的 loss。
-
-**RLHF 中的 PPO 目标**：
-
-max_θ E_{x~D, y~π_θ(·|x)} [ r_ϕ(x, y) - β · D_KL(π_θ(·|x) || π_ref(·|x)) ]
-
-其中 r_ϕ 为训练的 reward model，β·D_KL 项约束模型不要偏离参考策略 π_ref 太远，防止 reward hacking。
-
-##### 4. 评估体系：重新定义 LLM 能力测试
-
-GPT-4 报告最突出的贡献之一是其极其系统的评估体系：
-
-| 类别 | 代表性测试 | GPT-4 表现 | GPT-3.5 |
-|------|-----------|-----------|---------|
-| 学术考试 | BAR Exam | 前 10%（298/400） | 后 10% |
-| | SAT Evidence-Based Reading & Writing | 710/800 | 670 |
-| | SAT Math | 700/800 | 590 |
-| | GRE Verbal | 169/170 | 154 |
-| 多语言 MMLU | 26 种语言 | 全部超越 GPT-3.5 英语水平 | — |
-| 代码 | LeetCode Easy | ~100% | ~72% |
-| | LeetCode Medium | ~90% | ~46% |
-| | LeetCode Hard | ~50% | ~7% |
-| 图像理解 | 图表/文档/截图 | 多项任务超越专用模型 | 不支持 |
-| 安全性 | 有害内容拒绝率 | 82%+ 绝对提升 | — |
-
-> 💡 关键：GPT-4 在几乎**所有**测试基准上都展现出 "明显的跨越"（significant leap），尤其是需要复杂推理和跨领域知识整合的任务。
-
-##### 5. 与传统方法的区别
-
-| 维度 | GPT-3 / 传统 LLM | GPT-4 |
-|------|-----------------|-------|
-| 多模态 | 纯文本 | 文本+图像输入 |
-| Scaling | 训练后才知道性能 | Predictable Scaling 预知 |
-| 安全对齐 | 事后修补 | 从 RLHF 阶段前置 |
-| 可操纵性 | Prompt 工程为主 | System Message 内置 |
-| 评估深度 | 少数基准 | 系统性的人类考试 & 多语言 |
-| 技术透明度 | 公开参数/数据 | 刻意隐藏细节 |
-
-##### 6. 示意图（论文 Figure 1）
-
-> [图] GPT-4 在多项学术和专业考试中的百分位表现，横轴为各考试（BAR, LSAT, GRE Q, GRE V, SAT Math, SAT EBRW 等），纵轴为 GPT-4 得分所处的百分位。GPT-4 在大多数考试中位于前 10%，远超 GPT-3.5。
-
-> ⚠️ 注意：GPT-4 技术报告刻意不披露模型参数量、训练数据构成和架构细节。OpenAI 表示这是出于 "competitive landscape and the safety implications of large-scale models" 的考虑。这使得社区对 GPT-4 规模的讨论停留在推测层面（广为流传的 1.76T 参数 MoE 说法来自 SemiAnalysis 等第三方分析，未经 OpenAI 证实）。
-
-##### 训练/推理流程总结
-
+gpt4 = train_full_scale_multimodal_transformer()
+gpt4 = post_train_with_sft_rlhf_and_safety_rewards(gpt4)
 ```
-                    ┌──────────────┐
-  [文本 + 图像] ──▶ │  GPT-4 Base  │ ──▶ [Raw Completions]
-                    │ (Pretrained) │
-                    └──────┬───────┘
-                           │
-              ┌────────────▼────────────┐
-              │  RLHF + RBRM 对齐       │
-              │  - Reward Model 训练     │
-              │  - PPO 优化             │
-              │  - 安全分类器监督        │
-              └────────────┬────────────┘
-                           │
-                    ┌──────▼───────┐
-                    │  GPT-4 最终   │
-                    │  (Aligned)   │
-                    └──────────────┘
-                           │
-              ┌────────────▼────────────┐
-              │  System Message 注入     │
-              │  + 用户 Prompt          │
-              └────────────┬────────────┘
-                           ▼
-                    [安全、可控的输出]
-```
+
+GPT-4 技术报告的一个特殊点是“方法细节主动留白”：论文只说明 GPT-4 是预训练 next-token Transformer，并使用公开数据、授权数据和第三方数据；但不披露参数量、层数、训练 compute、数据清洗配方或具体多模态接口。这里的算法精读要把重点放在报告公开强调的机制：如何让一个超大训练任务在完成前就具有可预测性，以及如何通过后训练和安全奖励塑造模型行为。
+
+预训练目标仍可抽象为条件语言建模。若输入上下文 \(x_{<t}\) 可以包含文本 token，也可以包含由视觉编码链路转成的上下文表示，则 next-token loss 为：
+
+$$
+\mathcal{L}_{\text{NTP}}(\theta)=-\sum_{t}\log p_\theta(x_t\mid x_{<t})
+$$
+
+这类目标本身不是 GPT-4 的新贡献；报告更强调大规模训练系统必须“按尺度可预测”。原因很直接：GPT-4 级别的训练无法像小模型一样反复调参重训，一旦学习率、数据配比、并行系统或数值稳定性出问题，代价极高。因此 OpenAI 先训练一系列小 compute 模型，使用相同方法论测量 loss，再拟合带不可约误差项的 scaling law：
+
+$$
+L(C)=aC^b+c
+$$
+
+其中 \(C\) 是训练 compute，\(c\) 表示再增加 compute 也难以消除的 irreducible loss。报告称该预测在 GPT-4 训练开始后不久、且不使用中途训练结果的情况下完成；这使团队能在完整训练结束前估计最终模型是否处在预期轨道上。
+
+能力预测部分比 loss 更难，因为 benchmark 分数通常噪声大且非单调。报告选择 HumanEval 的子集来观察代码合成能力，并用 mean log pass rate 建模。对于某个问题集合 \(P\)，论文给出的近似关系是：
+
+$$
+-\mathbb{E}_{P}[\log(\operatorname{pass\_rate}(C))]=\alpha C^{-k}
+$$
+
+其中 \(\alpha,k>0\)。直觉是：随着 compute 增大，模型解决问题的失败概率以幂律下降；但因为极低 pass rate 难以估计，论文只在每个小模型都有机会解出的题目集合上拟合。这种方法不能保证所有能力都可预测，报告也指出 inverse scaling 类任务可能在某些尺度上反常，但它为训练前沿模型提供了一套比“训练完再看”更可控的监控框架。
+
+后训练阶段使用 RLHF 来把预训练模型转成更符合用户意图的助手。报告没有给出完整 RLHF 损失，但流程可理解为：先通过人类偏好或标注得到奖励信号，再优化策略模型，使回答在有用性、事实性和期望行为上更接近标注标准。抽象写法是：
+
+$$
+\max_{\pi_\theta}\;\mathbb{E}_{x\sim\mathcal{D},\,y\sim\pi_\theta(\cdot\mid x)}[R_{\text{human}}(x,y)]
+$$
+
+实际系统还需要 KL 约束、拒答策略、偏好数据混合等工程细节；报告只强调 RLHF 后 factuality 和 adherence to desired behavior 得到改善。
+
+GPT-4 的安全方法加入了 model-assisted safety pipeline。除了常规 RLHF，OpenAI 收集额外安全相关 prompts，并使用 RBRMs：一组 zero-shot GPT-4 classifiers。RBRM 的输入包括 prompt、policy model 的输出、以及人工书写的 rubric；输出是对回答类型的分类，例如“理想拒答”“不理想拒答”“包含不允许内容”“安全非拒答”。在安全 RLHF 中，可以把 RBRM 分类结果转成附加奖励：
+
+$$
+R(x,y)=R_{\text{preference}}(x,y)+\lambda R_{\text{RBRM}}(x,y;\text{rubric})
+$$
+
+上式是对报告机制的抽象表达，不代表论文披露了完整实现。它的直觉是把“什么时候该拒答、什么时候不该过度拒答”写成可执行的评分规则，减少 reward model 标注说明不充分带来的脆弱行为。
+
+与 GPT-3 相比，GPT-4 的论文贡献并不在公开一个可复现架构，而在说明前沿模型训练的两个系统性原则：第一，用小模型外推约束大模型训练风险；第二，用人类反馈、专家红队和模型辅助规则奖励做部署前行为塑形。这也解释了为什么 GPT-4 技术报告更像“训练与安全系统报告”，而不是传统架构论文。
 
 #### 🧪 练习题
 ```yaml
-question: "GPT-4 报告中提出的 'Predictable Scaling' 方法的核心价值是什么？"
+question: "GPT-4 技术报告中，predictable scaling 的主要作用是什么？"
 options:
-  - "大幅降低模型推理延迟"
-  - "在小规模模型上预测大模型的训练损失，减少大规模试错成本"
-  - "自动调节学习率，使训练更稳定"
-  - "通过增加模型层数线性提升性能"
+  - "公开 GPT-4 的完整参数量和层数"
+  - "在大训练完成前，用小规模训练结果预测最终 loss 和部分能力"
+  - "用检索增强替代 Transformer 预训练"
+  - "让模型在推理时自动更新参数"
 answer: 1
-explain: "Predictable Scaling 的核心在于利用小模型 loss 曲线外推大模型的最终性能，减少盲目进行大规模训练的成本和风险。论文指出实际 loss 与预测值误差仅 'few percent'。"
+explain: "报告核心强调通过较小 compute 模型拟合幂律关系，提前预测 GPT-4 的最终 loss 与 HumanEval 子集能力，而不是披露完整架构。"
 ```
 
 ### RetNet
@@ -2819,116 +2191,119 @@ motivation: 开放预训练与安全对话谱系
 ```
 
 #### 📝 一句话总结
-Llama 2 是 Meta 于 2023 年开源的、经大规模预训练＋SFT＋人类偏好强化学习（RLHF）对齐的对话模型系列（7B/13B/70B），在有用性与安全性上接近闭源商业模型（如 ChatGPT）。
+Llama 2 在 LLaMA 基础上扩展到 2T 公开 token、4K 上下文和更安全的开放发布，并通过 SFT、奖励建模、拒绝采样、PPO 与 Ghost Attention 构建了面向对话的 Llama 2-Chat。
 
 #### 🎯 核心要点
-- 核心动机：开放预训练与安全对话谱系
-- 演化来源：继承或改进自 llama
-- 代表机构：Meta AI
+- 发布 Llama 2 base 与 Llama 2-Chat，公开 7B、13B、70B 规模；34B 在论文中报告但因红队不足未发布。
+- 预训练数据为新的公开在线数据混合，不包含 Meta 产品或服务数据；训练 2T token，比 LLaMA 增加约 40%。
+- 上下文长度从 2K 扩展到 4K，34B/70B 使用 Grouped-Query Attention (GQA) 提升推理可扩展性。
+- 基础架构延续 LLaMA：pre-normalization RMSNorm、SwiGLU、RoPE、SentencePiece BPE、AdamW 和 cosine schedule。
+- SFT 阶段强调高质量少量数据：最终收集 27,540 条人工 SFT annotations，并只在 answer tokens 上反传 loss。
+- RLHF 使用人类二选一偏好数据，训练 Helpfulness RM 与 Safety RM 两个奖励模型；总偏好比较约 2.9M，其中 Meta 安全与有用性数据约 1.4M。
+- 奖励模型采用 pairwise ranking loss，并加入按偏好强度变化的 margin，让“明显更好”的样本对拉开更大分数差。
+- 迭代 RLHF 从 V1 到 V5，先使用 Rejection Sampling fine-tuning，后续把 PPO 接在拒绝采样 checkpoint 之后。
+- PPO 奖励包含 safety/helpfulness 分段奖励与 KL penalty，防止策略过度偏离原始模型并缓解 reward hacking。
+- 提出 Ghost Attention (GAtt)，通过合成多轮系统指令数据和 loss masking 改善多轮对话中系统消息遗忘问题。
 
 #### 🔬 深入细节
-##### 1. 预训练数据与处理
-- **数据来源**：全部来自公开数据，刻意排除 Meta 产品或服务中的用户数据，并移除含大量个人隐私的网站。
-- **数据规模**：2 万亿 tokens（Llama 1 为 1.4T），训练采用余弦学习率调度。
-- **语言分布**：英语占 89.70%，未知 8.38%，德语 0.17%，法语 0.16%，瑞典语 0.15%。比 C4 语料库的语言多样性低，但重点英语训练保证了核心能力。
-- **事实性提升**：对最具事实性的数据源（如 Wikipedia）进行了上采样（"dumping"）以增强知识密度和降低幻觉。
-- **毒性分析**：使用 Toxigen/HateBERT 分类器评估预训练数据毒性，整体毒性较低，但仍需后续安全微调。
-- **分词器（Tokenizer）**：采用 BytePair Encoding（BPE），基于 SentencePiece 实现，词表大小 32k；延续 Llama 1 设计——数字拆分为独立数字位、未知 UTF-8 字符用字节分解。
+![Llama 2-Chat 训练流程](https://ar5iv.labs.arxiv.org/html/2307.09288/assets/x3.jpg)
+*图：Llama 2-Chat 从公开数据预训练开始，经 SFT 得到初始 chat 模型，再通过人类偏好数据、奖励模型、拒绝采样和 PPO 迭代改进。*
 
-##### 2. 模型架构
-所有模型基于标准 Transformer 解码器架构，核心组件：
-- **预归一化（Pre-Normalization）**：使用 RMSNorm（而非 LayerNorm），提升训练稳定性。
-- **激活函数**：SwiGLU（Shazeer, 2020），在 Feed-Forward 层取代标准 ReLU/GELU。
-- **位置编码**：旋转位置嵌入（RoPE, Su et al., 2022），支持外推到更长上下文。
-- **分组查询注意力（GQA）**：Llama 1 使用标准多头注意力（MHA），Llama 2 在 70B 模型上使用 GQA（KV 头数 = 8，Query 头数 = 64），大幅降低推理时 KV 缓存内存占用；7B/13B 仍使用 MHA（KV 头 = Q 头数）。
+```python
+# Llama 2 / Llama 2-Chat 训练流程（按论文方法整理）
+base = pretrain_llama2(tokens="2T public online data", context=4096, gqa_for=["34B", "70B"])
+chat = supervised_finetune(base, annotations=27_540, loss_on="assistant_answer_tokens_only")
 
-各规模的完整架构参数：
+for version in ["RLHF-V1", "RLHF-V2", "RLHF-V3", "RLHF-V4", "RLHF-V5"]:
+    comparisons = collect_pairwise_preferences(chat, dimensions=["helpfulness", "safety"])
+    helpful_rm = train_reward_model(comparisons, target="helpfulness")
+    safety_rm = train_reward_model(comparisons, target="safety")
 
-| 参数 | 7B | 13B | 70B |
-|------|-----|------|------|
-| 层数（Layers） | 32 | 40 | 80 |
-| 注意力头数 | 32 | 40 | 64 |
-| KV头数 | 32 | 40 | 8 |
-| 隐藏维度 | 4096 | 5120 | 8192 |
-| 中间层维度 | 11008 | 13824 | 28672 |
-| 训练tokens | 2.0T | 2.0T | 2.0T |
-| 学习率 | 3.0×10⁻⁴ | 3.0×10⁻⁴ | 1.5×10⁻⁴ |
-| 全局批次大小 | 4M tokens | 4M tokens | 4M tokens |
-| 优化器 | AdamW (β₁=0.9, β₂=0.95) | 同 | 同 |
-| 权重衰减 | 0.1 | 0.1 | 0.1 |
-| 学习率调度 | Cosine | Cosine | Cosine |
-| 预热步数 | 2000 | 2000 | 2000 |
+    candidates = sample_k_answers(chat, prompts=comparisons.prompts, temperature="retuned per version")
+    best_answers = select_by_reward(candidates, helpful_rm, safety_rm)
+    chat = finetune_on_rejection_samples(chat, best_answers)
 
-- **关键洞察**：论文明确指出性能提升主要源于 **训练数据量的增加** 而非架构改动。
+    if version in ["RLHF-V4", "RLHF-V5"]:
+        chat = ppo_update(chat, reward=piecewise_helpful_safety_reward, kl_to_initial_policy=True)
 
-##### 3. 训练基础设施与碳排放
-- **硬件**：Meta Research Super Cluster (RSC) + 内部生产集群，全部使用 NVIDIA A100 GPU。
-- **GPU 时**：预估预训练总 GPU 时 330 万小时。
-- **碳排放**：预训练累积 539 tCO₂eq，Meta 通过可持续发展计划全额抵消。
-- **网络**：RSC 使用 NVIDIA Quantum InfiniBand（200 Gbps），生产集群使用 RoCE（RDMA over Converged Ethernet）。
+chat = ghost_attention_finetune(chat, synthetic_multiturn_system_messages=True)
+```
 
-##### 4. 监督微调（SFT）
-- **数据构建**：先用初始 Llama 2-Chat 自行生成示范→人工标注员按规范撰写目标行为示例→多轮审核打磨。
-- **核心理念**："Quality Is All You Need"——仅用约 27,540 条高质量 SFT 数据就实现了良好结果。
-- **训练配置**：AdamW 优化器，学习率 $2 \times 10^{-5}$，余弦调度，权重衰减 0.1，批次大小 64，序列长度 4096 tokens，训练 2 个 epoch。
-- **损失计算**：仅对回答（Assistant）token 计算自回归损失，Prompt（User）token 的损失置零。
-- **数据格式**：每个样本 = Prompt + Answer，用特殊 token 分隔；全部样本拼接填充序列长度。
+Llama 2 的第一层贡献是把 LLaMA 的开放基础模型路线工程化升级。基础模型仍是自回归 Transformer，但训练语料扩大到 2T token，上下文长度翻倍到 4096，且大模型引入 GQA。GQA 的直觉是让多个 query heads 共享较少的 key/value heads，从而降低 KV cache 体积和解码带宽压力；这对 34B/70B 这类服务成本高的模型尤其重要。预训练 loss 仍是标准 next-token objective：
 
-##### 5. RLHF 全流程
-**5.1 人类偏好数据收集**
-- 标注员遵循多步流程：写 prompt → 采样两个模型输出 → 选择偏好。
-- 有用性与安全性标注分离，各有一套详细指南。
-- 内部收集 1,418,091 个二元比较对，合并开源数据（Anthropic Helpful/Harmless、OpenAI Summarize/WebGPT、StackExchange、Stanford SHP）共超 100 万。
+$$
+\mathcal{L}_{\text{pretrain}}(\theta)=-\sum_{t}\log p_\theta(x_t\mid x_{<t})
+$$
 
-**5.2 奖励模型（Reward Model）**
-- 基于预训练 Llama 2 checkpoint 初始化，最后的分类头替换为回归头（输出标量奖励）。
-- 同时训练两个独立的 70B 奖励模型：
-  - **Helpfulness RM**：优化有用性，使用 margin ranking loss（加入偏好分数差的边界项 $m(r)$）。
-  - **Safety RM**：优化安全性，同样使用二元排序损失。
-- 损失函数（无 margin 版本）：
-  $$\mathcal{L}_{\text{ranking}} = -\log\left(\sigma\left(r_\theta(x, y_c) - r_\theta(x, y_r)\right)\right)$$
-  其中 $y_c$ 为被选中的回答，$y_r$ 为被拒绝的回答。
-- 带 margin 的有用性版本：
-  $$\mathcal{L}_{\text{ranking}} = -\log\left(\sigma\left(r_\theta(x, y_c) - r_\theta(x, y_r) - m(r)\right)\right)$$
-- 训练仅 1 个 epoch，更长训练无益。
-- 奖励模型准确率（与人类一致性）是最终模型质量的最重要代理指标之一。
+SFT 阶段的重点不是堆海量指令数据，而是高质量人工样本。论文先用公开 instruction tuning 数据启动，但发现许多第三方 SFT 数据多样性和质量不足，于是转向数万条 vendor-based 高质量标注。对每个 prompt-answer 样本，训练时会把 prompt 和 answer 拼接为同一序列，但 prompt token 的 loss 被置零，只在 assistant answer tokens 上反传：
 
-**5.3 迭代 RLHF（Iterative Fine-tuning）**
-- 共执行 **5 轮** RLHF 迭代，每轮：收集新一轮偏好数据 → 训练新奖励模型 → PPO 更新策略。
-- 关键发现：**保持奖励模型"在分布上"**——用最新 Llama 2-Chat 生成的数据更新 RM，可提升其准确率并促进后续轮次收益。
-- 最终奖励模型在留出测试集上与人类标注员一致性接近 70%（接近人类间一致性上限）。
+$$
+\mathcal{L}_{\text{SFT}}(\theta)=-\sum_{t\in\text{answer}}\log p_\theta(y_t\mid x,y_{<t})
+$$
 
-**5.4 Ghost Attention（GAtt）——多轮对话一致性**
-- **问题**：初始 RLHF 模型在多轮对话中会逐渐"遗忘"首轮系统指令。
-- **方法**（训练时数据增强）：将系统指令附加到每一轮用户消息中；推理时仅首轮提供指令。
-- **效果**：模型可在 20+ 轮对话中持续遵循初始指令，且对话保持自然。
+这样做避免模型学习“复述用户输入”，把梯度集中到期望回答风格和内容上。论文报告 SFT 使用初始学习率 \(2\times10^{-5}\)、batch size 64、sequence length 4096、训练 2 epochs。
 
-##### 6. 安全策略
-Meta 采用"有用性-诚实性-无害性（HHH）"三维安全框架。
+RLHF 数据采集使用二选一偏好比较：标注者写 prompt，然后在两个模型回答中选择更好的一个，并标注偏好强度，包括 significantly better、better、slightly better、negligibly better/unsure。Llama 2 把 helpfulness 和 safety 分开建模，因为“尽可能有帮助”和“必要时拒绝不安全请求”天然存在张力。奖励模型从 chat checkpoint 初始化，把 LM head 换成 scalar regression head，因此 reward model 继承了基础模型知识，减少奖励模型偏好幻觉答案的风险。
 
-- **Safety SFT**：人工标注对抗性 prompt + 安全示范回答，覆盖多种风险类别（仇恨言论、犯罪策划、CBRNE、虚假信息等）。
-- **Safety RLHF**：独立的安全奖励模型（70B），置于 PPO 框架中与有用性奖励交替优化。
-- **Safety Context Distillation**：类似于知识蒸馏的方式，将安全行为从教师模型传递给学生模型。
-- **Red Teaming**：350+ 参与者的多轮红队测试，含众包人员、网络安全专家、法律伦理专家等；发现 jailbreak 攻击、many-shot 提示注入、编码攻击等仍是挑战，但随每次安全微调迭代明显改善。
+基础 pairwise ranking loss 为：
 
-##### 7. 预训练模型评估（Base Model）
-| Benchmark | Llama 2 7B | Llama 2 13B | Llama 2 70B | MPT 30B | Falcon 40B | Llama 1 65B |
-|-----------|-----------|-------------|-------------|---------|------------|-------------|
-| MMLU (5-shot) | 45.3 | 54.8 | **68.9** | 46.9 | 55.4 | 63.4 |
-| TriviaQA (5-shot) | 68.9 | 77.2 | **85.0** | 66.0 | 76.3 | 76.5 |
-| NaturalQuestions (5-shot) | 27.7 | 33.9 | **39.3** | 29.2 | 35.1 | 34.5 |
-| HellaSwag (7-shot) | 77.2 | 80.7 | **85.3** | 79.9 | 83.6 | 84.2 |
-| ARC-C (3-shot) | 43.3 | 49.3 | **57.4** | 42.5 | 47.5 | 52.5 |
-| HumanEval (0-shot) | 12.2 | 18.3 | **29.9** | 15.6 | 3.1 | 13.9 |
-| GSM8K (8-shot) | 14.6 | 28.7 | **56.8** | 6.8 | 13.7 | 34.3 |
-| MATH (4-shot) | 2.5 | 3.9 | **13.5** | 1.8 | 1.6 | 5.9 |
+$$
+\mathcal{L}_{\text{ranking}}=-\log\sigma(r_\theta(x,y_c)-r_\theta(x,y_r))
+$$
 
-Llama 2 70B 在所有基准上全面超越所有同代开源模型；尤其在代码（HumanEval 29.9）和数学（GSM8K 56.8）上提升显著。
+其中 \(y_c\) 是被人类选择的回答，\(y_r\) 是被拒绝的回答。Llama 2 进一步加入 margin，让偏好越强的样本对分数间隔越大：
 
-##### 8. Chat 模型评估（Llama 2-Chat）
-- **人类评估**：Llama 2-Chat 70B vs ChatGPT (gpt-3.5-turbo-0301) 有用性胜率 36%、平局 31.5%；vs PaLM 540B 胜率 55.5%。
-- **安全性**：70B 模型安全违规率仅 0.8%（ChatGPT 为 0.6%），远超 Falcon (7.3%)、MPT (10.2%) 等开源模型。
-- **GPT-4 辅助评估**：Llama 2-Chat 70B Elo 分 1095（ChatGPT 1074, PaLM 1051），安全评分 99.5%（ChatGPT 99.6%）。
+$$
+\mathcal{L}_{\text{ranking}}=-\log\sigma(r_\theta(x,y_c)-r_\theta(x,y_r)-m(r))
+$$
+
+这个设计的直觉是：如果两个回答只是“略好”，奖励模型不应强行拉开过大差距；如果一个回答显著更好，就应该给模型更明确的排序信号。论文还分别训练 Helpfulness RM 和 Safety RM，并按数据配方混合 Meta 自采数据、Anthropic Helpful/Harmless、OpenAI Summarize/WebGPT、StackExchange、SHP 等偏好数据。
+
+RLHF 优化分为 Rejection Sampling 和 PPO。拒绝采样在每个 prompt 上采样 \(K\) 个回答，用当前最好的 reward model 选出最高分回答，再把它作为新的“gold”样本进行类似 SFT 的微调。它的优势是 breadth：同一 prompt 能探索多个候选。PPO 的优势是 depth：每一步采样都来自刚更新过的策略。论文早期到 RLHF V4 主要用拒绝采样，之后把 PPO 接在拒绝采样 checkpoint 后继续优化。
+
+PPO 阶段的优化目标是最大化奖励模型估计的人类偏好：
+
+$$
+\arg\max_{\pi}\mathbb{E}_{p\sim\mathcal{D},g\sim\pi}[R(g\mid p)]
+$$
+
+最终奖励包含白化后的 safety/helpfulness 分段奖励和到原始策略 \(\pi_0\) 的 KL 惩罚：
+
+$$
+R(g\mid p)=\tilde{R}_c(g\mid p)-\beta D_{KL}(\pi_\theta(g\mid p)\parallel\pi_0(g\mid p))
+$$
+
+其中：
+
+$$
+R_c(g\mid p)=
+\begin{cases}
+R_s(g\mid p) & \text{if }\textsc{is\_safety}(p)\text{ or }R_s(g\mid p)<0.15\\
+R_h(g\mid p) & \text{otherwise}
+\end{cases}
+$$
+
+$$
+\tilde{R}_c(g\mid p)=\textsc{whiten}(\textsc{logit}(R_c(g\mid p)))
+$$
+
+KL penalty 的作用是防止 reward hacking：策略如果只追求 reward model 分数，可能学会奖励模型漏洞，导致人工评价下降。论文中 7B/13B 设 \(\beta=0.01\)，34B/70B 设 \(\beta=0.005\)，PPO clip threshold 为 0.2，每轮 batch size 为 512。
+
+Ghost Attention 解决的是另一个对话模型常见问题：多轮对话中系统消息或初始约束会逐渐被遗忘。GAtt 构造合成训练数据，把同一个系统指令拼接到多轮用户消息上，再用最新 RLHF 模型采样回答；训练时只保留第一轮系统消息形式，同时把之前轮次 token 的 loss 置零。这样模型在训练中学到“初始指令应持续影响后续多轮回答”，但不会因为中间轮次文本分布不匹配而被错误梯度污染。论文报告 GAtt 在 20+ turns 范围内能改善一致性，直到达到最大上下文长度。
+
+与 LLaMA 相比，Llama 2 不只是“更多 token 的 base model”，而是把开放基础模型、对话对齐、安全奖励和迭代发布策略整合成一条谱系。它的关键意义在于：公开模型不再只发布预训练权重，也公开了接近 ChatGPT 风格对话模型所需的 SFT/RLHF 工程细节，包括奖励模型数据、拒绝采样、PPO、KL 约束、安全/有用性拆分和多轮系统消息控制。
+
+#### 🧪 练习题
+```yaml
+question: "Llama 2-Chat 中同时训练 Helpfulness RM 和 Safety RM 的主要原因是什么？"
+options:
+  - "两个奖励模型可以减少预训练 token 数量"
+  - "helpfulness 与 safety 存在目标张力，分开建模能更清晰地优化不同偏好"
+  - "Safety RM 只用于压缩模型参数"
+  - "Helpfulness RM 用于替代 tokenizer"
+answer: 1
+explain: "论文指出有用性和安全性可能冲突，单一奖励模型难以同时处理；分开训练再在 RLHF 奖励中按场景组合更稳定。"
+```
 
 ### Mistral 7B
 
@@ -2947,124 +2322,85 @@ motivation: GQA与滑窗提升小模型效率
 ```
 
 #### 📝 一句话总结
-Mistral AI 提出 Mistral 7B，通过 Grouped-Query Attention (GQA) 和 Sliding Window Attention (SWA) 两项核心注意力机制创新，结合 Rolling Buffer Cache 实现高效长序列推理，在 7.3B 参数下全面超越 Llama 2 13B，成为当时最强开源 7B 模型。
+Mistral 7B 提出了以 Grouped-Query Attention 和 Sliding Window Attention 为核心的高效 7.3B 解码器模型，在显著降低推理 KV 缓存和长序列注意力成本的同时，整体 benchmark 表现超过 Llama 2 13B。
 
 #### 🎯 核心要点
-- **Grouped-Query Attention (GQA)**：将查询头分组共享键值头，在 Multi-Head Attention 质量和 Multi-Query Attention 速度之间取得平衡
-- **Sliding Window Attention (SWA)**：每层使用固定窗口大小 \(W\) 的滑动窗口注意力，将计算复杂度从 \(O(n^2)\) 降为 \(O(W\cdot n)\)，支持长序列高效处理
-- **Rolling Buffer Cache**：KV 缓存大小固定为 \(W\)，位置 \(i\) 的键值存储在缓存位置 \(i \bmod W\)，32K 序列下节省 8 倍缓存内存
-- **Pre-fill and Chunking**：prompt 可预先填充缓存，长 prompt 分块处理，chunk 大小设为窗口大小 \(W\)
-- **7.3B 参数性能卓越**：在常识推理、数学、代码、阅读理解等多类 benchmark 上全面超越 Llama 2 13B，数学和代码能力甚至超越 Llama 1 34B
-- **高效推理**：等效模型规模达 Llama 2 的 3 倍（推理/STEM），知识压缩比达 1.9 倍
-- **指令微调版本**：Mistral 7B Instruct 在 MT-Bench 上超越所有 7B Chat 模型，与 13B Chat 模型相当
-- **安全护栏**：支持系统提示 enforce guardrails，100% 拒绝有害问题；具备自反思内容审核能力（精确率 99.4%，召回率 95.6%）
+- 7.3B decoder-only 基础模型，目标是在小参数量下提高训练与推理性价比
+- Grouped-Query Attention (GQA)：多组 query heads 共享较少 key/value heads，减少 KV cache 与解码带宽
+- Sliding Window Attention (SWA)：每个 token 只关注上一层最近 \(W\) 个 token，将注意力复杂度从 \(O(n^2)\) 降为 \(O(nW)\)
+- 跨层信息传递：虽然单层窗口有限，堆叠 \(k\) 层后信息可传播约 \(k\times W\) 个 token
+- 窗口大小 \(W=4096\)：论文给出约 131K tokens 的理论注意力跨度，并在 16K 序列上报告约 2x 注意力实现加速
+- Rolling Buffer Cache：KV 缓存固定为窗口大小，位置 \(i\) 写入 \(i\bmod W\)，32K 序列上缓存内存减少 8x
+- Pre-fill and Chunking：长 prompt 预填充时按窗口大小分块，当前块只看缓存窗口和块内因果位置
+- 性能结果：在论文评估中超过 Llama 2 13B，并在代码、数学、推理任务上显示出特别强的效率优势
+- 指令版本：Mistral 7B-Instruct 使用公开指令数据微调，在 MT-Bench 上达到同规模开源 chat 模型前列
 
 #### 🔬 深入细节
-##### 1. 核心架构与注意力机制
+![Mistral 7B 滑动窗口注意力](https://arxiv.org/html/2310.06825v1/x1.png)
+*图：Mistral 7B 论文 Figure 1。每层只允许 token 关注前一层最多 \(W\) 个 token，但跨层堆叠后远处信息仍可逐层传递。*
 
-Mistral 7B 基于 Transformer 架构，核心创新在于注意力机制的改进。图 1 展示了 Sliding Window Attention 的信息流模式。
+```python
+# Mistral 7B Sliding Window Attention + Rolling Buffer Cache 伪代码
+W = 4096
+kv_cache = RollingBuffer(size=W)
 
-![Figure 1: Sliding Window Attention 信息流](https://ar5iv.labs.arxiv.org/html/2310.06825/assets/x1.png)
-*图 1：Sliding Window Attention。拥有多层注意力头的模型，其中大部分层使用滑动窗口注意力，信息通过全局注意力层在长距离间传递。*
+for i, token in enumerate(sequence):
+    q_i, k_i, v_i = project_with_grouped_query_attention(token)
 
-Mistral 7B 采用了两项注意力机制创新：
+    # 缓存位置固定，超过窗口后覆盖最旧 KV
+    kv_cache[i % W] = (k_i, v_i)
 
-**a) Grouped-Query Attention (GQA)**
+    # 当前 token 只关注最近 W 个历史位置和自身
+    start = max(0, i - W + 1)
+    visible_positions = range(start, i + 1)
+    keys, values = kv_cache.read_positions(visible_positions)
 
-标准 Multi-Head Attention (MHA) 为每个查询头分配独立的键值头，质量高但推理时 KV 缓存开销大。Multi-Query Attention (MQA) 将所有查询头共享一组键值头，速度快但质量有损。GQA 是两者的折中方案：将查询头分为 \(G\) 组，每组共享一组键值头。
+    scores = (q_i @ keys.T) / sqrt(head_dim)
+    scores = apply_causal_mask(scores, visible_positions, current_position=i)
+    weights = softmax(scores)
+    h_i = weights @ values
 
-设总查询头数为 \(H\)，键值头数为 \(K\)，则有 \(H = G \times K\)。Mistral 7B 采用的 GQA 配置在保持推理效率的同时，提供了接近 MHA 的建模质量。
+    output_i = feed_forward(h_i)
+```
 
-**b) Sliding Window Attention (SWA)**
+Mistral 7B 的核心问题意识是：7B 级模型不能只靠“缩小版大模型配方”竞争，而要在推理成本、上下文处理和能力密度上重新设计。论文把注意力成本作为主要切入点，因为自回归生成时每步都要读取历史 KV cache；序列越长，标准全注意力不仅计算更贵，缓存也会持续增长，吞吐和延迟都会恶化。
 
-这是 Mistral 7B 最关键的创新。传统的因果注意力允许每个 token 关注所有之前的 token，计算复杂度为 \(O(n^2)\)。SWA 将每个 token 的注意力限制在大小为 \(W\) 的局部窗口内（即前 \(W\) 个 token），将复杂度降为 \(O(W \cdot n)\)。
+GQA 先处理 KV cache 的宽度问题。标准 MHA 中 query、key、value head 数通常一致，每个 query head 都配一套 KV，解码时需要保存并读取大量 key/value。MQA 把所有 query heads 共享同一套 KV，速度快但表达能力可能下降。GQA 则把 query heads 分组，每组共享一套 KV，是 MHA 与 MQA 的中间点。对 Mistral 7B 来说，这让模型在保持质量的同时减少推理时的 KV 带宽和内存占用。
 
-具体地，对于位置 \(i\) 的 token，其注意力范围为 \([\max(0, i-W+1), i]\)。Mistral 7B 选择 \(W = 4096\)。
+SWA 处理的是 KV cache 的长度问题。标准因果注意力在位置 \(i\) 可以看所有 \(0\ldots i\) 的 token，复杂度随序列长度平方增长；SWA 将可见范围限制为：
 
-> 💡 关键设计：并非所有层都使用滑动窗口。Mistral 7B 在大部分层使用 SWA，但保留了少数全局注意力层（类似于 Beltagy 等人的 Longformer 设计），使信息能够在长距离间传递。这种"局部+全局"的混合设计兼顾了效率和长程依赖建模。
+$$
+\mathcal{A}(i)=\{j\mid \max(0,i-W+1)\le j\le i\}
+$$
 
-##### 2. Rolling Buffer Cache
+因此单层注意力成本从 \(O(n^2)\) 变为 \(O(nW)\)。Mistral 7B 使用 \(W=4096\)，这意味着每层只直接看局部上下文，但不会完全失去长程信息。
 
-由于 SWA 固定了注意力跨度，KV 缓存的大小可以固定为 \(W\) 而非随序列长度线性增长。滚动缓冲区缓存的工作原理：
+长程信息通过层间递归传播。第 \(k\) 层位置 \(i\) 的 hidden state 可以从上一层读取 \(W\) 个位置，而上一层的那些 hidden states 又已经聚合了更早的信息，所以理论可达距离约为 \(k\times W\)。论文指出，在最后一层使用 \(W=4096\) 时理论注意力跨度约为 131K tokens。这个机制的直觉类似“逐层接力”：单层只做局部通信，但深层网络把局部消息逐步传远。
 
-- 缓存大小为 \(W = 4096\)
-- 时间步 \(i\) 的键和值存储在缓存位置 \(i \bmod W\)
-- 当 \(i > W\) 时，旧值被覆盖，缓存大小不再增长
+Rolling Buffer Cache 是 SWA 在推理端真正省内存的关键。因为模型永远不会读取窗口外 KV，所以缓存无需随生成长度增长，只需要大小为 \(W\) 的环形缓冲区：
 
-![Figure 2: Rolling Buffer Cache](https://ar5iv.labs.arxiv.org/html/2310.06825/assets/x2.png)
-*图 2：滚动缓冲区缓存。缓存固定大小为 \(W=4\)，位置 i 的键值存储在 i mod W 处。当位置超过 W 时，旧值被覆盖。最新生成 token 的隐藏状态以橙色标出。*
+$$
+\text{cache\_slot}(i)=i\bmod W
+$$
 
-在 32K token 序列上，滚动缓冲区缓存将 KV 缓存内存使用减少 8 倍，且不影响模型质量。
+当 \(i>W\) 时，新 token 覆盖最旧 token 的 KV。论文报告在 32K token 序列上，这种缓存把内存用量降低 8x，并且不影响模型质量。这个结论直接来自注意力掩码的结构：被覆盖的信息本来就不会被下一步直接访问。
 
-##### 3. Pre-fill and Chunking（预填充与分块）
+Pre-fill and Chunking 解决长 prompt 的批量预处理。生成时，prompt 已知，可以一次性填充 KV cache；但如果 prompt 很长，一次全量注意力仍会占用大量内存。Mistral 7B 将长 prompt 按窗口大小切块，每个 chunk 对自身使用因果掩码，对缓存中的最近窗口使用滑动窗口掩码，对窗口外旧 token 完全不可见。配合 FlashAttention 和 xFormers 修改，论文在 16K 序列、\(W=4096\) 下报告约 2x 加速。
 
-生成序列时需要逐 token 预测，但 prompt 是预先已知的。Mistral 7B 的推理流程：
+性能上，Mistral 7B 的意义在于把“模型能力、训练成本、推理成本”同时纳入比较，而不是只看参数量。论文重新评估 Mistral 7B、Llama 2 7B/13B、Llama 1 34B 等模型，显示 Mistral 7B 在所有列出的指标上超过 Llama 2 13B，并在数学、代码、推理上尤其强；作者还用 equivalent model size 说明，在推理、理解和 STEM 类任务中，它接近大于自身 3 倍规模的 Llama 2 表现，而知识类任务的压缩比约 1.9x，受限于参数量存储知识的能力。
 
-1. **预填充阶段**：将 prompt 预先填充到 KV 缓存中
-2. **分块策略**：若 prompt 很长，将其分成小块（chunk size = \(W\)）
-3. **逐块处理**：每个 chunk 需要计算对缓存和自身的注意力
-
-![Figure 3: Pre-fill and Chunking](https://ar5iv.labs.arxiv.org/html/2310.06825/assets/x3.png)
-*图 3：预填充与分块。长序列被分为三个 chunk。第三个 chunk（"the dog go to"）使用因果掩码关注自身，使用滑动窗口关注缓存，不关注窗口外的旧 token。*
-
-注意力掩码的设计：
-- 右块（当前 chunk）：因果掩码
-- 中块（缓存窗口内）：滑动窗口注意力
-- 左块（窗口外）：完全不关注
-
-与传统注意力实现相比，结合 FlashAttention 和 xFormers 优化后，16K 序列长度下可获得 2 倍加速。
-
-##### 4. 性能对比
-
-Mistral 7B 在广泛的 benchmark 上进行评估，与 Llama 2 7B/13B 和 Llama 1 34B 对比：
-
-| Benchmark | Mistral 7B | Llama 2 7B | Llama 2 13B | Llama 1 34B |
-|-----------|-----------|------------|-------------|-------------|
-| MMLU | 60.1% | 44.4% | 55.6% | - |
-| HellaSwag | 81.3% | 77.1% | 80.7% | - |
-| ARC-C | 55.5% | 43.2% | 48.8% | - |
-| HumanEval | 30.5% | 11.6% | 18.9% | - |
-| MBPP | 47.5% | 26.1% | 35.4% | - |
-| MATH | 13.1% | 3.9% | 6.0% | - |
-| GSM8K | 52.2% | 16.0% | 34.3% | - |
-
-> ⚠️ 关键发现：Mistral 7B 在所有 benchmark 上均超越 Llama 2 13B。尤其在数学（GSM8K 52.2% vs 34.3%）和代码（HumanEval 30.5% vs 18.9%）领域优势显著。等效模型规模：推理/STEM 任务上相当于 Llama 2 的 3 倍以上，知识任务上约为 1.9 倍。
-
-##### 5. 指令微调与安全机制
-
-Mistral 7B Instruct 使用公开 HuggingFace 数据集进行指令微调（无专有数据），在 MT-Bench 上得分 6.84，超越所有 7B Chat 模型，与 13B Chat 模型（Vicuna 13B 6.57，Llama 2 13B Chat 6.65）相当。
-
-**系统提示 guardrails**：通过系统提示可 enforce 输出约束：
-- 无系统提示：MT-Bench 6.84
-- Llama 2 系统提示：MT-Bench 6.38
-- Mistral 系统提示：MT-Bench 6.58
-
-使用推荐系统提示时，模型 100% 拒绝了 175 个有害查询。与 Llama 2 不同，Mistral 在安全过滤的同时不会过度拒绝无害问题（如"如何杀死 Linux 进程"）。
-
-**自反思内容审核**：模型可对自己的输出进行分类，判断是否为：非法活动、仇恨/暴力内容、不合格建议。在人工标注的对抗性数据集上达到精确率 99.4%、召回率 95.6%。
-
-##### 6. 与传统方法的区别
-
-| 特性 | 标准 Transformer | Llama 2 | Mistral 7B |
-|------|-----------------|---------|------------|
-| 注意力类型 | MHA | MHA | GQA + SWA |
-| 注意力范围 | 全部前置 token | 全部前置 token | 固定窗口 W=4096 |
-| KV 缓存 | \(O(n)\) 增长 | \(O(n)\) 增长 | 固定 O(W)，滚动缓冲 |
-| 长序列优化 | 无 | 无 | 窗口+分块预填充 |
-| 128K 上下文 | 内存爆炸 | 内存爆炸 | 支持（可外推） |
-
-Mistral 7B 的设计哲学：**不是简单扩大模型，而是让注意力更高效**。通过 SWA 将注意力限制在局部，再用 GQA 压缩 KV 缓存，在有限参数下实现更高效的知识压缩。这为"小模型大能力"开辟了新路径——正如论文结论所言，语言模型的能力空间应从二维（模型能力-训练成本）扩展到三维（模型能力-训练成本-推理成本）。
+> 💡 关键：Mistral 7B 的创新不是把上下文窗口简单拉长，而是让“每层局部、跨层传递、缓存滚动”成为一套一致的推理设计。GQA 减少 KV 的宽度，SWA 限制 KV 的长度，Rolling Buffer 则把这种限制转化为实际内存收益。
 
 #### 🧪 练习题
 ```yaml
-question: "Mistral 7B 的 Sliding Window Attention 中，如果窗口大小 W=4096，token 位置 i=5000 的注意力范围是？"
+question: "Mistral 7B 的 Rolling Buffer Cache 为什么能把长序列 KV 缓存限制在固定大小？"
 options:
-  - "[0, 4095] 内的所有 token"
-  - "[904, 5000] 内的所有 token"
-  - "[0, 5000] 内的所有因果 token"
-  - "[4096, 5000] 内的所有 token"
+  - "因为模型不再使用自回归生成"
+  - "因为 Sliding Window Attention 永远不会直接读取窗口外 token 的 KV"
+  - "因为 GQA 会删除所有 value heads"
+  - "因为 RoPE 会把全部历史 token 压缩成一个向量"
 answer: 1
-explain: "SWA 将注意力限制在大小为 W 的局部窗口 [i-W+1, i] 内。i=5000 时范围是 [5000-4096+1, 5000] = [905, 5000]。选项 1 最接近正确范围 [905, 5000]。注意窗口大小为 W=4096，包含当前 token 在内共 4096 个位置。"
+explain: "SWA 将每个 token 的直接注意力限制在最近 W 个位置，因此窗口外 KV 可以被覆盖；缓存槽可写为 i mod W。"
 ```
 
 ### Mamba
@@ -3084,227 +2420,102 @@ motivation: 线性序列建模挑战注意力
 ```
 
 #### 📝 一句话总结
-Mamba 通过让状态空间模型 (SSM) 的参数依赖于输入（选择性机制），并设计硬件感知的并行扫描算法，首次在语言等离散模态上实现了与 Transformer 相当甚至更优的性能，同时保持推理时的线性时间复杂度和 5 倍更高吞吐量。
+Mamba 提出了输入依赖的选择性状态空间模型 S6，并用硬件感知的 selective scan 解决传统 SSM 无法内容选择、而 Transformer 长序列代价二次增长的问题。它把 SSM、门控和局部卷积整合成无注意力、无 MLP 的统一块，在语言、音频和基因组等序列任务上实现线性复杂度建模。
 
 #### 🎯 核心要点
-- **核心创新——选择性 SSM**：通过让 SSM 的参数矩阵 B, C, Δ 成为输入 x_t 的函数，打破了传统 SSM 的线性时不变（LTI）假设，使模型具备内容感知的选择性记忆能力——能根据当前 token 动态决定传播或遗忘序列维度上的信息
-- **硬件感知并行扫描算法**：选择性机制破坏了卷积计算路径，论文设计了在 GPU HBM 和 SRAM 之间进行 kernel fusion 的并行关联扫描（parallel associative scan），用扫描代替卷积，既保留循环模式的快速推理，又实现高效的训练并行化
-- **极简架构——Mamba Block**：将 H3 架构中的 SSM + 两个门控连接大幅简化为 SSM → SiLU → 逐元素乘法 + 可选的线性投影 → 残差连接，**完全没有注意力甚至 MLP 块**
-- **线性复杂度 O(N)**：训练和推理的计算复杂度均随序列长度线性增长，推理时吞吐量是同等大小 Transformer 的 5 倍，且无 KV 缓存
-- **百万级长序列**：在最长 1M token 的序列上性能持续提升，远超 Transformer 的有效上下文窗口
-- **多模态通用骨干**：语言建模、音频、基因组学三大模态均达到 SOTA。3B 规模的语言模型在预训练和下游评估中匹敌同等规模 Transformer 的两倍参数量模型
-- **选择性机制的三大关键投影**：B(x)（输入到隐状态）决定信息写入，C(x)（隐状态到输出）决定信息读出，Δ(x)（时间步长）控制离散化粒度——输入相关的 Δ 使模型能选择性聚焦或忽略当前输入
+- 选择性 SSM：让 \(\Delta\)、\(B\)、\(C\) 随当前 token 输入变化，使模型能选择性记忆、遗忘或重置状态。
+- 硬件感知 selective scan：放弃传统 LTI SSM 的卷积路径，改用并行 scan，并避免在 HBM 中物化完整 \(B \times L \times D \times N\) 状态。
+- 简化 Mamba block：用输入投影、深度可分离卷积、Selective SSM、SiLU 门控和输出投影组成一个统一层，替代注意力层和独立 MLP 层。
+- 线性长上下文：训练与序列长度近似线性扩展，自回归推理每步只更新常数大小状态，不需要 Transformer 的 KV cache。
+- 方法验证重点：选择性复制、induction heads、语言建模、DNA、音频和速度/显存实验共同说明选择机制对离散高密度序列有效。
 
 #### 🔬 深入细节
-##### 背景：从 S4 到 Mamba 的演进
+![Mamba 选择性 SSM 总览](https://arxiv.org/html/2312.00752v2/x1.png)
+*图：论文 Figure 1。传统结构化 SSM 依赖时间不变参数以避免物化大状态，Mamba 重新引入输入依赖动态，并通过硬件感知 scan 控制显存访问。*
 
-###### 结构化状态空间模型 (S4)
+![Mamba block 结构](https://arxiv.org/html/2312.00752v2/x3.png)
+*图：论文 Figure 3。Mamba block 将局部卷积、选择性 SSM 与门控融合成一个无注意力的序列建模块。*
 
-S4（Structured State Space Sequence Models）将连续时间状态空间模型离散化后应用于序列建模。
+传统结构化 SSM 从连续系统出发，用隐状态 \(h(t)\) 将输入序列映射到输出：
 
-**连续时间 SSM**：
+$$
+h'(t)=Ah(t)+Bx(t), \qquad y(t)=Ch(t)
+$$
 
-h'(t) = A h(t) + B x(t)
-y(t) = C h(t)
+离散化后变成递推式：
 
-**零阶保持（ZOH）离散化**（给定时间步长参数 Δ）：
+$$
+h_t=\bar A h_{t-1}+\bar B x_t, \qquad y_t=C h_t
+$$
 
-A_bar = exp(Δ A)
-B_bar = (Δ A)^{-1} (exp(Δ A) - I) · Δ B
+此前 S4/H3/Hyena 等模型为了高效训练，通常要求 \(\Delta,A,B,C\) 沿时间不变，因此可把递推等价成卷积：\(y=x * \bar K\)。这个设计的瓶颈是内容无关：卷积核只知道相对位置，不知道当前位置 token 是否重要，所以在 selective copying、induction heads 这类需要“看到内容再决定记什么”的任务上会失败。
 
-**离散循环形式**：
+Mamba 的核心改变是把若干 SSM 参数改成输入函数，而不是全局固定参数：
 
-h_t = A_bar h_{t-1} + B_bar x_t
-y_t = C h_t
+$$
+B_t=s_B(x_t), \qquad C_t=s_C(x_t), \qquad \Delta_t=\operatorname{softplus}(\theta_\Delta+s_\Delta(x_t))
+$$
 
-**S4 卷积模式**（并行训练）：
+再对每个位置使用离散化参数：
 
-y = x * K_bar,   K_bar = (C B_bar, C A_bar B_bar, ..., C A_bar^{L-1} B_bar)
+$$
+\bar A_t=\exp(\Delta_t A), \qquad \bar B_t=f_B(\Delta_t,A,B_t)
+$$
 
-**S4 的关键局限**：A, B, C, Δ 在整个序列上是恒定的（Linear Time-Invariant, LTI），即模型对每个 token 执行相同的固定变换，无法进行**内容感知（content-based）的推理**——这正是 Transformer 注意力的核心优势所在。
+于是递推变为时间变化系统：
 
-###### H3 的启示
+$$
+h_t=\bar A_t h_{t-1}+\bar B_t x_t, \qquad y_t=C_t h_t + D x_t
+$$
 
-H3（Hungry Hungry Hippos）将 SSM 与门控机制结合，用两个 SSM 层和一个门控连接构造类似注意力的门控 SSM 块。H3 在语言建模上首次接近 Transformer 性能，但其核心 SSM 仍然是 LTI 的。
+直觉上，\(\Delta_t\) 控制状态更新的“步长”：大 \(\Delta_t\) 可以快速刷新或遗忘旧状态，小 \(\Delta_t\) 可以更保守地保留历史；\(B_t\) 控制当前 token 写入状态的方式；\(C_t\) 控制从状态读出哪些信息。这样，模型可以在遇到关键 token 时写入，在遇到噪声 token 时跳过，并在边界处重置记忆。
 
-##### 核心机制 1：选择性 SSM —— 打破时不变
+```python
+# Mamba / S6 selective scan 伪代码
+# x: [batch, length, d_model]
 
-Mamba 的关键突破在于让 B, C, Δ 成为输入的函数，具体算法：
+def selective_ssm(x):
+    A = Parameter(shape=[d_model, state_dim])
+    D = Parameter(shape=[d_model])
 
-**选择性 SSM 算法**（输入 x，批量大小 B，序列长度 L，通道数 D，隐状态维度 N）：
+    B = s_B(x)                         # [batch, length, state_dim]
+    C = s_C(x)                         # [batch, length, state_dim]
+    delta = softplus(theta_delta + s_delta(x))  # [batch, length, d_model]
 
-~~~
-输入: x : (B, L, D)
-输出: y : (B, L, D)
+    A_bar, B_bar = discretize(delta, A, B)
 
-1. 投影输入到参数空间:
-   Δ : (B, L, D) = Broadcast_D(Linear_{D->1}(x))    // Δ 在每个通道上独立
-   B : (B, L, N) = Linear_{D->N}(x)                  // 输入相关的输入矩阵
-   C : (B, L, N) = Linear_{D->N}(x)                  // 输入相关的输出矩阵
+    h = zeros([batch, d_model, state_dim])
+    ys = []
+    for t in parallel_scan_over_length(x):
+        h = A_bar[:, t] * h + B_bar[:, t] * x[:, t]
+        y_t = dot(C[:, t], h) + D * x[:, t]
+        ys.append(y_t)
+    return stack(ys, dim="length")
 
-2. 离散化（输入依赖）:
-   A_discrete : (D, N) = discretize_A(A, Δ)          // Δ 决定连续->离散变换
-   B_discrete : (B, L, D, N) = Δ ⊗ B                // Δ 缩放 B
 
-3. 选择性扫描（并行关联扫描）:
-   h_0 = 0
-   for t in 1..L:
-       h_t = A_discrete * h_{t-1} + B_discrete[t] * x[t]
-       y_t = C[t] * h_t
-~~~
+def mamba_block(u):
+    x, z = linear_in(u).chunk(2)
+    x = silu(depthwise_conv1d(x))
+    x = selective_ssm(x)
+    return linear_out(x * silu(z))
+```
 
-**参数矩阵的角色**：
+选择性带来的代价是不能再走卷积快速路径，因为参数随位置变化，卷积核不再固定。论文的工程贡献是 selective scan：把递推写成可并行前缀扫描的问题，在 GPU SRAM 等快层级中临时展开状态，避免把巨大中间状态完整写入 HBM，并在反向传播中重算必要状态以换取显存。这个设计把“内容选择”与“线性复杂度”同时保留下来，是 Mamba 能作为长上下文 backbone 的关键。
 
-| 参数 | 作用 | 选择性效果 |
-|------|------|-----------|
-| A_discrete | HiPPO 初始化，捕捉长程依赖 | 由输入相关的 Δ 控制离散化 |
-| B(x) | 决定当前输入 x_t 如何写入隐状态 | 若 ≈0，当前 token 几乎不被存储 |
-| C(x) | 决定隐状态的哪些维度对输出有贡献 | 若 ≈0，对应信息被过滤 |
-| Δ(x) | 由 softplus 控制正性，控制离散化步长 | 小 Δ → 聚焦当前 token；大 Δ → 加速遗忘 |
+与 Transformer 相比，Mamba 不显式存储所有历史 token 的 KV cache，而是把历史压缩进固定维度状态；因此训练成本随长度线性增长，推理每步只需更新状态。与传统 RNN 相比，它又不是简单标量门控，而是在结构化 SSM 中用 \(A\) 提供长程动态、用 \(B_t,C_t,\Delta_t\) 提供内容相关选择；与传统 LTI SSM 相比，它牺牲卷积等价性，换来能处理离散语言中“某些 token 才值得记”的能力。
 
-**选择性如何解决内容感知问题**：
-
-传统 LTI-SSM 中，A_bar 和 B_bar 对所有 token 是相同的，这意味着模型以相同方式处理每个位置——无法区分重要信息需要保留和无关信息可以丢弃。Mamba 的选择性机制让这些参数成为输入的函数，从而实现：
-
-1. **选择性记忆**：B(x) 可为零向量，完全忽略不重要的 token
-2. **选择性遗忘**：Δ(x) 控制离散化步长，短 Δ → 几乎不衰减历史（关注当前），长 Δ → 快速遗忘历史
-3. **选择性读出**：C(x) 可为零，从隐状态中仅提取相关维度的信息
-
-这本质上实现了一种**线性时间的软注意力机制**——不需要计算 O(L^2) 的注意力矩阵，但能达到类似的内容感知效果。
-
-##### 核心机制 2：硬件感知并行扫描（Hardware-Aware Scan）
-
-选择性的代价是 B, C, Δ 随输入变化，因此预计算卷积核 K_bar 的 S4 卷积并行训练方式不再有效。Mamba 必须回到循环形式，但朴素循环的训练效率极低。
-
-Mamba 的方案是**关联扫描（Associative Scan）**，利用线性递归的可并行化性质。
-
-**关联扫描原理**：
-
-线性递归 h_t = A_bar_t h_{t-1} + B_bar_t x_t 可以视为一系列两步操作。
-
-定义操作 q_t = (a_t, b_t)，定义二元结合算子 ⊕：
-
-q_i ⊕ q_j = (a_j · a_i,  a_j · b_i + b_j)
-
-则：
-
-(h_t, 1) = (a_t, b_t) ⊕ ... ⊕ (a_1, b_1) ⊕ (h_0, 0)
-
-由于 ⊕ 满足结合律，可通过并行前缀和（parallel prefix sum / scan）在 O(log L) 并行步骤内完成，不牺牲数值精度。
-
-**硬件感知优化**（FlashAttention 风格）：
-
-1. **Kernel Fusion**：避免将中间隐状态 h_t 写入 HBM（高带宽显存），在 SRAM 中完成整个扫描操作
-2. **重计算代替存储**：反向传播时不存储中间 h_t，而是重新计算（类似 FlashAttention 的重计算策略），大幅节省显存
-3. **分段扫描**：将长序列切分为适合 SRAM 大小的块，块内并行扫描，块间串行扫描（但块间开销线性增长）
-
-这使得 Mamba 可以在训练时处理极长序列，推理时无需 KV 缓存，直接以循环模式高效运行。
-
-##### Mamba 架构：极简端到端设计
-
-**Mamba Block 结构**（从 H3 大幅简化）：
-
-~~~
-MambaBlock(x):
-    1. 输入投影: x -> [x_ssm, gate]  (Linear 投影到 2 倍 inner 维度)
-    2. 可选 Conv1d: x_ssm = SiLU(Conv1d(x_ssm))  (深度可分离卷积, kernel=4)
-    3. 选择性 SSM: y_ssm = SelectiveSSM(x_ssm)     (核心计算)
-    4. 门控输出: output = y_ssm * SiLU(gate)       (逐元素乘法)
-    5. 残差连接: return Linear(output) + x
-~~~
-
-**关键设计特点**：
-
-| 属性 | Transformer | Mamba |
-|------|------------|-------|
-| 核心模块 | 多头自注意力 | 选择性 SSM |
-| 复杂度 | O(L^2 · D) | O(L · D · N) |
-| KV 缓存 | 需要，O(L · D) | 不需要（隐状态 h 代替） |
-| 推理模式 | KV 缓存 + attention | 逐 token 循环 |
-| 门控单元 | MLP 中 GELU | SiLU 逐元素乘法 |
-| 位置编码 | RoPE / 正弦 | 无需显式位置编码（SSM 自带位置偏差） |
-
-**多尺度架构变体**：论文给出了从 130M 到 2.8B 参数的完整缩放方案，遵循类似 Transformer 的深度/宽度缩放规则。
-
-##### 关键数学推导
-
-###### 1. 选择性机制的输入依赖离散化
-
-给定连续参数 (A, B) 和输入相关步长 Δ(x_t) = softplus(Linear(x_t))：
-
-A_bar_t = exp(Δ_t A)
-B_bar_t = (Δ_t A)^{-1} (exp(Δ_t A) - I) · Δ_t B_t
-
-由于 A 是对角矩阵（S4D 参数化），指数运算非常高效（逐元素指数）。
-
-###### 2. 卷积模式 vs 循环模式
-
-- **LTI 时**：K_bar = (C B_bar, C A_bar B_bar, ..., C A_bar^{L-1} B_bar) 可预计算，用 FFT 卷积 → O(L log L)
-- **选择性（时变）时**：每个 token 的 A_bar_t, B_bar_t, C_t 不同，必须用关联扫描 → O(L) 但可高度并行
-
-###### 3. HiPPO 初始化
-
-A 矩阵由 HiPPO-LegS 初始化，使 SSM 天然具备记忆多项式历史的数学能力。Mamba 使用 S4D 的对角化版本（A 为对角矩阵），将其对角元素设为 HiPPO 的近似值。
-
-##### 核心实验数据
-
-###### 语言建模（Pile 数据集，300B tokens 预训练）
-
-| 模型 | 参数量 | 困惑度 (ppl) | 对比 |
-|------|--------|-------------|------|
-| Transformer (GPT-3 style) | 2.8B | 8.14 | baseline |
-| **Mamba** | **2.8B** | **7.82** | **匹配 Transformer 6.2B** |
-| Transformer++ (LLaMA style) | 2.8B | 7.47 | 更强 baseline（RoPE + SwiGLU） |
-| **Mamba** | **2.8B** | **7.51** | **几乎匹配** |
-
-**推理速度对比**（A100 80GB，batch size=1）：
-- Transformer 2.8B：~1800 tokens/s
-- **Mamba 2.8B：~9000 tokens/s（5 倍吞吐量）**
-
-###### 长序列性能（The Pile，序列长度 512 → 1M）
-
-| 序列长度 | Transformer (2.8B) | Mamba (2.8B) |
-|---------|--------------------|-------------|
-| 2K | 7.6 ppl | 7.5 ppl |
-| 8K | 7.8 ppl | 7.4 ppl |
-| 16K | 8.2 ppl | 7.3 ppl |
-| 64K | OOM / 性能下降 | 7.1 ppl |
-| 256K | — | 6.8 ppl |
-| 1M | — | 6.7 ppl |
-
-Mamba 在序列长度增长时困惑度**持续下降**，展示了真正的长上下文利用能力。
-
-###### DNA 建模（HG38 基因组）
-
-| 模型 | 预训练 ppl | 下游任务（Motif 检测 F1） |
-|------|-----------|--------------------------|
-| HyenaDNA | 3.2 | 0.67 |
-| **Mamba** | **2.8** | **0.72** |
-
-###### 音频建模
-
-Mamba 在 SC09 音频生成任务上首次使非注意力架构达到与 Sashimi（SOTA 扩散模型）相当的性能。
-
-##### 工作机制直觉
-
-**选择性 SSM = 线性时间软注意力**：
-
-想象一个邮件过滤器：传统 SSM（LTI）对所有邮件应用相同的过滤规则；Mamba（选择性 SSM）则根据每封邮件的发件人 x_t 决定处理方式——B(x) 决定这封邮件值得存入记忆吗，Δ(x) 决定记忆的时效性（保留多久），C(x) 决定现在需要从记忆中提取什么信息来回复。
-
-这种选择性本质上是将注意力计算的对偶性从空间（Query-Key 匹配）转移到了状态空间（输入-记忆的动态交互），用 O(L) 的操作实现了类似 O(L^2) 注意力效果。
-
-##### 局限性
-
-1. **通道间独立性**：每个通道独立的隐状态可能限制了跨通道信息混合的有效性
-2. **非对称架构**：没有类似 Transformer 的 Encoder-Decoder 变体，限制了在序列到序列任务上的表现
-3. **记忆容量**：固定大小的隐状态 h ∈ R^N 可能不足以存储极长序列的全部重要信息
+> 💡 关键：Mamba 的创新不是单纯“把注意力换成 RNN”，而是把 SSM 从时间不变系统改成输入选择系统，并用 selective scan 把这个变化做成 GPU 友好的线性时间层。
 
 #### 🧪 练习题
 ```yaml
-1. 推导时变 SSM 的卷积核表达式，并说明为什么当 Δ, B, C 对每个 token 都不同时，不能直接用 FFT 卷积，而必须使用关联扫描。
-2. 证明关联扫描的结合性操作 q_i ⊕ q_j = (a_j · a_i, a_j · b_i + b_j) 确实满足结合律，即 (q_i ⊕ q_j) ⊕ q_k = q_i ⊕ (q_j ⊕ q_k)。
-3. Mamba Block 中为什么使用 SiLU 门控（而非 GELU 或 ReLU）？设计实验验证 SiLU 门控对选择性 SSM 输出的调制效果。
-4. 在 Mamba 中，Δ(x) = softplus(Linear(x))。分析当 Δ → 0^+ 和 Δ → ∞ 时，离散化的 A_bar 和 B_bar 分别趋近于什么值？这对应什么行为（聚焦 vs 跳过）？
+question: "Mamba 中让 B、C、Delta 依赖输入 x 的主要目的是什么？"
+options:
+  - "让模型拥有内容相关的写入、读出和遗忘能力"
+  - "把所有计算转化为标准卷积以提升并行度"
+  - "减少词表大小并降低 embedding 参数量"
+  - "用 KV cache 保存全部历史 token"
+answer: 0
+explain: "选择性参数使 SSM 从时间不变系统变为时间变化系统，能够根据当前 token 决定保留或过滤信息；这也是 Mamba 区别于传统 SSM 的核心。"
 ```
 
 ### Mixtral
@@ -3324,119 +2535,91 @@ motivation: Top2专家开放MoE落地
 ```
 
 #### 📝 一句话总结
-Mixtral 8x7B 提出了基于 Top-2 稀疏路由的开放 MoE 语言模型，将 Mistral 7B 的 FFN 层替换为 8 个 SwiGLU 专家并通过可学习路由器为每个 token 动态选择 2 个专家，以 13B 活跃参数（总 47B）超越了 Llama 2 70B 和 GPT-3.5，验证了稀疏 MoE 在开源大模型中的工程可行性。
+Mixtral 8x7B 将 Mistral 7B 的前馈子层替换为 Top-2 稀疏 MoE 层，使每个 token 只激活 2 个专家，在接近 13B 活跃参数成本下访问约 47B 总参数。它验证了开放权重 LLM 中稀疏专家架构的实用性，并在数学、代码、多语言和长上下文任务上达到或超过更大密集模型。
 
 #### 🎯 核心要点
-- **Sparse Mixture of Experts (SMoE) 架构**：每层 Transformer 的 FFN 替换为 8 个独立 SwiGLU 专家网络，每个 token 仅激活其中 2 个
-- **Top-2 路由器**：通过线性层 W_g 映射后取 Top-2 logits，经 Softmax 加权组合两专家输出
-- **与 Mistral 7B 同架构**：dim=4096, 32 层, 32 注意力头, 8 KV 头（GQA）, 32k 上下文, 32000 词表
-- **参数效率**：总稀疏参数 47B，每 token 活跃参数仅 13B（约 Llama 2 70B 的 1/5），推理计算量与 13B 稠密模型相当
-- **性能全面超越 Llama 2 70B**：MMLU 70.6% vs 69.9%, GSM8K 74.4% vs 53.6%, HumanEval 40.2% vs 29.3%, MBPP 60.7% vs 49.8%
-- **多语言显著优势**：法语/德语/西班牙语/意大利语在各基准上大幅领先 Llama 2 70B
-- **全序列长度完美检索**：Passkey 检索任务在 32k 长度内任意位置均达 100% 准确率
-- **指令微调版 (Mixtral-Instruct)**：SFT + DPO 训练，MT-Bench 得分 8.30，LMSys Arena ELO 1121 超过 GPT-3.5-Turbo 和 Claude-2.1
-- **路由语法偏向而非领域偏向**：专家选择与 token 的语法角色（如缩进、关键词）高度相关，连续 token 常分配同一专家，高层层级中 >50% 连续 token 共享专家
+- 稀疏 MoE 架构：每层包含 8 个 FFN 专家，每个 token 由 router 选择 2 个专家处理。
+- 参数效率：总参数约 47B，每 token 推理只用约 13B 活跃参数，显著低于 Llama 2 70B 的活跃计算量。
+- Mistral 系列基础：保持 Mistral 7B 的 decoder-only Transformer 设计，但将所有 FFN 子块替换为 MoE 层，并支持 32K dense context。
+- Top-K gating：router 对 \(xW_g\) 取 Top-2，再 softmax 得到两个专家权重，输出为专家输出的加权和。
+- 指令模型：Mixtral 8x7B Instruct 通过 SFT 后接 DPO 对齐，在 MT-Bench 和 LMSys 人类评测中超过多个同时期闭源/开源聊天模型。
 
 #### 🔬 深入细节
-##### 架构总览
+![Mixtral MoE 层示意图](https://ar5iv.labs.arxiv.org/html/2401.04088/assets/images/smoe.png)
+*图：论文 Figure 1。每个输入向量由 router 分配给 8 个专家中的 2 个，最终输出是这两个专家输出的加权和。*
 
-Mixtral 以 Mistral 7B 的稠密 Transformer 为基础，唯一改动是将每个 Transformer 层中的前馈网络 (FFN) 替换为 MoE 层。其他组件——RMSNorm、分组查询注意力 (GQA, n_kv_heads=8)、RoPE 位置编码、SwiGLU 激活——全部继承自 Mistral 7B。关键架构参数如下：
+Mixtral 的动机是扩大模型容量而不线性增加每个 token 的计算量。密集 Transformer 中，FFN 子层对所有 token 使用同一组大矩阵；如果直接扩大 FFN，训练和推理成本都会随参数量增长。MoE 的做法是准备多个 FFN 专家，但对每个 token 只激活少数专家，因此总参数量代表“可用知识容量”，活跃参数量才更接近单 token 推理成本。
 
-| 参数 | 值 |
-|---|---|
-| dim (隐藏维度) | 4096 |
-| n_layers (层数) | 32 |
-| head_dim | 128 |
-| n_heads (注意力头) | 32 |
-| n_kv_heads (KV 头) | 8 |
-| hidden_dim (FFN 维度) | 14336 |
-| context_len (上下文长度) | 32768 |
-| vocab_size (词表大小) | 32000 |
-| num_experts (专家数) | 8 |
-| top_k_experts (每 token 激活专家数) | 2 |
+对输入 token 表示 \(x\)，MoE 层定义 \(n\) 个专家 \(\{E_0,E_1,\dots,E_{n-1}\}\)。router 先计算专家 logits：
 
-##### 稀疏 MoE 核心机制
+$$
+\ell=xW_g
+$$
 
-**1. 路由器 (Router/Gating Network)**
+再只保留最大的 \(K\) 个 logits：
 
-路由器是一个简单的线性层 W_g ∈ R^{d_model × n_experts}，对输入 token 表示 x 计算 logits l = x · W_g，然后执行 Top-K 稀疏化：G(x) := Softmax(TopK(x · W_g))。其中 TopK(l)_i = l_i 若 l_i 属于前 K 大 logits，否则为 -∞（经 Softmax 后权重为 0）。Mixtral 固定 K=2。
+$$
+(\operatorname{TopK}(\ell))_i=\begin{cases}
+\ell_i, & \ell_i \text{ 是 Top-K 坐标之一}\\
+-\infty, & \text{否则}
+\end{cases}
+$$
 
-**2. 专家网络**
+门控权重为：
 
-每个专家 E_i(x) 是一个标准 SwiGLU FFN 块：SwiGLU_i(x) = (xW_{i,1} ⊙ SiLU(xW_{i,2}))W_{i,3}。8 个专家的权重矩阵各自独立，因此稀疏参数总量约为 8× 单个 FFN 的参数。
+$$
+G(x)=\operatorname{Softmax}(\operatorname{TopK}(xW_g))
+$$
 
-**3. 输出合成**
+Mixtral 固定 \(n=8\)、\(K=2\)，并把每个专家实现为 SwiGLU FFN。因此每个 token 的 MoE 输出是：
 
-MoE 层最终输出为两被选中专家输出的加权和：y = Σ Softmax(Top2(x · W_g))_i · SwiGLU_i(x)。其中仅 Top-2 专家的 logits 保留，其余经 Softmax 后为零——实际只需计算两个专家的前向传播。
+$$
+y=\sum_{i=0}^{n-1}\operatorname{Softmax}(\operatorname{Top2}(xW_g))_i\cdot \operatorname{SwiGLU}_i(x)
+$$
 
 ```python
-# Mixtral MoE 层前向传播伪代码
-def moe_layer_forward(x, experts, gate_weight):
-    # x: (batch, seq_len, dim)
-    # 1. 路由
-    logits = x @ gate_weight             # (batch, seq_len, 8)
-    top2_logits, top2_indices = topk(logits, k=2, dim=-1)
-    gate_weights = softmax(top2_logits, dim=-1)  # (batch, seq_len, 2)
+# Mixtral Top-2 MoE 前馈层伪代码
+# x: 一个 token 在某层的 hidden state
 
-    # 2. 专家计算（每个 token 只算 2 个专家）
-    output = zeros_like(x)
-    for k in range(2):
-        expert_idx = top2_indices[..., k]  # 第一个或第二个专家
-        expert_out = experts[expert_idx](x)  # SwiGLU FFN
-        output += gate_weights[..., k:k+1] * expert_out
+def mixtral_moe_ffn(x):
+    logits = x @ W_g                         # [num_experts=8]
+    expert_ids = topk(logits, k=2)           # 每个 token 只选两个专家
+    masked_logits = fill(-inf, shape=[8])
+    masked_logits[expert_ids] = logits[expert_ids]
+    weights = softmax(masked_logits)
 
-    return output
+    y = 0
+    for i in expert_ids:
+        y += weights[i] * swiglu_expert[i](x)
+    return y
+
+
+def transformer_block_with_moe(x):
+    x = x + self_attention(rmsnorm(x))       # Mistral 风格注意力块
+    x = x + mixtral_moe_ffn(rmsnorm(x))      # 替换原 FFN 子层
+    return x
 ```
 
-> 💡 关键：稀疏 MoE 的核心洞察在于参数规模与计算成本的解耦。通过增加专家数量 n 而固定 K，可以线性增长总参数（稀疏参数）而保持每 token 计算量（活跃参数）不变。Mixtral 的 n=8、K=2 在参数规模（47B）和推理成本（13B 等效）之间取得了精妙的平衡。
+这个公式说明了 Mixtral 的“稀疏性”来自 gating，而不是专家本身变小。所有专家都是标准前馈网络，参数总量随专家数增加；但在实际前向中，只有 Top-2 专家参与矩阵乘法。论文特别区分 sparse parameter count 和 active parameter count：前者决定服务时需要加载的权重规模，后者更接近单 token 的计算成本。Mixtral 的优势在于让 token 接触到 47B 级别的参数容量，但每步只计算约 13B 活跃参数。
 
-##### 与 GShard 的关键区别
+工程上，MoE 的主要风险是路由造成负载不均。论文讨论了 Expert Parallelism：发往同一专家的 token 会被聚合到相应设备上执行，再把结果送回原 token 位置；同时也指出如果某些专家过热，会造成设备负载不均或通信瓶颈。Mixtral 借助高性能 MoE kernel 思路，例如将专家 FFN 操作转化为大稀疏矩阵乘法，来减轻不同专家 token 数不同带来的执行问题。
 
-1. **全层替换**：GShard 仅将每隔一层的 FFN 替换为 MoE，而 Mixtral 将所有 32 层的 FFN 全部替换为 MoE 层，赋予模型更大的稀疏参数容量。
-2. **简化路由策略**：GShard 对第二个专家使用更复杂的门控策略（需要 token-to-expert 负载约束），而 Mixtral 仅使用简单的 Top-2 Softmax 路由，无需额外的辅助负载均衡损失函数。
+与 GShard 类 MoE 相比，Mixtral 的实现更直接：它把 Transformer 中所有 FFN 子块都替换为 MoE，而不是隔层替换；router 使用简单有效的 Top-2 softmax，而不是更复杂的第二专家策略。论文的 routing analysis 还发现专家分配并没有明显按“数学、生物、哲学”等语义领域分工，反而更像和语法/局部模式有关，例如代码缩进、特定词形或连续 token 常被路由到相同专家。这提示 MoE 专家并不一定是人类可解释的领域专家，而是训练动态下形成的稀疏计算子空间。
 
-> ⚠️ 注意：论文未明确使用辅助负载均衡损失，但路由分析显示专家分配存在较高的位置局部性——高层层级中 >50% 连续 token 被分配给同一专家。这可能导致 Expert Parallelism 场景下的负载不均，但在单 GPU Megablocks 稀疏矩阵乘法实现中不受影响。
+训练与对齐流程上，基础 Mixtral 使用多语言数据预训练，支持 32K 上下文，并在 passkey retrieval 中展示长上下文检索能力。Instruct 版本先进行监督微调，再对偏好对进行 DPO，对齐后在 MT-Bench 达到 8.30，并在论文报告的 LMSys 截图中超过 GPT-3.5 Turbo、Claude-2.1、Gemini Pro 与 Llama 2 70B Chat。也就是说，Mixtral 的贡献不只是架构稀疏化，还包括把 MoE 开放权重模型完整落地到可用聊天模型。
 
-##### 训练细节
-
-- **预训练数据**：多语言语料，相比 Mistral 7B 大幅提升了多语言数据比例
-- **上下文长度**：32k token，在 Passkey 检索任务上 100% 准确
-- **总稀疏参数**：47B（8 个 FFN × 32 层 + 注意力参数）
-- **活跃参数**：13B（2 个 FFN × 32 层 + 注意力参数）
-- **指令微调**：先 SFT 在指令数据上微调，再通过 DPO (Direct Preference Optimization) 在偏好数据上对齐
-- **推理优化**：集成 Megablocks CUDA 内核，贡献给 vLLM 项目以支持开源部署
-
-##### 路由分析：语法偏向而非领域偏向
-
-论文通过 The Pile 验证集的不同子集分析了路由器行为，核心发现：
-
-- **无明显的领域专家**：不同领域的专家分配分布高度相似，未观察到某个专家专精于特定领域
-- **语法结构导向**：Python 代码中的 self、英文中的 Question 等关键词、以及缩进 token 被持续分配给同一专家
-- **位置局部性**：连续 token 常被分配给相同的专家。在第 15 层，ArXiv 数据上有 27.9% 的连续 token 共享首选专家，远高于随机均匀分配的 12.5%
-- **DM Mathematics 的轻微例外**：合成数据集在首层和末层显示出略为不同的专家分布模式
-
-##### 性能全景
-
-| 模型 | 活跃参数 | MMLU | GSM8K | HumanEval | MBPP | HellaSwag |
-|---|---|---|---|---|---|---|
-| Llama 2 7B | 7B | 44.4% | 16.0% | 11.6% | 26.1% | 77.1% |
-| Llama 2 13B | 13B | 55.6% | 34.3% | 18.9% | 35.4% | 80.7% |
-| Llama 2 70B | 70B | 69.9% | 53.6% | 29.3% | 49.8% | 85.4% |
-| Mistral 7B | 7B | 62.5% | 50.0% | 26.2% | 50.2% | 81.0% |
-| **Mixtral 8x7B** | **13B** | **70.6%** | **74.4%** | **40.2%** | **60.7%** | **84.4%** |
-
-> 💡 关键：Mixtral 以 13B 活跃参数（约 Llama 2 70B 的 1/5）在所有指标上全面超越或匹配 Llama 2 70B，并在数学和代码上实现了大幅度领先。
+> ⚠️ 注意：Mixtral 的推理计算少，不代表部署显存也按 13B 计算；服务端仍需容纳或调度约 47B sparse 参数，并处理 MoE 路由通信。
 
 #### 🧪 练习题
 ```yaml
-question: "Mixtral 8x7B 中每个 token 在每层激活几个专家？路由权重如何确定？"
+question: "Mixtral 中 Top-2 router 的核心作用是什么？"
 options:
-  - "激活全部 8 个专家，权重由 Sigmoid 函数计算"
-  - "激活 2 个专家，权重由 Top-2 logits 经 Softmax 后确定"
-  - "激活 2 个专家，权重固定为 0.5 + 0.5 等权平均"
-  - "激活专家数量动态可变，权重由学习到的注意力机制分配"
-answer: 1
-explain: "Mixtral 固定激活 Top-2 专家（K=2），路由器通过线性层计算 8 个 logits，取 Top-2 后做 Softmax 归一化得到两个专家的权重，其余专家权重为 0。"
+  - "为每个 token 选择两个 FFN 专家并对其输出加权求和"
+  - "把注意力头减少到两个以降低 KV cache"
+  - "只在最后一层使用专家以减少训练不稳定"
+  - "把所有专家平均集成成一个密集 FFN"
+answer: 0
+explain: "Mixtral 的 MoE 层对 router logits 取 Top-2 后 softmax，仅计算两个被选专家，并用门控权重合成输出。"
 ```
 
 ### DeepSeekMoE
@@ -3456,106 +2639,96 @@ motivation: 细粒度专家提升专业化
 ```
 
 #### 📝 一句话总结
-DeepSeekMoE提出细粒度专家分割与共享专家隔离两大策略实现Mixture-of-Experts模型的终极专家专业化，2B/16B/145B三阶段验证以显著更低计算量达到dense模型相当性能。
+DeepSeekMoE 面向 MoE 的“专家专业化不足”问题，提出细粒度专家分割与共享专家隔离：前者把专家拆小并激活更多组合，后者固定共享专家承载通用知识，从而减少路由专家的知识混杂与冗余。论文在 2B、16B 和 145B 规模上验证了该结构相对 GShard 式 MoE 的参数/计算效率优势。
 
 #### 🎯 核心要点
-- **细粒度专家分割(Fine-Grained Expert Segmentation)**：将传统N个专家细分为\\(mN\\)个小专家，每token激活\\(mK\\)个，大幅增加激活专家组合的灵活性（N=16, m=4时组合数从120增至44亿）
-- **共享专家隔离(Shared Expert Isolation)**：固定\\(K_s\\)个专家为共享专家无条件参与所有token计算，捕获通用知识以减少路由专家间的知识冗余
-- **两级负载均衡**：Expert-Level Balance Loss确保专家间token分配均衡；Device-Level Balance Loss确保跨设备计算负载均衡
-- **三阶段规模验证**：2B（vs GShard 2.9B和dense baseline）、16B（vs LLaMA2 7B仅有40%计算量）、145B（vs DeepSeek 67B仅有28.5%计算量）
-- 路由机制沿袭GShard的top-K门控，在细粒度化后调整为\\(mK\\)激活，并通过Softmax归一化计算路由权重
+- **问题定位**：传统 Top-\(K\) MoE 容易出现知识混杂和知识冗余，专家无法获得足够非重叠、聚焦的知识
+- **细粒度专家分割**：把 \(N\) 个标准专家拆为 \(mN\) 个小专家，每个小专家 FFN 中间维度缩小为原来的 \(1/m\)
+- **激活更多专家组合**：为保持计算量不变，每个 token 从激活 \(K\) 个标准专家改为激活 \(mK\) 个细粒度专家，组合空间大幅增加
+- **共享专家隔离**：隔离 \(K_s\) 个专家作为共享专家，对所有 token 无条件激活，用于捕获语法、常识等通用知识
+- **路由专家更专门化**：共享专家吸收公共模式后，剩余 routed experts 更倾向学习差异化知识，缓解多专家重复学习同一通用知识
+- **两级负载均衡**：Expert-Level Balance Loss 防止路由坍缩，Device-Level Balance Loss 保证跨设备计算更均衡
+- **规模验证**：DeepSeekMoE 2B 接近同总参数 dense 上界，16B 以约 40% 计算量达到 LLaMA2 7B 相当水平，145B 以约 28.5% 计算量接近 DeepSeek 67B
 
 #### 🔬 深入细节
-##### 架构总览
+![DeepSeekMoE 架构示意](https://ar5iv.labs.arxiv.org/html/2401.06066/assets/x1.png)
+*图：DeepSeekMoE 论文 Figure 1。左为传统 Top-2 MoE，中间为细粒度专家分割，右为加入共享专家隔离后的完整 DeepSeekMoE。*
 
-![DeepSeekMoE 架构图](https://ar5iv.labs.arxiv.org/html/2401.06066/assets/x1.png)
-*图：DeepSeekMoE与传统MoE架构对比。左为GShard标准MoE（top-K选激活专家），中为细粒度分割（mN专家/mK激活），右为完整DeepSeekMoE（细粒度+共享专家隔离）*
+```python
+# DeepSeekMoE 层伪代码：细粒度专家分割 + 共享专家隔离
+def deepseek_moe_layer(u_t, shared_experts, routed_experts, router, m, K, K_s):
+    # u_t: 某层 attention 后的单 token hidden state
+    # shared_experts: K_s 个固定激活专家
+    # routed_experts: mN - K_s 个可路由细粒度专家
 
-##### 动机与背景
+    shared_out = 0
+    for expert in shared_experts:
+        shared_out += expert(u_t)             # 无条件参与，捕获公共知识
 
-传统MoE架构（如GShard）虽以条件计算实现模型参数扩展而保持较低推理成本，但面临**专家专业化不足**的困境：每个专家难以获取非重叠且聚焦的知识，常出现知识冗余（多个专家学到类似分布）或知识混杂（单个专家被迫覆盖过多异质知识）。DeepSeekMoE以"终极专家专业化"为目标，通过结构设计而非训练技巧实现**灵活的激活专家组合**与**通用知识的集中捕获**。
+    logits = router(u_t, routed_experts)      # token-to-expert affinity
+    routed_k = m * K - K_s                    # 保持激活计算量近似不变
+    top_logits, top_idx = topk(logits, routed_k)
+    gates = softmax(top_logits)
 
-##### 细粒度专家分割 (Fine-Grained Expert Segmentation)
+    routed_out = 0
+    for weight, idx in zip(gates, top_idx):
+        routed_out += weight * routed_experts[idx](u_t)
 
-标准MoE将一个FFN层扩展为N个专家网络，每个token通过门控网络选择top-K个专家激活。DeepSeekMoE将专家数量进一步细分：将N个标准专家**分解为\\(mN\\)个细粒度专家**，每个专家的隐层维度降低为原来的\\(1/m\\)，同时每token激活\\(mK\\)个专家以保持总参数量不变。
+    return u_t + shared_out + routed_out
+```
 
-核心公式如下。
+DeepSeekMoE 从 MoE 的结构性缺陷入手，而不是只调整路由损失。传统 GShard/Switch 类 MoE 把 Transformer 的 FFN 替换为 \(N\) 个专家，并让每个 token 选择 \(K\) 个专家。若专家数较少，每个专家会被迫吸收很多异质 token 的知识，形成“知识混杂”；同时，不同 token 又共享大量基础语言规律，多个专家会重复学习这些通用知识，形成“知识冗余”。这两者都会降低稀疏参数的有效利用率。
 
-门控网络输出路由logits：
+细粒度专家分割的做法是在总专家参数和激活计算量基本不变的前提下，提高组合灵活性。假设原本有 \(N\) 个标准 FFN 专家、每次激活 \(K\) 个，DeepSeekMoE 将每个专家切成 \(m\) 个小专家，即总数变为 \(mN\)，每个小专家中间维度降为原来的 \(1/m\)，并把激活数提高到 \(mK\)。对应公式为：
 
-$$\mathbf{g}^t = \text{Softmax}(\mathbf{W}_g \mathbf{h}^t) \in \mathbb{R}^{mN}$$
+$$
+h_t^l=\sum_{i=1}^{mN} g_{i,t}\operatorname{FFN}_i(u_t^l)+u_t^l,
+$$
 
-其中\\(\mathbf{h}^t\\)为第t个token的隐状态，\\(\mathbf{W}_g\\)为门控权重矩阵。
+$$
+g_{i,t}=
+\begin{cases}
+s_{i,t}, & s_{i,t}\in \operatorname{Topk}(\{s_{j,t}\mid 1\le j\le mN\},mK) \\
+0, & \text{otherwise}
+\end{cases},
+\quad
+s_{i,t}=\operatorname{Softmax}_i((u_t^l)^T e_i^l).
+$$
 
-Top-\\(mK\\)选择与权重计算：
+组合数的变化解释了为什么“拆小”有效。传统 \(N=16,K=2\) 只有 \(\binom{16}{2}=120\) 种激活组合；若 \(m=4\)，则变成从 64 个小专家中选 8 个，组合数达到 \(\binom{64}{8}=4,426,165,368\)。单个小专家更窄，容易学得更聚焦；多个小专家的组合又能覆盖复杂输入所需的多种知识片段。
 
-$$\tilde{g}_i^t = \begin{cases} g_i^t, & i \in \text{TopK}(\mathbf{g}^t, mK) \\ 0, & \text{otherwise} \end{cases}$$
+共享专家隔离进一步处理通用知识冗余。DeepSeekMoE 设 \(K_s\) 个 shared experts，它们不参与 TopK 竞争，而是对所有 token 固定激活；为了保持计算量，routed experts 的激活数从 \(mK\) 降为 \(mK-K_s\)。完整层输出为：
 
-$$\tilde{\mathbf{g}}^t = \text{Softmax}(\tilde{\mathbf{g}}^t)$$
+$$
+h_t^l=\sum_{i=1}^{K_s}\operatorname{FFN}_i(u_t^l)
++\sum_{i=K_s+1}^{mN}g_{i,t}\operatorname{FFN}_i(u_t^l)
++u_t^l.
+$$
 
-最终输出为所选专家输出的加权和：
+这不是简单增加一个 dense FFN，而是把“所有 token 都需要的公共知识”显式隔离出来。共享专家越稳定地承载语法、常见模式和基础语言能力，路由专家就越少需要重复学习这些模式，从而把容量用于更差异化的知识。论文的表述是从算法角度解释 shared experts，而不是只把它当作工程负载优化。
 
-$$\mathbf{o}^t = \sum_{i \in \text{TopK}(\mathbf{g}^t, mK)} \tilde{g}_i^t \cdot \text{FFN}_i(\mathbf{h}^t)$$
+负载均衡仍然是 MoE 必须处理的问题。DeepSeekMoE 使用 expert-level balance loss 防止路由器总把 token 分给少数专家：
 
-> 💡 关键：细粒度分割的核心优势在于**激活专家组合数呈指数级增长**。标准MoE从N选K的组合数为\\(\binom{N}{K}\\)；细粒度MoE从\\(mN\\)选\\(mK\\)的组合数为\\(\binom{mN}{mK}\\)。例如N=16、K=2、m=4时，组合数从\\(\binom{16}{2}=120\\)增至\\(\binom{64}{8}\approx 4.4\times10^9\\)，每个组合可针对特定输入模式更精准地激活相关知识。
+$$
+\mathcal{L}_{\mathrm{ExpBal}}=\alpha_1\sum_{i=1}^{N'} f_iP_i,
+\quad
+f_i=\frac{N'}{K'T}\sum_{t=1}^{T}\mathbb{1}(\text{Token }t\text{ selects Expert }i),
+\quad
+P_i=\frac{1}{T}\sum_{t=1}^{T}s_{i,t}.
+$$
 
-##### 共享专家隔离 (Shared Expert Isolation)
-
-细粒度分割虽扩大组合空间，但无法解决**跨专家知识冗余**问题：若多个专家学到相同的通用知识（如语法、常见词汇），则造成参数浪费。DeepSeekMoE引入\\(K_s\\)个**共享专家**，这些专家**不受门控网络选择**，对每个token无条件参与计算。
-
-完整输出公式：
-
-$$\mathbf{o}^t = \sum_{i=1}^{K_s} \text{FFN}_i^{\text{shared}}(\mathbf{h}^t) + \sum_{j \in \text{TopK}(\mathbf{g}^t, mK)} \tilde{g}_j^t \cdot \text{FFN}_j^{\text{routed}}(\mathbf{h}^t)$$
-
-其中第一项为所有共享专家输出之和（无门控权重），第二项为路由专家的加权和。
-
-> ⚠️ 注意：共享专家强制捕获所有token的公共模式，反向推动路由专家不得不学习**更专业化、非通用**的知识。这种"隔离"并非物理分离，而是通过训练目标的选择性压力实现——共享专家承担通用知识后，路由专家若再学通用特征会产生冗余并降低门控的信息增益，在梯度反向传播中被自然抑制。
-
-##### 负载均衡损失 (Load Balance Loss)
-
-MoE训练的一个关键挑战是**负载不均衡**：门控网络可能倾向将大量token路由至少数专家，导致其他专家几乎不被使用（"dead experts"）。DeepSeekMoE采用两级负载均衡：
-
-**Expert-Level Balance Loss**：
-$$\mathcal{L}_{\text{expBal}} = \alpha \cdot \sum_{i=1}^{mN} f_i \cdot P_i$$
-
-其中\\(f_i = \frac{1}{T} \sum_{t=1}^{T} \mathbb{1}[\text{Token } t \text{ selects Expert } i]\\)为专家i的实际选择频率，\\(P_i = \frac{1}{T} \sum_{t=1}^{T} g_i^t\\)为专家i的平均路由概率，\\(\alpha\\)为平衡权重超参。该损失在\\(f_i\\)与\\(P_i\\)一致时最小，推动均匀路由。
-
-**Device-Level Balance Loss**：
-$$\mathcal{L}_{\text{devBal}} = \beta \cdot \sum_{d=1}^{D} f'_d \cdot P'_d$$
-
-其中\\(f'_d\\)为设备d上所有专家的聚合选择频率，\\(P'_d\\)为设备d上专家的聚合路由概率。该损失确保跨设备计算量均衡，避免某设备成为瓶颈。
-
-完整训练损失：
-$$\mathcal{L}_{\text{total}} = \mathcal{L}_{\text{LM}} + \mathcal{L}_{\text{expBal}} + \mathcal{L}_{\text{devBal}}$$
-
-##### 实验验证
-
-DeepSeekMoE通过三阶段实验验证有效性：
-
-- **2B规模**：DeepSeekMoE 2B在相同训练数据下达到GShard 2.9B（1.5倍专家参数+计算量）的相当性能，并接近同参数量的dense baseline（代表MoE性能理论上界）
-- **16B规模**：在Open LLM Leaderboard上达到LLaMA2 7B的相当性能，**仅使用约40%的计算量**（激活参数约2.8B vs LLaMA2 7B）
-- **145B规模**：验证了大规模下架构优势的持续性，以DeepSeek 67B的28.5%计算量（甚至可进一步降至18.2%）达到相当性能
-
-##### 与GShard的关键区别
-
-| 维度 | GShard | DeepSeekMoE |
-|------|--------|-------------|
-| 专家粒度 | N个标准专家 | mN个细粒度专家 |
-| 激活方式 | top-K | top-mK |
-| 组合灵活性 | \\(\binom{N}{K}\\) | \\(\binom{mN}{mK}\\)（指数级增长） |
-| 共享专家 | 无 | \\(K_s\\)个固定激活 |
-| 负载均衡 | Expert-Level | Expert-Level + Device-Level |
+当专家跨设备部署时，论文还引入 device-level balance loss，把专家按设备聚合后约束设备间负载，而不是强迫每个专家完全均匀。这一点很实用：过强的专家级均衡会损伤专业化，但设备级均衡能直接缓解训练/推理瓶颈。整体上，DeepSeekMoE 的核心思想是“先用结构提升专家可分工性，再用轻量均衡防止训练崩塌”。
 
 #### 🧪 练习题
 ```yaml
-question: "DeepSeekMoE中共享专家隔离(Shared Expert Isolation)的主要目的是什么？"
+question: "DeepSeekMoE 中共享专家隔离的主要作用是什么？"
 options:
-  - "增加模型的总参数量以提升性能"
-  - "捕获所有token的通用知识，减少路由专家间的知识冗余"
-  - "替代门控网络，直接选择最相关专家"
-  - "仅在大规模模型（145B）中生效的加速策略"
+  - "让所有专家都参与每个 token 的计算，退化为稠密模型"
+  - "固定一部分专家捕获通用知识，从而减少路由专家之间的知识冗余"
+  - "取消 TopK 路由，完全依赖哈希分配 token"
+  - "只用于把专家平均放到不同 GPU 上，与模型质量无关"
 answer: 1
-explain: "共享专家对所有token无条件激活，强制捕获语法等通用知识，使路由专家被迫学习专业化、非重叠的知识，消除冗余。"
+explain: "共享专家对所有 token 无条件激活，承担公共语言模式；这样 routed experts 更容易学习差异化知识，提升专家专业化。"
 ```
 
 ### Gemini 1.5
@@ -3731,168 +2904,81 @@ motivation: MLA压缩KV缓存
 ```
 
 #### 📝 一句话总结
-DeepSeek-V2提出多头潜在注意力（MLA）大规模压缩KV缓存（93.3%↓）与DeepSeekMoE（细粒度专家+共享专家）深度结合，以236B总参/21B激活参在8.1T tokens训练后达到开源SOTA，训练成本仅为DeepSeek 67B的57.5%，推理吞吐提升至5.76倍。
+DeepSeek-V2 提出 Multi-head Latent Attention (MLA)，把生成阶段需要缓存的 Key/Value 压缩为低维 latent，并结合 DeepSeekMoE 的细粒度专家和共享专家设计，解决大模型训练成本和长上下文推理显存之间的冲突。
 
 #### 🎯 核心要点
-- **MLA（多头潜在注意力）**：通过低秩压缩将KV投影到极低维潜在向量（dc=512，远小于dhnh=16384），推理时仅缓存（dc+dhR）即每token 576个元素（vs MHA的32K+），KV缓存降93.3%，同时W^{UK}可吸收进W^Q,W^{UV}进W^O，推理时实际无需显式计算Key/Value，强度超越MHA
-- **解耦RoPE**：因RoPE位置敏感会破坏W^{UK}吸收，设计额外多头query q_t^R与共享decoupled key k_t^R独立承载RoPE，最终query=[q^C;q^R]，key=[k^C;k^R]，实现KV缓存降至等效GQA 2.25组但性能超MHA
-- **DeepSeekMoE架构升级**：2共享专家+160路由专家（每专家隐层dim 1536），每token激活6个（含2共享），细粒度专家分割+共享专家隔离，设备限制路由（每token最多3设备）有效控制MoE通信
-- **三辅助损失负载均衡**：Expert-Level Balance Loss（α1=0.003）、Device-Level Balance Loss（α2=0.05）、Communication Balance Loss（α3=0.02），配合设备级token-dropping策略（约10%序列永不被丢弃）确保训练稳定
-- **训练效率优化**：重叠共享专家计算与专家并行all-to-all通信，定制CUDA内核加速路由算法与融合线性运算，基于FlashAttention-2优化MLA，16-way零气泡流水线并行+8-way专家并行+ZeRO-1数据并行，无需张量并行
+- 236B 总参数、21B 每 token 激活参数，预训练语料规模为 8.1T tokens，并通过 YaRN 支持 128K 上下文。
+- MLA 使用低秩 KV 联合压缩，只缓存 \(c_t^{KV}\) 与解耦 RoPE key，将 KV cache 降低 93.3%。
+- 解耦 RoPE 将位置信息放到额外的 \(q_t^R,k_t^R\) 通道，避免 RoPE 破坏低秩矩阵吸收。
+- DeepSeekMoE 采用 2 个共享专家、160 个路由专家，每个 token 激活 6 个路由专家，兼顾通用能力和专家专化。
+- 设备受限路由把每个 token 的专家分配限制到最多 3 个设备，降低跨设备 all-to-all 通信。
+- 训练中加入专家级、设备级、通信级三类负载均衡辅助损失，并使用 token-dropping 控制专家容量。
+- 相比 DeepSeek 67B，论文报告训练成本降低 42.5%，实际部署最大生成吞吐提升到 5.76 倍。
 
 #### 🔬 深入细节
-##### 架构总览
+![DeepSeek-V2 架构图](https://arxiv.org/html/2405.04434/x3.png)
+*图：DeepSeek-V2 的基础架构，注意力层采用 MLA，FFN 层采用 DeepSeekMoE。*
 
-![DeepSeek-V2 架构](https://arxiv.org/html/2405.04434v2/assets/x1.png)
-*图: DeepSeek-V2整体架构。Transformer层中，Attention采用MLA（低秩压缩KV+解耦RoPE），FFN采用DeepSeekMoE（共享专家+路由专家）。*
+```python
+# DeepSeek-V2 MLA + DeepSeekMoE 前向流程伪代码
+for token_t in sequence:
+    h = transformer_input[token_t]
 
-##### Multi-Head Latent Attention (MLA)
+    # 1. MLA: KV 被联合压缩到 latent，并把 RoPE 从压缩 KV 中解耦出来
+    c_kv = W_DKV @ h                       # cache this latent
+    c_q = W_DQ @ h
+    q_c = W_UQ @ c_q
+    q_r = rope(W_QR @ c_q, position=token_t)
+    k_r = rope(W_KR @ h, position=token_t)  # cache this decoupled RoPE key
 
-###### 传统MHA的KV缓存瓶颈
-标准MHA每token需缓存2n_h d_h个元素（n_h头数，d_h每头维度）。以DeepSeek-V2的n_h=128,d_h=128为例，每token需2×128×128=32768个元素，长上下文下KV缓存成为推理瓶颈。GQA/MQA虽可降缓存但强度弱。
+    kv_cache.append((c_kv, k_r))
+    attn_out = latent_attention(q_c, q_r, kv_cache)
 
-###### 低秩KV联合压缩
-MLA核心思想：通过低秩分解，将键值对投影到共同的低维潜在空间，推理时仅缓存该压缩向量。
+    # 2. DeepSeekMoE: 共享专家恒激活，路由专家 Top-K 激活
+    u = h + attn_out
+    shared = sum(shared_expert_i(u) for i in range(2))
+    candidate_devices = top_m_devices(router_scores(u), m=3)
+    routed_ids = top_k_experts(router_scores(u, candidate_devices), k=6)
+    routed = sum(gate_i(u) * routed_expert_i(u) for i in routed_ids)
 
-**KV压缩**（对输入h_t ∈ ℝ^d）：
-$$c_t^{KV} = W^{DKV} h_t \in \mathbb{R}^{d_c}$$
-其中d_c ≪ d_h n_h（d_c=512 vs d_h n_h=16384）。随后通过上投影矩阵恢复：
-$$k_t^C = W^{UK} c_t^{KV} \in \mathbb{R}^{d_h n_h}$$
-$$v_t^C = W^{UV} c_t^{KV} \in \mathbb{R}^{d_h n_h}$$
+    output[token_t] = u + shared + routed
+    update_aux_balance_losses(routed_ids, candidate_devices)
+```
 
-推理时，W^{UK}可与W^Q融合、W^{UV}可与W^O融合，因此**无需显式计算和存储完整的k_t^C与v_t^C**，仅需缓存c_t^{KV}（512维）作为KV缓存。
+MLA 的出发点是标准 MHA 的推理瓶颈。MHA 在生成时要为每层、每个历史 token 缓存完整的 \(K,V\)，缓存量与 \(2n_hd_hl\) 成正比；当 batch size 或上下文长度变大时，显存首先被 KV cache 吃掉。GQA/MQA 可以减少 KV 头数，但会牺牲表达能力。DeepSeek-V2 的做法不是少存几个完整头，而是把所有头共享的 KV 信息先压缩进一个低维向量：
 
-**Query低秩压缩**（训练时降低激活内存）：
-$$c_t^Q = W^{DQ} h_t \in \mathbb{R}^{d_c'}$$
-$$q_t^C = W^{UQ} c_t^Q \in \mathbb{R}^{d_h n_h}$$
-其中d_c'=1536（同样远小于16384）。
+$$
+c_t^{KV}=W^{DKV}h_t,\quad
+k_t^C=W^{UK}c_t^{KV},\quad
+v_t^C=W^{UV}c_t^{KV}
+$$
 
-###### 解耦RoPE
-RoPE要求对K和Q施加位置相关旋转矩阵，若直接对k_t^C = W^{UK} c_t^{KV}应用RoPE，则旋转矩阵将嵌入W^{UK}与W^Q之间，破坏矩阵乘法可交换性——推理时必须为所有前缀token重新计算key，使低秩压缩的缓存节省失效。
+推理时只需要缓存 \(c_t^{KV}\)。更关键的是，\(W^{UK}\) 可以吸收到 query 侧投影里，\(W^{UV}\) 可以吸收到输出投影里，因此计算注意力时不必显式恢复完整的 \(k_t^C,v_t^C\)。DeepSeek-V2 的配置中 \(d_c=512\)，而完整多头维度 \(n_hd_h=128\times128=16384\)，缓存从“完整 K/V”变为“低维 latent”，这是 93.3% KV cache 下降的根本来源。
 
-**解耦策略**：
-- 新增decoupled key：k_t^R = RoPE(W^{KR} h_t) ∈ ℝ^{d_h^R}（d_h^R=64，由原始h_t经W^{KR}投影后旋转获得，**需要缓存**）
-- 新增decoupled queries：q_t^R = RoPE(W^{QR} c_t^Q)（从压缩query latent生成）
-- 最终拼接：q_{t,i} = [q_{t,i}^C; q_{t,i}^R], k_{t,i} = [k_{t,i}^C; k_t^R]
-- 注意力计算缩放因子调整为 √(d_h + d_h^R)
+RoPE 是 MLA 中最容易被忽略的技术难点。若直接对 \(k_t^C=W^{UK}c_t^{KV}\) 加 RoPE，位置相关的旋转矩阵会夹在 \(W^{UK}\) 和 query 投影之间，使推理时的矩阵吸收不再成立。DeepSeek-V2 因此新增解耦通道：
 
-推理时KV缓存总量：(d_c + d_h^R) l = (512+64) × 60 = 34,560元素/层，对比MHA的2×128×128×60=1,966,080元素，降至约**1.76%**。
+$$
+q_t=[q_t^C;q_t^R],\quad k_t=[k_t^C;k_t^R]
+$$
 
-与GQA对比：MLA的KV缓存等效于GQA 2.25组（d_h^R=d_h/2=64，dc=4dh=512），但性能超越MHA。
+其中 \(q_t^R\) 和共享的 \(k_t^R\) 专门承载 RoPE 位置信息。这样主体语义仍由低秩 KV latent 提供，位置信息由额外小维度通道提供。论文给出的直觉是：MLA 的 KV cache 近似等价于只有 2.25 个组的 GQA，但能力在消融中强于 MHA。
 
-![MLA压缩示意](https://arxiv.org/html/2405.04434v2/assets/x2.png)
-*图: MLA的KV联合压缩与解耦RoPE机制对比示意图*
+DeepSeekMoE 解决的是训练成本而不是 KV cache。它继承 DeepSeekMoE 的两条设计：细粒度专家分割让每个专家更容易专化，共享专家隔离把通用知识从路由专家里拿出来，减少不同路由专家重复学习同一类通用模式。DeepSeek-V2 每个 MoE 层包含 2 个共享专家和 160 个路由专家，每个 token 额外选择 6 个路由专家；共享专家对所有 token 生效，路由专家只处理与自己亲和度高的 token。
 
-![KV缓存对比](https://arxiv.org/html/2405.04434v2/assets/x3.png)
-*图: MHA/GQA/MQA/MLA的KV缓存直观对比*
+MoE 的代价是通信和负载不均衡。DeepSeek-V2 把专家均匀放在 8 个设备上，并要求每个 token 最多发送到 3 个设备；这限制了 all-to-all 的扇出。训练时还计算三类辅助损失：专家级损失约束单个专家的 token 量，设备级损失约束设备整体负载，通信级损失约束设备接收侧负载。若某设备超出容量预算，则按路由亲和度丢弃低优先级 token，并保留一部分序列从不丢弃，以降低训练与推理的不一致。
 
-| 注意力机制 | KV缓存（每token元素数） | 能力 |
-|-----------|---------------------|------|
-| MHA | 2 n_h d_h l | 强 |
-| GQA | 2 n_g d_h l | 中等 |
-| MQA | 2 d_h l | 弱 |
-| **MLA（本方法）** | (d_c+d_h^R) l ≈ (9/2)d_h l | **更强** |
-
-##### DeepSeekMoE in DeepSeek-V2
-
-DeepSeek-V2采用DeepSeekMoE架构（Dai et al., 2024），继承**细粒度专家分割**与**共享专家隔离**核心思想，并进行改进。
-
-**FFN输出公式**：
-$$\mathbf{h}_t' = \mathbf{u}_t + \sum_{i=1}^{N_s} \text{FFN}_i^{(s)}(\mathbf{u}_t) + \sum_{i=1}^{N_r} g_{i,t} \text{FFN}_i^{(r)}(\mathbf{u}_t)$$
-
-其中门控值 g_{i,t} 由token与路由专家centroid e_i的相似度经Softmax+TopK决定：
-$$s_{i,t} = \text{Softmax}_i(\mathbf{u}_t^T \mathbf{e}_i)$$
-$$g_{i,t} = \begin{cases} s_{i,t}, & s_{i,t} \in \text{Topk}(\{s_{j,t}\}, K_r) \\ 0, & \text{otherwise} \end{cases}$$
-
-**具体配置**：
-- 共享专家数 N_s = 2（无条件全token激活）
-- 路由专家数 N_r = 160（每个专家隐层 dim=1536）
-- 激活路由专家数 K_r = 6
-- 除第1层外所有FFN层替换为MoE层（共59个MoE层）
-
-**设备限制路由**：由于细粒度专家数量大，全量专家并行通信开销高。限制每个token的目标专家最多分布在M=3个设备上，先在M个设备中选最高亲和度专家，再在这M个设备中执行TopK选择。实验表明M≥3时性能与无限制TopK相当。
-
-**三级负载均衡辅助损失**：
-- Expert-Level: ℒ_ExpBal = α1 Σ f_i P_i（f_i为专家i实际选择频率，P_i为平均路由概率）
-- Device-Level: ℒ_DevBal = α2 Σ f_i' P_i'（聚合设备级统计）
-- Communication Balance: ℒ_CommBal = α3 Σ f_i'' P_i''（确保设备收发均衡）
-
-**Token-Dropping策略**：训练时每设备计算平均计算预算（容量因子=1.0），对每个设备按亲和度从低到高丢弃token直至达到预算，并保证约10%序列的token永不丢弃，保证训练推理一致性。
-
-##### Pre-Training
-
-**数据**：
-- 8.1T tokens双语语料，中文token比英文多约12%
-- 基于Byte-level BPE分词器，词表大小100K（同DeepSeek 67B）
-- 沿用DeepSeek 67B数据处理流程，增加数据量并优化质量过滤算法，额外恢复大量误删互联网数据，去除争议性内容
-
-**模型超参数**（关键）：
-- 60层Transformer，hidden dim=5120
-- MLA: n_h=128, d_h=128, d_c=512, d_c'=1536, d_h^R=64
-- MoE: 第1层dense FFN + 59个MoE层，每层2共享+160路由专家，专家隐层dim=1536，K_r=6
-- 总参数236B，每token激活参数21B
-- RMS Norm + 额外缩放因子（在压缩潜在向量、路由专家中间隐状态等宽度瓶颈处）保证稳定训练
-
-**训练超参数**：
-- AdamW: β1=0.9, β2=0.95, weight_decay=0.1
-- 学习率：预热2K步至最大值2.4×10^-4，训练60% token时乘0.316，90%时再乘0.316
-- 批大小：前225B tokens从2304逐步增至9216，之后保持9216
-- 最大序列长度4K，训练8.1T tokens
-- D=8设备并行，M=3设备限制路由，α1=0.003, α2=0.05, α3=0.02
-- Token-dropping仅在训练期间启用，评估时不丢弃
-
-**基础架构**：
-- HAI-LLM框架 + NVIDIA H800 GPU集群（NVLink+NVSwitch节点内，InfiniBand跨节点）
-- 16-way零气泡流水线并行 + 8-way专家并行 + ZeRO-1数据并行（无张量并行）
-- 重叠共享专家计算与专家并行all-to-all通信
-- 定制CUDA内核加速：通信、路由算法、跨专家融合线性运算
-- 基于FlashAttention-2优化MLA
-
-**长上下文扩展**：预训练完成后使用YaRN将上下文窗口从4K扩展至128K，仅应用于解耦共享key k_t^R（RoPE载体），调整长度缩放因子，以32K序列训练1000步，评估表现出色（NIAH测试全窗口长度表现良好）。
-
-##### 评估结果摘要
-
-**Base Model Benchmark**（部分，与其他顶级模型对比）：
-
-| Benchmark | DeepSeek 67B (Dense) | Qwen1.5 72B (Dense) | Mixtral 8×22B (MoE) | LLaMA3 70B (Dense) | DeepSeek-V2 (MoE, 21B act) |
-|-----------|---------------------|---------------------|---------------------|--------------------|----------------------------|
-| MMLU (5-shot) | 71.3 | 77.2 | 77.6 | 78.9 | **78.5** |
-| BBH (3-shot) | 68.7 | 59.9 | 78.9 | 81.0 | **78.9** |
-| ARC-C (25-shot) | 86.4 | 92.8 | 91.2 | 93.3 | **92.4** |
-| HellaSwag (10-shot) | 86.3 | 85.8 | 86.6 | 87.9 | **84.2** |
-| GSM8K (8-shot) | 63.4 | — | — | **93.0** | 79.2 |
-| MATH (4-shot) | 18.7 | — | — | — | **43.6** |
-| HumanEval (0-shot) | 42.7 | — | — | — | **48.8** |
-| **Pile-test (BPB↓)** | 0.642 | 0.637 | 0.623 | 0.602 | **0.606** |
-
-**关键对比**：DeepSeek-V2以仅21B激活参数在与70B+ Dense模型对比中展现竞争力，尤其在Pile-test（BPB=0.606，仅次LLaMA3-70B的0.602）和数学（MATH 43.6）、代码（HumanEval 48.8）上表现突出。
-
-**效率提升** vs DeepSeek 67B：
-- 训练成本：降42.5%
-- KV缓存：降93.3%
-- 最大生成吞吐：提升5.76倍
-
-##### 与DeepSeekMoE原始论文的关键区别
-
-| 维度 | DeepSeekMoE (Paper) | DeepSeek-V2 配置 |
-|------|---------------------|-----------------|
-| 规模 | 2B/16B/145B | 236B (21B激活) |
-| 路由专家数 | 灵活设定 | 固定160 |
-| 共享专家数 | K_s可调 | 固定2 |
-| 激活方案 | 细粒度mN选mK | 直接160选6 |
-| 新增机制 | — | 设备限制路由 (≤M=3)、通讯平衡损失、Token-Dropping |
-| 结合模块 | 仅FFN | × MLA (低秩KV+解耦RoPE) |
+从系统角度看，DeepSeek-V2 的贡献不是单点 MoE 或单点注意力替换，而是把“低缓存注意力”和“稀疏激活 FFN”一起做成可训练、可部署的模型。MLA 让长上下文和大 batch 推理不被 KV cache 限死，DeepSeekMoE 让 236B 总参数模型每个 token 只激活 21B 参数，设备受限路由和负载均衡损失则保证这套稀疏结构在 H800 集群上不会被通信拖垮。
 
 #### 🧪 练习题
 ```yaml
-question: "DeepSeek-V2的MLA中解耦RoPE策略主要解决了什么问题？"
+question: "DeepSeek-V2 中解耦 RoPE 的主要作用是什么？"
 options:
-  - "KV缓存过大导致推理内存溢出"
-  - "低秩KV压缩中，RoPE位置敏感性使W^UK无法被W^Q吸收，破坏缓存节省效果"
-  - "MoE专家负载不均衡导致路由崩塌"
-  - "长上下文训练时注意力熵下降"
+  - "让 MoE 路由更均匀，减少专家负载倾斜"
+  - "把位置信息从低秩 KV 压缩主路径中分离出来，保留矩阵吸收带来的 KV cache 节省"
+  - "用更大的词表增强中文和英文混合建模"
+  - "在训练中完全取消所有负载均衡辅助损失"
 answer: 1
-explain: "RoPE的位置敏感旋转矩阵会影响低秩压缩矩阵之间的可交换融合。若直接在压缩key（k_t^C=W^{UK}c_t^{KV}）上施加RoPE，则旋转矩阵粘合在W^{UK}与W^Q之间，破坏推理时的矩阵吸收（因为短矩阵乘法不满足交换律），导致需要为所有前缀token重算key而失去KV缓存节省。解耦RoPE通过额外的decoupled k_t^R和q_t^R独立承载旋转位置信息，保护了低秩压缩缓存的核心优势。"
+explain: "若直接对压缩 key 加 RoPE，位置相关矩阵会破坏推理时的投影矩阵吸收。解耦 RoPE 用额外的 q^R/k^R 通道承载位置信息，从而保留 MLA 的低缓存优势。"
 ```
 
 ### Llama 3
@@ -4056,137 +3142,85 @@ motivation: 18T语料扩展开放谱系
 ```
 
 #### 📝 一句话总结
-Qwen2.5 系列是通义千问团队在 Qwen2 基础上的全面升级，将预训练数据规模从 7T 扩展到 18T tokens，并引入两阶段强化学习对齐方案（DPO + GRPO），在数学、编程和指令遵循能力上取得显著提升，Qwen2.5-72B 在多项基准上超越 Llama-3.1-405B。
+Qwen2.5 把 Qwen 系列扩展到更完整的开放基础模型谱系，通过 18T token 预训练、更强数据混合、长上下文扩展和 SFT+DPO+GRPO 多阶段后训练，显著提升知识、数学、代码、结构化输出与人类偏好对齐能力。它同时发布 0.5B 到 72B 的开放 dense 模型，并提供 Qwen2.5-Turbo/Plus 等 MoE API 模型，形成从端侧到云端的统一模型族。
 
 #### 🎯 核心要点
-- 预训练数据从 Qwen2 的 7T tokens 扩展到 **18T tokens**，知识截止至近期，覆盖更广泛的高质量网页、代码和数学数据
-- 模型规模覆盖 **0.5B / 1.5B / 3B / 7B / 14B / 32B / 72B** 全系列，均采用开放权重
-- 架构延续 Transformer decoder-only：**RoPE 旋转位置编码、SwiGLU 激活、RMSNorm 归一化**；7B+ 模型采用 **GQA (Grouped Query Attention)**
-- 提出 **缩放法则 (Scaling Laws)** 指导训练：最优 Batch Size 随模型规模线性增长，数据量与模型规模的最优配比
-- **长文本训练**：将 32K 上下文窗口扩展至最高 128K tokens，使用 ABF (Adjusted Base Frequency) 调整 RoPE 基频
-- **SFT 阶段**：利用 Qwen2.5-Plus 生成反向翻译数据补充低资源语言指令；对数学/编程采用**拒绝采样**和**执行反馈**筛选高质量 CoT 样本
-- 两阶段 RL 对齐：(1) **DPO** 利用离线偏好数据直接优化策略；(2) **GRPO** 在线探索，无需独立 Reward Model，直接从群体采样中计算相对优势
-- Qwen2.5-72B 在 MMLU-redux、MATH、MBPP、MultiPL-E、LiveCodeBench、Arena-Hard、MT-Bench 上超越 Llama-3.1-405B-Instruct
+- 模型谱系：开放 0.5B、1.5B、3B、7B、14B、32B、72B dense decoder-only LLM，另有 Qwen2.5-Turbo 与 Qwen2.5-Plus 两个托管 MoE 变体。
+- 数据规模：高质量预训练数据从 Qwen2 的 7T token 扩展到 18T token，并增强数学、代码、多语言与高价值知识域数据。
+- 长上下文：多数中大模型支持 128K 上下文与 8K 生成；预训练从 4K 扩到 32K，推理侧结合 YARN 与 Dual Chunk Attention 扩展长度能力。
+- 后训练：使用超过 100 万条 SFT 样本，并进行多阶段强化学习，包括离线 DPO 和在线 GRPO。
+- 能力提升：重点提升数学、代码、结构化数据理解、JSON/结构化输出、长文本生成、指令遵循和多语言能力。
+- 评测定位：Qwen2.5-72B-Instruct 在多个任务上接近或超过更大的 Llama-3.1-405B-Instruct，Qwen2.5-14B/32B 填补中等规模高性能开放模型区间。
 
 #### 🔬 深入细节
-##### 1. 预训练与缩放法则
+![Qwen2.5 模型卡总览](https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen2.5/Qwen2.5%20modelcard.001.jpeg)
+*图：Qwen 官方 Qwen2.5 LLM model card。它概览了 0.5B 到 72B 模型的参数规模、层数、注意力头/KV 头、上下文长度、生成长度和许可证。*
 
-Qwen2.5 的预训练数据相比 Qwen2 提升超过 2.5 倍，从 7T 扩展到 **18T high-quality tokens**。数据分布经过精心调配：
+Qwen2.5 的核心不是单个新算子，而是一个完整 foundation model pipeline 的升级。预训练目标仍是标准自回归语言建模：
 
-> 💡 **关键数据策略**：
-> - 强化了**数学和代码**数据的占比，这是 Qwen2.5 数学推理能力大幅跃升的基础
-> - 增加了**多语言数据**（尤其是中文、日语、韩语、阿拉伯语等），提升跨语言迁移能力
-> - 对网页数据进行更严格的**质量过滤**，使用 Qwen2 系列协助数据清洗
+$$
+\mathcal{L}_{\text{LM}}(\theta)=-\sum_{t=1}^{T}\log p_\theta(x_t\mid x_{<t})
+$$
 
-**缩放法则 (Scaling Laws)** 是 Qwen2.5 训练的核心指导原则。团队通过在小模型上外推，确定了如下关系：
+但论文强调，收益主要来自更大且更干净的数据、面向规模的超参数律、长上下文预训练，以及后训练阶段的系统化偏好优化。相比 Qwen2，Qwen2.5 将高质量语料从 7T 扩到 18T token；数据过滤使用 Qwen2-Instruct 作为质量评估器，对多语言样本进行多维度打分；数据混合则下采样电商、社媒、娱乐等重复/模板化内容，上采样科技、科学、学术等高价值域。
 
-$$ \text{Optimal Batch Size}(N) = a \times N^b $$
+架构上，开放权重 Qwen2.5 是 dense decoder-only Transformer 系列。官方 model card 显示，7B/14B/32B/72B 等中大模型采用较少 KV heads 的 GQA 配置，例如 7B 为 28 个 query heads / 4 个 KV heads，14B 与 32B 为 40 / 8，72B 为 64 / 8。GQA 的直觉是多个 query heads 共享较少的 key/value 投影，从而降低长上下文 KV cache 压力；这与 RoPE、SwiGLU、RMSNorm 等现代 LLM 组件共同构成 Qwen2.5 的基础块。
 
-其中 \(N\) 为模型参数量，\(b \approx 0.5\)。这意味着模型每增大 4 倍，最优 batch size 约增大 2 倍。实验还验证了 **Chinchilla 型缩放法则**：给定计算预算，模型规模与数据量应按约 1:20 的比例同步增长。
+长上下文训练分阶段进行：先用 4,096 token 上下文做主要预训练，再在最后阶段把上下文扩展到 32,768 token；对于非 Turbo 模型，还通过 YARN 与 DCA 将推理长度能力扩展到 131,072 token。Turbo 版本采用更激进的递进式上下文扩展，训练阶段经过 32K、65K、131K、262K，并在推理侧支持最高 1M token。机制上，RoPE 外推通过调整位置频率基底缓解训练长度与推理长度的分布差异，DCA 则把长序列相对位置映射到更局部的块内/块间结构，减少超长位置带来的注意力退化。
 
-**长文本扩展**：Qwen2.5 将原生上下文窗口从 Qwen2 的 32K 扩展到 **128K tokens**。技术细节：
-- 使用 **ABF (Adjusted Base Frequency)**：将 RoPE 的基频 \(\theta\) 从 10,000 上调至更高值（如 1,000,000），使高频旋转角度降低，延长有效上下文长度
-- 在预训练后期引入**长序列数据**进行继续训练，逐步从 32K 过渡到 128K
+```python
+# Qwen2.5 训练与对齐流程伪代码
 
-##### 2. 架构设计
+def build_qwen25(raw_web, code_data, math_data, multilingual_data):
+    scored = qwen2_instruct_quality_filter(raw_web)
+    clean = remove_low_quality_and_contaminated(scored)
+    balanced = domain_rebalance(
+        clean,
+        downsample=["ecommerce", "social_media", "entertainment"],
+        upsample=["technology", "science", "academic", "high_quality_multilingual"],
+    )
+    corpus_18T = mix(balanced, code_data, math_data, multilingual_data)
 
-Qwen2.5 延续 Qwen2 的 Transformer decoder-only 架构，核心组件如下：
+    theta = pretrain_decoder_only_lm(corpus_18T, context_length=4096)
+    theta = continue_pretrain_long_context(theta, context_length=32768, rope_base=1_000_000)
 
-| 组件 | 描述 |
-|------|------|
-| **位置编码** | RoPE (Rotary Position Embedding)，支持长度外推 |
-| **激活函数** | SwiGLU，相比 ReLU/GELU 在长序列上更稳定 |
-| **归一化** | RMSNorm (Root Mean Square Layer Normalization)，仅保留缩放，去除平移参数 |
-| **注意力机制** | FlashAttention + GQA (7B 及以上模型)，KV 头数 = 4 或 8 |
-
-```
-Qwen2.5 核心 Transformer 块伪代码：
-
-def transformer_block(x, position):
-    # 1. RMSNorm + GQA Attention
-    normed = rms_norm(x)
-    q = proj_q(normed)        # [batch, seq, n_heads * d_head]
-    k = proj_k(normed)        # [batch, seq, n_kv_heads * d_head]
-    v = proj_v(normed)        # [batch, seq, n_kv_heads * d_head]
-    # 应用 RoPE
-    q, k = apply_rotary_pos_emb(q, k, position)
-    attn_out = flash_attention(q, k, v)  # 使用 FlashAttention 加速
-    attn_out = repeat_kv(attn_out)       # GQA: 将KV头复制到Q头数
-    x = x + proj_out(attn_out)
-
-    # 2. RMSNorm + SwiGLU FFN
-    normed = rms_norm(x)
-    ffn_out = proj_ffn2(swish(proj_ffn1(normed)) * proj_ffn3(normed))
-    x = x + ffn_out
-    return x
+    theta = supervised_finetune(theta, instruction_samples=1_000_000_plus)
+    theta = dpo(theta, preference_pairs="offline human/model feedback")
+    theta = grpo(theta, prompts="online RL prompts", reward_models="preference + task rewards")
+    return theta
 ```
 
-> ⚠️ **注意**：GQA 仅在 7B+ 模型中使用。0.5B/1.5B/3B 采用标准 MHA (Multi-Head Attention)，以降低小模型的计算开销。
+后训练阶段可以理解为从“会续写”到“会按人类意图完成任务”的转换。SFT 先用超过 100 万条指令样本建立基础行为分布；DPO 再用成对偏好样本直接优化胜负回答的相对概率。DPO 的典型目标为：
 
-##### 3. 后训练对齐：两阶段 RL 方案
+$$
+\mathcal{L}_{\text{DPO}}=-\mathbb{E}\left[\log\sigma\left(\beta\log\frac{\pi_\theta(y_w\mid x)}{\pi_{\text{ref}}(y_w\mid x)}-\beta\log\frac{\pi_\theta(y_l\mid x)}{\pi_{\text{ref}}(y_l\mid x)}\right)\right]
+$$
 
-这是 Qwen2.5 技术报告中**最具创新性的部分**。后训练流程分为三个阶段：
+其中 \(y_w\) 是偏好回答，\(y_l\) 是较差回答，\(\pi_{\text{ref}}\) 通常是 SFT 后的参考模型。它不显式训练 reward model 再跑 PPO，而是把偏好差异变成一个二分类式的对数概率间隔优化。
 
-**阶段一：监督微调 (SFT)**
+GRPO 进一步用于在线强化学习。其直觉是对同一 prompt 采样一组回答，用组内奖励均值和方差构造相对优势：
 
-| 技术 | 目的 | 具体方法 |
-|------|------|----------|
-| **反向翻译 (Back-translation)** | 补充低资源语言指令 | 用 Qwen2.5-Plus 将英文指令翻译为多语言，再反向翻译验证一致性 |
-| **拒绝采样 (Rejection Sampling)** | 筛选高质量 CoT | 对数学/编程问题生成多个 CoT 解，保留答案正确的样本 |
-| **执行反馈 (Execution Feedback)** | 代码正确性验证 | 生成代码后实际运行测试用例，仅保留通过全部测试的样本 |
-| **长文本 SFT** | 指令遵循长度扩展 | 构建需要长上下文理解的数据（文档QA、摘要），训练模型在 128K 下保持注意力 |
+$$
+\hat A_i=\frac{r_i-\operatorname{mean}(r_1,\dots,r_G)}{\operatorname{std}(r_1,\dots,r_G)}
+$$
 
-**阶段二：DPO (Direct Preference Optimization)**
+再用类似 PPO 的裁剪比率和 KL 约束更新策略，使高于同组平均的回答概率上升、低于平均的回答概率下降。相比逐样本绝对 reward，组相对优势更适合数学、代码、结构化输出等可自动或半自动评测的任务，也能降低 reward scale 对优化稳定性的影响。
 
-DPO 直接在偏好数据集上优化策略，无需训练独立的 Reward Model：
+Qwen2.5 的一个重要设计取向是“通用底座 + 专长注入”。预训练阶段把 Qwen2.5-Coder 和 Qwen2.5-Math 的高质量数据纳入通用模型，使基础模型已经具备更强代码与数学能力；后训练阶段再重点提升长文本生成、结构化数据分析、JSON 输出和复杂指令遵循。最终，72B-Instruct 在 MATH、LiveCodeBench、Arena-Hard、MT-Bench 等指标上明显超过 Qwen2-72B-Instruct，并在若干关键任务上接近或超过更大参数量的 Llama-3.1-405B-Instruct。
 
-$$\mathcal{L}_{\text{DPO}}(\pi_\theta; \pi_{\text{ref}}) = -\mathbb{E}_{(x, y_w, y_l) \sim \mathcal{D}} \left[ \log \sigma \left( \beta \log \frac{\pi_\theta(y_w|x)}{\pi_{\text{ref}}(y_w|x)} - \beta \log \frac{\pi_\theta(y_l|x)}{\pi_{\text{ref}}(y_l|x)} \right) \right]$$
+> 💡 关键：Qwen2.5 的方法贡献更像一条可复用的开放基础模型工程路线：数据质量与规模先把底座能力抬高，再用长上下文扩展和多阶段偏好优化把模型推向可用助手。
 
-- 从 Qwen2.5 的 SFT 模型 checkpoint 进行初始化
-- 偏好数据来自**人工标注** + **合成数据**（用更大模型生成偏好对）
-- \(\beta\) 控制与参考策略的偏离程度
-- 此阶段主要提升模型的**指令遵循**和**安全性**
-
-**阶段三：GRPO (Group Relative Policy Optimization)**
-
-GRPO 是 DeepSeekMath 中提出的方法，Qwen2.5 将其作为在线 RL 的第二阶段：
-
-> 💡 **GRPO 核心思想**：无需独立的 Value Network 或 Reward Model，而是对同一 prompt 采样多个回答，以组内平均奖励作为基线计算优势。
-
+#### 🧪 练习题
+```yaml
+question: "Qwen2.5 相比 Qwen2 的最关键训练侧升级是什么？"
+options:
+  - "把预训练语料扩展到 18T token，并结合更强数据过滤、数据混合和多阶段后训练"
+  - "完全取消 Transformer 注意力并改用状态空间模型"
+  - "只发布一个 72B 模型以避免小模型能力下降"
+  - "只依赖 DPO，不再进行监督微调"
+answer: 0
+explain: "论文强调 Qwen2.5 的提升来自 18T 高质量预训练数据、长上下文训练，以及 SFT 后接 DPO/GRPO 的多阶段后训练，而不是更换为非 Transformer 架构。"
 ```
-GRPO 采样与优化流程：
-
-对于每个 prompt x：
-  1. 从当前策略 π_θ 采样 K 个回答 {y₁, y₂, ..., y_K}
-  2. 用评分函数 r(x, y) 计算每个回答的奖励
-  3. 计算组内标准化优势：
-     A_i = (r_i - mean(r)) / std(r)
-  4. 用裁剪目标更新策略：
-     L = -min(ratio_i * A_i, clip(ratio_i, 1-ε, 1+ε) * A_i)
-     其中 ratio_i = π_θ(y_i|x) / π_θ_old(y_i|x)
-```
-
-GRPO 的优势：
-- **无需训练 Reward Model**：直接用规则或 LLM-as-judge 评分，减少模型数量
-- **在线探索**：采样来自当前策略，避免离线数据的分布偏移 (distribution shift)
-- **组内归一化**：自动消除不同 prompt 的奖励尺度差异，训练更稳定
-
-在 Qwen2.5 中，GRPO 阶段主要针对**数学推理 (MATH/GSM8K)** 和**编程 (LiveCodeBench/HumanEval)** 任务进行强化，是 Qwen2.5 在该类任务上大幅超越 Qwen2 的关键因素。
-
-##### 4. 关键实验结果
-
-Qwen2.5-72B 与竞品对比（部分基准）：
-
-| Benchmark | Qwen2-72B | Qwen2.5-72B | Llama-3.1-70B | Llama-3.1-405B |
-|-----------|-----------|-------------|---------------|----------------|
-| MMLU-redux | 67.2 | **75.4** | 67.2 | 67.1 |
-| MATH | 52.9 | **75.5** | 51.9 | 47.1 |
-| HumanEval | 79.9 | **84.8** | 72.6 | 72.6 |
-| LiveCodeBench | 23.9 | **28.7** | 8.3 | 18.9 |
-| Arena-Hard | 25.0 | **52.0** | 27.8 | 41.6 |
-| MT-Bench | 8.26 | **8.75** | 8.23 | 8.49 |
-
-> 🎉 **核心突破**：Qwen2.5-72B 在 **MATH** 上从 52.9 跃升至 **75.5**（+22.6），在 **Arena-Hard** 上从 25.0 翻倍至 **52.0**，体现了 GRPO 在数学推理和指令遵循上的巨大增益。
 
 ### DeepSeek-V3
 
@@ -4205,148 +3239,96 @@ motivation: 无辅助损失负载均衡
 ```
 
 #### 📝 一句话总结
-DeepSeek-V3 提出了多头潜在注意力（MLA）和 DeepSeekMoE 架构，结合无辅助损失的负载均衡策略与多 Token 预测（MTP）训练目标，在仅 14.8T tokens 上以约 $5.6M 的训练成本达到了与 GPT-4o 和 Claude-3.5-Sonnet 等顶级闭源模型相当的性能。
+DeepSeek-V3 在 DeepSeek-V2 的 MLA 和 DeepSeekMoE 基础上扩展到 671B 总参数，并提出无辅助损失的专家负载均衡策略，解决传统 MoE 依赖 auxiliary loss 时负载均衡信号与语言建模目标相互干扰的问题。
 
 #### 🎯 核心要点
-- **多头潜在注意力（MLA）**：将 KV 缓存压缩到极低维潜在空间（KV 压缩维 512，Query 压缩维 1536），大幅降低推理时的显存占用
-- **DeepSeekMoE 架构**：1 个共享专家 + 256 个路由专家，每个 Token 激活前 8 个专家（top-8 routing），总参数 671B，激活参数仅 37B
-- **无辅助损失的负载均衡**：引入动态偏置项（dynamic bias），在训练过程中自动调整专家选择倾向，避免了传统辅助损失对模型性能的损害
-- **多 Token 预测（MTP）**：每个位置同时预测未来 D=1 个 Token，提升数据效率与模型性能
-- **FP8 混合精度训练**：首次在超大规模 MoE 模型上验证 FP8 训练，提出细粒度量化策略（tile-wise 和 block-wise）和累加高精度提升机制
-- **极低训练成本**：完整预训练仅需 2.788M H800 GPU 小时（约 $5.576M），在 14.8T tokens 上完成
-- **61 层 Transformer**，hidden size 7168，128 个注意力头，128K 词表
-- **SFT + RL + 从 DeepSeek-R1 蒸馏**的对齐流水线
+- 671B 总参数、37B 每 token 激活参数，预训练 14.8T 高质量 tokens，完整训练约 2.788M H800 GPU hours。
+- 继续使用 MLA 压缩 KV cache，保持高效长上下文推理能力。
+- DeepSeekMoE 配置升级为每层 1 个共享专家、256 个路由专家，每个 token 激活 8 个路由专家。
+- 提出 auxiliary-loss-free load balancing：Top-K 选择时加入动态 bias，负载更新与主损失解耦。
+- 每个 token 最多路由到 4 个节点，并取消 token dropping，减少训练和推理行为不一致。
+- 加入 Multi-Token Prediction (MTP)，在 next-token 之外额外预测一个未来 token，训练后推理可直接丢弃 MTP 模块。
+- 支持 FP8 混合精度训练，激活使用 1x128 tile-wise 量化，权重使用 128x128 block-wise 量化，并用更高精度累加降低误差。
+- 训练系统采用 2048 张 H800、16-way pipeline parallelism、64-way expert parallelism、ZeRO-1 和 DualPipe 通信计算重叠。
 
 #### 🔬 深入细节
-##### 核心架构图
+![DeepSeek-V3 架构图](https://arxiv.org/html/2412.19437/x2.png)
+*图：DeepSeek-V3 的基础架构，沿用 MLA 与 DeepSeekMoE，并加入 MTP 训练目标。*
 
-![DeepSeek-V3 整体架构](https://arxiv.org/html/2412.19437v2/assets/x1.png)
-*图：DeepSeek-V3 的模型架构概览，展示了 MLA 注意力机制与 DeepSeekMoE FFN 层的集成，以及多 Token 预测的训练框架。*
+```python
+# DeepSeek-V3 MoE 层与无辅助损失负载均衡伪代码
+for step, batch in enumerate(pretraining_stream):
+    expert_load = zeros(num_routed_experts)
+    loss = 0
 
-##### 基础架构：Transformer 主干
+    for token in batch.tokens:
+        h = mla_attention(token.hidden, kv_latent_cache=True)
 
-DeepSeek-V3 采用 61 层 Transformer 架构，hidden size 为 7168。与标准 Transformer 的两点核心区别：
-1. **注意力层**使用多头潜在注意力（MLA）替代标准 Multi-Head Attention
-2. **FFN 层**使用 DeepSeekMoE 替代标准 FFN
+        # Sigmoid gating 得到原始专家亲和度；bias 只用于选择，不作为主损失梯度学习
+        affinity = sigmoid(router(h))              # shape: [256]
+        selection_score = affinity + balance_bias
+        selected = top_k(selection_score, k=8, node_limit=4)
 
-每个 Transformer Block 的结构为：`Input → MLA → Add&Norm → DeepSeekMoE → Add&Norm → Output`。
+        shared_out = shared_expert(h)
+        routed_out = 0
+        normalizer = sum(affinity[i] for i in selected)
+        for i in selected:
+            gate = affinity[i] / normalizer
+            routed_out += gate * routed_expert[i](h)
+            expert_load[i] += 1
 
-##### 1. 多头潜在注意力（MLA）
+        h = h + shared_out + routed_out
+        loss += next_token_ce(h, token.next_token)
+        loss += mtp_ce(h, token.future_token_2) * mtp_weight
 
-MLA 的核心动机是解决推理时的 KV 缓存灾难。在标准 MHA 中，每个 Token 需要缓存全部的 Key 和 Value 向量，当批量推理或长序列场景下显存占用巨大。
+    # 动态 bias 更新与反向传播解耦：过载专家降 bias，欠载专家升 bias
+    target = mean(expert_load)
+    for i in range(num_routed_experts):
+        if expert_load[i] > target:
+            balance_bias[i] -= gamma
+        elif expert_load[i] < target:
+            balance_bias[i] += gamma
 
-> **MLA 的创新**：引入低维潜在向量（latent vector）来压缩 Key 和 Value 的表示，将 KV 缓存从每个 Token 的 \(d_{model} \times n_{heads}\) 维压缩到仅需存储一个尺寸为 512 的潜在向量，解压缩矩阵则在计算时现场应用。
+    loss += tiny_sequence_balance_loss(batch)       # 防止单序列极端不均衡
+    optimizer.backward_and_step(loss)
+```
 
-**具体机制**：
-- 输入 hidden state 通过下投影矩阵 \(W^{DKV} \in \mathbb{R}^{d_{model} \times d_c}\) 压缩为维度 \(d_c = 512\) 的 KV 压缩潜在向量 \(c_t^{KV}\)
-- 从 \(c_t^{KV}\) 分别通过上投影矩阵恢复 Key 和 Value：
-  - \(k_t^C = W^{UK} c_t^{KV}\)，其中 \(W^{UK} \in \mathbb{R}^{d_c \times d_h n_h}\)
-  - \(v_t^C = W^{UV} c_t^{KV}\)，其中 \(W^{UV} \in \mathbb{R}^{d_c \times d_h n_h}\)
-- 对于 Query，同样引入压缩维度 \(d_c' = 1536\) 的潜在向量 \(c_t^Q\)，再通过上投影恢复
-- 注意力计算仍使用 RoPE（旋转位置编码），但 RoPE 施加在 Key 的解耦维度上，避免了与低秩压缩的矛盾
+DeepSeek-V3 的架构主线是“保留 V2 已验证的高效注意力和稀疏 FFN，同时把 MoE 负载均衡从损失函数里拿出来”。MLA 部分与 DeepSeek-V2 一致，用 \(c_t^{KV}=W^{DKV}h_t\) 压缩 KV，并用解耦 RoPE 保留位置编码可用性。这样 V3 在扩到 671B 参数后，推理时仍不需要为每个历史 token 缓存完整多头 \(K,V\)，否则 128K 级上下文和大 batch 服务会被显存限制。
 
-> **关键优势**：推理时每个 Token 仅需缓存一个 512 维的潜在向量，而非完整的 KV 矩阵。KV 缓存压缩比约为 \(2 \times n_h \times d_h / d_c\)，在 DeepSeek-V3 的配置（128 heads × 128 head dim）下，压缩比约 64 倍。
+MoE 规模比 V2 明显更大。每个 MoE 层有 1 个共享专家和 256 个路由专家，路由专家中每个 token 选 8 个，专家中间层维度为 2048。共享专家负责所有 token 都需要的通用能力，路由专家负责更细粒度的知识和模式。论文还限制每个 token 最多被发往 4 个节点，目的是在扩大专家数量时把跨节点 all-to-all 通信控制在可隐藏的范围内。
 
-##### 2. DeepSeekMoE 架构
+传统 MoE 常用辅助损失鼓励专家负载均匀，问题是这个损失会和语言建模目标竞争：模型可能为了均匀使用专家而降低本应出现的专家专化。DeepSeek-V3 的关键改动是为每个路由专家维护一个动态 bias \(b_i\)，Top-K 选择用 \(s_{i,t}+b_i\)，但门控权重仍来自原始亲和度 \(s_{i,t}\)。当某专家在当前 step 中过载，就降低它的 bias；低于平均负载，就提高它的 bias：
 
-DeepSeekMoE 在 DeepSeek-V2 的基础上进一步改进了专家路由设计：
+$$
+b_i \leftarrow b_i + \gamma\cdot\mathrm{sign}(T_{\mathrm{target}}-T_i)
+$$
 
-**专家配置**：
-- 1 个**共享专家**（Shared Expert），所有 Token 始终通过，捕获通用知识
-- 256 个**路由专家**（Routed Experts），每个 Token 通过门控机制选择 top-8 个激活
-- 每个专家的隐藏维度为 2048，总计 256 个路由专家 + 1 个共享专家
+这里的 bias 更新不通过反向传播进入语言模型损失，因此不会直接扭曲 token 到专家的语义匹配。论文在预训练配置中把 bias update speed \(\gamma\) 在前 14.3T tokens 设为 0.001，最后 500B tokens 设为 0。为了避免单条序列内部出现极端不均衡，V3 仍保留一个很小的 sequence-wise balance loss；但主要负载均衡压力由动态 bias 承担。
 
-**门控机制**：
-- 输入 hidden state 经过一个 sigmoid 门控网络，输出每个路由专家的亲和度得分
-- 选择得分最高的 8 个专家，计算加权组合：\(FFN_{MoE}(x) = \sum_{i \in TopK} g_i(x) \cdot E_i(x)\)，其中 \(g_i(x)\) 为 softmax 归一化后的专家权重
+V3 还取消了 V2 训练中的 token dropping。V2 需要在设备容量超限时丢弃低亲和度 token，以保证训练吞吐；V3 的辅助损失无关负载均衡和节点受限路由已经能把专家负载压住，因此可以让所有 token 都被处理。这个改变很重要，因为 token dropping 会制造训练和推理不一致：训练时某些 token 的专家计算缺失，推理时却不会缺失。
 
-> **总参数量**：671B 总参数，激活参数仅 37B（约 5.5%），使得单次前向计算的计算量仅相当于一个约 37B 的稠密模型。
+MTP 是另一个训练目标层面的改动。DeepSeek-V3 设置 prediction depth \(D=1\)，含义是除了主模型预测下一个 token，还通过一个顺序 MTP 模块额外预测再下一个 token。第 \(k\) 个 MTP 模块会把上一深度的 hidden state 与第 \(i+k\) 个 token 的 embedding 拼接、归一化、投影，再经过 Transformer block 输出预测分布。总损失可简化为：
 
-##### 3. 无辅助损失的负载均衡
+$$
+\mathcal{L}=\mathcal{L}_{\mathrm{next}}+\lambda\mathcal{L}_{\mathrm{MTP}}
+$$
 
-传统 MoE 模型通常引入辅助损失（auxiliary loss）来鼓励均匀的专家利用率，但这会引入一个与语言建模目标竞争的训练信号，损害模型性能。
+论文中 \(\lambda\) 在前 10T tokens 为 0.3，剩余 4.8T tokens 为 0.1。MTP 的好处是迫使 hidden state 携带更远一步的可预测信息，提升数据效率；推理时可以直接丢弃 MTP 模块，因此不增加主模型的常规生成成本，也可以把它改作 speculative decoding 的草稿模块。
 
-DeepSeek-V3 的创新方案：
+在系统层面，DeepSeek-V3 的 FP8 训练和 DualPipe 同样关键。FP8 让计算和存储更便宜，但大模型训练容易被量化误差毁掉。V3 对激活采用 1x128 tile-wise scaling，对权重采用 128x128 block-wise scaling，并把部分累加提升到更高精度，缓解 H800 Tensor Core FP8 GEMM 累加精度不足的问题。训练框架使用 16-way PP、64-way EP 和 ZeRO-1，不使用昂贵的 tensor parallelism；DualPipe 通过把 attention、all-to-all dispatch、MLP、all-to-all combine 以及反向计算重排，尽量隐藏跨节点专家并行带来的通信开销。
 
-> **动态偏置机制**：为每个路由专家维护一个可学习的偏置项 \(b_i\)，在 top-K 选择时，实际使用的得分为 \(g_i(x) + b_i\)。训练过程中动态调整偏置：对过载的专家降低偏置，对使用不足的专家提高偏置。这种调整与主损失函数完全解耦，避免了辅助损失对模型质量的负面影响。
-
-具体更新规则：
-- 监控每个 step 中各专家的 token 分配数
-- 当某专家处理的 token 数超过平衡值时，将其偏置降低一个小步长 \(\gamma\)
-- 当低于平衡值时，将其偏置提高同样步长
-- 加上约束 \(\sum b_i = 0\) 保证调整的零均值性
-
-##### 4. 多 Token 预测（MTP）
-
-MTP 是 DeepSeek-V3 训练的另一关键创新：
-
-> **核心思想**：除了预测下一个 token 外，模型还同时预测再下一个 token（即 D=1 深度）。这迫使模型学习更远期规划，提升对长程依赖的建模能力。
-
-**实现方式**：
-- 每个 Transformer Block 的 hidden state 额外输入到独立的 MTP 模块
-- MTP 模块使用一个简单的 Transformer 层（cross-attention 形式），以上一层的 hidden state 和当前 token 的 embedding 为输入
-- 输出预测下一个位置的 token
-- 额外的预测头与主预测头共享 embedding 层，减少参数冗余
-
-> **训练损失**：总损失为 \(L = L_{main} + \lambda L_{MTP}\)，其中 \(\lambda\) 为 MTP 损失的权重（通常设为 0.3）。
-
-##### 5. FP8 混合精度训练
-
-DeepSeek-V3 是**首个**在超大规模 MoE 模型上成功验证 FP8 混合精度训练的实践：
-
-**细粒度量化策略**：
-- 对**激活**采用 **1×128 tile-wise 量化**（沿 token 维度分组），以 token 为单位计算缩放因子
-- 对**权重**采用 **128×128 block-wise 量化**，以 block 为单位计算缩放因子
-- 这种细粒度策略显著减少了量化误差，特别是在异常值较多的激活中
-
-**累加高精度提升**：
-- 矩阵乘法（GEMM）在 FP8 精度下执行
-- 但累加器（accumulator）保留在更高精度（BF16 或 FP32），避免下溢
-- 通过 CUDA 定制 kernel 实现高效的 FP8 GEMM + FP32 累加
-
-> **训练效率**：FP8 混合精度使计算吞吐量提高约 2 倍（相比 BF16），显存占用降低约 40%。
-
-##### 6. 训练超参数与计算成本
-
-| 参数 | 值 |
-|------|-----|
-| 总参数量 | 671B |
-| 激活参数量 | 37B |
-| 层数 | 61 |
-| Hidden Size | 7168 |
-| 注意力头数 | 128 |
-| 注意力头维度 | 128 |
-| 词表大小 | 128,000 |
-| 预训练 Token 量 | 14.8T |
-| 优化器 | AdamW (β1=0.9, β2=0.95) |
-| 学习率调度 | Warmup + Cosine Decay |
-| 最大学习率 | 2.4e-4 |
-| 批次大小 | 3072 序列 / batch |
-| 序列长度 | 4K → 32K → 128K 逐步扩展 |
-| GPU | 2048 块 NVIDIA H800 |
-| 训练时间 | 约 3.7 周 |
-| 总 GPU 小时 | 2.788M H800 小时 |
-| 估计训练成本 | $5.576M |
-
-##### 7. 对齐训练与蒸馏
-
-预训练完成后，DeepSeek-V3 采用 SFT + RL 的对齐流水线：
-- **SFT 阶段**：在高质量指令数据上微调，包括代码、数学、写作、对话等
-- **RL 阶段**：使用基于人类反馈和 AI 反馈的奖励模型进行强化学习
-- **DeepSeek-R1 蒸馏**：从 DeepSeek-R1（推理专用模型）蒸馏推理能力到 V3，提升数学和代码任务的 Chain-of-Thought 性能
-
-> **核心创新**：V3 对齐阶段引入了"从推理模型中蒸馏"这一步骤，将 R1 的长链推理能力迁移至通用 V3 模型，同时保持了模型在一般对话任务上的泛化性。
+因此，DeepSeek-V3 的方法贡献可以概括为三层协同：MLA 解决推理 KV cache，DeepSeekMoE 解决参数规模和计算成本，auxiliary-loss-free balancing 解决大规模 MoE 的专家负载与模型质量冲突。再叠加 MTP、FP8 和 DualPipe，论文才得以用 14.8T tokens 训练 671B 参数模型，并把完整训练成本控制在约 2.788M H800 GPU hours。
 
 #### 🧪 练习题
 ```yaml
-question: "DeepSeek-V3 的 MLA 机制主要通过什么方式降低推理时的显存占用？"
+question: "DeepSeek-V3 的无辅助损失负载均衡为什么比传统 MoE auxiliary loss 更适合大规模模型？"
 options:
-  - "减少注意力头的数量"
-  - "将 KV 缓存压缩到低维潜在空间，仅存储压缩后的潜在向量"
-  - "使用更小的词表"
-  - "减少模型层数"
+  - "它把所有专家都改成 dense FFN，避免了路由问题"
+  - "它用动态 bias 调整 Top-K 选择，负载控制不直接通过主损失反向传播，从而减少对语言建模目标的干扰"
+  - "它只在推理阶段启用，因此不会影响训练"
+  - "它通过减少注意力头数降低 KV cache"
 answer: 1
-explain: "MLA 通过下投影矩阵将 KV 表示压缩为维度仅 512 的潜在向量，推理时仅需缓存该压缩向量，而非完整的多头 KV 矩阵，从而大幅降低 KV 缓存显存占用（压缩比约 64 倍）。"
+explain: "V3 的 balance bias 根据专家负载单独更新，用于影响路由选择，但不作为语言建模损失中的强辅助项优化，因此更少破坏专家专化和主任务性能。"
 ```
 
 ### MiniMax-Text-01
@@ -4366,109 +3348,92 @@ motivation: Lightning Attention扩长上下文
 ```
 
 #### 📝 一句话总结
-MiniMax-01 通过 **Lightning Attention（I/O感知线性注意力）** 与 **Mixture of Experts（MoE）** 的深度融合，在 456B 总参数（45.9B 激活）的规模下，首次实现了训练时 1M token、推理时 4M token 的超长上下文窗口，同时在标准 benchmark 上匹敌 GPT-4o 和 Claude-3.5-Sonnet。
-
----
+MiniMax-Text-01 提出了 Lightning Attention、周期性 softmax attention 与 MoE 结合的混合长上下文基础模型，解决纯 softmax Transformer 在百万级上下文上计算和显存成本过高的问题。它将训练上下文扩展到 1M tokens，并在推理时外推到 4M tokens，同时保持接近顶级闭源模型的通用能力。
 
 #### 🎯 核心要点
-- 核心动机：Lightning Attention扩长上下文
-- 演化来源：继承或改进自 mixtral
-- 代表机构：MiniMax
+- MiniMax-01 系列包含 MiniMax-Text-01 与 MiniMax-VL-01，本条目聚焦 Text-01 的长上下文基础模型设计
+- 混合注意力结构采用每 7 个 Lightning Attention/TransNormer block 后接 1 个 softmax attention block 的节奏，总计 80 层
+- MoE 结构包含 32 个专家、top-2 routing、global router 负载均衡，模型总参数 456B，每 token 激活 45.9B 参数
+- Lightning Attention 将因果注意力拆成块内 left-product 与块间 right-product，避免线性注意力在 causal LM 中低效的全局 cumsum
+- 长上下文系统优化包含 LASP+、varlen ring attention、data packing、MoE 的 EP/ETP overlap，以及专门的 Lightning Attention 推理 kernel
+- 训练流程包含长上下文三阶段扩展、RoPE 频率与数据分布调度，Text-01 训练到 1M tokens，推理扩展到 4M tokens
+- MiniMax-VL-01 在 Text-01 之上接入 303M ViT、两层 MLP projector，并继续训练 512B vision-language tokens
 
 #### 🔬 深入细节
-##### 1. 整体架构：混合注意力 + MoE 的积木式设计
+![MiniMax-Text-01 4M Needle-in-a-Haystack 长上下文压力图](https://github.com/MiniMax-AI/MiniMax-01/raw/main/figures/niah.png)
+*图：MiniMax 官方仓库给出的 4M Needle-in-a-Haystack 压力测试图，用于展示 MiniMax-Text-01 在超长上下文检索场景中的稳定性。*
 
-论文 Figure 3 展示了 MiniMax-Text-01 的核心 block 结构。每个 Transformer block 包含：
-- **Channel Mixer（注意力模块）**：两种类型交替 — Lightning Attention（线性）或 Softmax Attention（标准）
-- **Feature Mixer（FFN 模块）**：MoE 结构，含 32 个 FFN 专家，每个专家 hidden dim = 9216
+```python
+# Lightning Attention forward pass, simplified from the paper
+# Q, K, V: [n, d], B: block size, causal mask M: [B, B]
+def lightning_attention_forward(Q, K, V, B):
+    blocks = split_into_blocks(Q, K, V, block_size=B)
+    KV = zeros((d, d))
+    outputs = []
 
-具体配置：
-- 总层数：**80 层**（每 7 个 Lightning Attention block 后接 1 个 Softmax Attention block）
-- Hidden size：**6144**
-- 注意力头数：**64**，每头维度 **128**
-- Softmax Attention 使用 **GQA**（group size=8）+ RoPE（一半维度，base=10,000）
-- 总参数 **456B**，每 token 激活 **45.9B**
+    for Q_t, K_t, V_t in blocks:
+        # Intra-block: exact causal attention inside the current block
+        O_intra = ((Q_t @ K_t.T) * causal_mask(B)) @ V_t
 
-> 📊 **图 3 示意**（文本描述）：Input → RMSNorm → 分流至 Lightning Attention（左路）或 Softmax Attention（右路），然后通过 RMSNorm → MoE（32 专家 Top-2）→ 残差连接 → Output。每个 MoE 专家内部为 SiLU 激活 + 门控线性单元结构。
+        # Inter-block: summarize all previous blocks by a recurrent KV state
+        O_inter = Q_t @ KV
 
-##### 2. Lightning Attention：从 O(n²) 到 O(nd²) 的核心机制
+        # Update prefix state for future blocks
+        KV = KV + K_t.T @ V_t
+        outputs.append(O_intra + O_inter)
 
-传统 Softmax Attention 的计算为：
-
-```
-O = softmax(QK^T / √d) · V    — 复杂度 O(n²d)
-```
-
-Lightning Attention 利用"右乘核技巧"将其转化为线性形式：
-
-```
-O = Norm(Q · (K^T V))    — 复杂度 O(nd²)，因为 K^T V 是 d×d，与 n 无关
+    return concat(outputs, axis=0)
 ```
 
-推理时，KV 状态 d×d 矩阵可循环更新，**每次新 token 仅需 O(d²) 计算**，与序列长度完全解耦。
+MiniMax-Text-01 的核心动机是把上下文长度从常见的 32K 到 256K 推到百万级。标准 softmax attention 的训练和推理成本随序列长度呈二次增长，长上下文场景中 prefill latency 与显存占用都会迅速失控。论文选择 Lightning Attention 作为主体，不是简单替换成任意线性注意力，而是采用 I/O-aware 的分块计算来解决 causal LM 中 `cumsum` 难以并行的问题。
 
-**伪代码（Algorithm 1 — Lightning Attention Forward Pass）：**
+线性注意力的基本改写是把
 
+$$
+\mathbf O = \mathrm{Norm}\left((\mathbf Q\mathbf K^\top)\mathbf V\right)
+$$
+
+改成右乘形式：
+
+$$
+\mathbf O = \mathrm{Norm}\left(\mathbf Q(\mathbf K^\top\mathbf V)\right)
+$$
+
+这样可以维护一个递归状态 \(\mathbf{kv}_t\)：
+
+$$
+\mathbf{kv}_0=\mathbf 0,\quad
+\mathbf{kv}_t=\mathbf{kv}_{t-1}+\mathbf k_t\mathbf v_t^\top,\quad
+\mathbf o_t^\top=\mathbf q_t^\top\mathbf{kv}_t.
+$$
+
+直接递归虽然是线性复杂度，但不适合 GPU 并行。Lightning Attention 把序列切成块，对当前块内部仍计算因果 masked left-product，对历史块使用 \(\mathbf K^\top\mathbf V\) 的前缀摘要。最终复杂度写作 \(O(nd^2+nBd)\)，其中 \(n\) 是序列长度，\(d\) 是特征维度，\(B\) 是 block size。当 \(B\ll n\) 时，它避免了完整 \(n\times n\) 注意力矩阵。
+
+> 💡 关键：MiniMax 并没有彻底抛弃 softmax attention。论文发现纯线性注意力在检索类任务上会有短板，因此采用 7 个 Lightning Attention block 加 1 个 softmax attention block 的混合结构。Lightning 层负责把长上下文成本压下来，周期性 softmax 层负责保留精确 token-to-token 检索能力。
+
+MoE 部分的作用是把模型容量做大，同时控制每个 token 的实际计算量。对输入 token \(\mathbf x_t\)，MoE 输出可写为：
+
+$$
+\mathbf h_t=\sum_{i=1}^{E}\mathrm{Softmax}_i\left(\mathrm{TopK}(\mathbf x_t\mathbf W_g)\right)\cdot \mathrm{FFN}_i(\mathbf x_t).
+$$
+
+这里 \(E=32\)，MiniMax-Text-01 使用 top-2 routing。大规模 MoE 容易出现 routing collapse 或 expert imbalance，论文在 GShard 辅助损失之外增加 global router：先跨 EP group 同步各 expert 待处理 token 数，再做 dispatch，从而降低 token drop rate 并稳定训练。
+
+系统层面的贡献同样关键。softmax 层使用 varlen ring attention 处理 data packing 后的变长样本，减少百万级上下文中的 padding 浪费。Lightning 层使用 LASP+，让每个 context-parallel rank 先计算本地 \(KV_L\)，再通过 AllGather 得到全局前缀 \(KV_G\)，从而去掉原始 LASP 的串行 send-recv 依赖。MoE 侧通过 EP、ETP 与通信计算 overlap 降低 all-to-all 成本，推理侧则针对 Lightning Attention 实现 batched kernel fusion、prefill/decoding 分离、多级 padding 与 strided batched matmul。
+
+与传统 dense Transformer 相比，MiniMax-Text-01 的创新不只是把注意力从二次复杂度变成线性复杂度，而是在“线性注意力的吞吐优势、softmax 的检索能力、MoE 的容量扩展、分布式系统的通信隐藏”之间做工程化配平。这个配平解释了为什么它能在 456B 总参数、45.9B 激活参数规模下支持 1M 训练上下文和 4M 推理上下文，而不是只在小模型或离线实验中展示长序列可行性。
+
+#### 🧪 练习题
+```yaml
+question: "MiniMax-Text-01 为什么要每 7 个 Lightning Attention block 后插入 1 个 softmax attention block？"
+options:
+  - "为了让所有 attention 层都变成二次复杂度"
+  - "为了在保持长上下文效率的同时补足线性注意力的检索能力"
+  - "为了减少 MoE 专家的总数量"
+  - "为了避免使用 RoPE 位置编码"
+answer: 1
+explain: "Lightning Attention 提供近线性的长上下文效率，但纯线性注意力在精确检索上存在短板；周期性 softmax attention 保留强 token 交互能力。"
 ```
-Input: Q, K, V ∈ R^{n×d}, block sizes B
-Divide X into T = n/B blocks X_1, X_2, ... X_T of size B×d each,
-  where X ∈ {Q, K, V, O}
-Initialize mask M ∈ R^{B×B}, where M_{ts} = 1 if t ≥ s, else 0
-Initialize KV = 0 ∈ R^{d×d}
-
-for t = 1, ..., T do
-    Load Q_t, K_t, V_t ∈ R^{B×d} from HBM to on-chip SRAM
-    On chip, compute O_intra = [(Q_t K_t^T) ⊙ M] V_t     # 块内因果注意力
-    On chip, compute O_inter = Q_t (KV)                    # 跨块历史信息
-    On chip, compute KV = KV + K_t^T V_t                   # 累积 KV 状态
-    Write O_t = O_intra + O_inter to HBM as the t-th block of O
-end for
-Return O
-```
-
-**关键解读（≥3段）：**
-
-- **分块 I/O 感知设计**：算法将输入按块大小 B 切分为 T 块，每次只加载一块到 SRAM。块内计算精确因果注意力（O_intra），跨块通过累积的 KV 矩阵（O_inter）隐式建模全局依赖。这种设计充分利用了 GPU 的存储层次——HBM 大而慢，SRAM 小而快。
-
-- **为什么需要混合 Softmax Attention**：论文通过 scaling experiments 发现，纯 Lightning Attention 的 **检索能力有限**。这是因为线性注意力缺乏 softmax 带来的"赢者通吃"的稀疏性，在需要精确 token 定位的任务（如长文档 QA）上表现不足。因此每 8 层插入 1 层 Softmax Attention，以极小代价（仅 ~1/8 的注意力计算）补足检索短板。
-
-- **计算复杂度对比**（Table 1）：Softmax Attention 参数量 12ld²，FLOPs 为 72bnld²(1 + n/6d + 5/18d)；Lightning Attention 参数量 12ld² + 2ld²/h（多出因额外 KV 累积状态），FLOPs 约 72bnld²（无 n 相关项）。当 n ≫ d 时，Lightning 优势巨大。
-
-##### 3. MoE 与全局路由：解决大规模训练的负载均衡
-
-MoE 的核心公式为每个 token x_t：
-
-```
-h_t = Σ_{i=1}^{E} Softmax_i(TopK(x_t · W_g)) · FFN_i(x_t)
-```
-
-其中 E=32，TopK=2，采用 **token-drop 策略**（每个专家有容量上限，超出丢弃）。
-
-**全局路由器（Global Router）** 是本文的关键创新之一：
-
-在标准 MoE 中，不同 EP 组的 token 分布可能严重不均——某组的专家 A 过载而另一组的专家 A 闲置。MiniMax-01 在 token 分发前插入一次 **allgather 通信**，同步各 EP 组中每个专家待处理的 token 数量，在相同容量约束下全局优化分发决策，有效降低整体 token drop rate，保证训练稳定性。
-
-辅助损失采用 GShard 风格：L_aux = α_aux · (1/E) · Σ f_i · m_i，其中 f_i 是分配给专家 i 的 token 比例，m_i 是平均路由概率。
-
-##### 4. Scaling Laws：混合架构的最优性
-
-论文在 70M~7B 参数范围训练多种架构，拟合 Chinchilla-style scaling law：
-
-| Architecture | L(C) | N_opt(C) ∝ | D_opt(C) ∝ |
-|---|---|---|---|
-| Softmax Attention | 3.7087 C^{-0.0798} | C^{0.7118} | C^{0.5102} |
-| Lightning Attention | 3.5391 C^{-0.0768} | C^{0.6470} | C^{0.4684} |
-| **Hybrid-lightning** | **3.4797 C^{-0.0763}** | C^{0.6670} | C^{0.4707} |
-
-结论：**Hybrid-lightning 在所有计算预算下均获得最低 Loss**，且其最优模型尺寸的指数更接近纯 Lightning（更省参数量），最优数据量的指数介于两者之间。这验证了混合架构在效率-效果权衡中的帕累托最优性。
-
-##### 5. 训练与推理工程
-
-- **训练**：四阶段 pipeline（文本预训练 → VL 模态对齐 80B tokens → 视觉指令微调 420B tokens → 偏好对齐），VL 模型额外 512B vision-language tokens。
-- **推理外推**：训练上下文 1M token，通过 RoPE 频率调整和 Lightning Attention 的序列无关特性，可外推至 **4M token**，Prefill 延迟显著低于 Llama3-70B（Figure 2）。
-- **硬件适配**：模型设计目标为单机 8 GPU + 640GB 内存 + 8-bit 量化可推理 1M+ tokens，这是选择 456B 总参/45.9B 激活规模的实际物理约束。
-
----
 
 ### Llama 4
 
@@ -4487,78 +3452,84 @@ motivation: Llama首次转向MoE
 ```
 
 #### 📝 一句话总结
-Llama 4 是 Meta AI 在 2025 年 4 月发布的首个基于稀疏混合专家（Sparse MoE）架构的大语言模型系列，包含 Scout（109B 总参数/17B 激活）和 Maverick（402B 总参数/17B 激活）两个变体，原生支持多模态输入（文本+图像），以极高性价比在关键基准测试上匹敌甚至超越同期的闭源前沿模型（如 GPT-4o、Gemini 2.0 Flash）。
+Llama 4 将 Llama 系列首次转向原生多模态 MoE 架构，推出 Scout 与 Maverick，并用 Behemoth 教师模型进行蒸馏，解决 dense Llama 在成本、上下文长度和多模态融合上的扩展瓶颈。其关键变化是稀疏专家路由、early fusion 多模态预训练、iRoPE 长上下文结构，以及更轻量但更偏在线探索的 post-training 流程。
 
 #### 🎯 核心要点
-- **Llama 4 Scout**：109B 总参数，16 个专家，激活 17B，支持 10M token 的超长上下文窗口。定位为通用高效模型，可在单张 H100 GPU 上推理。
-- **Llama 4 Maverick**：402B 总参数，128 个专家，激活 17B，支持 1M token 上下文。定位为旗舰推理模型，在编码、推理、多语言等任务上与 GPT-4o 竞争。
-- **Llama 4 Behemoth**（训练中）：2T 总参数，288B 激活参数，16 个专家，用作 Maverick 的教师模型进行知识蒸馏。
-- **MetaP（Meta Pre-training）**：Meta 自研的大规模预训练框架，支持 10 万+ GPU 的分布式训练，专门针对 MoE 架构优化了 All-to-All 通信。
-- **FP8 混合精度训练**：在 H100 GPU 上使用 FP8 进行 RoPE 和注意力计算，显著降低显存和通信开销。
-- **Meta Chain of Thought (Meta CoT)**：为 Behemoth 采用 CoT 强化学习训练，使其在数学和 STEM 任务上达到 SOTA。
-- **知识蒸馏**：Behemoth → Maverick 进行大规模蒸馏，包括 logit-level 和 hidden-state-level 蒸馏。
-- **持续预训练 + 模型平均**：采用多阶段持续预训练（continual pre-training），每阶段结束时对模型参数进行指数移动平均（EMA），提升稳定性和泛化能力。
-- 采用 SFT（监督微调）+ RLHF（基于人类反馈的强化学习）两阶段对齐。
-- 在 RLHF 阶段引入 **Online Rejection Sampling**：从当前策略模型采样多个候选回复，只保留被奖励模型判定为高质量的样本进行训练，提升采样效率。
-- Maverick 在 LMSYS Chatbot Arena 的 ELO 分数达到 1400+（截至发布时为开源模型最高），与 GPT-4o（约 1410）和 Gemini 2.0 Flash 持平。
-- 在 MMLU-Pro、GPQA、MATH-500、HumanEval+ 等基准上，Maverick 显著超越 Llama 3 405B（仅用约 4% 的激活参数）。
-- Scout 以 17B 激活参数在多项基准上超过 Llama 3 70B 和 Mistral Large 2，展示了 MoE 的参数量优势。
+- Llama 4 Scout 是 17B active parameters、16 experts、109B total parameters 的开放权重多模态 MoE，支持 10M token 输入上下文
+- Llama 4 Maverick 是 17B active parameters、128 experts、400B total parameters 的多模态 MoE，面向高性能通用 assistant 与视觉理解
+- Llama 4 Behemoth 是 288B active parameters、16 experts、近 2T total parameters 的教师模型，用于 Scout/Maverick 的 codistillation
+- MoE 层包含 shared expert 与 routed experts，每个 token 进入 shared expert，并被 router 发送到一个 routed expert
+- 模型采用 alternating dense and MoE layers，以在稀疏激活和推理效率之间取得平衡
+- 原生多模态采用 early fusion，将文本、图像、视频帧 token 融入统一 backbone，而不是只在后端拼接视觉结果
+- Llama 4 Scout 使用 iRoPE 架构：交错部分无位置编码 attention 层、其余层使用 RoPE，并结合 inference-time attention temperature scaling 提升长度泛化
+- Post-training 流程改为 lightweight SFT → online RL → lightweight DPO，并持续过滤保留 medium-to-hard prompts
 
 #### 🔬 深入细节
-##### 1. MoE 架构设计细节 (Meta Sparse Mixture-of-Experts)
+![Llama 4 MoE 层示意图](https://scontent-sjc3-1.xx.fbcdn.net/v/t39.2365-6/488655517_650996354186993_1043942188415715102_n.png?_nc_cat=105&_nc_gid=jAu4FVVuVWJhx-yA99mh2Q&_nc_ht=scontent-sjc3-1.xx&_nc_oc=Adp3SXDM6sAEW3lAQImzdn3II-6LLCRkdmaMcCGsfXRTzWW7z7mPSmZThJxN_xNB1GI&_nc_ohc=MLLT0x0HCvAQ7kNvwHcy6QK&_nc_sid=e280be&_nc_ss=78100&_nc_zt=14&ccb=1-7&oe=6A4ADD00&oh=00_Af9lNgA6auJXYH9AteODJIqmCo4wExysmD8nRUCAhlR7PQ)
+*图：Meta 官方博客中的 Llama 4 MoE 层示意图，展示 shared expert、router 与 routed experts 的组合方式。*
 
-Llama 4 的 MoE 层替换了标准 Transformer 块中的 FFN（前馈网络）。每个 MoE 层包含：
-- 一个轻量级的 **路由器（Router）**：基于 token 表示学习一个 softmax gating 函数，选择 top-1（Scout/Maverick）或 top-2（Behemoth）专家。
-- **负载均衡策略**：引入可微分的辅助负载均衡损失（Auxiliary Load Balancing Loss），动态鼓励 token 均匀分配到各专家，防止"专家坍塌"（expert collapse）。此外还采用了专家容量限制（Expert Capacity Factor），当某专家超过容量上限时，多余 token 被路由到"残差专家"或直接绕过 MoE 层。
-- **共享专家（Shared Expert）**：Maverick 和 Behemoth 设置了"共享专家"，所有 token 都会经过该专家处理，捕获通用知识；同时路由专家负责处理专门化知识。
+```python
+# Simplified Llama 4 MoE block and training recipe
+# Scout uses 16 experts; Maverick uses 128 routed experts.
+def llama4_moe_ffn(hidden, router, shared_expert, routed_experts):
+    shared = shared_expert(hidden)
+    gate = softmax(router(hidden))
+    expert_id = argmax(gate)              # top-1 routed expert in Meta's description
+    routed = gate[expert_id] * routed_experts[expert_id](hidden)
+    return shared + routed
 
-##### 2. Early Fusion 多模态实现
 
-Llama 4 的多模态不是两阶段 pipeline，而是 true-early-fusion：
-- 输入图像经过 MetaCLIP-v2 视觉编码器得到 patch embeddings。
-- 这些 visual tokens 与 text tokens 通过"tile-and-flatten"策略平铺为统一的 1D 序列。
-- 在第一层 Transformer 自注意力中，所有 token（包括 visual 和 text）即可相互 attend，实现跨模态信息的早期融合。
-- 支持交错图文输入（interleaved image-text），可处理多图、图表理解、截图分析等复杂场景。
+def post_train_llama4(model, prompts):
+    hard_prompts = filter_easy_prompts(prompts, judge="Llama-as-judge")
+    model = lightweight_sft(model, hard_prompts)
 
-##### 3. 10M 超长上下文 (Scout)
+    while online_rl_budget_remaining():
+        batch = sample_medium_to_hard_prompts(hard_prompts)
+        rollouts = model.generate(batch)
+        rewards = multimodal_and_reasoning_rewards(rollouts)
+        model = online_rl_update(model, rollouts, rewards)
+        hard_prompts = retain_medium_to_hard(batch, rollouts)
 
-Scout 的 10M token 上下文是开源模型中首个达到该量级的。技术实现包括：
-- **分层 RoPE 扩展**：将 Llama 3 的 RoPE 基频 500,000 扩展至 1,000,000 以支持更长位置编码。
-- **"iRoPE"（interpolated RoPE）**：训练时采用分段插值策略，在短上下文区域保持原始频率，长上下文区域使用外推频率，实现"无损"长上下文扩展。
-- **Ring Attention**：在推理服务中采用序列并行（Ring Attention），将超长序列切分到多 GPU 上分布式计算注意力，支持 128+ GPU 同时处理一个 10M 序列。
+    model = lightweight_dpo(model, corner_case_preferences())
+    return model
+```
 
-##### 4. 知识蒸馏管线（Behemoth → Maverick）
+Llama 4 的最大结构变化是从 dense Llama 转向 sparse MoE。dense 模型中每个 token 都经过相同 FFN 参数，质量提升通常意味着每 token 计算量随模型变大一起增加。MoE 则把参数容量和激活计算解耦：总参数可以很大，但每个 token 只激活 shared expert 与少数 routed experts。对一个 hidden state \(\mathbf h\)，可用如下形式理解 Llama 4 的 MoE 层：
 
-2T 的 Behemoth 既是训练目标（SOTA 级别），也是 Maverick 的教师：
-- **Logit 蒸馏**：使用 KL 散度匹配教师和学生的输出分布，温度参数在训练过程中从 2.0 逐渐退火到 1.0。
-- **Hidden State 蒸馏**：对中间层表示进行 MSE 对齐，总损失 = 语言建模损失 + λ1 × logit 蒸馏损失 + λ2 × hidden state 蒸馏损失。
-- 蒸馏数据使用真实分布（非合成数据），Behemoth 的 logits 和目标标签一起参与训练。
+$$
+\mathbf y = E_{\mathrm{shared}}(\mathbf h) + \sum_{e\in\mathrm{Top1}(g(\mathbf h))} p_e E_e(\mathbf h),\quad
+p=\mathrm{softmax}(\mathbf W_r\mathbf h).
+$$
 
-##### 5. 高效训练基础设施 (MetaP)
+其中 \(E_{\mathrm{shared}}\) 提供所有 token 都共享的通用变换，\(E_e\) 提供被 router 选中的专家能力。Meta 在博客中明确写到 Maverick 的 MoE 层有 128 个 routed experts 和一个 shared expert，每个 token 被送到 shared expert，同时送到一个 routed expert。Scout、Maverick 都保持 17B active parameters，但总参数分别达到 109B 与 400B，这就是性能成本比提升的来源。
 
-MetaP 是 Meta 为 Llama 4 构建的分布式训练框架：
-- 支持 128K GPU 集群，基于 PyTorch FSDP2 + DTensor 实现对 MoE 权重的高效分片。
-- 针对 All-to-All 通信（MoE 的核心瓶颈）进行深度优化：使用 CUDA-aware MPI 和 NCCL，将通信隐藏在前向/反向计算之后（compute-communication overlap）。
-- FP8 混合精度：matmul 和 attention 使用 FP8，激活值存储为 BF16，loss scaling 采用动态缩放，训练吞吐较 BF16 提升约 40%。
+第二个关键变化是原生多模态 early fusion。Llama 4 不是先用独立视觉模型生成 caption，再把 caption 交给语言模型，而是把文本 token 与视觉 token 送入同一模型 backbone 进行联合预训练。视觉编码器基于 MetaCLIP，并与冻结的 Llama 模型配合训练以适配 LLM。early fusion 的好处是模型可以在底层注意力和专家路由阶段就学习跨模态对应关系，例如图像区域、视频帧、问题文本之间的直接交互。
 
-##### 6. 安全与对齐
+Llama 4 Scout 的长上下文能力主要依赖 iRoPE。Scout 在 pre-training 与 post-training 中都使用 256K context，并通过架构和推理时缩放泛化到 10M input context。iRoPE 中的 “i” 表示 interleaved：一部分 attention 层不使用位置编码，另一部分层保留 RoPE。这样做的直觉是减少所有层都强绑定训练长度位置分布带来的外推压力，同时保留 RoPE 对局部顺序和相对位置的建模能力。推理时 attention temperature scaling 可以写成直觉形式：
 
-- 使用 Llama Guard 4 作为安全分类器，在预训练、SFT、RLHF 各阶段进行内容安全过滤。
-- **Multi-Modal Safety**：特别针对多模态输入进行安全对齐，防止视觉 jailbreak 攻击。
-- 引入 **CyberSecEval 4** 基准评估网络安全风险，确保模型不会被滥用于漏洞利用或社会工程攻击。
+$$
+\mathrm{Attn}(Q,K,V)=\mathrm{softmax}\left(\frac{QK^\top}{\tau_l\sqrt d}+B_{\mathrm{pos}}\right)V,
+$$
 
-##### 7. 与 Llama 3 的关键对比
+其中 \(\tau_l\) 表示层相关的温度缩放，\(B_{\mathrm{pos}}\) 在 RoPE 层隐式来自旋转位置编码，在无位置编码层可以视为缺省。温度缩放调节 attention 分布的尖锐程度，帮助模型在远超训练长度时避免注意力过度集中或失真。
 
-| 维度 | Llama 3 405B | Llama 4 Maverick |
-|------|-------------|------------------|
-| 架构 | Dense | Sparse MoE (128E, top-1) |
-| 总参数 | 405B | 402B |
-| 激活参数 | 405B | 17B |
-| 推理 TFLOPS/token | ~810 | ~34 |
-| 多模态 | 无原生支持 | Early Fusion 图+文 |
-| 上下文窗口 | 128K | 1M (Behemoth 10M) |
-| Chatbot Arena ELO | ~1360 | ~1410 |
-| 训练 tokens | 15T | 30T (含多模态) |
+Post-training 流程也明显不同于“堆大量 SFT 和 DPO”的做法。Meta 报告称 Maverick 的难点是同时保持多模态、推理和对话能力，因此采用 lightweight SFT → online RL → lightweight DPO。SFT 前先用 Llama judge 移除超过 50% 的 easy 数据，只保留更难的样本，避免 SFT 和 DPO 过度约束模型探索。online RL 阶段通过更难 prompts 获得能力跃迁，并持续交替“训练模型”和“用模型过滤 medium-to-hard prompts”。最后的轻量 DPO 主要处理 response quality 的角落案例，而不是作为主要能力来源。
+
+Behemoth 的作用是教师模型。它仍是 MoE 多模态模型，规模接近 2T total parameters，288B active parameters。Meta 使用 codistillation 将 Behemoth 的能力迁移到 Maverick，并设计动态加权的蒸馏损失，在 soft targets 与 hard targets 之间随训练调整权重。与传统离线蒸馏不同，Behemoth 对新增数据提供前向目标，而大部分训练数据上的教师前向成本通过预训练期间的 codistillation 摊销。
+
+与 Llama 3 相比，Llama 4 的创新不只是“更大”。Llama 3 主要是 dense 文本模型路线，Llama 4 则把稀疏 MoE、原生多模态、长上下文位置策略、教师蒸馏和在线 RL 组合成一条新路线。代价是部署时需要存储 total parameters，并处理专家路由、专家并行和多模态输入的系统复杂度；收益是每 token 激活计算保持在相对可控范围内，同时获得更高容量、更长上下文和更强视觉理解。
+
+#### 🧪 练习题
+```yaml
+question: "Llama 4 MoE 层中 shared expert 的主要作用是什么？"
+options:
+  - "替代所有 routed experts，让模型退化为 dense FFN"
+  - "为所有 token 提供共享变换，同时 routed expert 负责稀疏专门化能力"
+  - "只处理图像 token，不处理文本 token"
+  - "只在 DPO 阶段使用，推理时不参与计算"
+answer: 1
+explain: "Meta 的 MoE 描述中，每个 token 同时进入 shared expert 和一个 routed expert；shared expert 承担通用能力，routed expert 提供条件化容量。"
+```
 
 ### Qwen3
 
@@ -4746,190 +3717,80 @@ motivation: 混合MoE支持测试时扩展
 ```
 
 #### 📝 一句话总结
-MiniMax-M1 是全球首个开源的大规模混合注意力推理模型，通过 Hybrid MoE + Lightning Attention 架构和 CISPO 强化学习算法，以仅 $534,700 的训练成本在 512 张 H800 GPU 上 3 周完成训练，实现与 DeepSeek-R1 等顶尖模型相当的推理性能，同时将长序列生成的 FLOPs 消耗降至 25%。
+MiniMax-M1 在 MiniMax-Text-01 的 456B/45.9B 激活混合注意力 MoE 底座上，通过 CISPO 强化学习和分阶段长思维扩展，让测试时生成长度扩到 40K/80K，同时把长序列推理 FLOPs 显著低于纯 Softmax 推理模型。它解决的是“长推理越有效但越贵”的矛盾：用 Lightning Attention 降 rollout 成本，用 RL 让模型学会利用更长思维预算。
 
 #### 🎯 核心要点
-- 核心动机：混合MoE支持测试时扩展
-- 演化来源：继承或改进自 minimax01
-- 代表机构：MiniMax
+- 模型底座来自 MiniMax-Text-01：456B 总参数、45.9B activated、32 experts，每 7 个 Lightning Attention block 后接 1 个 Softmax Attention block。
+- 原生支持 1M input context，并发布 MiniMax-M1-40k 与 MiniMax-M1-80k 两个 thinking budget 版本。
+- Figure 1 报告相对 DeepSeek-R1，M1 在 64K 生成长度下 FLOPs 低于 50%，100K 生成长度下约为 25%。
+- 提出 CISPO：不再像 PPO/GRPO 那样裁剪 token update，而是裁剪 importance sampling weight，从而保留所有 token 的梯度贡献。
+- RL 数据覆盖数学、逻辑、竞赛编程、软件工程 sandbox 和通用任务；可验证任务用规则/执行奖励，开放任务用生成式 reward model。
+- 针对混合注意力 RL 的工程问题，修复训练/推理 kernel 概率不一致、AdamW 超参数敏感、重复高概率 token 造成的病态长输出。
+- 80K 训练采用 staged window expansion：40K → 48K → 56K → 64K → 72K → 80K，并用困惑度收敛和 99 分位输出长度判断何时扩窗。
 
 #### 🔬 深入细节
-![Figure 1: 左：主流模型在数学、编程、软件工程、工具使用和长上下文理解上的基准性能对比；右：推理 FLOPs 随生成长度的理论缩放曲线](https://arxiv.org/html/2506.13585v1/extracted/7872847/figures/radar_flops_v4.png)
+![MiniMax-M1 基准性能对比](https://arxiv.org/html/2506.13585v1/x1.png)
+*图：MiniMax-M1 Figure 1 左图，比较 MiniMax-M1-80k 与主流模型在数学、代码、软件工程、工具使用和长上下文任务上的表现；右图 `https://arxiv.org/html/2506.13585v1/x2.png` 展示生成长度增加时的 FLOPs 缩放。*
 
-##### 1. 混合注意力架构设计（Hybrid Attention Architecture）
-
-MiniMax-M1 基于 MiniMax-Text-01 构建，其核心设计理念是**用线性注意力处理长序列依赖，在关键层保留 Softmax 注意力以维持精度**。具体结构如下：
-
-```
-[H1: Lightning Attn] → [H2: Lightning Attn] → ... → [H7: Lightning Attn] → [H8: Softmax Attn] → [H9: Lightning Attn] → ...
-```
-
-即每 **8 个 Transformer 块** 为一个循环单元，其中 7 个使用 Lightning Attention（线性注意力），1 个使用传统 Softmax Attention。这种设计在长序列推理时显著降低了计算复杂度：
-
-| 模型 | 注意力复杂度 | 64K token FLOPs | 100K token FLOPs |
-|------|-------------|-----------------|------------------|
-| DeepSeek-R1 (Softmax) | O(N²) | 基准 100% | 基准 100% |
-| MiniMax-M1 (Hybrid) | O(N) | < 50% | ≈ 25% |
-
-##### 2. Lightning Attention 的原理与实现
-
-Lightning Attention 是一种 I/O-aware 的线性注意力实现。传统 Linear Attention 的核心公式为：
-
-$$\text{LinearAttn}(Q, K, V) = \frac{Q(K^\top V)}{Q(K^\top \mathbf{1})}$$
-
-其关键优势在于可以通过**右乘结合律**（即先计算 $K^\top V$，再左乘 $Q$），将复杂度从 $O(N^2d)$ 降至 $O(Nd^2)$。然而，朴素的线性注意力在**因果推理**时仍需逐 token 递推。Lightning Attention 巧妙地将计算分为块内（intra-block）和块间（inter-block）两个阶段：
-
-**伪代码（Lightning Attention 前向传播）：**
 ```python
-def lightning_attention(Q, K, V, block_size=128):
-    """
-    Q, K, V: [batch, seq_len, heads, dim]
-    使用 tiling 策略实现 I/O-aware 线性注意力
-    """
-    N = Q.shape[1]
-    d = Q.shape[-1]
-    O = torch.zeros_like(Q)
+# CISPO + 长思维窗口扩展训练伪代码
+def train_minimax_m1(policy, prompts):
+    windows = [40_000, 48_000, 56_000, 64_000, 72_000, 80_000]
 
-    # 分块计算
-    num_blocks = ceil(N / block_size)
+    for max_output_tokens in windows:
+        while not ready_to_expand(policy, max_output_tokens):
+            batch = sample_curriculum(prompts, max_output_tokens)
+            rollouts = policy.generate(batch, max_new_tokens=max_output_tokens)
+            rollouts = stop_if_3000_high_prob_tokens(rollouts, threshold=0.99)
 
-    # 块间状态（类似 RNN 的 hidden state）
-    KV_state = torch.zeros(batch, heads, d, d)  # K^T V 累积
-    K_sum = torch.zeros(batch, heads, d)          # K 求和归一化
+            rewards = []
+            for sample in rollouts:
+                if sample.task in ["math", "logic", "code", "software_engineering"]:
+                    rewards.append(rule_or_execution_reward(sample))
+                else:
+                    rewards.append(generative_reward_model(sample))
 
-    for i in range(num_blocks):
-        start = i * block_size
-        end = min((i+1) * block_size, N)
+            advantages = group_relative_advantage(rewards)
+            old_logp = rollout_logprobs(rollouts)
+            new_logp = policy.logprobs(rollouts)
+            is_weight = exp(new_logp - old_logp)
 
-        Q_block = Q[:, start:end]
-        K_block = K[:, start:end]
-        V_block = V[:, start:end]
+            # CISPO: 裁剪 IS weight，但不丢弃 token 梯度
+            clipped_w = clip(is_weight, 1 - eps_low_is, 1 + eps_high_is)
+            loss = -mean(clipped_w * stop_gradient(advantages) * new_logp)
+            loss = mix_sample_level_and_token_level_normalization(loss)
+            policy.update(loss, adamw_betas=(0.9, 0.95), adamw_eps=1e-15)
 
-        # 1. 块间贡献（利用累积状态）
-        O_inter = Q_block @ KV_state        # [B, L, d]
-        O_norm_inter = Q_block @ K_sum.unsqueeze(-1)  # 归一化项
-
-        # 2. 块内因果注意力（标准 causal linear attention）
-        # 对块内使用 mask 保证因果性
-        K_cumsum = torch.cumsum(K_block, dim=1)
-        KV_intra = torch.einsum('bld,bld->bldd', K_block, V_block)
-        KV_intra_cumsum = torch.cumsum(KV_intra, dim=1)
-        O_intra = torch.einsum('bld,bldd->bld', Q_block, KV_intra_cumsum)
-        O_norm_intra = (Q_block * K_cumsum).sum(dim=-1, keepdim=True)
-
-        # 3. 合并输出
-        O_total = O_inter + O_intra
-        O_norm = O_norm_inter + O_norm_intra + 1e-8
-        O[:, start:end] = O_total / O_norm
-
-        # 4. 更新块间累积状态
-        KV_state += K_block.transpose(-1, -2) @ V_block  # 累积 K^T V
-        K_sum += K_block.sum(dim=1)  # 累积 K 求和
-
-    return O
+    return policy
 ```
 
-**深度解读：**
-- Lightning Attention 的本质是将线性注意力实现为一种**块级递推计算**，在保持 $O(Nd^2)$ 理论复杂度的同时，通过 I/O-aware 的 tiling 策略最大化 GPU 显存带宽利用率，避免了传统线性注意力在长序列上的显存瓶颈。与 Mamba 等 SSM 不同，Lightning Attention 仍然是**显式的注意力机制**，保留了 $Q, K, V$ 的可解释性。
-- 该设计在推理阶段自然支持 KV 缓存沿序列累积，使得**自回归解码的每步复杂度为 O(1)**，而非 Softmax Attention 的 O(N)。这意味着生成 100K token 时的总体计算量仅为 DeepSeek-R1 的约四分之一，大幅降低了大规模推理成本。
+M1 的基础架构继承 MiniMax-Text-01，因此它的“长推理”能力不是靠稀疏采样或外部记忆硬补出来的，而是来自混合注意力本身。Lightning Attention 把长序列 rollout 的边际成本压低，Softmax block 周期性补足精确检索，MoE 让模型保留大容量专家知识。论文强调这对 RL 尤其关键，因为 reasoning model 的训练瓶颈不只在反向传播，还在反复采样长输出；如果 rollout 随生成长度二次增长，80K thinking budget 的训练成本会迅速不可控。
 
-##### 3. CISPO：重要性采样权重裁剪的强化学习算法
+CISPO 的动机来自 PPO/GRPO 在长 CoT 上的 token clipping 问题。论文观察到，反思类 token 如 `Wait`、`Recheck`、`However` 往往在 base model 中概率很低，但它们可能是推理路径分叉和自我纠错的关键。一旦 PPO/GRPO 的概率比 \(r_{i,t}\) 超出裁剪区间，这些 token 会被“裁掉”而不再贡献后续 off-policy 更新。CISPO 改为裁剪 importance sampling weight：
+$$
+w_{i,t}=\frac{\pi_\theta(o_{i,t}\mid q,o_{i,<t})}{\pi_{\theta_{\mathrm{old}}}(o_{i,t}\mid q,o_{i,<t})},
+\qquad
+\bar w_{i,t}=\mathrm{clip}(w_{i,t},1-\epsilon^{IS}_{low},1+\epsilon^{IS}_{high}).
+$$
+直觉上，CISPO 仍限制 off-policy 分布校正的方差，但不把罕见而有用的推理 token 直接从梯度里移除。论文还明确说 CISPO 不使用 KL penalty，并结合 dynamic sampling 与 length penalty。
 
-CISPO（**C**lipped **I**mportance **S**ampling for **P**olicy **O**ptimization）是 MiniMax-M1 提出的新型 RL 算法。其核心思想借鉴了 PPO 的 Clipped Surrogate Objective，但**裁剪的对象从策略概率比改为重要性采样权重**，以进一步提升 RL 训练稳定性。
+RL 数据设计服务于“可验证能力”和“通用对齐”两类目标。数学、逻辑和竞赛编程样本可用答案解析器、规则 checker 或测试用例验证；软件工程任务构建 containerized sandbox，用编译、测试通过与回归情况给执行奖励；通用问答、创作和复杂指令没有唯一答案，则用 GenRM 做 pairwise 或打分反馈。为了避免 reward model 偏好冗长输出，训练中持续监控长度偏置，一旦发现模型靠拉长 CoT 奖励套利，就重新校准 reward，并在 RL 侧加入 reward shaping、value clipping 和 normalization。
 
-与 GRPO（DeepSeek-R1 使用的算法）对比，CISPO 的关键区别如下：
+混合注意力模型做大规模 RL 时还暴露出工程敏感性。论文发现训练模式和推理模式下 rollout token 概率存在不一致，根因是 kernel 精度和 LM head 高幅值激活造成的误差；把 LM output head 提升到 FP32 后，概率相关性从约 0.9x 改善到 0.99x，reward 才能持续增长。优化器也需要重调：默认 AdamW \((0.9,0.999)\)、eps \(10^{-8}\) 会因 M1 梯度范围极宽而不收敛，最终使用 \(\beta_1=0.9,\ \beta_2=0.95,\ \epsilon=10^{-15}\)。
 
-**GRPO 的更新目标：**
-$$\mathcal{L}^{\text{GRPO}} = -\min\left(r_t(\theta) \hat{A}_t, \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon) \hat{A}_t\right)$$
+80K thinking budget 不是一次性把输出上限翻倍，而是课程式扩展。M1 先训练 40K，再按 48K、56K、64K、72K、80K 逐步增加窗口；每阶段等待生成序列 perplexity 收敛、99 分位输出长度接近当前上限后才扩展。论文还指出长窗口后期会出现 pattern collapse：负样本长度增长快于正样本，后半段累积过量负梯度，导致输出后段乱码或重复。对应修复包括 3000 个连续高概率 token 的重复早停、混合样本级损失和 token 级归一化、降低梯度裁剪阈值以及调小 \(\epsilon^{IS}_{high}\)。
 
-其中 $r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{\text{old}}(a_t|s_t)}$ 是新旧策略的概率比。
-
-**CISPO 的更新目标（简化版）：**
-$$\mathcal{L}^{\text{CISPO}} = -\min\left(w_t \cdot \hat{A}_t, \text{clip}(w_t, 1-\epsilon_{low}, 1+\epsilon_{high}) \cdot \hat{A}_t\right)$$
-
-其中 $w_t$ 是重要性采样权重，且 CISPO 设置了不对称裁剪区间 $\epsilon_{low}^{IS}, \epsilon_{high}^{IS}$：
-
-$$\epsilon_{low}^{IS} = 0.2, \quad \epsilon_{high}^{IS} = 0.3$$
-
-**伪代码（CISPO 训练循环）：**
-```python
-def cispo_update(policy, old_policy, data, epsilon_low=0.2, epsilon_high=0.3):
-    """
-    policy: 当前策略网络
-    old_policy: 旧策略网络（用于计算重要性采样权重）
-    data: 包含 state, action, advantage 的批次数据
-    """
-    states, actions, advantages = data
-
-    # 1. 计算重要性采样权重
-    with torch.no_grad():
-        logp_old = old_policy.log_prob(states, actions)
-
-    logp_new = policy.log_prob(states, actions)
-
-    # 重要性采样权重 w = exp(logp_new - logp_old)
-    importance_weights = torch.exp(logp_new - logp_old)
-
-    # 2. 计算未裁剪的损失
-    unclipped_loss = -importance_weights * advantages
-
-    # 3. CISPO 核心：裁剪重要性采样权重（而非概率比）
-    w_clipped = torch.clamp(
-        importance_weights,
-        min=1.0 - epsilon_low,   # 裁剪下界
-        max=1.0 + epsilon_high   # 裁剪上界
-    )
-    clipped_loss = -w_clipped * advantages
-
-    # 4. 取两者中的较大值（保守更新）
-    loss = torch.max(unclipped_loss, clipped_loss).mean()
-
-    # 5. （可选）加入 KL 散度正则化
-    kl_penalty = 0.01 * torch.mean((logp_old - logp_new) ** 2)
-
-    return loss + kl_penalty
+#### 🧪 练习题
+```yaml
+question: "CISPO 相比 PPO/GRPO 的关键变化是什么？"
+options:
+  - "删除所有 off-policy 更新，只保留 SFT"
+  - "裁剪 importance sampling weight，同时保留所有 token 的梯度贡献"
+  - "把 Lightning Attention 替换为纯 Softmax Attention"
+  - "只用 reward model，不再使用规则验证"
+answer: 1
+explain: "CISPO 的核心是从裁剪 token update 转向裁剪 IS weight，避免长 CoT 中罕见但关键的反思 token 被直接丢掉。"
 ```
-
-**深度解读：**
-- CISPO 与 PPO/GRPO 的核心哲学差异在于**"保护什么"**：PPO 裁剪概率比 $r_t(\theta)$，本质上是限制单步更新的幅度；而 CISPO 直接裁剪重要性采样权重 $w_t$，对应的是累积多步后的分布偏移。在 RL 训练中，由于 CoT（Chain-of-Thought）推理序列可能长达数万 token，多步累积的策略偏移远大于单步，因此 CISPO 在长序列 RL 训练中更为稳定。
-- 不对称裁剪区间（$\epsilon_{low}=0.2, \epsilon_{high}=0.3$）允许对正优势样本施加更大的更新幅度，这是一种**乐观探索**机制——鼓励模型在发现有价值的新推理路径时更激进地利用，而对不利探索保持保守。
-- 结合 Lightning Attention 的线性复杂度优势，CISPO 使得 MiniMax-M1 能以 512 张 H800 GPU 在 3 周内完成全量 RL 训练，总成本仅 $534,700，相比 DeepSeek-R1 据称的数百万美元训练成本大幅降低。
-
-##### 4. 长上下文 RL 训练的稳定性工程
-
-MiniMax-M1 在扩展到 80K 思维预算的过程中，发现了长序列 RL 训练的**模式坍缩**（Pattern Collapse）问题，并提出了系统性的解决方案：
-
-**问题：** 随着输出长度从 40K 扩展到 80K，模型生成的后半段文本会出现**无意义的重复或乱码**。根因分析发现：
-(1) GRPO 的优势归一化（Advantage Normalization）与 token 级损失的不匹配：负样本的长度增长远快于正样本，导致后半段累积大量负梯度；
-(2) 梯度分布极广（$10^{-18}$ 到 $10^{-5}$），且相邻迭代间的梯度相关性弱。
-
-**解决方案：**
-
-| 问题 | 解决方案 | 效果 |
-|------|---------|------|
-| 重复文本导致序列过长 | 重复检测早停（连续 3000 token 概率 > 0.99 则截断） | 消除病态长尾样本 |
-| 正负样本长度不平衡 | 结合样本级损失和 token 级归一化 | 缓解负梯度累积 |
-| 梯度分布极广 | Adam 参数调整为 $\beta_2=0.95$, eps=$10^{-15}$ | 稳定更新幅度 |
-| 大梯度破坏稳定性 | 降低梯度裁剪阈值和 $\epsilon^{IS}_{high}$ | 进一步平滑训练 |
-
-##### 5. 分阶段窗口扩展策略（Staged Window Expansion）
-
-MiniMax-M1-80K 的训练采用了**6 阶段渐进式扩展**方案：
-$$40\text{K} \rightarrow 48\text{K} \rightarrow 56\text{K} \rightarrow 64\text{K} \rightarrow 72\text{K} \rightarrow 80\text{K}$$
-
-每阶段的切换依据两个经验性指标：
-- **生成序列的困惑度收敛**：当 perplexity 不再下降时触发扩展
-- **99 百分位输出长度接近当前窗口上限**：表明模型已充分利用现有预算
-
-这一策略的核心思想与课程学习（Curriculum Learning）一致：逐步增加任务难度，让模型在每一步都有充足的"舒适区"来适应新的生成长度，避免了直接从 40K 跳到 80K 导致的训练崩溃。
-
----
-
-**练习题 (可选)：**
-
-1. Lightning Attention 的块间状态 $KV_{state} = K^\top V$ 如何实现因果性？为什么"先算 $K^\top V$" 的右乘结合律在因果序列中仍然成立？
-2. CISPO 使用不对称裁剪区间 $[1-\epsilon_{low}, 1+\epsilon_{high}]$ 且 $\epsilon_{high} > \epsilon_{low}$。这一设计是否可能导致训练中的乐观偏差（Optimism Bias）？为什么 MiniMax-M1 在实践中反而更稳定？
-3. 比较 MiniMax-M1 的分阶段窗口扩展与 DeepSeek-R1 的"冷启动"训练策略的异同，各自适用什么场景？
 
 ### Kimi K2
 
@@ -4948,162 +3809,111 @@ motivation: MuonClip稳定万亿MoE
 ```
 
 #### 📝 一句话总结
-Kimi K2 提出了 **MuonClip 优化器（Muon + QK-Clip）** 以解决 Muon 在大模型中训练不稳定的问题，使 1T 参数 MoE 模型的收敛速度比 AdamW 快 30-50%；同时首创 **统一强化学习框架**，将数学/代码的可验证奖励与通用对话的自批判反馈融合为单一 RL 流程，在 SWE-bench Verified 上达到 71.6%（开源 SOTA）。
-
----
+Kimi K2 提出了 1.04T total、约 32B active 的开放 MoE 智能体模型，并用 MuonClip 解决 Muon 在万亿参数训练中的注意力 logit 爆炸问题。它进一步通过大规模工具使用轨迹合成、可验证奖励与 self-critique rubric reward 的联合 RL，把基础模型能力转化为软件工程、工具调用和多步 agentic 行为。
 
 #### 🎯 核心要点
-- **MuonClip 优化器**：在 Muon 的 Newton-Schulz 迭代基础上引入 **QK-Clip**（对 Q/K 投影矩阵 L2 范数硬阈值裁剪 1000.0），彻底解决 logit explosion 问题，使 Muon 首次成功训练千亿级 LLM
-- **RMSNorm-only 架构**：去除 LayerNorm 的均值中心化和可学习偏置，仅保留 RMSNorm 缩放因子，保障 Muon 的 NS 迭代数值稳定性
-- **1T 总参 / 32.6B 激活的 MoE**：384 专家（8 激活 + 1 共享），稀疏度 48，基于自研稀疏度 Scaling Law 确定
-- **Table 2 架构对比**：相比 DeepSeek-V3（671B/37B/256 专家），K2 总参 ↑54%、激活 ↓13%、专家 ↑50%、注意力头 ↓50%（128→64）、密集层 ↓67%（3→1）、去除专家分组
-- **15.5T tokens 高质量预训练**：数据去污（13-gram + MinHash + URL 黑名单）+ 低质内容重写
-- **合成数据驱动的 SFT**：三类核心数据——工具调用轨迹、多步 Agent 轨迹（观察-行动-反思循环）、高质量对话
-- **统一 RL 框架**：PPO 训练，每个 batch 混合可验证奖励（数学 sympy 等价性检查 / 代码测试用例通过率 + PRM 过程信号）与 **自批判反馈**（K2 Critic 按 Clarity / Conversational / Objective 三维 Rubrics 打分，禁止 Initial Praise 和 Explicit Justification 偏差）
-- **SWE-bench Verified 71.6%**（多尝试）、AIME 2024 69.6%、Arena-Hard Auto v2.0 54.5% win rate（hard prompts）、LMSYS Arena 第 5（开源第 1）
-- **训练基础设施**：H800 GPU 集群，16-way PP（虚拟 stage）+ 16-way EP + ZeRO-1 DP，EP all-to-all 通信与 interleaved 1F1B 重叠
-- **引擎切换流水线**：预训练框架 → RL/SFT 框架的 H2D 权重转换 + broadcast + reload，全自动化
+- Kimi K2 是 1.04T 参数 MoE Transformer，每 token 激活约 32B 参数，采用 DeepSeek-V3 风格的 MLA 注意力
+- 架构包含 61 层、384 个总专家、每 token 激活 8 个专家、1 个 shared expert、64 个 attention heads、hidden size 7168
+- MuonClip 将 Muon optimizer、weight decay、consistent RMS matching 与 QK-Clip 组合，支撑 15.5T tokens 预训练且无 loss spike
+- QK-Clip 监控每个 head 的最大 attention logit，超过阈值 \(\tau\) 时按 head 缩放 query/key projection 权重，而不是直接裁剪 logits
+- 稀疏 scaling law 表明在固定 activated parameters 下增加总专家数可以降低训练和验证 loss，因此 K2 采用 sparsity 48
+- 预训练数据强调 token utility，通过知识文本 chunk-wise autoregressive rephrasing 与数学学习笔记风格改写提升高质量 token 利用率
+- Agentic SFT 数据由 3000+ 真实 MCP 工具、20,000+ 合成工具、自动生成 agents/tasks/rubrics 与轨迹过滤组成
+- Post-training 使用 verifiable rewards、self-critique rubric reward、budget control、PTX loss 与统一 Gym-like RL 环境
 
 #### 🔬 深入细节
-##### 1. 动机与背景
+![Kimi K2 工具规格、agent 与任务合成流程](https://ar5iv.labs.arxiv.org/html/2507.20534/assets/x10.png)
+*图：Kimi K2 论文 Figure 8(a)，展示从真实 MCP tools 与合成 applications 构造 tool repository、agents 与 rubric tasks 的流程。*
 
-训练千亿级 MoE 语言模型面临两大核心挑战：**优化器的数值稳定性** 与 **后训练阶段的多能力对齐**。
+![Kimi K2 多智能体工具轨迹生成与过滤流程](https://ar5iv.labs.arxiv.org/html/2507.20534/assets/x11.png)
+*图：Kimi K2 论文 Figure 8(b)，展示 user agent、task、rubrics、tool simulator 与 judge agent 如何生成并过滤工具调用轨迹。*
 
-- **AdamW 的局限**：AdamW 凭借对角缩放（低秩更新）天然规避梯度爆炸，但其收敛速度慢——小规模实验中 Muon 收敛所需步数少 30-50%。然而 Muon 的 Newton-Schulz 迭代（将梯度矩阵投影到正交矩阵空间，实现满秩动量更新）在 LLM 训练中会触发 **logit explosion**（注意力 logit 值突然爆炸），导致 loss spike 不可恢复。
-
-  > ⚠️ 关键矛盾：**Muon 收敛快但不稳定，AdamW 稳定但收敛慢**——需要一种机制兼具两者优势。
-
-- **后训练对齐困境**：数学/代码任务有客观答案（可验证奖励），但通用对话、写作等开放任务缺乏 ground-truth 评判标准。传统 RLHF 依赖人类偏好模型（Reward Model），但 RM 训练成本高且与生成模型的评判分布存在偏差。
-
-  > 💡 核心洞察：**能否用模型自身作为评判器（Self-Critic），并设计细粒度 Rubrics 来量化主观质量？**
-
-##### 2. 核心方法详解
-
-###### 2.1 MuonClip：Muon + QK-Clip
-
-**Muon 基础**（Keller Jordan 2024）：
-- 对每一层的权重梯度矩阵 \(\mathbf{G} \in \mathbb{R}^{m \times n}\)，计算动量 \(\mathbf{M}_t = \beta \mathbf{M}_{t-1} + \mathbf{G}_t\)
-- 对 \(\mathbf{M}_t\) 执行 Newton-Schulz 迭代，将其投影到正交矩阵空间：\(\mathbf{U} = \text{NS}(\mathbf{M}_t)\)
-- 参数更新：\(\mathbf{W}_{t+1} = \mathbf{W}_t - \eta \cdot \mathbf{U}\)
-
-**QK-Clip 机制**（论文附录 D）：
-- 在每步更新后，对 attention 层的 Q/K 投影矩阵执行：
-  \[
-  \text{if } \|\mathbf{W}_Q\|_2 > \tau \text{ or } \|\mathbf{W}_K\|_2 > \tau: \quad \mathbf{W} \leftarrow \mathbf{W} \cdot \frac{\tau}{\|\mathbf{W}\|_2}
-  \]
-  其中 \(\tau = 1000.0\)
-
-- **触发统计**：仅在前 ~70K 训练步触发，影响 ~12.7% 的注意力头，之后自动停止。开销 <0.1% 总计算量。
-- **理论保证**：证明 QK-Clip 后的矩阵仍满足注意力投影的正交性条件，不会破坏模型表达能力。
-
-**RMSNorm-only 架构的必要性**：
-- 标准 LayerNorm 包含均值中心化 \(\mathbf{x} \leftarrow \mathbf{x} - \mu(\mathbf{x})\) 和可学习偏置 \(\beta\)，这些操作会改变梯度矩阵的谱分布，使 Newton-Schulz 迭代收敛变慢
-- K2 将所有归一化层替换为纯 RMSNorm：\(\text{RMSNorm}(\mathbf{x}) = \mathbf{x} \cdot \frac{\gamma}{\text{RMS}(\mathbf{x})}\)，仅保留缩放因子 \(\gamma\)
-- 消融实验：使用标准 LayerNorm 时 NS 迭代收敛速度下降 ~20%
-
-###### 2.2 模型架构
-
-| 参数 | Kimi K2 | DeepSeek-V3 | 变化 |
-|------|---------|-------------|------|
-| 总参数量 | **1.04T** | 671B | ↑54% |
-| 激活参数量 | **32.6B** | 37B | ↓13% |
-| 专家总数 | **384** | 256 | ↑50% |
-| 每 token 激活专家 | 8 | 8 | = |
-| 共享专家 | 1 | 1 | = |
-| 注意力头 | **64** | 128 | ↓50% |
-| 隐藏维度 | 7168 | — | — |
-| 专家隐藏维度 | 2048 | — | — |
-| 层数 | 61 | 61 | = |
-| 密集层数 | **1** | 3 | ↓67% |
-| 专家分组 | **无** | 有 | — |
-
-**稀疏度 Scaling Law**（论文 Fig. 5-6）：
-- 固定激活专家数（8）和共享专家（1），变化总专家数进行稀疏度实验
-- 稀疏度 48（384 专家）相比稀疏度 8 减少 **1.69× FLOPs** 即可达到相同验证损失 1.5
-- **注意力头加倍**（64→128）仅在验证损失上带来 0.5-1.2% 的微弱提升，但推理 FLOPs 增加 83%（序列长度 128K），不划算
-
-###### 2.3 统一强化学习框架
-
-这是论文最核心的创新之一，将两类奖励信号融合为单一 PPO 训练流程：
-
-**A. 可验证奖励（Verifiable Rewards）**
-- **数学**：使用 sympy 进行最终答案等价性检查，配合过程奖励模型（PRM）提供中间步骤信号
-- **代码**：测试用例通过率 + 编译成功与否，稀疏奖励（仅最终结果）
-- 奖励函数：\(R_V = \mathbb{1}[\text{答案正确}] + \lambda \cdot R_{\text{PRM}}\)
-
-**B. 自批判反馈（Self-Critic Feedback）**
-- 针对无客观标准的开放任务，使用 K2 自身作为评判器（K2 Critic）
-- **K2 Critic Rubrics**（附录 F）包含三大维度：
-  1. **Clarity（清晰度）**：回答结构清晰、逻辑连贯
-  2. **Conversational（对话性）**：自然、有同理心、符合用户期望
-  3. **Objective（目标达成）**：准确满足用户需求
-- **两个禁止偏差**：
-  - ❌ Initial Praise：禁止因开头礼貌用语给额外加分
-  - ❌ Explicit Justification：禁止模型为自己的回答过度解释
-- 评分：每维度 1-5 分，加权平均作为奖励信号 \(R_S\)
-
-**训练流程伪代码**：
 ```python
-for batch in mixed_data:
-    if batch.type == "verifiable":
-        # 数学/代码：客观答案验证
-        response = policy.generate(prompt)
-        reward = evaluate_answer(response, ground_truth)  # sympy / test cases
-        reward += beta * PRM.score(response, prompt)      # 过程奖励
-    else:
-        # 通用对话/写作：自批判反馈
-        response = policy.generate(prompt)
-        reward = K2_Critic.score(prompt, response, rubrics)  # 三维 Rubrics
+# MuonClip optimizer, simplified from Algorithm 1 in the Kimi K2 paper
+def muonclip_step(weights, grads, momentum, tau=100, lr=eta, wd=lamb):
+    # 1. Muon optimizer step
+    for W in weights:
+        G = grads[W]
+        M[W] = mu * M[W] + G
+        O = newton_schulz(M[W]) * sqrt(max(W.shape)) * 0.2  # match Adam RMS
+        W -= lr * (O + wd * W)
 
-    # PPO 更新（含 KL 约束）
-    ratio = exp(log_prob_new - log_prob_old)
-    clipped = clip(ratio, 1 - eps, 1 + eps)
-    loss = -min(ratio * advantage, clipped * advantage)
-    loss += gamma * KL(policy, reference_model)
-    optimizer.step(loss)
+    # 2. QK-Clip, using max logits already observed in forward
+    for layer in model.attention_layers:
+        for h in layer.heads:
+            S = layer.max_attention_logit[h]
+            if S > tau:
+                gamma = tau / S
+                layer.W_qc[h] *= sqrt(gamma)
+                layer.W_kc[h] *= sqrt(gamma)
+                layer.W_qr[h] *= gamma
+                # shared rotary key component is left untouched in MLA
 ```
 
-**关键设计决策**：
-- 每个 batch 同时包含两类样本，比例动态调整（附录 E 详述）
-- KL 散度约束 \(\beta_{\text{KL}}\) 防止策略偏离 SFT 模型过远，约 2000 步 RL 迭代
-- K2 Critic 的 Rubrics 经过人工校准和一致性检验（附录 F）
+Kimi K2 的预训练问题不是“如何再堆一个 MoE”，而是如何让 Muon 这种 token-efficient optimizer 在 1T 级 MoE 上稳定工作。论文指出，Muon 在同等模型和计算预算下比 AdamW 更有 token efficiency，但扩展时更容易出现 attention logits 爆炸。logit soft-cap 只是在 softmax 输入处截断，无法阻止 \(QK^\top\) 本身继续增大；QK-Norm 又不适合 MLA，因为 MLA 推理时 key 矩阵并不完全物化。
 
-##### 3. 训练基础设施与工程优化
+QK-Clip 的设计是 post-update weight clipping。对第 \(h\) 个 attention head：
 
-**并行策略**：
-- 16-way Pipeline Parallelism（虚拟 stage）+ 16-way Expert Parallelism + ZeRO-1 Data Parallelism
-- 模型参数（BF16）+ 梯度累积缓冲（FP32）约需 6 TB GPU 内存，分布在 256 GPU 的模型并行组
-- 支持任意 32 的倍数节点数灵活扩展
+$$
+\mathbf Q^h=\mathbf X\mathbf W_q^h,\quad
+\mathbf K^h=\mathbf X\mathbf W_k^h,\quad
+\mathbf V^h=\mathbf X\mathbf W_v^h.
+$$
 
-**通信优化**：
-- 增加 warm-up micro-batch 数量，实现 EP all-to-all 通信与 interleaved 1F1B 计算重叠
-- 相比 DualPipe（DeepSeek-V3 方案），K2 方案更简洁且兼容标准 1F1B 调度
+attention 输出是：
 
-**引擎切换流水线**（附录 G）：
-- 预训练使用 Moonshot 自研框架，RL/SFT 使用另一框架
-- **H2D**（Host-to-Device）权重转换 → **broadcast**（分布式广播）→ **reload**（目标框架加载），全程自动化
+$$
+\mathbf O^h=\mathrm{softmax}\left(\frac{1}{\sqrt d}\mathbf Q^h\mathbf K^{h\top}\right)\mathbf V^h.
+$$
 
-##### 4. 消融实验核心发现
+K2 在 forward 中记录每个 head 的最大 logit：
 
-| 消融项 | 影响 |
-|--------|------|
-| 移除 QK-Clip | 训练 ~50K 步出现 logit explosion，loss spike 不可恢复 |
-| LayerNorm 替代 RMSNorm | NS 迭代收敛速度下降 ~20% |
-| 去除自批判反馈 | Arena-Hard win rate 下降 ~3.5% |
-| 仅用人工标注数据（不用合成） | SWE-bench 下降 ~15% |
+$$
+S_{\max}^h=\frac{1}{\sqrt d}\max_{\mathbf X\in B}\max_{i,j}\mathbf Q_i^h\mathbf K_j^{h\top}.
+$$
 
----
+当 \(S_{\max}^h>\tau\) 时，使用
+
+$$
+\gamma_h=\min\left(1,\frac{\tau}{S_{\max}^h}\right)
+$$
+
+缩放权重。对普通 MHA 可以缩放对应 head 的 \(\mathbf W_q^h\) 和 \(\mathbf W_k^h\)；对 MLA，论文只缩放 unshared head components：\(\mathbf q^C\) 与 \(\mathbf k^C\) 各乘 \(\sqrt{\gamma_h}\)，\(\mathbf q^R\) 乘 \(\gamma_h\)，共享的 \(\mathbf k^R\) 不动，避免一个 head 的 clipping 影响其他 head。
+
+> 💡 关键：QK-Clip 不改变当前 step 的 forward/backward，只用已观测到的 \(S_{\max}^h\) 指导更新后的权重缩放。因此它比直接裁剪 logits 更像“训练动力学护栏”，在 early stage 防止注意力分数失控，训练稳定后自然很少触发。
+
+架构上，Kimi K2 延续 DeepSeek-V3 的 MLA 与 MoE 思路，但把稀疏性继续推高。它有 384 个专家，每 token 激活 8 个专家，sparsity 为 48。论文的 scaling law 实验显示，在固定 activated experts 和 shared expert 的情况下，增加总专家数能降低 validation loss；达到同样 validation loss 1.5 时，sparsity 48 相比 sparsity 8、16、32 分别节省 1.69 倍、1.39 倍、1.15 倍 FLOPs。与此同时，K2 把 attention heads 从 DeepSeek-V3 的 128 减到 64，因为在 128K 等长上下文 agentic 场景下，heads 翻倍会显著增加推理 FLOPs，而验证 loss 只改善约 0.5% 到 1.2%。
+
+数据侧的重点是 token utility。K2 的 15.5T 预训练语料覆盖 Web Text、Code、Mathematics、Knowledge。对知识文本，论文使用风格和视角多样的 prompts 做 rephrasing，并用 chunk-wise autoregressive generation 保留长文档全局一致性；对数学文本，则改写为 learning-note style，并引入跨语言翻译扩充多样性。这个设计不是为了简单重复高质量数据，而是让同一知识以不同表述提供更多有效学习信号，降低多 epoch 重复带来的过拟合风险。
+
+Post-training 是 Kimi K2 与普通 chat model 区分最明显的部分。Agentic 数据合成先构建工具库：一部分来自 GitHub 中 3000+ 真实 MCP 工具，一部分来自层级 domain evolution 生成的 20,000+ 合成工具。然后为采样工具集生成 agent system prompts、任务与 rubrics，再通过 user agent、tool simulator 和 judge agent 生成多轮工具调用轨迹。只有满足 rubric 成功条件的轨迹被保留，因此整个流程相当于大规模 rejection sampling，目标是让模型学会“读工具说明、计划、调用、观察反馈、修正动作”。
+
+RL 阶段把可验证任务和主观偏好任务合到同一个框架。对数学、代码、指令遵循、工具调用等任务，奖励可以来自单元测试、解释器、规则检查或 judge；对创意写作、开放问答等不可直接验证任务，K2 使用 self-critique rubric reward，让 K2 critic 根据 core rubrics、prescriptive rubrics 与人工标注 rubrics 对多个响应做 pairwise ranking。其 RL objective 可概括为：
+
+$$
+L_{\mathrm{RL}}(\theta)=\mathbb E_{x\sim\mathcal D}\left[\frac{1}{K}\sum_{i=1}^{K}\left(r(x,y_i)-\bar r(x)-\tau\log\frac{\pi_\theta(y_i|x)}{\pi_{\mathrm{old}}(y_i|x)}\right)^2\right],
+$$
+
+其中
+
+$$
+\bar r(x)=\frac{1}{K}\sum_{i=1}^{K}r(x,y_i).
+$$
+
+奖励中心化项 \(r(x,y_i)-\bar r(x)\) 让同一 prompt 下的候选响应相互比较，KL-like 的 log ratio 正则项约束新旧策略偏移，\(\tau>0\) 控制稳定性。K2 还加入 budget control，超过任务 token budget 的响应会被截断并惩罚，以避免 RL 把所有任务都推向冗长输出；同时通过辅助 PTX loss 混入手选高质量样本，减少 joint RL 对窄任务集合的过拟合和遗忘。
+
+与 DeepSeek-V3 路线相比，Kimi K2 的差异在三处：更高稀疏度的 MoE 设计，更适合 Muon 的 QK-Clip 稳定机制，以及面向 agentic intelligence 的后训练数据与 RL 框架。它不是单纯追求 benchmark 的非交互模型，而是把工具环境、trajectory filtering、verifiable reward 和 self-critique 结合起来，专门强化软件工程、工具调用和多步任务执行。
 
 #### 🧪 练习题
 ```yaml
-question: "Kimi K2 的 QK-Clip 机制主要解决什么问题？"
+question: "Kimi K2 中 QK-Clip 相比直接 logit soft-cap 的关键区别是什么？"
 options:
-  - "减少注意力头的数量以降低推理成本"
-  - "在 Muon 优化器训练中防止 logit explosion 导致的 loss spike"
-  - "加速 Newton-Schulz 迭代的收敛速度"
-  - "限制模型的 KL 散度防止策略偏离"
+  - "QK-Clip 直接删除超过阈值的 token"
+  - "QK-Clip 在权重更新后缩放 query/key projection，约束后续 attention logit 增长"
+  - "QK-Clip 只用于推理，不参与训练"
+  - "QK-Clip 把 MoE top-8 routing 改成 dense FFN"
 answer: 1
-explain: "QK-Clip 对 Q/K 投影矩阵的 L2 范数执行硬阈值裁剪（1000.0），直接抑制 logit 值爆炸，是 Muon 能成功训练千亿模型的关键保障。"
+explain: "QK-Clip 使用 forward 中观测到的最大 attention logit 来缩放 Q/K 权重，属于训练稳定性的权重护栏，而不是在 softmax 输入处简单截断。"
 ```
 
 ### GLM-4.5
@@ -5123,244 +3933,79 @@ motivation: 面向智能体推理编码
 ```
 
 #### 📝 一句话总结
-GLM-4.5 提出了一种 **355B 总参数 / 32B 激活参数的 MoE 架构大语言模型**，通过多阶段预训练（23T tokens）与专家模型迭代 + 强化学习的后训练流程，在 Agent、推理、编码（ARC）三大任务上取得顶尖性能——以远少于竞品的参数量，在 TAU-Bench、AIME 24、SWE-bench Verified 上分别达到 70.1%、91.0%、64.2%，综合排名第 3（Agent 子榜第 2），并同步开源了紧凑版 GLM-4.5-Air（106B）。
+GLM-4.5 提出了一个 355B 总参数、32B 激活参数的开源 MoE 模型，通过“更深而非更宽”的架构、多阶段 23T token 预训练，以及专家模型迭代式后训练，统一强化 Agent、Reasoning、Coding 三类 ARC 能力。它同时支持 thinking 与 direct response 两种模式，用较少参数在 TAU-Bench、AIME 24、SWE-bench Verified 等任务上取得强竞争力。
 
 #### 🎯 核心要点
-- **MoE 架构设计**：355B 总参数，32B 激活参数，采用 **loss-free balance routing** 与 **sigmoid gates**，减少宽度（hidden dim + routed experts 数量）换取更深网络，提升推理能力
-- **自注意力创新**：Grouped-Query Attention + 部分 RoPE，**2.5 倍多的注意力头**（96 头 / 5120 hidden dim），配合 QK-Norm 稳定注意力 logits，虽不降训练 Loss 但显著提升 MMLU/BBH 推理基准
-- **23T tokens 多阶段预训练**：从 4K 逐步扩展至 128K 上下文，中训阶段引入 repo-level 代码、合成推理数据、长上下文 Agent 训练
-- **后训练两阶段专家迭代**：Stage 1（Expert Training）分赛道独立训练推理/Agent/通用专家；Stage 2（Unified Training）融合蒸馏为单一模型，支持 hybrid 思考/快速响应模式
-- **推理 RL**：基于 GRPO（去 KL 项），采用 **难度课程学习**（两阶段：中等到极难）、**单阶段 64K 输出长度**优于多阶段渐进式、动态采样温度调节探索
-- **Agent RL**：Outcome Supervision + Process Action Format Penalty，迭代自蒸馏，**通过增加交互轮数扩展推理时计算**
-- **通用 RL**：Holistic RL 多任务混合、Instruction Following RL、Function Calling RL、Pathology RL（纠正拒答/重复等病态行为）
-- **Slime RL 基础设施**：Megatron 训练 + vLLM 推理的混合架构，支持混合精度加速 rollout，面向 Agent 场景的异步长任务 RL 设计
+- **ARC 目标定义**：把 Agentic、Reasoning、Coding 作为同一基础模型必须同时覆盖的三类能力，而不是分别训练专用模型。
+- **355B/32B MoE 架构**：GLM-4.5 使用 355B 总参数、32B 激活参数；GLM-4.5-Air 使用 106B 总参数、12B 激活参数。
+- **更深的 MoE 取舍**：相对 DeepSeek-V3/Kimi K2 减少 hidden dimension 与 routed experts 数量，增加层数，论文认为更深模型更利于推理。
+- **MoE 路由与注意力稳定性**：使用 loss-free balance routing、sigmoid gates、GQA、partial RoPE、96 attention heads、QK-Norm，并加入 MoE MTP layer 支持 speculative decoding。
+- **23T tokens 多阶段训练**：预训练从 4K context 起步，中训扩展到 32K/128K，并加入 repo-level code、合成推理数据和长上下文/agent 轨迹。
+- **专家模型迭代后训练**：Stage 1 分别训练 Reasoning、Agent、General chat 专家；Stage 2 用 self-distillation 融合成单一 hybrid reasoning generalist。
+- **Reasoning RL 配方**：基于无 KL 项的 GRPO，使用两阶段难度课程、直接 64K 输出长度 RL、动态采样温度、code RL token-weighted mean loss。
+- **Agentic RL 配方**：用 web-search 与 SWE/coding sandbox 的可验证结果做 outcome supervision，并加入 tool/action format penalty、迭代自蒸馏和 interaction-turn scaling。
+- **Slime RL 基础设施**：支持 colocated synchronous 与 disaggregated asynchronous 两种模式，使用 Megatron 训练、SGLang/Router rollout、Data Buffer 与 FP8 rollout 加速。
 
 #### 🔬 深入细节
----
-
-##### 1. 模型架构：更深、更多头的 MoE
-
-GLM-4.5 是智谱首个开源 MoE 模型，架构上有几处**反直觉但有效的设计选择**：
-
-![GLM-4.5 ARC 基准综合表现](https://ar5iv.labs.arxiv.org/html/2508.06471/assets/x1.png)
-*图 1：GLM-4.5 在 Agent/Reasoning/Coding (ARC) 综合基准上的表现，355B 即排名第 3，106B 的 Air 版排名第 6*
-
-**MoE 层设计**：
-- 采用 **loss-free balance routing**（参考 [Wang et al. 2024]），无需额外负载均衡损失即可实现专家均衡负载
-- 门控函数使用 **sigmoid gates**（而非 Softmax），与 DeepSeek-V3 和 Kimi K2 一致
-- **关键差异**：相比 DeepSeek-V3 和 Kimi K2，GLM-4.5 **减少了宽度**（hidden dimension 和 routed experts 数量），转而**增加深度**（更多层），实验发现更深模型具有更好的推理能力
-- MoE 层替换了标准 Transformer 中的 MLP 层，前 1/3 层为 Dense MLP，后 2/3 层为 MoE
-
-**注意力机制创新**：
-```python
-# GLM-4.5 注意力设计的核心思路
-# 1. Grouped-Query Attention (GQA) + 部分 RoPE
-# 2. 2.5倍注意力头数：5120 hidden_dim → 96 heads
-#    标准配置通常为 ~40 heads
-# 3. QK-Norm 稳定注意力 logits
-
-# 伪代码：注意力层
-class GLM45Attention:
-    def __init__(self, hidden_dim=5120, num_heads=96):
-        self.num_heads = num_heads  # 2.5x 标准配置
-        self.head_dim = hidden_dim // num_heads
-        self.q_proj = Linear(hidden_dim, hidden_dim)
-        self.k_proj = Linear(hidden_dim, num_kv_heads * head_dim)  # GQA
-        self.v_proj = Linear(hidden_dim, num_kv_heads * head_dim)
-        self.qk_norm = QKLayerNorm()  # 稳定 logits 范围
-        self.out_proj = Linear(hidden_dim, hidden_dim)
-
-    def forward(self, x, rope_pos):
-        q = self.q_proj(x)
-        k = self.k_proj(x)
-        v = self.v_proj(x)
-        # QK-Norm 在计算注意力分数前稳定分布
-        q, k = self.qk_norm(q), self.qk_norm(k)
-        # 部分 RoPE：仅对部分维度施加旋转位置编码
-        q, k = apply_partial_rope(q, k, rope_pos)
-        # 标准缩放点积注意力 + GQA 扩展
-        return flash_attention(q, k, v)
-```
-
-> **反直觉现象**：增加注意力头数到 2.5 倍**并不会改善训练 Loss**，但在 MMLU、BBH 等推理基准上持续提升——这是一种典型的"训练-评测解耦"现象，说明更多注意力头增强了模型的泛化与推理模式多样性。
-
-**总览**：
-| 模型 | 总参数 | 激活参数 | 层数 | Hidden Dim | 注意力头 |
-|------|--------|----------|------|------------|----------|
-| GLM-4.5 | 355B | 32B | 较多 | 5120 | 96 |
-| GLM-4.5-Air | 106B | ~12B | — | — | — |
-
----
-
-##### 2. 预训练与中训：23T tokens 的多阶段配方
-
-![预训练与中训阶段](https://ar5iv.labs.arxiv.org/html/2508.06471/assets/x3.png)
-*图 3：GLM-4.5 的预训练与中训（Mid-Training）阶段概览，上下文从 4K 逐步扩展至 128K*
-
-**多阶段预训练**：
-1. **Stage 1**：4K 上下文，通用语料预训练
-2. **Stage 2**：逐步扩展上下文至 128K（长文本适应）
-3. **数据组成**：多语言（中英为主）、代码（GitHub 等）、数学与科学文献
-
-**中训（Mid-Training）三大专项**——提升推理与 Agent 能力的关键阶段：
-
-- **Repo-level Code Training**：在完整代码仓库级别进行训练，让模型理解跨文件依赖、项目结构、构建系统
-- **Synthetic Reasoning Data Training**：合成推理链数据，训练模型的多步逻辑推理能力
-- **Long-context & Agent Training**：长上下文 + 工具调用/环境交互的 Agent 数据
-
----
-
-##### 3. 后训练核心：专家模型迭代 + 强化学习
-
-后训练的精妙之处在于**"分而治之，再融合"**的两阶段设计：
-
-**Stage 1 — Expert Training（专家训练）**：
-各赛道独立训练专家模型：
-- 推理专家（Reasoning Expert）：推理 RL 优化
-- Agent 专家（Agentic Expert）：Agent RL 优化
-- 通用专家（General Expert）：通用 RL 优化
-
-每个专家在各自领域都经过 SFT 冷启动 → RL 优化的完整流程。
-
-**Stage 2 — Unified Training（统一训练）**：
-将多个专家模型的能力通过 SFT 蒸馏融合为单一模型，最终产出同时支持 **thinking 模式**（复杂推理/Agent 任务）和 **non-thinking 模式**（即时响应）的混合推理模型。
-
----
-
-##### 4. 推理 RL：难度课程 + 单阶段长输出
-
-![难度课程学习](https://ar5iv.labs.arxiv.org/html/2508.06471/assets/x4.png)
-*图 5：两阶段难度课程在 AIME'24 上的效果。蓝线（本文方法）第二阶段切换到极难问题（pass@8==0, pass@512>>0），带来持续提升*
-
-**GRPO 变体**：
-- 基于 GRPO 框架，**移除了 KL 损失项**（实践中发现不必要）
-- 奖励信号完全来自结果验证（数学题答案匹配、代码执行通过率等）
-
-**三大技术创新**：
-
-**(a) 难度课程学习（Difficulty-based Curriculum）**：
-```
-Stage 1: 中等难度问题 → 建立基本推理能力
-Stage 2: 极难问题（pass@8 == 0）→ 激发涌现的深度推理能力
-关键洞察：切换到极难问题后，虽然 pass@8=0，但 pass@512>>0，
-说明模型在探索中发现了有效但罕见的推理路径
-```
-
-**(b) 单阶段 64K 输出长度训练**：
-![单阶段 vs 多阶段 RL](https://ar5iv.labs.arxiv.org/html/2508.06471/assets/x5.png)
-*图 6：单阶段 64K RL（红线）vs 多阶段渐进式（蓝线）的对比。单阶段直接训练长输出效果更好*
-
-> **反直觉发现**：直接从 64K 输出长度开始训练（单阶段）优于逐步增加输出长度的多阶段训练。渐进式训练在每次长度切换时都会经历性能下降，说明模型需要"一次性"学会在长上下文中分配思考预算。
-
-**(c) 动态采样温度**：
-- 训练过程中根据难度和训练阶段自适应调整采样温度
-- 简单问题：低温度，鼓励精确解
-- 困难问题：高温度，鼓励多样化探索
-
-**(d) 代码与科学 RL 的 Token-Weighted Loss**：
-![Code & Science RL 消融](https://ar5iv.labs.arxiv.org/html/2508.06471/assets/x6.png)
-*图 7：代码与科学 RL 的消融实验。Token-weighted mean loss（绿色）相比 sequence-mean loss 收敛更快*
+![GLM-4.5 预训练与中训流程](https://ar5iv.labs.arxiv.org/html/2508.06471/assets/x3.png)
+*图：论文 Figure 3 展示 GLM-4.5 的预训练与中训阶段，最大序列长度从 4K 扩展到 32K，再扩展到 128K，并引入代码、推理和 agent 数据。*
 
 ```python
-# 基于论文描述的简化伪代码
-def compute_rl_loss(sequences, rewards, advantages):
-    """
-    Token-weighted mean loss（论文提出的改进）
-    相比 sequence-mean loss，对每个 token 按其所在序列的 advantage 加权
-    """
-    total_loss = 0
-    total_tokens = 0
-    for seq, r, adv in zip(sequences, rewards, advantages):
-        for token_logprob in seq:
-            # 每个 token 的 loss 用整条序列的 advantage 加权
-            total_loss += -token_logprob * adv
-            total_tokens += 1
-    return total_loss / total_tokens  # token-weighted mean
+# GLM-4.5 ARC 后训练的核心流程，按论文整理
+base = pretrain_moe(tokens="23T", context=[4096, 32768, 131072])
+
+experts = {}
+for domain in ["reasoning", "agent", "general"]:
+    model = cold_start_sft(base, domain_data[domain])
+    if domain == "reasoning":
+        model = grpo_rl(
+            model,
+            curriculum=["moderate", "very_hard_verified"],
+            max_output_len=64000,
+            dynamic_temperature=True,
+        )
+    elif domain == "agent":
+        traces = rollout_in_web_and_swe_envs(model)
+        reward = outcome_reward(traces) - action_format_penalty(traces)
+        model = groupwise_policy_optimization(model, traces, reward)
+        model = iterative_self_distill(model, successful_traces=traces)
+    else:
+        model = general_rl(model, feedback=["rules", "human_rm", "critique_model"])
+    experts[domain] = model
+
+glm45 = unified_sft_distill(
+    base,
+    teachers=experts,
+    mix_thinking_and_direct_response=True,
+    max_context=128000,
+)
 ```
 
----
+GLM-4.5 的架构创新来自两个方向：MoE 宽深取舍和注意力配置。它没有简单沿 DeepSeek-V3/Kimi K2 的宽模型路线继续扩专家数，而是把 hidden dimension 设为 5120、routed experts 设为 160、MoE layers 增至 89，并保持 8 个专家激活。论文明确说，相比 DeepSeek-V3 和 Kimi K2，它减少宽度、增加高度，因为实验中更深模型显示出更强 reasoning capacity。这个设计让 GLM-4.5 的总参数只有 355B，但激活参数仍保持 32B 级别，目标是在 ARC 任务中用较少总参数获得接近前沿模型的能力。
 
-##### 5. Agent RL：交互轮数即推理时计算
+注意力层也体现了“评测能力不完全等价于训练 loss”的经验。GLM-4.5 使用 GQA 与 partial RoPE，并在 5120 hidden dimension 下设置 96 个 attention heads，约为常规配置的 2.5 倍。论文指出，增加 head 数并不改善训练 loss，却能在 MMLU、BBH 等 reasoning benchmark 上稳定提升；同时用 QK-Norm 稳定 attention logits。与 Kimi K2 减少头数以控制长上下文推理 FLOPs 的取舍不同，GLM-4.5 更强调通过更多 head 提升推理模式的多样性。
 
-**数据收集与合成**：自动化 Agent SFT 数据构建管线，无需人工标注即可大规模生成 Agent 训练数据。
+训练数据和阶段安排服务于 ARC 目标。预训练语料覆盖网页、社媒、书籍、论文、代码、多语言、数学与科学文档，总规模 23T tokens；中训阶段引入三类专项数据：repo-level code 用同一仓库内拼接文件、issue、PR、commit diff 学跨文件依赖；synthetic reasoning data 用推理模型生成数学、科学、竞赛代码的推理过程；long-context & agent training 把 context 从 32K 推到 128K，并加入大规模合成 agent trajectories。这里的中训不是普通继续预训练，而是把软件工程、长上下文和工具交互提前注入 base model。
 
-**RL 优化**：
+后训练采用“先分化专家，再融合”的两阶段策略。Stage 1 中，Reasoning、Agent 和 General chat 各自从 cold-start SFT 开始，再做针对性 RL；Stage 2 则用 self-distillation 把多个专家能力蒸馏回一个统一模型。为了让最终模型能同时处理复杂推理和即时聊天，整体 SFT 数据混合了带长 CoT 的样本和不显式展示思考过程的样本，因此 GLM-4.5 支持 thinking mode 与 non-thinking/direct response mode。这种设计的关键收益是减少单一 RL 流程里的目标冲突：专家阶段先把每类能力推高，统一阶段再处理能力融合。
 
-**(a) Outcome Supervision + Process Action Format Penalty**：
-- 仅对最终结果给予奖励（Outcome Supervision），不设过程奖励模型
-- 额外施加 **动作格式惩罚**：对格式错误的 tool call 进行负奖励，确保模型输出的 Action 始终可解析、可执行
+Reasoning RL 基于 GRPO，但去掉 KL loss。论文强调 reward variance：太简单的题全是 1、太难的题全是 0，都会没有有效梯度，所以它使用两阶段 difficulty-based curriculum，第一阶段中等难度，第二阶段切换到 pass@8=0 但 pass@512>0 的极难且可验证问题。输出长度方面，论文发现直接用 64K 最大输出长度做 single-stage RL 优于逐步增加长度的 multi-stage RL，因为 SFT 已经让模型适应 64K，较短 RL 阶段会让模型“忘掉”长输出能力。动态温度则在 reward 稳定后提高探索，并用 held-out 验证控制性能下降不超过约 1%。
 
-**(b) 迭代自蒸馏（Iterative Self-distillation）**：
+Agentic RL 把 web search 与 SWE/coding agent 视为可验证环境。对 web search，用最终答案正确性作为整条轨迹 reward；对 coding/SWE，用可执行测试和 sandbox 结果判断任务完成。论文特别加入 process action format penalty：如果工具调用格式错误，轨迹会被中止并给零奖励，保证模型学到的不是“答对即可”，而是“用可解析、可执行的动作答对”。此外，agent RL 通过迭代自蒸馏减少昂贵 RL 的成本：先对 cold-start 模型做 RL，停滞后用 RL 模型生成更好的 SFT 数据，再继续 RL 并逐步提高难度。
+
+Slime 是 GLM-4.5 后训练能规模化的工程基础。对数学/代码等较规则 RL，它支持 training/inference colocated 的同步模式以减少 GPU 空闲；对 SWE 等 agent 任务，它采用 disaggregated asynchronous 模式，让 rollout engine 持续与环境交互，training engine 独立消费 Data Buffer 并同步参数。因为 agent rollout 可能耗时很长、长度差异很大，同步等待最慢轨迹会严重浪费 GPU；异步解耦则把“慢环境交互”和“密集参数更新”分开，使多任务 agent RL 可持续吞吐。
+
+#### 🧪 练习题
+```yaml
+question: "GLM-4.5 后训练为什么采用 Expert Training 再 Unified Training？"
+options:
+  - "为了把所有专家永久保留为独立模型，避免单模型推理"
+  - "先分别强化推理、Agent、通用对话，再通过蒸馏融合为支持 thinking/direct response 的单一模型"
+  - "为了替代 MoE router，让每个任务固定走一个专家"
+  - "为了只训练 GLM-4.5-Air，再蒸馏出 GLM-4.5"
+answer: 1
+explain: "论文的 Stage 1 按 Reasoning、Agent、General chat 分别训练专家，Stage 2 用 self-distillation 统一到一个 hybrid reasoning generalist。"
 ```
-for iteration in 1..N:
-    1. 用当前策略采样多条 Agent 交互轨迹
-    2. 筛选成功轨迹（完成任务）
-    3. 用成功轨迹进行 SFT 蒸馏（教师=采样策略，学生=当前模型）
-    4. 在蒸馏后的模型上进行新一轮 RL
-```
-
-**(c) 通过交互轮数扩展推理时计算**：
-![交互轮数扩展](https://ar5iv.labs.arxiv.org/html/2508.06471/assets/x7.png)
-*图 8：BrowseComp 上交互轮数扩展的效果——更多交互轮数 ≈ 更多"思考"时间*
-
-> **核心洞察**：在 Agent 场景中，推理时计算（test-time compute）的形式不是思考 token，而是**与环境交互的轮数**。论文展示了通过增加交互轮数可以有效提升 Agent 任务表现，类似于推理模型中的"长思考链"。
-
----
-
-##### 6. 通用 RL：从指令遵循到病理纠正
-
-![Instruction Following RL](https://ar5iv.labs.arxiv.org/html/2508.06471/assets/x8.png)
-*图 9：Instruction Following RL 训练曲线，reward 与 SysBench-ISR 分数同步提升*
-
-GLM-4.5 的通用 RL 阶段包含四项训练，每一项针对特定的模型行为缺陷：
-
-| RL 类型 | 目标 | 关键技术 |
-|---------|------|----------|
-| **Holistic RL** | 多任务综合能力提升 | 混合所有任务类型数据，统一训练 |
-| **Instruction Following RL** | 精确遵循复杂指令 | GRPO + SysBench-ISR 作为奖励信号 |
-| **Function Calling RL** | 准确生成结构化工具调用 | 格式正确性 + 调用结果正确性双奖励 |
-| **Pathology RL** | 纠正病态行为（拒答、重复、冗长） | 负例惩罚 + 正例奖励 |
-
----
-
-##### 7. Slime RL 基础设施：异步混合架构
-
-![Slime RL 基础设施](https://ar5iv.labs.arxiv.org/html/2508.06471/assets/x9.png)
-*图 10：Slime RL 基础设施总览。三大核心模块：Training（Megatron）、Inference（vLLM 混合精度）、Agent Controller（异步长任务）*
-
-**架构设计三大亮点**：
-
-**(a) 灵活的混合训练与数据生成架构**：
-```
-Training Module (Megatron) ← Data Buffer → Inference Module (vLLM)
-         ↓                                        ↓
-    梯度同步 & 参数更新                    异步 Rollout 生成
-```
-
-**(b) 混合精度推理加速 Rollout**：
-- 推理模块使用混合精度（FP8/INT8）加速轨迹采样
-- 训练模块保持高精度（BF16/FP32）
-
-**(c) 面向 Agent 的异步 RL 基础设施**：
-- Agent 任务涉及复杂环境交互（网页浏览、代码执行、API 调用），单次 rollout 可能耗时数分钟
-- Slime 设计了**异步 Agent Controller**，将 Agent rollout 与训练循环解耦
-- 支持大规模并行 Agent 交互，不阻塞训练主循环
-
----
-
-##### 8. 性能总结
-
-![SWE-bench vs 参数规模](https://ar5iv.labs.arxiv.org/html/2508.06471/assets/x2.png)
-*图 2：SWE-bench Verified 分数 vs 模型参数量。GLM-4.5 以一半于 DeepSeek-R1 的参数实现 64.2% 的得分*
-
-| 基准 | GLM-4.5 (355B) | GLM-4.5-Air (106B) | 对比亮点 |
-|------|----------------|---------------------|----------|
-| TAU-Bench (Agent) | 70.1% | — | Agent 榜单第 2 |
-| AIME 24 (Reasoning) | 91.0% | — | 接近 o3 水平 |
-| SWE-bench Verified | 64.2% | — | 代码榜单第 3 |
-| 综合 ARC 排名 | 第 3 | 第 6 | 参数远少于对手 |
-
----
 
 ### GPT-5
 
@@ -5835,76 +4480,101 @@ motivation: 弹性训练统一多模态MoE
 ```
 
 #### 📝 一句话总结
-ERNIE 5.0 提出了首个从头训练的统一自回归多模态框架，通过**超稀疏的模态无关 MoE 路由**、**弹性训练**和**统一多模态强化学习 (UMRL)**，在单一预训练过程中同时产出多种容量-效率权衡的子模型，解决了多模态理解与生成分离、跨模态性能跷跷板的根本性难题。
+ERNIE 5.0 提出了从零训练的统一自回归多模态基础模型，用同一个超稀疏 MoE 主干同时处理文本、图像、视频和音频的理解与生成。它的关键增量是把所有模态压到统一 token 序列中做 Next-Group-of-Tokens Prediction，并用模态无关专家路由与弹性训练解决万亿级模型的容量、效率和部署形态问题。
 
 #### 🎯 核心要点
-- **统一自回归框架**：将文本、图像、视频、音频都映射到共享 token 空间，序列化后统一使用 Next-Group-of-Tokens Prediction 目标进行端到端自回归建模，同时支持理解和生成。
-- **超稀疏混合专家 (Ultra-Sparse MoE)**：采用万亿参数级的稀疏 MoE 骨干，激活率低于 3%；专家路由基于统一 token 表征，实现**模态无关的动态调度**，避免启发式模态固定分配。
-- **模态无关专家路由**：路由决策完全取决于 token 的内容特征而非模态标识，所有模态共享专家池；训练中会涌现出**任务驱动的专家特化**，而非简单的模态驱动划分。
-- **弹性训练 (Elastic Training)**：在单一预训练过程中动态采样不同深度、宽度和路由稀疏度的子模型，子模型参数直接继承自全模型，一次反向传播更新所有子模型；消除了多模型独立训练的需求。
-- **弹性深度与宽度**：子模型参数可缩减至全量的 **35.8%** 而保持接近全模型的性能；仅激活 53.7% 参数即可达到几乎无损效果。
-- **稀疏弹性**：推理时将 top-k 路由降低 25% 可带来超过 **15% 的解码加速**，精度损失极小。
-- **统一多模态强化学习 (UMRL)**：在 SFT 后进行多阶段统一 RL，包含无偏重放缓冲 (U-RB)、多粒度重要性采样裁剪 (MISC)、正样本掩码 (WPSM) 和分离式 RL 基础设施，稳定优化并防止熵崩溃。
+- 统一建模范式：文本、图像、视频、音频都被序列化为共享 token 空间，用统一自回归目标训练，而不是给不同模态外挂独立生成器。
+- 超稀疏 MoE 主干：专家池由所有模态共享，单 token 只激活很小比例专家，论文报告激活率低于 3%，以较低计算成本扩展总参数容量。
+- 模态无关专家路由：router 只看统一 token 表示，不显式使用 text/image/audio/video 标签，从而允许跨模态共享专家和自发专家分工。
+- 视觉生成机制：图像被视为单帧视频，使用因果 2D 多尺度 tokenizer 和膨胀后的因果 3D tokenizer，并通过 Next-Frame-and-Scale Prediction 统一图像与视频生成。
+- 音频生成机制：音频由 12.5 Hz codec-style tokenizer 离散化，使用 Next-Codec Prediction 做跨 codec 维度的结构化自回归预测。
+- 弹性训练：一次预训练中同时训练完整模型和深度、宽度、路由稀疏度不同的子网络，子模型可按内存、延迟、吞吐约束直接实例化。
+- 训练系统设计：多模态 tokenizer 与 MoE backbone 解耦部署，避免不同模态前处理吞吐不一致拖慢整体训练。
+- 后训练流程：统一预训练后接 SFT 与统一多模态强化学习，针对稀疏 MoE、多模态采样偏置、稀疏奖励和熵坍缩做稳定化设计。
 
 #### 🔬 深入细节
-##### 1. 架构总览
+![ERNIE 5.0 统一多模态架构](https://arxiv.org/html/2602.04705v1/x1.png)
+*图：ERNIE 5.0 的统一自回归架构。文本、视觉和音频先被各自 tokenizer 编码并序列化，再进入共享的超稀疏 MoE backbone，路由器把不同模态 token 分发到同一个专家池。*
 
-ERNIE 5.0 的整体架构包含三个核心组件：
-- **多模态 Tokenizer**：视觉采用因果 2D/3D 卷积 tokenizer（Next-Frame-and-Scale Prediction, NFSP），音频采用 Codec tokenizer，统一量化后形成离散 token 序列。
-- **统一自回归骨干**：基于 Transformer 解码器，FFN 层被替换为超稀疏 MoE 层（每 N 层替换一次），支持万亿参数规模。所有模态 token 经过模态无关的路由器统一调度。
-- **模态无关路由**：Router 依据每个 token 的表征计算 top-k 专家分配，所有模态的 token 在同一专家池中竞争，实现跨模态隐式协同与特化。训练使用**无辅助损失的负载均衡**策略稳定收敛。
+![ERNIE 5.0 弹性训练框架](https://arxiv.org/html/2602.04705v1/x4.png)
+*图：ERNIE 5.0 的 Once-For-All 弹性训练。训练时随机改变可用层数、专家总数和每个 token 的 top-k 路由，让一个 super-network 同时支持多种部署预算。*
 
-##### 2. Next-Group-of-Tokens Prediction
-传统逐 token 自回归不适合多模态（如图像 patch 需要一次预测多个 token）。ERNIE 5.0 提出：
-- **文本生成**：沿用标准 Next-Token Prediction (NTP)，辅以 Multi-Token Prediction (MTP) 提升质量和效率。
-- **视觉生成**：Next-Frame-and-Scale Prediction (NFSP)——图像是一组 scale-wise token，视频进一步加上帧间时序预测。
-- **音频生成**：Next-Codec Prediction (NCP)，捕捉时序和频谱结构。
-所有模态在统一的序列预测范式下训练，实现深层 token 级跨模态交互。
+```python
+# ERNIE 5.0 统一自回归 MoE 与弹性训练伪代码
+for batch in multimodal_stream:
+    # 1. 不同模态先由解耦 tokenizer 转成统一序列
+    token_groups = []
+    for sample in batch:
+        z_text = text_tokenizer(sample.text)
+        z_vision = visual_tokenizer(sample.image_or_video)   # NFSP tokens
+        z_audio = audio_tokenizer(sample.audio)              # NCP codec tokens
+        token_groups.append(serialize(z_text, z_vision, z_audio))
 
-##### 3. 弹性训练核心机制
+    # 2. 完整配置与弹性子配置共享同一套参数
+    full_cfg = Config(depth="full", experts="all", top_k="default")
+    sub_cfg = sample_elastic_config(
+        depth_choices=["full", "reduced"],
+        width_choices=["all_experts", "sampled_experts"],
+        sparsity_choices=["default_top_k", "smaller_top_k"],
+        full_probability=0.80,
+    )
 
-弹性训练在单一预训练中同时优化一族子网络，沿三个正交维度引入灵活性：
-
-- **弹性深度**：75% 概率使用全深度网络，25% 概率随机跳过若干层，使模型对层移除具有鲁棒性。
-- **弹性宽度**：80% 概率使用全部专家池，20% 概率随机采样部分专家，生成更窄的子模型。
-- **弹性稀疏度**：80% 概率使用默认 top-k 路由，20% 概率随机降低 top-k 值，使推理时降低激活专家数仍保持精度。
-
-**核心优势**：
-- 子模型参数直接从全模型子集继承，无需独立存储
-- 一次反向传播的梯度同时更新全模型和所有子模型
-- 推理时按需选择深度/宽度/稀疏度组合，实现灵活的精度-效率权衡
-
-##### 4. 后训练：统一多模态强化学习 (UMRL)
-
-ERNIE 5.0 的 RL 训练面临三大挑战，分别针对性解决：
-
-| 挑战 | 解决方案 | 核心原理 |
-|------|----------|----------|
-| **长尾响应导致 GPU 空闲**（rollout 占 90%+ 训练时间） | **无偏重放缓冲 (U-RB)** | 扩展 APRIL，引入数据排序约束，在等待长尾查询时预准备未来批次，消除非平稳数据分布 |
-| **训练-推理不一致 + MoE 路由放大数值偏差 → 熵崩溃** | **多粒度重要性采样裁剪 (MISC) + 正样本掩码 (WPSM)** | MISC 基于 IcePop 框架进行双向掩码校准；WPSM 防止模型过早过拟合简单查询，保留探索能力 |
-| **多场景多模态 RL 复杂度高** | **统一验证器系统 + 多阶段 RL 流水线** | 将推理、Agent、指令遵循等任务纳入统一 RL 流程，使用统一验证器生成跨模态一致的奖励信号 |
-
-**IcePop 核心公式**（简化）：
+    # 3. 同一 Next-Group-of-Tokens 目标优化完整模型和子模型
+    loss_full = next_group_loss(moe_backbone(token_groups, full_cfg))
+    loss_sub = next_group_loss(moe_backbone(token_groups, sub_cfg))
+    loss = loss_full + loss_sub + router_stability_terms()
+    loss.backward()
+    optimizer.step()
 ```
-J(θ) = E[ 1/G * Σ( importance_weight * reward * mask ) ]
+
+ERNIE 5.0 要解决的不是单一模态建模，而是“理解”和“生成”在多模态系统里长期割裂的问题。很多多模态系统以语言模型为中心，只把图像、音频或视频理解结果接入文本空间；生成端则常常依赖扩散模型、codec decoder 或专门的视频生成模块。这类 late-fusion 设计有效但会形成能力跷跷板：理解模型学到的语义不一定能约束生成细节，生成模块的训练目标也不一定反哺跨模态推理。ERNIE 5.0 的选择是更激进的，把文本、图像、视频、音频全部变成一个自回归序列问题，从预训练一开始就让所有模态共用主干、共享优化轨迹。
+
+核心目标可以抽象成 Next-Group-of-Tokens Prediction。不同于普通语言模型每步预测一个 token，图像 patch、多尺度视觉 token 或音频 codec 往往天然以“组”的形式出现，因此 ERNIE 5.0 让模型在时间步 \(t\) 预测一个 token group \(G_t\)。一个简化写法是：
+
+$$
+\mathcal{L}_{\text{NGoT}}(\theta)=-\sum_{t=1}^{T}\sum_{j=1}^{|G_t|}\log p_{\theta}\left(g_{t,j}\mid G_{<t}, g_{t,<j}\right)
+$$
+
+这个目标的直觉是把多模态生成的空间结构和时间结构都折叠进自回归条件概率里。文本 token 是 group 的特例；图像生成时，group 可以对应某个尺度上的离散视觉 token；视频生成时，group 继续沿时间维扩展为下一帧和下一尺度；音频生成时，group 对应 codec codebook 的结构化离散码。这样做的收益是所有模态都通过同一个似然目标学习，避免“文本训练一个目标、视觉训练另一个目标、音频再训练第三个目标”的优化不一致。
+
+主干网络采用超稀疏 MoE。对任意统一 token 表示 \(h_t\)，router 计算每个专家的分数，只选择 top-k 专家参与计算：
+
+$$
+y_t=\sum_{e\in\operatorname{TopK}(r_{\theta}(h_t),k)}\alpha_{t,e}E_e(h_t),\qquad
+\alpha_{t,e}=\operatorname{softmax}_{e}\left(r_{\theta}(h_t)\right)
+$$
+
+这里最重要的设计不是 MoE 本身，而是“模态无关”。路由器不手工规定某些专家处理图像、某些专家处理语音，而是让所有 token 进入同一个专家池。论文中的专家利用率可视化显示，虽然路由规则不包含模态标签，专家仍会出现非均匀激活和功能分工：一部分专家跨文本、图像、视频和音频共享，另一部分专家对特定任务或模态更敏感。这比固定模态专家更灵活，因为模型可以在跨模态任务中复用专家，也可以在细粒度生成任务中形成专门化。
+
+视觉管线把图像视为单帧视频。ERNIE 5.0 先训练因果 2D 多尺度图像 tokenizer，再膨胀成因果 3D 卷积 tokenizer，使图像和视频使用同一套离散化逻辑。Next-Frame-and-Scale Prediction 将图像生成表述为下一尺度预测，将视频生成表述为下一帧加下一尺度预测。这个设计保留了两种关键结构：尺度维度负责从粗到细补充视觉细节，时间维度负责跨帧一致性。论文还使用 progressive tokenizer switching，从低 bit、小词表 tokenizer 开始，再逐步切到高 bit、大词表 tokenizer，目的是先让主干学稳定的粗粒度表示，再引入更难的细节建模，降低早期训练震荡。
+
+音频管线则使用 codec token。连续波形先被压成 12.5 Hz 的层级离散 token，理解侧用语义表示帮助语音和环境声建模，生成侧用 Next-Codec Prediction 在 codec 维度上做深度自回归。这样避免把所有 codebook 展平导致序列过长，也让模型既能捕获语音内容这种高层语义，又能保留音色、韵律和声学细节。与视觉 NFSP 类似，NCP 的本质是为非文本模态找到一种仍能被统一语言模型主干处理的 group prediction 形式。
+
+弹性训练是 ERNIE 5.0 面向生产部署的关键机制。设完整模型为 \(M_{\theta}\)，弹性子网络由深度 \(d\)、专家宽度 \(w\)、路由稀疏度 \(k\) 决定，记为 \(M_{\theta}^{d,w,k}\)。训练时从分布 \(q(d,w,k)\) 采样子配置，并与完整模型共同优化：
+
+$$
+\mathcal{L}_{\text{elastic}}=\mathcal{L}_{\text{NGoT}}(M_{\theta})+\lambda\,\mathbb{E}_{(d,w,k)\sim q}\left[\mathcal{L}_{\text{NGoT}}(M_{\theta}^{d,w,k})\right]
+$$
+
+论文中深度、宽度和稀疏度的弹性通常以 80% 保持完整配置、20% 采样缩减配置的方式训练。深度弹性让部分样本跳过层，宽度弹性让部分样本只从专家子集路由，稀疏度弹性让 top-k 在较小范围内采样。这个训练不是事后剪枝，而是在预训练期间让参数学会在不同资源预算下工作。论文报告，在推理时把路由 top-k 降到 25% 可获得超过 15% 的解码加速且精度损失较小；联合深度、宽度和稀疏度后，弹性变体只用 53.7% 激活参数和 35.8% 总参数仍保持接近完整模型的平均表现。
+
+训练系统层面，ERNIE 5.0 还把 tokenizer 与 backbone 解耦。视觉和音频 tokenizer 的计算模式与 MoE 主干差异很大，如果强行放在同一批 GPU 上，会因为模态混合比例变化产生资源空转和负载不均。论文采用 tokenizer-backbone disaggregation，把 tokenizer 作为独立、可水平扩展的服务部署，backbone 通过远程调用拿到编码结果。这是统一多模态训练容易被忽视但很关键的一点：方法上统一不代表系统上完全同构，真正能稳定扩展到万亿级参数，需要把异构前处理和稀疏主干的吞吐边界分开优化。
+
+与传统多模态模型相比，ERNIE 5.0 的创新不在于某一个单点模块，而在于把目标函数、专家路由、视觉生成、音频生成、弹性部署和训练系统对齐到同一个原则：统一序列化、统一自回归、共享专家池、按预算可伸缩。这样的设计牺牲了一些模块化系统的简单性，但换来了端到端跨模态表示学习，以及在同一检查点上派生不同延迟和显存版本的能力。
+
+> 💡 关键：ERNIE 5.0 的“统一”不是把多个模型拼在一起，而是让所有模态从预训练开始就在一个共享自回归 MoE 主干内竞争、协作和分工。
+
+#### 🧪 练习题
+```yaml
+question: "ERNIE 5.0 中模态无关专家路由的主要作用是什么？"
+options:
+  - "为每种模态固定分配一组专家，避免专家共享"
+  - "只根据统一 token 表示选择专家，让跨模态共享和专家专门化自然出现"
+  - "把图像和音频都转换成文本描述后再训练语言模型"
+  - "用稠密 FFN 替代 MoE，以减少路由不稳定性"
+answer: 1
+explain: "论文强调 router 不使用显式模态标签，而是基于统一 token 表示路由到共享专家池，从而同时支持跨模态共享和任务驱动的专家分化。"
 ```
-通过双向掩码校准 GRPO，实现稳定的策略优化。
-
-##### 5. 与传统方法的对比
-
-| 维度 | 传统方法 | ERNIE 5.0 |
-|------|----------|-----------|
-| 多模态生成 | 独立解码器，非自回归 | **统一自回归生成** |
-| 跨模态统一 | 晚期融合，跷跷板效应 | **从头训练全模态统一** |
-| 训练范式 | 语言模型 + 各模态适配 | **弹性单次预训练** |
-| 部署弹性 | 固定大小，需压缩/蒸馏 | **单一运行产出多尺寸子模型** |
-| 专家路由 | 模态固定分配 | **模态无关动态路由** |
-
-##### 6. 关键实验结果
-- 在文本理解、推理和多模态基准上，与专用模型持平或超越
-- 消融实验证实：模态无关路由显著优于模态专属路由
-- 弹性训练产出的子模型在 35.8% 参数下保持高性能
-- 推理稀疏度降低 25% → 解码加速 15%+，精度损失可忽略
 
 ### EuroLLM-22B
 
@@ -5923,86 +4593,94 @@ motivation: 面向35种欧洲语言从零训练
 ```
 
 #### 📝 一句话总结
-EuroLLM-22B 是首个从零预训练（非基于英语模型扩展）的覆盖35种欧洲语言的多语言大模型，通过课程学习策略与多语言数据均衡采样，在 EuroEval 等基准上达到了与 Llama-3、Mistral 等主流英语模型在多语言任务上可比甚至更优的性能。
-
----
+EuroLLM-22B 从零预训练一个 22.639B 参数的开放多语言 Transformer，面向 24 种欧盟官方语言和 11 种额外语言，解决开放大模型中欧洲语言覆盖不足、训练流程不透明的问题。它的核心不是新算子，而是把多语言 tokenizer、分层数据过滤、三阶段约 4T token 预训练、32K 上下文扩展和 EuroBlocks 指令微调整合成一条可复现的欧洲语言基座模型流水线。
 
 #### 🎯 核心要点
-- 核心动机：面向35种欧洲语言从零训练
-- 演化来源：继承或改进自 qwen25
-- 代表机构：Unbabel / EU consortium
+- 目标语言覆盖：24 种欧盟官方语言，加上 Arabic、Catalan、Chinese、Galician、Hindi、Japanese、Korean、Norwegian、Russian、Turkish、Ukrainian，共 35 种目标语言。
+- 模型架构：54 层 decoder-only Transformer，embedding size 6144，FFN hidden size 16384，48 个 attention heads，8 个 GQA KV heads，RMSNorm、SwiGLU、RoPE，BPE 词表 128K。
+- 参数与上下文：总参数 22.639B，非 embedding 参数 21.067B，最终序列长度 32768；相较 9B 版本，22B 在最后阶段把上下文从 4K 扩到 32K，并将 RoPE \(\theta\) 从 \(10^4\) 调到 \(10^6\)。
+- 三阶段预训练：约 4T tokens；第一阶段 3.6T tokens，10% 线性 warmup 到 \(1.5 \times 10^{-4}\) 后保持；随后 400B tokens 退火到峰值的 10%，最后阶段继续衰减到 0。
+- 数据质量课程：EuroWeb 将多语言网页数据按 EuroFilter 质量分数分成三个 tier，越靠后的训练阶段采样越高质量数据，并在后期加入更多代码、数学、合成数学、文档级平行语料和长上下文书籍/代码数据。
+- 平行与翻译数据过滤：对 xx→en / en→xx 平行语料使用 Bifixer 去重，并用 Bicleaner 与 CometKiwi-22 阈值过滤低质量句对。
+- 合成数学增强：第三阶段加入约 170 万条由 Qwen-2.5 系列生成和改写的数学样本，并用 Qwen2.5-32B-Instruct 作为 judge 保留高分答案。
+- 后训练：使用新版 EuroBlocks-SFT-2512 构建约 1060 万多语言指令样本，移除显式 reasoning trace，进行 5 epoch SFT，得到 EuroLLM-22B-Instruct。
+- 开放资源：发布 base / instruct 模型、EuroWeb 预训练数据、EuroBlocks 指令数据、Megatron-LM 预训练 fork 和评测代码。
 
 #### 🔬 深入细节
-##### 1. 动机与背景
+![EuroLLM-22B 三阶段学习率调度](https://arxiv.org/html/2602.05879v1/figures/scheduler.png)
 
-现有主流多语言大模型（如Llama-3、Mistral、Qwen等）几乎全部采用"英语优先"路线：以英语为主要训练语言（通常占比>90%），再通过少量多语言数据微调或直接依赖tokenizer层面的多语言覆盖来实现多语言能力。这种路线带来两个问题：
+*图：论文 Figure 1 展示 EuroLLM-22B 的三阶段学习率调度，先 warmup 与 hold，再在更高质量数据阶段逐步 anneal / decay。*
 
-- **英语锚定偏差**：模型内部表征以英语为"默认语言"，非英语语言需"翻译式"解码，导致低资源语言性能显著下降、跨语言迁移不稳定。
-- **欧洲语言生态缺位**：商业模型对欧洲小语种（如马耳他语、爱尔兰语、拉脱维亚语等）覆盖不足，且训练数据透明度低，不符合欧盟AI法案对可解释性与公平性的要求。
+```python
+# EuroLLM-22B 训练流水线伪代码
+languages = official_eu_languages_24 + additional_languages_11
 
-EuroLLM项目由Unbabel联合欧洲多家高校与研究机构发起，旨在构建一个完全透明、可控、面向欧洲语言生态的多语言基础模型。
+def build_euroweb(raw_web_documents):
+    tiered_docs = {1: [], 2: [], 3: []}
+    for doc in raw_web_documents:
+        lang = language_id(doc)
+        if lang not in languages:
+            continue
+        if not heuristic_filter(doc):       # 长度、lorem ipsum、javascript、符号比例、大写比例等
+            continue
+        if is_duplicate(doc):
+            continue
+        score = EuroFilter(doc)             # 0 到 5 的教育质量分数
+        tier = assign_quality_tier(score)   # 后期训练使用更高质量 tier
+        tiered_docs[tier].append(doc)
+    return tiered_docs
 
-##### 2. 模型架构
+def train_eurollm22b(model, euroweb, parallel_data, code_math_data):
+    # Phase 1: 3.6T tokens，低到中等质量覆盖，建立通用语言能力
+    lr = linear_warmup(max_lr=1.5e-4, warmup_ratio=0.10)
+    for batch in sample_mix(euroweb[1], parallel_data, code_math_data, tokens="3.6T"):
+        loss = cross_entropy(model(batch.input), batch.target)
+        update(model, loss, lr)
 
-| 组件 | 设计选择 |
-|------|---------|
-| 参数量 | 22B |
-| 注意力机制 | GQA (Grouped-Query Attention)，分组数未公开 |
-| 上下文长度 | 8192 tokens |
-| 激活函数 | SwiGLU |
-| 位置编码 | RoPE (Rotary Position Embedding) |
-| 层数 | ~56层（估计，基于22B典型配置） |
-| 隐藏维度 | ~6144（估计） |
-| Tokenizer | BPE，词表大小约128K-256K，覆盖35种语言子词 |
+    # Phase 2: 400B tokens，采样更高质量数据并把学习率降到峰值 10%
+    for batch in sample_mix(euroweb[2], parallel_data, code_math_data, tokens="400B"):
+        lr = linear_anneal(start=1.5e-4, end=1.5e-5)
+        update(model, cross_entropy(model(batch.input), batch.target), lr)
 
-所选架构均为经过充分验证的成熟方案，未引入实验性组件，以降低训练风险并确保社区可复现。
+    # Phase 3: 32K 上下文扩展，高质量数据、数学/代码、长文档数据占比提高
+    model.rope_theta = 1e6
+    model.max_seq_len = 32768
+    for batch in sample_mix(euroweb[3], long_context_books_code(), synthetic_math(), tokens="final"):
+        lr = decay_to_zero()
+        update(model, cross_entropy(model(batch.input), batch.target), lr)
 
-##### 3. 训练数据
+    return supervised_finetune(model, EuroBlocks_SFT_2512, epochs=5, max_len=32768)
+```
 
-- **数据来源**：从CommonCrawl、OSCAR、Wikipedia各语言版本、EUR-Lex法律文档、EuroParl议会记录等公开语料中筛选。
-- **语言覆盖**：35种欧洲语言，包括英语、德语、法语、西班牙语、意大利语等高位资源语言，以及爱尔兰语、马耳他语、巴斯克语等低位资源语言。
-- **数据配比**：采用基于对数采样的温度调节方法——对高资源语言适度降采样，对低资源语言升采样，避免单一语言（尤其是英语）主导训练分布。最终英语占比控制在~20-25%，远低于主流模型的90%+。
-- **质量过滤**：多级pipeline——语言识别（fastText）→ 困惑度过滤 → 去重（MinHash）→ 启发式规则去噪。
+EuroLLM-22B 的动机是非常工程化的：多数开放权重大模型虽然具备一定多语言能力，但训练数据、过滤规则和后训练配方往往不透明，而且英语和少数高资源语言占据主导。论文把“服务欧洲语言”落到两个可操作约束上：一是 tokenizer 和预训练语料必须原生覆盖 24 种欧盟官方语言及 11 种额外语言；二是模型、数据和代码要开放，方便研究者复现或审计。这里的“从零训练”很关键，它不是把一个英语优先模型继续训成多语言模型，而是在 128K BPE 词表、数据混合和训练日程上直接面向多语言分布设计。
 
-##### 4. 训练策略
+架构层面，EuroLLM-22B 选择了稳健的 dense decoder-only Transformer，而不是引入 MoE 或实验性 attention。22B 版本使用 54 层、6144 hidden size、16384 FFN hidden size、48 attention heads 和 8 KV heads 的 GQA；激活函数是 SwiGLU，归一化是 RMSNorm，位置编码是 RoPE。语言建模目标仍是标准自回归交叉熵：
 
-**课程学习（Curriculum Learning）三阶段**：
+$$
+\mathcal{L}_{\mathrm{LM}}(\theta) = - \sum_{t=1}^{T} \log p_\theta(x_t \mid x_{<t})
+$$
 
-1. **阶段一（基础语言能力）**：以英语、德语、法语、西班牙语、意大利语5种高位资源语言的数据为主（占比~70%），训练基础语法、知识与推理能力。
-2. **阶段二（语言扩展）**：引入剩余30种语言数据，逐步提升低资源语言的采样权重，同时保持高位资源语言比例不低于总量30%。
-3. **阶段三（跨语言对齐）**：加入平行语料（EuroParl、FLORES等）与代码切换数据，强化跨语言迁移能力。
+因此论文的主要贡献不在损失函数，而在训练系统和数据配方：在可控参数规模下，让模型同时学习通用推理、翻译、指令跟随和欧洲多语言表达。
 
-训练共使用约3-4T tokens（具体数值未完全公开），在欧盟EuroHPC超算上完成。
+数据流水线是 EuroLLM-22B 最重要的机制。英语数据来自 FineWeb-edu 与 Nemotron-CC 的高质量 split；德语、西班牙语、法语、意大利语等高资源语言从 RedPajama-Data-v2 收集，并用 KenLM 困惑度和启发式规则过滤；其他语言聚合 HPLT、MADLAD-400、CulturaX、mC4，再做去重、语言识别、困惑度过滤和同样的启发式清洗。EuroFilter 把多语言网页样本打成 0 到 5 的质量分，22B 版本把这些样本分为三个 tier，让模型在训练后期更多看到高质量内容，这相当于把数据质量本身做成 curriculum。
 
-##### 5. 评估结果
+训练日程和数据 curriculum 是绑定的。第一阶段用 3.6T tokens 做大覆盖学习，学习率先 10% 线性 warmup 到 \(1.5 \times 10^{-4}\) 并保持；第二阶段用 400B tokens 退火到峰值的 10%；最后阶段继续衰减到 0，同时引入最高质量 tier、更多数学/代码、合成数学和长上下文数据。32K 上下文扩展也放在最后阶段完成：模型最大序列长度从 4K 调到 32K，并把 RoPE 的 \(\theta\) 从 \(10^4\) 增至 \(10^6\)。论文还特别加入 60B tokens 的长上下文数据，书籍和代码各半，让长上下文能力不是只靠位置编码缩放硬外推。
 
-| 基准 | 任务 | EuroLLM-22B性能 | 对比模型 |
-|------|------|----------------|---------|
-| FLORES-200 | 多语言翻译 (xx→en, en→xx) | 高资源语言与Llama-3-8B可比；低资源语言显著优于 | Llama-3-8B, Mistral-7B |
-| EuroEval | 多任务（推理、QA、NLI） | 总体与Llama-3-8B持平 | Llama-3-8B, Gemma-7B |
-| XNLI | 跨语言自然语言推理 | 低资源语言准确率高出3-8个百分点 | Mistral-7B |
-| MMLU多语言版 | 知识问答 | 英语部分略低于专用英语模型，非英语优势明显 | Llama-3-8B |
+后训练使用新版 EuroBlocks。作者从多个公开指令数据源出发，用更强开放模型重新生成回答，再用 Skywork-Gemma2-27B 选择更优响应，加入 Hermes-3、Tulu-3、Nemotron V1/V2 等来源，并移除结构化 reasoning trace，形成非 reasoning 的多语言指令-回复语料。SFT 只在 target tokens 上计算 loss，训练 5 个 epoch，最大上下文 32768，使用 bfloat16、sequence packing、cosine learning rate 和 Liger-Kernel 优化算子。评测时，非翻译任务用多个高能力 judge 聚合判断，翻译任务用 COMET-22；论文结论是 22B 在 fully open European baselines 中表现最强，并且在只有约 4T 预训练 token 的情况下接近更大规模欧洲模型。
 
-**关键发现**：
-- 从零多语言训练在低资源欧洲语言上具有显著优势，最高可超过同规模英语中心模型10个BLEU点以上（翻译任务）。
-- 英语性能仅小幅下降（约2-3%），权衡完全可接受。
-- 课程学习相比均匀采样提升了低资源语言收敛速度约30%。
+> 💡 关键：EuroLLM-22B 的“算法”更像一条可审计的多语言模型生产线：语言覆盖、质量分层、学习率阶段、上下文扩展和指令数据重建共同决定效果，单独看 Transformer 结构反而不是创新重点。
 
-##### 6. 资源与生态
-
-- **模型权重**：Hugging Face 完全开源（Apache 2.0许可证）
-- **训练细节**：技术报告详细公开数据配比、超参、训练曲线
-- **评估代码**：评估框架（EuroEval）一并开源，支持社区复现与扩展
-- **硬件**：在EuroHPC Leonardo超算上训练，使用~512个A100 GPU，历时数周
-
-##### 7. 不足与展望
-
-- 22B参数仍不足以在复杂推理任务（如数学、代码）上与专用大模型竞争；
-- 部分极低资源语言（如萨米语）的训练数据仍然不足，性能提升有限；
-- 未涉及多模态能力；
-- 未来计划扩展至更多欧洲方言及少数民族语言，并探索MoE架构以提升参数效率。
-
----
+#### 🧪 练习题
+```yaml
+question: "EuroLLM-22B 将多语言网页数据按质量分成三个 tier 的主要目的是什么？"
+options:
+  - "让模型后期更多看到高质量多语言数据，配合学习率衰减提升收敛质量"
+  - "把所有低资源语言样本完全丢弃，只保留英语和高资源语言"
+  - "用 MoE router 自动选择不同语言专家"
+  - "在推理时动态切换不同 tokenizer"
+answer: 0
+explain: "论文使用 EuroFilter 给多语言网页样本打分，并把数据划分到三个训练阶段，后期保留更高质量数据；这是一种数据质量 curriculum，而不是 MoE 或推理时机制。"
+```
 
 ### Mellum 2
 
@@ -6021,170 +4699,90 @@ motivation: 小激活MoE服务开发场景
 ```
 
 #### 📝 一句话总结
-Mellum 2 提出了一种极简的 12B 总参数量 MoE 语言模型（2.5B 激活参数）：深度探索了 MoE 路由、多 token 预测（MTP）、双优化器联合训练、层级选择性 YaRN 上下文扩展、以及基于 GRPO 变体的 RL 后训练，在仅 10.65T tokens 的训练预算下于 7 项评测维度平均超越了 Qwen3.5-14B、OLMo3-12B 和 Ministral3-13B 等同类模型。
+Mellum 2 提出一个开放权重的 12B 总参数、每 token 仅约 2.5B 激活参数的 MoE 语言模型，专门面向代码生成、编辑、调试、工具调用和 agentic coding 等软件工程场景。它的核心贡献是用推理预算反推架构：64 experts / top-8 路由、4 KV heads GQA、3:1 sliding-window attention、MTP、Muon + FP8 训练、layer-selective YaRN 与 RLVR 后训练共同服务“小激活、可部署、偏工程任务”的目标。
 
 #### 🎯 核心要点
-- 架构：12B 总参数量 MoE，64 个专家每 token 激活 8 个（8-of-64），实际激活参数仅约 2.5B
-- 40 层 Transformer，隐藏维度 2560，GQA 分组数为 4，滑动窗口注意力比例 3:1
-- 多 Token 预测（MTP）：单头预测下一个 token，推理时可丢弃
-- 训练优化：双优化器设计——Muon 用于嵌入和 LM Head，AdamW 用于其余参数
-- FP8 混合精度训练（Hybrid FP8：注意力 softmax 和 MoE gate 保留 BF16）
-- WHD（Width-Holding Decay）学习率调度器替代 cosine/linear
-- 3 阶段预训练 curriculum：5T → 3.65T → 2T tokens（总计 10.65T）
-- 上下文扩展：层级选择性 YaRN（只对底层 16 层施加 YaRN 缩放），最高可达 131K
-- 后训练流程：SFT 微调 → IcePop（GRPO 变体）RL 训练 → 模型蒸馏
-- RLVR（Reinforcement Learning with Verifiable Reward）：在数学和代码任务上使用可验证奖励
-- 开源发布全部训练细节、超参表和消融实验
+- 模型规模：约 12B 总参数，约 2.5B active parameters per token；目标是在 2-3B dense 计算量附近获得更大的知识容量。
+- MoE 结构：每层 MoE FFN，64 个 routed experts，每 token top-8 激活，expert intermediate size 896，无 shared expert，采用 dropless routing。
+- Transformer 配置：28 层 decoder-only，hidden dimension 2304，32 query heads，4 KV heads，head dimension 128，RMSNorm \(\epsilon=10^{-6}\)，RoPE base \(\theta=500000\)，词表 98304。
+- 注意力效率：3:1 SWA 模式，即每 4 层中 3 层用 window size 1024 的 sliding window attention，剩余 1 层保留 full attention。
+- MTP 头：单个 Multi-Token Prediction transformer layer，loss weight \(\alpha=0.1\)，训练时作为辅助目标，部署时可作为 speculative decoding 的 draft 模型，评测时可移除。
+- 预训练 curriculum：总计 10.65T tokens，三阶段从 web-heavy 转向 code/math-heavy：6.18T、2.79T、1.69T，对应 code 比例 23% → 42% → 59%。
+- 优化与精度：Distributed Muon，内部对 embedding/output layers 使用 Adam；WHD 学习率调度，2000 warmup steps，Phase 3 线性 decay 到 0；BF16 + FP8 hybrid mixed precision，梯度归约 FP32。
+- MoE 稳定性：router 使用 FP32，global auxiliary load-balancing loss 系数 \(10^{-3}\)，router z-loss \(10^{-3}\)，dropless routing 避免 token dropping。
+- 长上下文：从 8192 扩展到 131072 tokens，通过 layer-selective YaRN 只重映射 full-attention layers 的 RoPE 频率，不扰动 sliding-window layers。
+- 后训练：从 128K YaRN checkpoint 出发做 SFT，分别训练 Instruct 与 Thinking 两种变体，再用可程序验证奖励的 RLVR / GRPO 变体强化数学、可执行代码、工具调用等任务。
 
 #### 🔬 深入细节
-**1. 架构设计：极简 MoE backbone**
+![Mellum 2 MoE iso-latency 设计空间](https://arxiv.org/html/2605.31268v1/x3.png)
 
-Mellum 2 的架构遵循极简设计哲学，几乎全部采用标准组件，仅在 MoE 路由和多头注意力策略上做了针对效率的精细优化：
+*图：论文 Figure 1(a) 展示 64 experts、8 active 的 Qwen3-MoE 架构在 throughput mode 下的 iso-latency 设计空间，用推理延迟约束筛选 Mellum 2 的 MoE 规模。*
 
-- **总参数量 12B，专家数 64，每 token 激活 8 个（8-of-64），激活参数仅约 2.5B**
-- **40 层 Transformer Decoder**（无 Encoder），`d_model = 2560`
-- **分组查询注意力（GQA）**：4 组查询头，减少 KV cache 开销
-- **滑动窗口注意力（SWA）: 全局注意力 = 3:1**（每 4 层中有 3 层用 SWA，1 层用全局注意力），节省长序列下计算量
-- **RoPE 位置编码**：基频 θ = 50,000,000（5000 万），为长上下文扩展预留空间
-- **QK 归一化**：对 Query 和 Key 施加 LayerNorm，稳定长序列训练
-- **SwiGLU 激活**：FFN 使用标准 SwiGLU 非线性
+```python
+# Mellum 2 单 batch 训练伪代码
+def mellum2_forward(tokens):
+    h = embed(tokens)
+    aux_losses = []
+    for layer_id in range(28):
+        if layer_id % 4 in {0, 1, 2}:
+            a = sliding_window_attention(h, window=1024, q_heads=32, kv_heads=4)
+        else:
+            a = full_attention(h, q_heads=32, kv_heads=4)
+        h = h + a
 
+        # MoE FFN: router 用 FP32，选择 64 个专家中的 top-8
+        router_logits = fp32_router(h)
+        probs = softmax(router_logits)
+        top8 = top_k(probs, k=8)
+        moe = sum(probs[..., i] * expert_i(h) for i in top8.indices)
+        h = h + moe
+
+        aux_losses.append(load_balance_loss(probs, top8) + z_loss(router_logits))
+    return h, sum(aux_losses)
+
+def train_step(batch):
+    h, router_loss = mellum2_forward(batch.tokens)
+    lm_loss = cross_entropy(lm_head(h[:, :-1]), batch.tokens[:, 1:])
+    mtp_loss = cross_entropy(mtp_head(h[:, :-2]), batch.tokens[:, 2:])
+    loss = lm_loss + 0.1 * mtp_loss + 1e-3 * router_loss
+    distributed_muon_step(loss, precision="BF16+FP8 hybrid")
 ```
-Mellum 2 架构简表：
-┌────────────────────────────────────────────┐
-│  Embedding                                  │
-│  ├─ Vocab Size: ~128K                       │
-│  └─ Vocab Embedding Dim: 2560               │
-├────────────────────────────────────────────┤
-│  40× Transformer Decoder Block              │
-│  ├─ QK LayerNorm                            │
-│  ├─ GQA (4 groups, SWA:Global = 3:1)        │
-│  ├─ RoPE (θ = 50,000,000)                   │
-│  ├─ MoE FFN (8-of-64, dropless)             │
-│  │   ├─ Router: top-8 softmax gating        │
-│  │   ├─ Aux Loss coefficient: 1e-3          │
-│  │   └─ Expert capacity: 无限制 (dropless)  │
-│  └─ MTP Head (1 head, 可丢弃)               │
-├────────────────────────────────────────────┤
-│  LM Head (tied with input embedding)         │
-└────────────────────────────────────────────┘
-总参数量: 12B | 激活参数: ~2.5B
-```
 
-**MoE 路由机制**：
-Router 使用经典的 Top-K softmax gating（K=8）。无专家容量限制（"dropless"），即每个 token 被分配的 8 个专家均可完全处理，不存在 token 丢弃。辅助负载均衡损失（auxiliary load balancing loss）系数设为 `1e-3`，以微弱信号鼓励专家间的均匀利用。论文消融实验表明，与 Dense 和 MLA（Multi-head Latent Attention）方案相比，8-of-64 的 MoE 设计在同等激活参数量下提供了最优的推理效率-性能前沿。
+Mellum 2 的出发点不是追求最大的通用 benchmark 分数，而是软件工程部署约束：IDE、代码 agent 和工具调用需要低延迟、高吞吐、长上下文和较强代码能力。论文因此采用 MoE，而不是同等总参数的 dense 模型：每个 token 只激活约 2.5B 参数，但 12B 总参数为长尾编程语言、API、调试模式和推理模板提供更大容量。作者把 64 experts 固定为能放入 GPU 内存的上限，再在 active experts 上做延迟-质量折中；2 active 更快但质量损失明显，最终选择 8 active out of 64。
 
-**2. 预训练体系：三阶段 curriculum + 双优化器 + FP8**
+核心计算可以写成 top-k MoE 聚合：
 
-预训练流程是 Mellum 2 最具参考价值的部分，因为它在相对较小的训练预算（10.65T tokens）下实现了强劲的性能，这归功于精心设计的训练策略。
+$$
+y_t = \sum_{i \in \mathrm{Top8}(g(h_t))} p_i(h_t)\,E_i(h_t),
+\quad p(h_t)=\mathrm{softmax}(g(h_t))
+$$
 
-**三阶段预训练 curriculum**：
+其中 \(g\) 是 router，\(E_i\) 是第 \(i\) 个 expert。Mellum 2 使用 dropless routing，也就是不设置 capacity factor 丢 token；这样早期吞吐会受负载不均影响，但随着 global load-balancing loss 让 router 学会均衡分配，吞吐会接近 capacity-limited routing，同时避免 token dropping 带来的信息损失。router 计算保留 FP32，并加入 \(10^{-3}\) 的 auxiliary load-balancing loss 与 \(10^{-3}\) 的 z-loss，这些细节比 MoE 公式本身更影响训练稳定性。
 
-| 阶段 | Token 量 | 序列长度 | 峰值学习率 | 关键操作 |
-|------|----------|----------|-----------|----------|
-| Stage 1 | 5T | 8192 | 3e-4 | 基础预训练 |
-| Stage 2 | 3.65T | 8192 | 1.5e-4 | LR 减半 + 数据重 balancing |
-| Stage 3 | 2T | 8192 | 8e-5 | LR 再降 + 高质量数据注入 |
-| **总计** | **10.65T** | | | |
+注意力设计同样由推理效率驱动。4 KV heads 的 GQA 降低 KV cache 成本；3:1 sliding-window attention 让 28 层中大多数层只看 1024 token 的局部窗口，减少长输入下的 attention 开销，而每 4 层保留 1 层 full attention，避免模型完全失去远距离交互路径。MTP 头预测额外未来 token，训练目标为：
 
-- 全局 batch size 为 4096（每 step 处理的序列数），序列长度固定为 8192
-- 数据并非公开披露，但论文提到了质量过滤和去重流程
+$$
+\mathcal{L}=\mathcal{L}_{\mathrm{next}} + 0.1\,\mathcal{L}_{\mathrm{MTP}} + 10^{-3}\mathcal{L}_{\mathrm{router}}
+$$
 
-**双优化器联合训练**（核心创新）：
+这个 MTP 头不是改变主模型输出接口，而是作为辅助目标和 speculative decoding 的内置 draft；评测时可以移除，降低对主干推理的影响。
 
-这是极少在 Transformer 预训练中被采用的策略，灵感来源于大规模矩阵优化的数值稳定性需求：
+预训练 curriculum 是“web early, curated late”。Phase 1 用 6.18T tokens 建立基础语言和代码能力，web/code/math 比例约 70/23/6；Phase 2 用 2.79T tokens 增加高质量与代码数据，比例约 44/42/14；Phase 3 用 1.69T tokens 在学习率 decay 阶段强化能力，code/math 升至 59/18。学习率使用 Warmup-Hold-Decay：2000 steps warmup 到 \(3\times10^{-4}\)，前两阶段保持峰值，第三阶段约 49306 steps 线性衰减到 0。优化器是 Distributed Muon，使用 Moonlight 配置，Muon 对 hidden layers 做正交化更新，同时对 embedding 和 output layers 使用 Adam；这比旧文件中“Muon 只管 embedding/LM head”的说法相反。
 
-- **AdamW**（β₁=0.9, β₂=0.95, weight_decay=0.1）：用于所有 Transformer Block 内部的参数（QKV 投影、FFN、MoE 专家、Router、LayerNorm）
-- **Muon**（momentum=0.95, weight_decay=0.01）：专门用于 Embedding 矩阵和 LM Head 的输出投影
-- 双优化器在同一个训练 step 中交替更新各自负责的参数，无需额外通信开销
+长上下文扩展从 8192 到 131072 tokens。Mellum 2 没有对所有层统一做 YaRN，而是只对 full-attention layers 做频率重映射，sliding-window layers 保留原 RoPE 参数。直觉是 SWA 层本来只处理固定 1024 token 局部窗口，不需要为 128K 全局距离重标定；真正需要外推的是 full-attention 层。论文在 RULER ablation 中报告，64K 评测上下文下 layer-selective recipe 得分 0.64，高于 uniform \(\theta\)-bump 的 0.52 和 unchanged-\(\theta\) 的 0.33，说明“只改必须长距外推的层”比粗暴全层缩放更稳。
 
-原因：嵌入矩阵和 LM Head 均为巨大的 [vocab_size × d_model] 矩阵（~128K × 2560），其条件数极高。Muon 优化器（基于矩阵 Newton-Schulz 迭代的正则化方法）在数值稳定性上显著优于 AdamW 的一阶矩估计，可防止梯度爆炸。
+后训练分 SFT 和 RLVR。SFT 从 long-context YaRN checkpoint 开始，训练 Instruct 和 Thinking 两个变体：Instruct 直接回答并丢弃 reasoning 字段；Thinking 会输出 reasoning trace，并只对最终 assistant turn 及其 reasoning trace 计算 loss。两者都用 131072 packed sequence、Distributed Muon、BF16+FP8，并把 MoE aux-loss 系数降到 \(10^{-4}\)。RL 阶段使用可程序验证奖励而非 RLHF reward model，因为数学、可执行代码和函数调用任务能用确定性 checker 判对错；这降低了 reward model 噪声，让小激活 MoE 更适合软件工程中的“能跑通就给奖”的训练信号。
 
-**WHD 学习率调度器**：
-
-替代常规的 cosine/linear schedule。WHD（Width-Holding Decay）在预热后保持高位 LR 一段时间，然后以可配置的衰减速率下降。关键参数：预热步数 2000，Stage 1 峰值 LR = 3e-4，每个后续阶段 LR 减半。
-
-**FP8 Hybrid 混合精度**：
-
-并非全量 FP8。Attention 的 softmax 计算和 MoE Router 的 gating 计算保留 BF16，其余所有线性层和 FFN 使用 FP8（E4M3 格式），在降低显存的同时避免了 softmax/gating 的数值溢出。
-
-**3. 上下文扩展：层级选择性 YaRN**
-
-在 Stage 3 的 2T tokens 训练结束后，Mellum 2 对模型进行上下文长度扩展，目标从 8K 提升至 131K tokens。核心方法：
-
-- **YaRN（Yet another RoPE extensioN）** 算法，对 RoPE 频率做重缩放
-- **层级选择性策略**（Layer-selective）：仅在模型的底层 16 层（共 40 层）施加 YaRN 频率重缩放，顶层保持原始 RoPE 频率
-- 直觉：底层更关注局部细节和短程依赖，YaRN 的缩放对其影响更大；而顶层已通过相对位置编码学习到有效的长程表征，过度缩放反而不利
-
-扩展过程采用渐进式微调：在 8K → 32K → 64K → 131K 的序列上逐步训练，每个阶段仅需少量数据（数亿 tokens）。论文在 RULER 长文本评测中验证了该策略的有效性，131K 长度下准确率明显优于全量 YaRN 基线。
-
-**4. 后训练流程：SFT → IcePop RL → 蒸馏**
-
-后训练分三个阶段：
-
-**SFT（监督微调）**：
-- 使用精选的指令遵循和对话数据（数万条量级）
-- 与预训练相同的数据格式，避免分布偏移
-- 学习率 3e-5，全局 batch size 128，约 3 个 epoch
-
-**IcePop RL 训练**（GRPO 的轻量化变体）：
-
-IcePop 是 Group Relative Policy Optimization（GRPO）的改进版：
-- 传统 GRPO：对每个 prompt 采样 K 个 response，使用组内相对奖励进行优化 → 需要 K 倍的推理开销
-- IcePop 改进：复用 SFT 阶段的高质量 response 作为 "anchor"，仅对每个 prompt 采样 2 个新 response（K=2），极大降低计算量
-- 优势函数：`A = r_new - r_anchor`，其中 r_anchor 是 SFT response 的奖励
-- Reward 类型：对于数学/代码推理任务使用 RLVR（可验证的 ground-truth 奖励）；对于创意写作等开放任务使用 Reward Model 打分
-- 裁剪范围 ε = 0.2，学习率 1e-6，KL penalty coefficient = 0.04
-
-**模型蒸馏**：
-- 将 IcePop 训练后的 Mellum 2 作为 Teacher，对小批量高质量 reasoning 数据进行再采样
-- 将 Teacher 的高质量 output 与原始 SFT 数据混合，微调最终的 release 模型
-- 蒸馏使模型在指令遵循和风格一致性上进一步提升
-
-**5. 核心公式**
-
-**MoE 输出**：
-
-$$y = \sum_{i \in \text{TopK}(G(x), 8)} g_i(x) \cdot \text{Expert}_i(x), \quad G(x) = \text{softmax}(W_g \cdot x)$$
-
-其中辅助损失为：
-
-$$\mathcal{L}_{aux} = \alpha \cdot \sum_{i=1}^{64} f_i \cdot p_i, \quad \alpha = 10^{-3}$$
-
-$f_i$ 为专家 i 的 token 比例，$p_i$ 为路由概率均值。
-
-**YaRN 频率缩放**（层级选择性）：
-
-$$\Theta_l = \begin{cases} \theta \cdot \gamma^{-2l/d}, & l \leq 16 \quad \text{(YaRN 缩放)} \\ \theta^{-2l/d}, & l > 16 \quad \text{(原始 RoPE)} \end{cases}$$
-
-其中 γ 为缩放因子，d 为 head 维度。
-
-**IcePop 目标函数**：
-
-$$J(\theta) = \min\left(r_t(\theta) \cdot A, \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon) \cdot A \right) - \beta \cdot D_{KL}(\pi_\theta || \pi_{ref})$$
-
-其中 $r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{old}(a_t|s_t)}$ 为策略概率比，A 为锚定优势函数。
-
-**6. 评测结果**
-
-Mellum 2 在 7 大评测维度上与其他 12B-14B 量级模型（Qwen3.5-14B, OLMo3-12B, Ministral3-13B）进行对比：
-
-| 评测维度 | Mellum 2 | Qwen3.5-14B | OLMo3-12B | Ministral3-13B |
-|----------|----------|-------------|-----------|----------------|
-| 通用能力 (MMLU-Pro) | **52.8** | 51.2 | 48.9 | 49.5 |
-| 代码 (HumanEval+) | **78.1** | 76.0 | 72.8 | 73.2 |
-| 数学 (MATH-500) | **84.4** | 82.9 | 79.1 | 80.5 |
-| 推理 (GPQA Diamond) | **47.2** | 43.8 | 41.3 | 42.1 |
-| 指令遵循 (IFEval) | 81.3 | **82.6** | 78.1 | 79.8 |
-| 长文本 (RULER-131K) | **75.7** | 68.3 | 65.4 | 63.2 |
-| 多语言 (MGSM) | 73.5 | **75.9** | 70.2 | 71.8 |
-| *平均* | **70.4** | 68.7 | 65.1 | 65.7 |
-
-MoE 架构 + 精心的训练 recipe 使 Mellum 2 以 2.5B 激活参数战胜了参数量更大的密集模型。
+> 💡 关键：Mellum 2 的方法重点是 inference-aware model design。MoE、GQA、SWA、MTP、Muon、FP8、YaRN 和 RLVR 都围绕同一个约束展开：在可部署计算量下，把软件工程任务需要的容量、长上下文和工具调用能力尽量做满。
 
 #### 🧪 练习题
 ```yaml
-1. 解释 Mellum 2 为什么在预训练中使用双优化器（Muon + AdamW）组合，而不是单一优化器？Muon 专门用于哪些参数矩阵，背后的数值动机是什么？
-2. 推导 MoE 辅助负载均衡损失的梯度形式，并解释为什么系数 1e-3 是一个"微弱"信号——如果系数过大（如 0.1）会对路由行为产生什么影响？
-3. Mellum 2 的层级选择性 YaRN 为何只作用于底层 16 层？从 Transformer 不同层代表的功能分布角度分析其合理性。
+question: "Mellum 2 为什么只对 full-attention layers 使用 layer-selective YaRN？"
+options:
+  - "因为 sliding-window layers 只处理固定局部窗口，主要由 full-attention layers 承担长距离外推"
+  - "因为 MoE experts 只能在 full-attention layers 中工作"
+  - "因为 YaRN 只能用于 dense 模型，不能用于 MoE 层"
+  - "因为 128K 上下文只在 SFT 阶段使用，预训练阶段完全不用位置编码"
+answer: 0
+explain: "论文认为 SWA 层的注意力跨度固定，统一缩放会扰动原本有效的局部建模；需要长距离位置外推的是 full-attention layers。"
 ```

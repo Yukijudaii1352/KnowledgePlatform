@@ -2168,16 +2168,122 @@ motivation: 高精度后量化支持W6A8低比特推理
 ```
 
 #### 📝 一句话总结
-Q-DiT 的核心目标是：高精度后量化支持W6A8低比特推理。
+Q-DiT 提出面向 Diffusion Transformer 的后训练量化框架，通过逐层自动分配 group quantization 粒度与样本级动态激活量化，解决 DiT 权重/激活分布方差大、随时间步漂移导致低比特量化失真的问题。
 
 #### 🎯 核心要点
-- 核心动机：高精度后量化支持W6A8低比特推理
-- 演化来源：继承或改进自 dit
-- 代表机构：Multiple Institutions
+- 面向 DiT 的 PTQ：无需重新训练大规模扩散 Transformer，即可压缩权重与激活以降低推理成本
+- 两个关键观察：权重和激活在输入通道维度存在显著空间方差，激活还会随扩散时间步和样本发生明显漂移
+- 细粒度组量化：在输入通道维度切分 group，每个 group 独立计算量化参数，缓解通道异常值对整层量化尺度的污染
+- 自动量化粒度分配：用进化搜索为不同层选择 group size，以 FID/FVD 等生成质量指标直接指导量化配置
+- 样本级动态激活量化：推理时按当前样本、当前时间步和当前 group 在线计算 activation scale/zero point，避免静态校准参数跨时间步失效
+- 实验覆盖 ImageNet 图像生成与 VBench 视频生成，重点验证 W6A8、W4A8 等低比特设置下的质量保持能力
 
 #### 🔬 深入细节
-高精度后量化支持W6A8低比特推理
+##### 1. 核心示意图
 
+![Q-DiT 总览图](https://arxiv.org/html/2406.17343v2/x1.png)
+*图：Q-DiT 将每层权重和激活按相同 group size 量化，group size 由进化搜索分配；激活在推理时执行动态量化。*
+
+##### 2. 背景与动机
+
+Diffusion Transformer 把扩散模型从传统 UNet 架构推进到 Transformer 架构，带来了更强的图像和视频生成能力，但代价是更高的参数规模、矩阵乘开销和多步去噪延迟。后训练量化是部署这类模型的自然选择，因为它不要求保留原始训练数据，也不需要对大模型重新训练。
+
+直接把 UNet 扩散模型或普通 ViT/LLM 的 PTQ 技术迁移到 DiT 会失败，核心原因在于 DiT 的量化误差来源不同。论文首先观察到，DiT 线性层的权重和激活在输入通道方向上的幅值差异很大；如果整层共享一个 scale，少数高幅值通道会把量化区间撑大，使大量普通通道被粗糙地舍入。
+
+第二个问题来自扩散采样本身。去噪过程中的时间步 \(t\) 不同，激活分布也不同；同一时间步的不同生成样本也可能具有不同范围。静态校准只在少量 calibration samples 和固定时间步上估计量化参数，难以覆盖整个采样轨迹，因此会造成有偏量化。
+
+##### 3. 量化基础
+
+Q-DiT 采用常见的均匀仿射量化。给定浮点张量 \(\mathbf{x}\) 和 bit-width \(b\)，量化-反量化结果为：
+
+$$
+\hat{\mathbf{x}} = Q(\mathbf{x}; b)
+= s \cdot \left(\operatorname{clip}\left(\left\lfloor \frac{\mathbf{x}}{s} \right\rceil + Z, 0, 2^b - 1\right) - Z\right)
+$$
+
+其中 scale 与 zero point 由张量范围给出：
+
+$$
+s = \frac{\max(\mathbf{x}) - \min(\mathbf{x})}{2^b - 1}, \qquad
+Z = -\left\lfloor \frac{\min(\mathbf{x})}{s} \right\rceil
+$$
+
+如果 \(\max(\mathbf{x})-\min(\mathbf{x})\) 被少量 outlier 主导，\(s\) 会过大，低幅值元素就会落入很少的整数桶中。Q-DiT 的后续设计，本质上都是在缩小“同一套量化参数需要覆盖的分布范围”。
+
+##### 4. 自动量化粒度分配
+
+对线性层 \(\mathbf{Y}=\mathbf{X}\mathbf{W}\)，其中 \(\mathbf{X}\in\mathbb{R}^{n\times d_{\text{in}}}\)、\(\mathbf{W}\in\mathbb{R}^{d_{\text{in}}\times d_{\text{out}}}\)，Q-DiT 沿输入通道把 \(\mathbf{X}\) 和 \(\mathbf{W}\) 分成若干 group。设第 \(l\) 层 group size 为 \(g_l\)，则每个 group 使用独立量化器：
+
+$$
+\hat{Y}_{i,j}
+= \sum_{u=0}^{d_{\text{in}}/g_l-1}\sum_{v=0}^{g_l-1}
+Q_u^{\mathbf{X}}\!\left(X_{i,u g_l+v}\right)
+Q_u^{\mathbf{W}}\!\left(W_{u g_l+v,j}\right)
+$$
+
+group size 越小，每组内部的数值范围越窄，量化误差通常越低；但论文发现 DiT 中这种关系并不单调。过小 group 会带来额外 rescale 与低精度计算组织成本，并且不同层对 group size 的敏感性不同。因此 Q-DiT 不手工指定统一 group size，而是把每层 \(g_l\) 作为搜索变量。
+
+搜索过程使用进化算法：一个候选个体是一组逐层 group size 配置；评估时用该配置量化模型、生成一小批样本，并用 FID 或 FVD 近似衡量视觉质量；随后保留高质量个体，并通过 crossover、mutation 生成下一代。这个设计比逐层 reconstruction loss 更贴近扩散模型最终目标，因为扩散误差会在多步采样中累积，局部 MSE 不一定等价于最终图像/视频质量。
+
+##### 5. 样本级动态激活量化
+
+权重量化可以离线完成，因为权重在推理期间固定；激活则不能简单依赖离线校准。Q-DiT 在推理时针对当前样本、当前时间步、当前 group 动态计算 activation 的 min/max、scale 和 zero point，再执行低比特矩阵乘。
+
+这个机制解决了两个静态 PTQ 很难覆盖的变化源：一是扩散时间步带来的分布漂移，二是不同 prompt/噪声种子生成样本之间的分布差异。直觉上，静态量化是在用“平均尺子”量所有时间步，而动态量化是在每个样本的每一步重新校准尺子。
+
+动态激活量化也有额外开销，因此实现上需要和 linear/GEMM 前处理融合，避免在每层显式搬运大量中间张量。Q-DiT 的思路不是让所有计算都变得更复杂，而是在最容易失真的 activation scale 上增加少量在线统计，换取明显更低的量化误差。
+
+##### 6. 核心流程伪代码
+
+```python
+# Q-DiT PTQ core flow
+def search_group_sizes(model, calibration_prompts, candidates, budget):
+    population = initialize_layerwise_group_configs(candidates, budget)
+    for generation in range(num_generations):
+        scored = []
+        for config in population:
+            q_model = quantize_weights_by_group(model, config)  # offline weight PTQ
+            samples = generate_with_dynamic_activation_quant(q_model, calibration_prompts, config)
+            score = fid_or_fvd(samples)                         # lower is better
+            scored.append((score, config))
+        elites = select_best(scored)
+        population = crossover_and_mutate(elites, candidates, budget)
+    return best_config(scored)
+
+def qdit_inference(q_model, noise, prompt, group_config):
+    z = noise
+    for t in diffusion_timesteps:
+        for layer in q_model.transformer_layers:
+            g = group_config[layer.name]
+            x_groups = split_input_channels(layer.input, group_size=g)
+            q_x = []
+            for x_g in x_groups:
+                scale, zero = minmax_quant_params(x_g)          # sample-wise dynamic
+                q_x.append(uniform_quantize(x_g, scale, zero, bits=8))
+            layer.output = low_bit_matmul(q_x, layer.quantized_weight)
+        z = denoise_step(q_model, z, prompt, t)
+    return decode_latent(z)
+```
+
+##### 7. 与传统量化方法的区别
+
+传统 PTQ 常把 CNN/UNet 的局部 reconstruction error 作为优化目标，或者对 Transformer 采用较固定的 per-channel/per-token 规则。Q-DiT 的差异在于它把 DiT 的生成式特征放到中心：量化配置直接用生成样本质量评价，并且显式处理扩散时间步导致的 activation 漂移。
+
+与纯 channel-wise 量化相比，group quantization 是质量和硬件效率之间的折中。每个输入通道一套量化参数最精细，但实际低精度 GEMM 中会频繁 rescale，效率差；整层一套参数效率高但误差大。Q-DiT 让不同层使用不同 group size，相当于把精度预算优先分给更敏感的层。
+
+> 💡 关键：Q-DiT 的贡献不只是“把 DiT 量化到 W6A8/W4A8”，而是识别出 DiT 量化最脆弱的两个维度：输入通道方差与时间步激活漂移，并分别用 group search 和 dynamic activation quantization 对症处理。
+
+#### 🧪 练习题
+```yaml
+question: "Q-DiT 为什么需要样本级动态激活量化？"
+options:
+  - "因为 DiT 的权重在推理时会随时间步变化"
+  - "因为激活分布会随扩散时间步和不同样本漂移，静态校准参数容易失效"
+  - "因为动态量化可以完全避免整数矩阵乘法"
+  - "因为 group size 越小一定带来越好的 FID"
+answer: 1
+explain: "Q-DiT 的关键观察是 activation 在时间步和样本维度都有显著变化，因此推理时在线计算每组 scale/zero point 能降低有偏量化误差。"
+```
 
 ### SCott
 
@@ -2865,140 +2971,142 @@ motivation: 连续深度模型为流匹配奠定数学基础
 ```
 
 #### 📝 一句话总结
-Neural ODE 将残差网络的离散层推广为由常微分方程定义的连续深度变换，通过伴随方法（adjoint method）实现常数级内存的梯度计算，并由此衍生出连续归一化流（CNF）和不规则时间序列建模等新范式，为连续时间生成模型奠定了数学基础。
+Neural ODE 将神经网络层的离散残差更新推广为连续时间动力系统，用 ODE solver 计算隐藏状态演化，并用伴随敏感度方法在常数级内存下反向传播，为连续归一化流、概率流 ODE 和流匹配模型奠定了数学基础。
 
 #### 🎯 核心要点
-- **核心思想**：将残差网络 \(h_{t+1} = h_t + f(h_t, \theta_t)\) 推广为连续形式 \(\frac{dh(t)}{dt} = f(h(t), t, \theta)\)，用黑盒 ODE 求解器替代固定的离散层
-- **伴随灵敏度方法（Adjoint Sensitivity Method）**：反向传播时不存储中间激活值，而是反向求解一个增广 ODE，实现 \(O(1)\) 内存复杂度
-- **连续归一化流（Continuous Normalizing Flows, CNF）**：利用瞬时变量替换公式（instantaneous change of variables），将 Normalizing Flow 的离散变换推广为连续变换，避免了对网络架构的限制（无需可逆或瓶颈结构）
-- **不规则时间序列建模**：通过 ODE-RNN 结构处理任意时间间隔的观测数据，用隐状态的连续演化替代固定步长的 RNN
-- **自适应计算**：ODE 求解器根据问题复杂度自动调节评估步数，简单区域用少量步数、复杂区域用更多步数
-- **实验验证**：在监督学习（MNIST）、密度估计（CNF）和时间序列（螺旋线重建）三个场景下验证了方法的有效性
+- 连续深度建模：用 \(\frac{d\mathbf{h}(t)}{dt}=f(\mathbf{h}(t),t,\theta)\) 替代固定层数的离散网络
+- 黑盒 ODE solver 前向：输出不是逐层堆叠得到，而是由 `ODESolve` 从 \(t_0\) 积分到 \(t_1\) 得到
+- 伴随敏感度反向传播：不保存每个 solver 内部步的中间激活，而是反向求解增广 ODE 来计算梯度
+- 自适应计算：ODE solver 可根据误差容忍度动态选择步长，在精度和速度之间显式折中
+- 连续归一化流：用瞬时变量替换公式 \(\frac{\partial \log p(\mathbf{z}(t))}{\partial t}=-\operatorname{Tr}\left(\frac{\partial f}{\partial \mathbf{z}}\right)\) 构建可逆密度模型
+- 时间序列建模：连续动力学天然支持不规则采样观测，不需要把观测强行离散到固定时间网格
 
 #### 🔬 深入细节
-![Neural ODE 核心概念对比图](https://ar5iv.labs.arxiv.org/html/1806.07366/assets/x1.png)
-*图：左——残差网络定义离散的有限变换序列；中——ODE 网络定义一个由向量场指定的连续变换；右——连续归一化流可以自由穿越等密度面，而离散流不行。*
+##### 1. 核心示意图
 
-##### 动机与背景
+![ResNet 离散层示意](https://ar5iv.labs.arxiv.org/html/1806.07366/assets/x1.png)
+![ODE-Net 连续动力系统示意](https://ar5iv.labs.arxiv.org/html/1806.07366/assets/x2.png)
+*图：论文 Figure 1 对比 ResNet 的离散有限层变换与 ODE-Net 的连续隐藏状态演化。*
 
-深度残差网络（ResNet）的核心更新规则为：
+![Neural ODE 伴随反向传播示意](https://ar5iv.labs.arxiv.org/html/1806.07366/assets/x3.png)
+*图：论文 Figure 2 展示伴随敏感度方法如何从终点向起点反向求解增广 ODE，并在多个观测时间点更新 adjoint。*
 
-$$h_{t+1} = h_t + f(h_t, \theta_t)$$
+##### 2. 从 ResNet 到连续深度
 
-这本质上是一个欧拉离散化的 ODE。当层数趋于无穷、步长趋于零时，这一离散动力系统自然过渡到连续动力系统：
+ResNet 的残差块可以写成：
 
-$$\frac{dh(t)}{dt} = f(h(t), t, \theta)$$
+$$
+\mathbf{h}_{t+1}=\mathbf{h}_t + f(\mathbf{h}_t,\theta_t)
+$$
 
-传统深度网络面临的问题是：（1）内存消耗随层数线性增长（需存储所有中间激活值用于反向传播）；（2）层数和步长是超参数，需要人工调节；（3）Normalizing Flow 要求每层变换必须可逆且雅可比行列式易于计算，严重限制了网络架构设计。
+这与 Euler 方法离散求解 ODE 的形式非常相似。如果把层间步长变小、层数趋于连续，隐藏状态就不再是有限个层索引上的向量，而是连续时间函数 \(\mathbf{h}(t)\)。Neural ODE 直接参数化其导数：
 
-Neural ODE 通过将网络视为连续动力系统，一举解决了上述三个问题。
+$$
+\frac{d\mathbf{h}(t)}{dt}=f(\mathbf{h}(t),t,\theta)
+$$
 
-##### 伴随灵敏度方法——O(1) 内存反向传播
+给定初始状态 \(\mathbf{h}(t_0)\)，模型输出为初值问题在 \(t_1\) 的解：
 
-Neural ODE 的核心技术贡献是利用伴随灵敏度方法计算损失函数对参数的梯度。
+$$
+\mathbf{h}(t_1)=\mathbf{h}(t_0)+\int_{t_0}^{t_1} f(\mathbf{h}(t),t,\theta)\,dt
+=\operatorname{ODESolve}(\mathbf{h}(t_0), f, t_0, t_1, \theta)
+$$
 
-![伴随方法计算图](https://ar5iv.labs.arxiv.org/html/1806.07366/assets/x2.png)
-*图：ODE 求解器的反向模式微分。通过反向求解增广 ODE 来计算梯度，无需存储前向过程的中间状态。*
+这意味着“网络深度”不再由人工指定的层数决定，而是由 ODE solver 为达到误差容忍度而执行的函数评估次数决定。困难样本可能需要更多评估，简单样本可能更少。
 
-给定损失函数 \(L(z(t_1))\)，其中 \(z(t_1) = z(t_0) + \int_{t_0}^{t_1} f(z(t), t, \theta)\,dt\)，需要计算 \(\frac{dL}{d\theta}\)。
+##### 3. 伴随敏感度方法
 
-**定义伴随状态（adjoint）**为损失对隐状态的梯度：
+训练 Neural ODE 的核心难点是如何对 ODE solver 反向传播。如果把 solver 内部每一步都展开成计算图，内存会随 solver 步数增长，而且自适应步长会让计算图复杂。论文采用伴随敏感度方法，把 solver 当作黑盒。
 
-$$a(t) = -\frac{\partial L}{\partial z(t)}$$
+设损失为 \(L(\mathbf{z}(t_1))\)，定义伴随状态：
 
-伴随状态满足另一个 ODE：
+$$
+\mathbf{a}(t)=\frac{\partial L}{\partial \mathbf{z}(t)}
+$$
 
-$$\frac{da(t)}{dt} = -a(t)^T \frac{\partial f(z(t), t, \theta)}{\partial z}$$
+伴随状态满足反向时间 ODE：
 
-> 💡 **关键直觉**：伴随方法的核心思想是"不存储，而是重新计算"。前向求解得到 \(z(t_1)\) 后，反向时从 \(t_1\) 到 \(t_0\) 同时求解三个量：（1）隐状态 \(z(t)\) 的反向重建；（2）伴随状态 \(a(t)\) 的演化；（3）参数梯度 \(\frac{dL}{d\theta}\) 的累积。三者组成一个**增广 ODE**，一次反向求解即可得到所有梯度。
+$$
+\frac{d\mathbf{a}(t)}{dt}
+=-\mathbf{a}(t)^\top \frac{\partial f(\mathbf{z}(t),t,\theta)}{\partial \mathbf{z}}
+$$
 
-参数梯度通过以下积分计算：
+参数梯度也可以通过同一个反向积分累计：
 
-$$\frac{dL}{d\theta} = -\int_{t_1}^{t_0} a(t)^T \frac{\partial f(z(t), t, \theta)}{\partial \theta}\,dt$$
+$$
+\frac{dL}{d\theta}
+=-\int_{t_1}^{t_0}
+\mathbf{a}(t)^\top
+\frac{\partial f(\mathbf{z}(t),t,\theta)}{\partial \theta}
+\,dt
+$$
 
-这一方法的内存复杂度为 \(O(1)\)（不随"层数"即积分步数增长），而传统的通过求解器反向传播（backprop through solver）内存复杂度为 \(O(L)\)，其中 \(L\) 为求解器步数。
+直觉上，前向时只需要知道起点和终点；反向时从终点 \(\mathbf{z}(t_1)\) 和 \(\frac{\partial L}{\partial \mathbf{z}(t_1)}\) 出发，沿着时间反方向同时恢复状态、伴随变量和参数梯度。这样避免保存所有内部激活，内存主要取决于状态维度而不是求解步数。
+
+##### 4. 核心流程伪代码
 
 ```python
-# Neural ODE 前向与反向传播伪代码
-# === 前向传播 ===
-def forward(z0, t0, t1, f, theta):
-    # 调用黑盒 ODE 求解器
-    z_t1 = ode_solve(f, z0, t0, t1, theta)
-    return z_t1
+# Neural ODE forward and adjoint backward
+def forward(z0, t0, t1, theta):
+    z1 = ODESolve(func=f_theta, y0=z0, t0=t0, t1=t1, params=theta)
+    return z1
 
-# === 反向传播（伴随方法）===
-def backward(z_t1, t0, t1, f, theta, dL_dz_t1):
-    # 定义增广动力学
-    def augmented_dynamics(aug_state, t):
-        z, a, _ = aug_state          # 隐状态, 伴随, 参数梯度
-        dz_dt = f(z, t, theta)       # 原始动力学
-        da_dt = -a @ df_dz(z, t)     # 伴随动力学
-        dtheta_dt = -a @ df_dtheta(z, t)  # 参数梯度累积
+def backward(z1, dL_dz1, t0, t1, theta):
+    # augmented state contains original state, adjoint, and accumulated parameter gradient
+    aug_T = (z1, dL_dz1, zeros_like(theta))
+
+    def augmented_dynamics(t, aug):
+        z, a, dL_dtheta = aug
+        f = f_theta(z, t, theta)
+        vjp_z, vjp_theta = vector_jacobian_products(a, f, (z, theta))
+        dz_dt = f
+        da_dt = -vjp_z
+        dtheta_dt = -vjp_theta
         return (dz_dt, da_dt, dtheta_dt)
-    
-    # 初始条件：从 t1 反向积分到 t0
-    aug_init = (z_t1, dL_dz_t1, zeros_like(theta))
-    z_t0, a_t0, dL_dtheta = ode_solve(
-        augmented_dynamics, aug_init, t1, t0  # 反向积分
+
+    z0, dL_dz0, dL_dtheta = ODESolve(
+        func=augmented_dynamics,
+        y0=aug_T,
+        t0=t1,
+        t1=t0,
+        params=theta,
     )
-    return dL_dtheta, a_t0  # 参数梯度 和 对初始状态的梯度
+    return dL_dz0, dL_dtheta
 ```
 
-> ⚠️ **注意**：伴随方法要求 ODE 求解器是可逆的（即从 \(z(t_1)\) 可以精确恢复 \(z(t_0)\)）。实际实现中，数值误差可能导致反向重建的 \(z(t)\) 与前向不完全一致，论文通过额外的检查点策略来缓解这一问题。
+##### 5. 与传统深度网络的区别
 
-##### 连续归一化流（CNF）
+传统前馈网络把层数、每层计算图和中间激活全部固定下来；Neural ODE 只定义连续向量场 \(f_\theta\)，把“如何从起点走到终点”交给数值积分器。这带来两个直接后果：第一，模型可用误差容忍度控制速度和精度；第二，函数评估次数成为一种数据依赖的自适应计算量。
 
-传统 Normalizing Flow 通过一系列可逆变换将简单分布映射到复杂分布，密度变化遵循变量替换公式：
+与普通 RNN 或时间序列模型相比，Neural ODE 不要求观测出现在固定离散时间点。只要给定任意时间 \(t\)，ODE solver 都能把状态积分到该时间。因此它很自然地适配医学记录、传感器日志等不规则采样场景。
 
-$$\ln p(z_1) = \ln p(z_0) - \ln \left|\det \frac{\partial f}{\partial z_0}\right|$$
+与离散 normalizing flow 相比，连续归一化流的变量替换更简洁。连续动力学下，对数密度的变化由雅可比迹控制：
 
-这要求每一层变换的雅可比行列式可以高效计算，极大限制了网络设计。
+$$
+\frac{\partial \log p(\mathbf{z}(t))}{\partial t}
+=-\operatorname{Tr}\left(\frac{\partial f}{\partial \mathbf{z}(t)}\right)
+$$
 
-Neural ODE 提出了**瞬时变量替换公式**：当变换由连续动力学 \(\frac{dz}{dt} = f(z, t)\) 定义时，对数概率密度的变化率为：
+这条公式把“样本如何移动”和“密度如何变化”放进同一个连续系统，也解释了 Neural ODE 为什么是后续 probability flow ODE、continuous normalizing flow、flow matching 的基础语言。
 
-$$\frac{\partial \ln p(z(t))}{\partial t} = -\text{tr}\left(\frac{\partial f}{\partial z(t)}\right)$$
+##### 6. 对流匹配的意义
 
-> 💡 **关键优势**：这里只需要计算雅可比矩阵的**迹（trace）**而非**行列式（determinant）**。迹的计算复杂度为 \(O(D)\)（\(D\) 为维度），而行列式为 \(O(D^3)\)。更重要的是，\(f\) 不再需要满足可逆性约束，可以使用任意神经网络架构。
+流匹配方法通常学习一个时间相关向量场，把简单分布中的噪声样本连续搬运到数据分布。Neural ODE 提供了精确的计算框架：学习向量场 \(v_\theta(\mathbf{x},t)\)，再通过 ODE 积分得到生成轨迹。
 
-通过 Hutchinson 迹估计器，迹的计算可以进一步降低为 \(O(1)\) 次向量-雅可比积：
+区别在于，Neural ODE 原论文关注“如何把神经网络定义为连续深度模型并训练它”，而流匹配进一步规定了向量场应该匹配哪类概率路径或条件流。可以把 Neural ODE 看作连续生成模型的数值求解和反向传播基础，把 flow matching 看作在这个基础上设计更直接、更稳定的训练目标。
 
-$$\text{tr}\left(\frac{\partial f}{\partial z}\right) = \mathbb{E}_{p(\epsilon)}\left[\epsilon^T \frac{\partial f}{\partial z} \epsilon\right]$$
-
-其中 \(\epsilon\) 为满足 \(\mathbb{E}[\epsilon] = 0\)、\(\text{Cov}(\epsilon) = I\) 的随机向量。
-
-##### 不规则时间序列建模
-
-对于观测时间不均匀的时间序列数据 \(\{(z_{t_0}, t_0), (z_{t_1}, t_1), \ldots, (z_{t_N}, t_N)\}\)，传统 RNN 难以自然处理不等间距的时间步。
-
-Neural ODE 提出的 ODE-RNN 方法：
-1. 用 RNN 编码器在每个观测时刻更新隐状态
-2. 在两个观测时刻之间，用 ODE 求解器连续演化隐状态
-3. 隐状态的演化自然适应任意时间间隔
-
-结合变分自编码器（VAE）框架，可以构建 Latent ODE 模型：先用 ODE-RNN 编码器推断初始潜变量分布 \(q(z_0 | \{x_i, t_i\})\)，再用 ODE 解码器从 \(z_0\) 生成任意时刻的预测。
-
-##### 与传统方法的对比
-
-| 特性 | ResNet（离散） | Neural ODE（连续） |
-|------|---------------|-------------------|
-| 深度 | 固定层数 \(L\) | 连续，由求解器自适应决定 |
-| 内存（反向传播） | \(O(L)\) | \(O(1)\)（伴随方法） |
-| 参数量 | 每层独立参数 | 所有"层"共享参数 |
-| 归一化流架构限制 | 需可逆 + 行列式可算 | 任意架构，只需算迹 |
-| 时间序列 | 固定步长 | 自然处理不规则时间间隔 |
-
-> 💡 **总结**：Neural ODE 的核心贡献不仅是一个新模型，更是一种**新范式**——将深度学习与微分方程理论深度融合。它启发了后续大量工作，包括 Neural SDE、Neural CDE、FFJORD 等，成为连续时间深度学习的奠基性工作。
+> 💡 关键：Neural ODE 的核心不是某个特定网络结构，而是把深度学习中的“层”替换为可学习的连续时间向量场，并用 ODE solver 作为模型执行引擎。
 
 #### 🧪 练习题
 ```yaml
-question: "Neural ODE 使用伴随方法进行反向传播的主要优势是什么？"
+question: "Neural ODE 中伴随敏感度方法的主要作用是什么？"
 options:
-  - "加快前向传播的计算速度"
-  - "实现 O(1) 内存复杂度，不需要存储前向过程的中间激活值"
-  - "使模型参数量减少到常数级别"
-  - "保证 ODE 求解器的数值精度不受步长影响"
+  - "让 ODE solver 不需要任何数值积分"
+  - "通过反向求解增广 ODE 计算梯度，避免保存所有前向内部步的激活"
+  - "把连续时间模型强制转换成固定层数的 ResNet"
+  - "只用于提升分类准确率，与内存无关"
 answer: 1
-explain: "伴随方法通过反向求解增广 ODE 来计算梯度，避免了存储前向求解过程中所有中间状态，将内存复杂度从 O(L) 降低到 O(1)。"
+explain: "伴随方法把 solver 当作黑盒，从终点向起点反向积分状态、adjoint 和参数梯度，因此训练内存不随前向 solver 内部步数线性增长。"
 ```
 
 ### Flow Matching
@@ -5399,16 +5507,128 @@ motivation: 预训练视频生成模型统一视觉任务
 ```
 
 #### 📝 一句话总结
-UniVid 的核心目标是：预训练视频生成模型统一视觉任务。
+UniVid 提出把预训练视频生成 DiT 作为统一视觉任务骨干，通过“视觉句子”把示例输入、示例输出、查询输入和目标输出串成时间序列，并用轻量 SFT/LoRA 让同一个视频生成模型在不改架构的情况下执行生成与像素级理解任务。
 
 #### 🎯 核心要点
-- 核心动机：预训练视频生成模型统一视觉任务
-- 演化来源：继承或改进自 unitok
-- 代表机构：Multiple Institutions
+- 统一范式：将图像、视频、标注图等视觉对象组织为视觉句子 \(A\rightarrow A'\rightarrow B\rightarrow B'\)
+- 任务由上下文定义：\((A,A',B)\) 是 visual prompt，模型需要生成符合同一变换关系的 \(B'\)
+- 使用预训练视频 DiT：以只在自然视频上预训练的 Wan 类视频生成模型为 backbone，不为每个任务重新设计结构
+- 轻量 SFT：在 Cross-Attention 与 Self-Attention 中插入 LoRA 模块，用少量成对样本适配多种任务
+- 目标片段加噪：训练时保持上下文 \((A,A',B)\) 干净，只对目标 \(B'\) 对应 latent 加噪并学习去噪/流预测
+- 跨模态与跨源泛化：支持图像/视频混合上下文，以及从自然视觉到深度、分割、显著目标等标注域的任务
+- 生成与理解切换：任务类型主要由视觉句子顺序决定，例如把标注预测反向组织即可变成条件生成任务
 
 #### 🔬 深入细节
-预训练视频生成模型统一视觉任务
+##### 1. 核心示意图
 
+![UniVid 框架图](https://arxiv.org/html/2509.21760v1/x2.png)
+*图：UniVid 将任务样例与查询组织为视觉句子；训练时上下文保持干净，只对目标片段加噪，预训练视频 DiT 在 3D full attention 中学习跨片段关系。*
+
+##### 2. 问题背景与动机
+
+统一视觉模型希望像语言模型处理文本任务一样，用一个模型处理多种视觉任务。已有 Large Vision Model 类方法会把不同任务组织为序列，但往往需要针对图像、视频、标注等来源进行大规模任务特定预训练，数据成本和扩展成本很高。
+
+UniVid 的出发点是：视频生成模型本来就在学习时间序列上的视觉变化。一个强视频 DiT 已经掌握了“给定前后上下文，生成后续视觉片段”的能力；如果把各种视觉任务都重写成时间轴上的上下文-目标关系，就可以复用视频生成预训练，而不是为每种视觉任务重新构建预训练语料。
+
+这也是它和统一 token 化路线的互补点。UniTok 类方法更关注统一视觉 token 表示，UniVid 则把统一性放在任务格式和视频生成 backbone 上：只要任务可以表示为视觉片段之间的映射，就能通过同一个视频生成模型完成。
+
+##### 3. 视觉句子表示
+
+UniVid 的核心数据结构是视觉句子：
+
+$$
+V=[A, A', B, B']
+$$
+
+其中 \(A\rightarrow A'\) 是一个示例任务变换，\(B\) 是查询输入，\(B'\) 是期望输出。上下文为：
+
+$$
+C=(A,A',B)
+$$
+
+模型的目标是在给定 \(C\) 的条件下生成 \(B'\)。例如，若 \(A\) 是一段原视频、\(A'\) 是对应深度图视频、\(B\) 是新的原视频，则 \(B'\) 应该是 \(B\) 的深度图；若 \(A'\) 是 Van Gogh 风格视频，则 \(B'\) 应该是 \(B\) 的风格化结果。
+
+这个设计把任务说明从文本 prompt 转移到视觉上下文本身。模型不需要显式读取“请做深度估计”这样的任务名，而是从 \(A\rightarrow A'\) 的示例关系中推断对 \(B\) 应该执行的变换。
+
+##### 4. 训练与推理流程
+
+训练时，完整视觉句子会先经过 VAE/视频编码器转成 latent token。上下文 \((A,A',B)\) 对应的 token 保持干净，只有目标 \(B'\) 的 token 被加噪为 \(z_t\)。随后把干净上下文 token 与目标 noisy token 拼接送入预训练视频 DiT。
+
+如果用扩散/流匹配形式表示，模型学习一个时间相关预测器：
+
+$$
+\hat{v}_\theta = f_\theta(z_t, t, C)
+$$
+
+对应损失可写为：
+
+$$
+\mathcal{L}
+= \mathbb{E}_{t,V}\left[
+\left\| f_\theta(z_t,t,C)-v^\star_t \right\|_2^2
+\right]
+$$
+
+其中 \(v^\star_t\) 表示由底层扩散或 flow-matching 训练目标定义的目标速度/噪声/残差。论文实现上重点在于不改变视频 DiT 主干，而是在注意力层插入 LoRA，使小样本 SFT 可以改变跨片段关系建模方式。
+
+推理时输入只有 \((A,A',B)\)。模型从随机噪声初始化 \(B'\) 的 latent，在上下文 token 条件下逐步去噪或积分，最后由解码器还原为图像、视频或标注图。由于输入和输出都被表示在同一时间序列中，图像任务、视频任务、生成任务、理解任务都共享同一条生成流程。
+
+##### 5. 核心流程伪代码
+
+```python
+# UniVid visual-sentence SFT and inference
+def train_univid(video_dit, dataset):
+    attach_lora(video_dit, modules=["cross_attention", "self_attention"])
+    for A, A_prime, B, B_prime in dataset:
+        context_latents = encode_visual_sequence([A, A_prime, B])
+        target_latent = encode_visual_sequence([B_prime])
+
+        t = sample_timestep()
+        noise = randn_like(target_latent)
+        z_t, target_velocity = diffuse_or_flow_corrupt(target_latent, noise, t)
+
+        tokens = concat(context_latents, z_t)
+        pred_velocity = video_dit(tokens, timestep=t)
+        loss = mse(pred_velocity.target_part, target_velocity)
+        update_lora_parameters(loss)
+
+def infer_univid(video_dit, A, A_prime, B):
+    context_latents = encode_visual_sequence([A, A_prime, B])
+    z = randn_target_latent()
+    for t in sampling_schedule():
+        tokens = concat(context_latents, z)
+        pred = video_dit(tokens, timestep=t)
+        z = denoise_or_integrate(z, pred.target_part, t)
+    return decode_visual_sequence(z)
+```
+
+##### 6. 任务覆盖与泛化
+
+论文用六类代表性任务评估这种范式，包括 scribble map transfer、Van Gogh style transfer、camera movement transfer、depth map prediction、semantic segmentation prediction、salient object tracking。每类任务只使用少量训练样本，重点不是靠海量标注刷单任务指标，而是验证预训练视频生成模型能否通过视觉句子快速适配。
+
+跨模态泛化指上下文中可以混合图像与视频，例如示例是图像级变换，查询是视频片段，模型仍应推断输出模态。跨源泛化指模型能从自然视觉域转向标注域，例如深度图、语义分割图、显著目标轨迹等，即使底层视频 DiT 预训练时主要见到的是自然视频。
+
+生成和理解之间的边界也被弱化。传统理解任务如深度估计，在 UniVid 中就是“生成深度图目标片段”；反过来，把深度图到自然图像的关系放进视觉句子，又可以变成条件生成任务。统一性来自序列格式，而不是给每个任务新增一个 decoder head。
+
+##### 7. 与传统方案的区别
+
+传统多任务视觉系统常为不同任务配置不同 head、loss 和数据管线；统一多模态大模型则常依赖文本化接口或离散 token 接口。UniVid 选择了更贴近视频生成模型预训练分布的路线：所有任务都表现为时间轴上的视觉片段补全。
+
+这一路线的优势是部署和扩展简单。新增任务时，只需准备少量 \(A\rightarrow A'\) 与 \(B\rightarrow B'\) 成对样例并做 SFT，而不是重新设计架构。劣势也很明确：任务必须能被视觉上下文清晰表达；如果需要复杂符号推理、长文本约束或非视觉输出，仅靠视觉句子可能不够。
+
+> 💡 关键：UniVid 的“统一”不是把所有任务转成同一个标签空间，而是把任务本身转成同一种条件生成问题：根据视觉示例关系和查询输入，生成目标视觉片段。
+
+#### 🧪 练习题
+```yaml
+question: "UniVid 中视觉句子 [A, A', B, B'] 的核心作用是什么？"
+options:
+  - "把所有视觉任务都转换为固定类别分类问题"
+  - "用 A 到 A' 的示例关系定义任务，并让模型对 B 生成对应输出 B'"
+  - "只用于增加视频帧数，与任务定义无关"
+  - "替代 VAE，使模型不再需要 latent 表示"
+answer: 1
+explain: "视觉句子把任务示例和查询放在同一时间序列中，(A,A',B) 构成上下文，B' 是模型需要生成的目标。"
+```
 
 ### GPT-4o
 

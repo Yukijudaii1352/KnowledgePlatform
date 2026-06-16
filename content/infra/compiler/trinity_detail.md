@@ -1,326 +1,116 @@
-### Trinity: Three-Dimensional Tensor Program Optimization via Tile-level Equality Saturation
+### Trinity：Tile级等价饱和三维张量程序优化器
 
 ```yaml
-标题: "Trinity: Three-Dimensional Tensor Program Optimization via Tile-level Equality Saturation"
-作者: Jaehyeong Park, Byeongho Kim, Geonwoo Kim, Soojin Hwang, Jongse Park (KAIST & FuriosaAI)
-机构: KAIST, FuriosaAI
-会议: ASPLOS 2026
-链接: https://doi.org/10.1145/3669940.3707261
-代码: https://github.com/kaist-ina/Trinity-AE
-关键词: tensor program optimization, equality saturation, tile-level IR, operator fusion, compiler
+id: trinity
+name: Trinity
+full_name: "Tile级等价饱和三维张量程序优化器 (Trinity)"
+year: "2026"
+org: KAIST/FuriosaAI
+paper_url: https://ina.kaist.ac.kr/publications
+category: tensor_ir
+parent: ansor
+motivation: Tile级等价饱和联合优化代数、内存与计算编排
 ```
 
----
+#### 📝 一句话总结
 
-## 📝 一句话总结
+Trinity 提出 tile 级等价饱和优化器，把代数等价、内存 I/O 和计算编排放进同一个可重写 IR 与 e-graph 搜索空间，解决图级优化和算子级调度分离导致的跨算子 tile 级优化缺失问题。
 
-Trinity 提出首个基于 **tile 级等价饱和(equality saturation)** 的张量程序优化器，将代数等价、内存 I/O 和计算编排三个维度的优化统一到同一搜索空间，在 H100 上相比 TensorRT 实现最高 2.09× 加速，并自动发现了超越手工优化 FlashAttention 的全融合注意力内核。
+#### 🎯 核心要点
 
----
+- **三维联合优化**：同时搜索 algebraic equivalence、memory I/O、compute orchestration，而不是先做图重写再交给算子调度器
+- **Tile 级 IR**：把 `load`、`store`、`seq`、`loop`、`matmul`、`rsum`、`softmax` 等都表示为 tile 上的一等构造
+- **状态 IR 上的等价饱和**：用 expression propagation、sequence canonicalization、semantic dependency check 让 e-graph 能安全处理显式内存和控制流
+- **两遍提取算法**：先按 kernel 数提取 loop skeleton，再在固定执行上下文里按 FLOPs 提取 loop body，避免固定局部代价模型失效
+- **自动发现 fully fused attention**：从朴素 Transformer 解码程序中自动把 QKV projection、reshape 和 attention 融入单 kernel
+- **后端落地**：优化后的 Trinity IR 降到 Triton v3.4.0，最多提取 512 个候选并在真实硬件上 profiling 选择最优 kernel
+- **性能结果**：论文在 Transformer 变体上报告相对 TensorRT 最高 2.09x、相对 TorchInductor 最高 2.35x、相对 Mirage 最高 3.07x 的加速
 
-## 🎯 核心要点
+#### 🔬 深入细节
 
-| 维度 | 内容 |
-|------|------|
-| **问题** | 现有优化器将图级代数优化与算子级 tiling/并行化分离处理，无法发现跨算子的 tile 级联合优化（如 FlashAttention 需要同时改变代数结构和内存布局） |
-| **关键洞察** | 代数等价、内存 I/O、计算编排三者深度耦合——改变代数结构可解锁新的融合机会，融合决策又影响内存放置和并行策略 |
-| **方法** | 设计 tile 级 IR（tile 为一等公民），定义覆盖三个维度的重写规则，通过 equality saturation 在 e-graph 中紧凑表示 >10^17 个等价程序，两遍提取算法高效选出最优实现 |
-| **核心贡献** | (1) 首个 tile 级等价饱和框架；(2) 自动发现 fully fused attention（QKV投影+reshape+attention 单内核）；(3) 比 TensorRT 快 1.10–2.09×，比 Mirage 快 1.04–3.07×，比 FlashInfer 快 1.35× |
-| **局限** | 依赖 Triton 后端（无法利用 FA3 的硬件特性如 warp-specialization）；编译时间 203–1459s；当前仅支持单 GPU |
-
----
-
-## 🔬 深入细节
-
-### 1. 问题动机：三维优化的耦合困境
-
-现有张量程序优化器分为两类，各有致命缺陷：
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│              现有优化器的分层架构（存在优化盲区）              │
-│                                                             │
-│  ┌──────────────────┐     ┌──────────────────┐              │
-│  │  图级优化器       │     │  算子级优化器     │              │
-│  │  (TASO, Mirage,   │────▶│  (TVM, Triton,   │              │
-│  │   FlashTensor)    │     │   Halide)        │              │
-│  │                   │     │                   │              │
-│  │  • 代数等价变换   │     │  • Tiling 策略    │              │
-│  │  • 算子融合决策   │     │  • 并行化映射     │              │
-│  │  • 数据布局选择   │     │  • 内存层次放置   │              │
-│  └──────────────────┘     └──────────────────┘              │
-│           ↑                        ↑                         │
-│     以完整张量为粒度          以单个算子为边界                │
-│     看不到 tile 级机会        看不到跨算子机会                │
-│                                                             │
-│  ══════════════════════════════════════════════════          │
-│  FlashAttention 的优化需要同时：                              │
-│    ① 代数变换（分配律拆分 softmax 累加器）                   │
-│    ② 循环融合（将 QK^T、softmax、×V 合入一个循环）           │
-│    ③ 内存放置（中间结果留在 SRAM 而非写回 HBM）              │
-│  → 任何单一维度的优化器都无法发现此变换！                      │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Mirage** 尝试联合优化但采用穷举搜索，面对超过 11 个算子的程序就必须手动分区，丧失跨分区优化机会。**FlashTensor** 只做图级代数重写，无法触及 tile 级变换。
-
-### 2. Trinity IR：Tile 作为一等公民
-
-Trinity 的核心创新是设计了一套 **tile 级中间表示**，将 tile（而非完整张量）作为基本操作单元，从而在同一 IR 中统一表达三个优化维度：
-
-```
-┌──────────────────────────────────────────────────────────┐
-│                    Trinity IR 语法                         │
-├──────────────────────────────────────────────────────────┤
-│ 张量声明:                                                 │
-│   (input name shape dtype)    — 输入张量                  │
-│   (output name shape dtype)   — 输出张量                  │
-│   (var name shape dtype)      — 中间变量张量              │
-│                                                          │
-│ 索引操作 (tile 为核心):                                   │
-│   (tile tensor dim offset size)  — 提取 tile 切片        │
-│   (full_tile tensor dim)         — 沿某维度的完整切片     │
-│   (elem loop_var)                — 循环变量的标量索引      │
-│                                                          │
-│ 内存操作:                                                 │
-│   (load src indices)     — 从张量加载 tile               │
-│   (store dst indices val) — 将 tile 写入张量             │
-│                                                          │
-│ 计算操作:                                                 │
-│   (matmul A B)  (rsum X)  (softmax X)                    │
-│   (+ A B) (* A B) (/ A B) (exp X) (log X) ...           │
-│                                                          │
-│ 控制流:                                                   │
-│   (seq stmt1 stmt2)                  — 顺序执行           │
-│   (loop start end step var body)     — 循环（tile 迭代）  │
-└──────────────────────────────────────────────────────────┘
-```
-
-**关键设计决策**：
-- **Tile 索引**直接编码 tiling 策略——`(tile X 0 (elem n) 128)` 表示沿维度 0 以步长 128 提取 tile
-- **循环结构**直接编码并行化——最外层并行循环的边界即为 kernel 边界
-- **Load/Store**直接编码内存层次——同一 kernel 内的中间结果自动放置在片上 SRAM，跨 kernel 则写回 HBM
-
-这样，一个 Trinity IR 程序同时确定了代数结构、tiling 方案、融合策略和内存放置。
-
-### 3. 重写规则：覆盖三个维度
-
-Trinity 定义了两类重写规则：
-
-**循环变换规则（6 条）**——控制内存 I/O 和计算编排：
-
-```
-规则 1: 循环融合 (Loop Fusion)
-  (seq (loop s e t v body1) (loop s e t v body2))
-  ⟹ (loop s e t v (seq body1 body2))
-  条件: 无跨迭代依赖
-
-规则 2: 循环裂变 (Loop Fission) — 融合的逆变换
-
-规则 3: 循环不变量外提 (LICM)
-  (loop s e t v (seq invariant_stmt body))
-  ⟹ (seq invariant_stmt (loop s e t v body))
-  条件: invariant_stmt 不依赖循环变量 v
-
-规则 4: 循环插入 (Loop Insertion)
-  stmt ⟹ (loop s e t v stmt)
-  条件: stmt 不依赖 v（为后续融合创造机会）
-
-规则 5: 代数因式提取 (Algebraic Factoring in Loop Body)
-  (loop ... (seq (store acc (op (load acc) x))  body))
-  ⟹ (seq (loop ... body) (op_outer acc))
-  效果: 消除循环携带依赖，解锁融合
-
-规则 6: 迭代空间重索引 (Iteration-space Reindexing)
-  融合迭代次数相同但变量名不同的循环
-```
-
-**代数等价规则（31 条）**——来自先前工作（TASO、Mirage），包括矩阵乘法分配律、softmax 分解、转置传播等。
-
-### 4. 等价饱和引擎：三大可扩展性技术
-
-直接对 tile 级 IR 应用 equality saturation 会导致 e-graph 爆炸。Trinity 提出三项关键技术：
-
-```
-┌──────────────────────────────────────────────────────────┐
-│            Trinity 等价饱和的三大技术                       │
-│                                                          │
-│  ① 表达式传播 (Expression Propagation)                    │
-│     问题: load/store 切断了数据流，阻碍跨算子重写匹配      │
-│     方案: 将 store 的值表达式传播到对应 load 处，          │
-│           使 e-graph 能"看穿"内存操作发现代数等价          │
-│     例: store(X, val) ... load(X)                        │
-│         → load(X) 的 e-class 中加入 val 的符号表达式      │
-│                                                          │
-│  ② 序列规范化 (Sequence Canonicalization)                 │
-│     问题: N 条语句的 seq 有 Catalan(N) 种结合方式，       │
-│           导致 e-graph 指数膨胀                            │
-│     方案: 强制右结合规范形式                               │
-│       (seq (seq a b) c) ⟹ (seq a (seq b c))             │
-│     效果: 将 O(4^n/n^1.5) 降为 O(n)                      │
-│                                                          │
-│  ③ 语义依赖检查 (Semantic Dependency Checks)              │
-│     问题: 循环融合等规则需要验证无数据依赖冲突             │
-│     方案: 通过 e-class analysis 维护每个节点的              │
-│           读集合(read set)和写集合(write set)，            │
-│           检查别名关系判断融合安全性                        │
-│     实现: 增量式分析，随 e-graph 生长自动更新              │
-└──────────────────────────────────────────────────────────┘
-```
-
-### 5. 两遍提取算法
-
-传统 equality saturation 使用单遍 ILP 提取最优程序，但 Trinity 的搜索空间高达 10^21，单遍 ILP 不可行。Trinity 设计了两遍提取：
+![Trinity 三维联合优化流程示意](https://quickchart.io/graphviz?format=png&graph=digraph%20G%20%7B%20rankdir%3DLR%3B%20graph%20%5Bbgcolor%3D%22white%22%5D%3B%20node%20%5Bshape%3Dbox%2C%20style%3D%22rounded%2Cfilled%22%2C%20fillcolor%3D%22%23eef6ff%22%2C%20color%3D%22%23406080%22%2C%20fontname%3D%22Arial%22%5D%3B%20edge%20%5Bcolor%3D%22%23406080%22%5D%3B%20Input%20%5Blabel%3D%22Tensor%20program%22%5D%3B%20IR%20%5Blabel%3D%22Tile-level%20IR%0Aloads%2Fstores%20%2B%20loops%20%2B%20tile%20ops%22%5D%3B%20Sat%20%5Blabel%3D%22E-graph%20saturation%0Arewrite%20algebra%20%2B%20memory%20%2B%20orchestration%22%5D%3B%20Ext%20%5Blabel%3D%22Two-pass%20extraction%0Aloop%20skeleton%20then%20loop%20body%22%5D%3B%20Kern%20%5Blabel%3D%22Triton%20kernels%0Ahardware%20profiling%22%5D%3B%20Input%20-%3E%20IR%20-%3E%20Sat%20-%3E%20Ext%20-%3E%20Kern%3B%20%7D)
+*图：根据 Trinity 论文 Figure 1 的“三维优化空间”和论文系统流程重绘。官方论文 PDF 图源：`https://ina.kaist.ac.kr/assets/bibliography/Trinity.pdf`。*
 
 ```python
-# 伪代码: Trinity 两遍提取算法
+# Trinity 两遍提取算法的简化伪代码
+def two_pass_extract(egraph, top_k):
+    semi_programs = []
+    max_kernel = 0
 
-def extract_optimal_program(egraph):
-    # ═══ Pass 1: 提取循环结构（最小化 kernel 数量）═══
-    # 目标: 确定循环嵌套和 kernel 边界
-    # 策略: 贪心选择融合度最高的循环结构
-    
-    loop_structure = extract_loop_skeleton(
-        egraph,
-        objective = minimize(num_kernels),  # 减少 kernel 数 → 减少 launch 开销
-        constraints = [no_cyclic_dependencies]
-    )
-    
-    # ═══ Pass 2: 填充循环体（最小化每个计算单元的 FLOPs）═══
-    # 目标: 在已确定的循环结构内选择最优计算表达式
-    # 策略: 对每个 e-class 独立选择 FLOP 最少的表达式
-    
+    # Pass 1: 只选择 seq/loop 等 loop-structure 节点
+    # 代价用 outermost parallel loop 数量近似 kernel 数。
+    while len(semi_programs) < top_k:
+        semi_programs.extend(extract_loop_structure(
+            egraph=egraph,
+            eclass=egraph.root,
+            max_kernel=max_kernel,
+        ))
+        max_kernel += 1
+
+    # Pass 2: loop skeleton 已固定，执行上下文也固定
+    # 此时可用 greedy extraction 选择 FLOPs per compute unit 最小的 loop body。
     candidates = []
-    for each compute_unit in loop_structure:
-        best_expr = select_min_flops(
-            egraph,
-            compute_unit.eclass,
-            context = loop_structure
-        )
-        candidates.append(best_expr)
-    
-    # 生成多个候选程序（最多 512 个），交由 profiler 选择
-    return generate_candidates(loop_structure, candidates, max=512)
+    for skeleton in semi_programs[:top_k]:
+        body = greedy_extract_body(egraph, skeleton, cost="min_flops_per_unit")
+        candidates.append(assemble_program(skeleton, body))
 
-
-def generate_kernel_code(program):
-    """从 Trinity IR 生成 Triton GPU 代码"""
-    for each outermost_parallel_loop in program:
-        # 每个最外层并行循环 → 一个 GPU kernel
-        kernel = new TritonKernel()
-        
-        for tensor in intermediate_tensors:
-            if used_within_same_kernel(tensor):
-                tensor.placement = SRAM      # 片上存储
-            else:
-                tensor.placement = HBM       # 片外存储
-        
-        kernel.code = lower_to_triton_v3_4(loop_body)
-        emit(kernel)
+    return profile_on_hardware(lower_to_triton(candidates))
 ```
 
-### 6. 案例研究：Fully Fused Attention 的自动发现
+##### 1. 为什么要把优化粒度降到 tile
 
-Trinity 最引人注目的成果是自动发现了 **fully fused attention**——将 QKV 投影、reshape 和完整注意力计算融合为单个 GPU kernel：
+传统张量编译器通常拆成两层：图级优化器决定算子融合和代数重写，算子级调度器决定 tiling、parallelization 和 cache placement。这个接口看似清晰，但会丢掉 FlashAttention 这类优化真正依赖的信息：online softmax 不是单纯的代数公式变化，也不是单纯的 kernel fusion，而是同时改变 softmax 的计算顺序、把 \(Q,K,V\) tile 和 running statistics 留在片上内存、并让 key tile 的顺序循环与 query/head 维度的并行调度协调起来。论文把这一点总结成三个耦合维度：
 
+$$
+\text{program choice} =
+(\text{algebraic equivalence},\ \text{memory I/O},\ \text{compute orchestration})
+$$
+
+只优化其中一个维度会过早承诺。例如图级系统可以看到 \(\operatorname{softmax}(QK^T)V\)，但看不到中间 tile 是否能留在 SRAM；算子调度器能选择 tile size，却通常不能把 QKV projection 的循环和 attention 循环重排到同一个 kernel。Trinity 的核心判断是：tile 是硬件实际执行和内存复用的单位，因此 IR 必须在 tile 层同时暴露计算、内存和控制流。
+
+##### 2. Trinity IR 如何让三维优化都变成 rewrite
+
+Trinity IR 的 tensor declaration 区分 `input`、`output` 和 `variable`：前两者对应全局内存读写，`variable` 是可能在片上或片外的中间 tile。索引表达式用 `tile n`、`full_tile`、`elem n` 等表示 tile 切片和循环变量；内存操作显式写成 `(load tensor idx)` 与 `(store tensor value idx)`；计算操作包括 `matmul`、`rsum`、elementwise op、reshape 类 op；控制流是 `(seq op1 op2)` 和 `(loop start end tile_n n body)`。一个 Trinity 程序因此不仅描述“算什么”，也描述“什么时候加载/存储 tile”和“哪些 tile 操作在同一个循环或 kernel 里执行”。
+
+举例说，一个被写回 HBM 的中间张量和一个在同一 kernel 内复用的中间 tile，在传统图 IR 里可能都是边上的 tensor；在 Trinity IR 里二者的差异由 `store` 和后续 `load` 是否跨 loop/kernel 体现。kernel 边界由外层 parallel loop 决定，memory placement 则按 load/store 的 loop 关系推导：跨 loop 或输入/输出张量走 off-chip，其余中间值尽量保留在 on-chip。这样，循环融合不只是减少 launch，也会改变内存放置；代数 factoring 不只是少算 FLOPs，也可能消除 loop-carried dependency，从而解锁进一步 fusion。
+
+##### 3. 状态 IR 上做 equality saturation 的三个保护
+
+普通 equality saturation 假设表达式近似纯函数式，而 Trinity IR 有 `seq`、`load`、`store`。第一个问题是代数结构被内存操作切断：`store A (* 7 3)` 后再 `load A`，e-graph 看不到 `(/ (* 7 3) 7)` 这样的连续子树。Trinity 用 expression propagation 记录 store 写入的符号表达式，并把后续同 tile 的 load 补上等价表达式，让代数规则可以跨显式内存边界匹配。
+
+第二个问题是 `seq` 的结合方式会造成指数膨胀。若任意使用 `(seq (seq a b) c)` 与 `(seq a (seq b c))`，同一串语句会有大量括号形态，e-graph 为了匹配交换和重排规则会保存大量冗余等价类。Trinity 强制把 sequence 规范化成右结合形式：
+
+$$
+\operatorname{seq}(\operatorname{seq}(a,b),c)
+\Rightarrow
+\operatorname{seq}(a,\operatorname{seq}(b,c))
+$$
+
+第三个问题是正确性。loop fusion、loop insertion、store/load reorder 都必须避免跨迭代 RAW/WAW hazard。Trinity 用 egg 的 e-class analysis 给每个 e-class 维护 read/write region、alias、shape 和 loop-variable 依赖摘要，规则触发前先检查语义谓词。这样，代数规则仍按 tile value 的等价处理，涉及状态的规则则由依赖分析约束。
+
+##### 4. 两遍提取解决上下文相关代价
+
+传统 e-graph extraction 会给每个 e-node 一个固定成本，然后用 greedy 或 ILP 选总代价最小的表达式。Trinity 的 tile IR 不满足这个假设：同一个 `load` 如果在同一个 kernel 内复用，代价接近片上访问；如果跨 kernel，则意味着 HBM 读写。同一个 `+` 如果处在顺序 loop 内，会按迭代次数重复；如果处在并行 loop 内，单计算单元成本又完全不同。
+
+因此 Trinity 先提取 loop skeleton。第一遍只关心 `seq`、`loop` 这类决定 kernel 边界的结构，用 outermost loop 数量估计 kernel count，得到若干 kernel 数少的 semi-expression。第二遍在 loop skeleton 固定后，执行上下文已知，再按每个计算单元 FLOPs 选择 loop body。最后所有候选被降到 Triton 并在目标 GPU 上 profiling。这个流程牺牲了一点全局最优保证，但把 \(>10^{17}\) 级别的等价程序空间压到可落地的候选集合。
+
+##### 5. Fully fused attention 的机制
+
+Trinity 的关键 case study 是从朴素解码 Transformer 自动发现 fully fused attention。朴素程序先做 QKV projection 和 reshape，再执行 attention。Trinity 首先在 attention 内融合 logit 和 reduce-sum；然后用分配律把依赖 accumulator 的除法移出矩阵乘循环；接着用 algebraic factoring 把 division 完全 hoist 到内层 \(p\)-loop 外，从而消除阻止 fusion 的 loop-carried dependency。这个阶段已经能重发现 FlashAttention 式 online softmax。
+
+更进一步，Trinity 把 QKV projection 和 reshape 也纳入同一循环结构。最后它利用 iteration-space reindexing 识别 `(loop 0 4096 128 n)` 与按 head 展开的循环在迭代次数上等价，把 `elem h` 对齐成 `elem n`，于是 QKV projection、reshape、attention 的 tile 数据流可以合成单 kernel。直觉上，Trinity 不再先为所有 head 物化 \(Q,K,V\)，而是按 head/tile 产生 \(Q,K,V\) 后立即流入 attention，避免写回中间张量和等待所有 head 完成。
+
+> 💡 关键：Trinity 的贡献不只是“用 e-graph 搜索更多 rewrite”，而是把 tile 内存行为和 loop/kernel 边界也放进 rewrite 对象中，使代数变化能反过来改变可融合性和内存放置。
+
+#### 🧪 练习题
+
+```yaml
+question: "Trinity 为什么不能直接使用传统 e-graph 的固定 e-node 成本提取最优程序？"
+options:
+  - "因为 Trinity IR 不包含任何纯代数表达式"
+  - "因为 tile 操作的代价依赖 loop/kernel 上下文，例如同一个 load 可能是片上复用也可能是 HBM 访问"
+  - "因为 equality saturation 只能处理 CPU 程序，不能处理 GPU 程序"
+  - "因为 Triton 后端不支持 profiling"
+answer: 1
+explain: "Trinity 的 load/store、loop 和计算节点成本都受 kernel 边界、并行映射和内存放置影响，所以先固定 loop skeleton，再提取 loop body。"
 ```
-原始实现（4+ 个 kernel）:
-═══════════════════════════
-Kernel 1: Q = X @ W_Q          ← 矩阵乘法
-Kernel 2: K = X @ W_K          ← 矩阵乘法  
-Kernel 3: V = X @ W_V          ← 矩阵乘法
-Kernel 4: reshape Q,K,V        ← 按 head 重排
-Kernel 5: FlashAttention(Q,K,V) ← 注意力计算
-
-Trinity 优化后（1 个 kernel）:
-═══════════════════════════════
-Kernel 1: for each head h:
-            Q_h = X[tile] @ W_Q[h_slice]    ← 按 head 计算 QKV
-            K_h = X[tile] @ W_K[h_slice]
-            V_h = X[tile] @ W_V[h_slice]
-            O_h = FlashAttn(Q_h, K_h, V_h)  ← 立即执行注意力
-            
-优化步骤:
-  (a) 初始 IR → 多个独立循环
-  (b) 循环融合 + 分配律 → 合并 logit 计算和 reduce_sum
-  (c) 代数因式提取 → 消除 accm 的循环携带依赖
-  (d) 循环融合 → 整个注意力合入单个 h-loop（= FlashAttention）
-  (e) 循环融合 → QKV 投影 + reshape 合入同一循环
-  (f) 迭代空间重索引 → (loop 0 4096 128 n) ≡ (loop 0 32 1 h)
-      统一循环变量后完成最终融合
-```
-
-**关键洞察**：步骤 (e)-(f) 超越了 FlashAttention 的优化范围。传统方法先计算所有 head 的 Q/K/V 再逐 head 做注意力，而 Trinity 发现可以逐 head 流水线执行 QKV 投影 + 注意力，消除了：
-1. 等待所有 head QKV 完成的同步屏障
-2. 中间张量 Q/K/V 写回 HBM 的内存开销
-3. 多次 kernel launch 的调度开销
-
-### 7. 实验结果
-
-**推理延迟对比**（H100, LLaMA3-8B 配置, 归一化到 TensorRT）：
-
-| 模型变体 | vs TensorRT | vs TorchInductor | vs Mirage | vs FlashInfer |
-|----------|-------------|-------------------|-----------|---------------|
-| Vanilla  | **1.71×** | ~2.0× | **3.07×** | **1.35×** |
-| Pre-Norm | **1.43×** | ~1.8× | **1.40×** | N/A (不支持) |
-| QK-Norm  | **1.63×** | ~1.9× | ~1.5× | N/A |
-| KeyFormer| **1.29×** | ~1.6× | ~1.3× | N/A |
-| RoCo     | **1.37×** | ~1.7× | ~1.4× | N/A |
-| SwiGLU   | **1.10×** | ~1.2× | ~1.1× | N/A |
-
-**编译时间对比**（Table 2）：
-
-| Benchmark | 搜索空间大小 | Trinity (饱和/提取/profiling) | Mirage |
-|-----------|-------------|-------------------------------|--------|
-| SwiGLU-FFN | 2×10^12 | 10s / 30s / 226s = **266s** | 348s (1.3×) |
-| Vanilla | 2×10^17 | 7s / 54s / 142s = **203s** | 7741s (38.1×) |
-| QK-Norm | 4×10^17 | 10s / 167s / 198s = **375s** | 4039s (10.7×) |
-| Pre-Norm | 10^20 | 14s / 922s / 226s = **1162s** | 8678s (7.5×) |
-| RoCo | 2×10^20 | 60s / 592s / 58s = **710s** | 16062s (22.6×) |
-| KeyFormer | 10^21 | 49s / 1305s / 105s = **1459s** | 15963s (10.9×) |
-
-**自动硬件适配**：Trinity 为不同 GPU（H100/A100/RTX4090/RTX5090）自动发现不同的最优 kernel，无需手动调优。例如 KeyFormer 在 5 种 GPU × 2 种模型配置下发现了 8 种不同的最优 kernel。
-
-**关键发现**：
-- FlashInfer 只支持 Vanilla transformer，无法处理 Pre-Norm/QK-Norm/KeyFormer/RoCo 等变体——凸显了手工优化无法覆盖日益多样的模型架构
-- Trinity 基于 Triton 生成代码，未利用 FA3 的 warp-specialization 等硬件特性，仍然超越了 FlashInfer 的 FlashAttention3 实现
-- Mirage 无法处理超过 11 个算子的未分区程序，而 Trinity 成功优化了 22 个算子的 RoCo
-
----
-
-## 🧪 练习题
-
-### Q1（理解题）
-Trinity 的 tile 级 IR 如何同时编码代数等价、内存 I/O 和计算编排三个优化维度？请分别举例说明 IR 中哪些构造对应哪个维度。
-
-<details><summary>参考答案</summary>
-
-- **代数等价**：计算操作节点（如 `matmul`、`softmax`、`+`、`*`）的代数重写规则，例如分配律 `(matmul (+ A B) C) ⟹ (+ (matmul A C) (matmul B C))`
-- **内存 I/O**：`load`/`store` 操作和 `tile` 索引编码了数据的内存访问模式；同一 kernel 内的中间张量自动放置在 SRAM，跨 kernel 则写回 HBM
-- **计算编排**：`loop` 结构编码了 tiling 策略（步长=tile 大小）和并行化（最外层循环=kernel 边界）；`seq` 编码了执行顺序
-
-三者耦合的例子：循环融合（计算编排）改变了中间张量的生命周期（内存 I/O），而代数因式提取（代数等价）消除循环携带依赖后才能进行融合（计算编排）。
-</details>
-
-### Q2（分析题）
-为什么 Mirage 的穷举搜索在面对超过 11 个算子的程序时必须进行分区，而 Trinity 的 equality saturation 可以处理 22 个算子的程序？请从搜索空间表示的角度分析。
-
-<details><summary>参考答案</summary>
-
-Mirage 使用穷举枚举，搜索空间随算子数量指数增长（每个算子有多种等价实现 × 融合组合），11 个算子时已不可承受。分区后各分区独立优化，丢失跨分区优化机会。
-
-Trinity 使用 e-graph 紧凑表示等价程序集合。例如 Vanilla transformer 的 2×10^17 个等价程序仅需 434 个 e-class 和 2058 个 e-node 表示——因为 e-graph 天然共享公共子表达式。加上三项可扩展性技术（表达式传播避免冗余节点、序列规范化防止结合爆炸、增量式依赖分析），Trinity 的 e-graph 增长保持可控。两遍提取算法进一步将 NP-hard 的全局提取分解为两个可处理的子问题。
-</details>
-
-### Q3（扩展题）
-Trinity 当前的 fully fused attention 优化仅覆盖了 QKV 投影到注意力输出的范围。如果要将输出投影（O @ W_O）也融合进同一 kernel，会面临哪些挑战？Trinity 的框架是否有潜力解决？
-
-<details><summary>参考答案</summary>
-
-主要挑战：
-1. **数据依赖**：输出投影 `O @ W_O` 需要所有 head 的注意力输出拼接后才能执行（跨 head 的 reduce），这与当前逐 head 流水线执行的策略冲突
-2. **Tile 大小不匹配**：注意力按 head 维度 tiling（每次处理一个 head），而输出投影需要沿 hidden dimension tiling，迭代空间不同
-3. **片上内存压力**：融合后需要在 SRAM 中同时保存 QKV tile、注意力中间结果和输出投影的权重 tile
-
-Trinity 的框架有潜力解决：迭代空间重索引规则可以对齐不同的 tiling 策略；代数因式提取可能消除跨 head 依赖；但需要扩展 IR 支持更灵活的 tile 大小选择和片上内存容量约束建模。
-</details>

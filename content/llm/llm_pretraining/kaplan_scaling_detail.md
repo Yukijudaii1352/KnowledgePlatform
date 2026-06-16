@@ -1,82 +1,105 @@
-### OpenAI Scaling Laws
-
+### OpenAI规模定律 (Scaling Laws for Neural Language Models)
 ```yaml
 id: kaplan_scaling
 name: OpenAI Scaling Laws
 full_name: OpenAI规模定律 (Scaling Laws for Neural Language Models)
-year: '2020'
+year: "2020"
 org: OpenAI
 paper_url: https://arxiv.org/abs/2001.08361
 category: scaling
-parent: —
+parent: "—"
 motivation: 幂律公式揭示模型性能与N/D/C关系
 ```
 
 #### 📝 一句话总结
-
-OpenAI Scaling Laws 系统拟合了语言模型交叉熵损失与参数量 \(N\)、数据量 \(D\)、训练计算量 \(C\) 之间的幂律关系，说明模型性能可以在多个数量级上被平滑外推。它给出了固定计算预算下的资源分配原则：更大的模型更样本高效，早期结论倾向于用更大模型、较少数据并提前停止训练。
+Kaplan Scaling Laws 提出用幂律统一描述 Transformer 语言模型损失与参数量 \(N\)、数据量 \(D\)、训练计算量 \(C\) 的关系，解决了“大模型训练预算如何分配”的经验预测问题。论文的核心结论是：性能主要由规模决定，架构形状影响较弱；在固定计算预算下，OpenAI 2020 的估计倾向于把更多新增计算投入模型参数，而不是把模型训练到完全收敛。
 
 #### 🎯 核心要点
-
-- 以 Transformer 语言模型为对象，跨越多个数量级训练规模拟合 \(N\)、\(D\)、\(C\) 与 loss 的关系
-- 核心经验式：当其他因素不构成瓶颈时，测试损失分别随参数量、数据量和最优计算量呈幂律下降
-- 训练计算近似为 \(C \approx 6ND\)，将模型规模、训练 token 数和 FLOPs 放在同一预算框架中
-- 提出固定计算预算下的最优分配：Kaplan 结论认为应优先增大模型，并在未完全收敛前停止
-- 观察到架构细节影响弱于总规模，宽度/深度比例等超参数在合理范围内不是主导因素
-- 为后续 Chinchilla、数据受限规模定律、推理时缩放定律提供了基线公式和实验范式
+- 将语言模型交叉熵损失建模为参数量、数据量、计算量的幂律函数，覆盖多数量级实验范围。
+- 实验对象是自回归 Transformer，主要在 WebText2 上以 1024-token 上下文训练并评估测试损失。
+- 区分非 embedding 参数 \(N\)、数据 token 数 \(D\)、训练 compute \(C\)、最小 compute \(C_{\min}\)、临界 batch size \(B_{crit}\)。
+- 提出单变量规模律：\(L(N)\)、\(L(D)\)、\(L(C_{\min})\) 均近似服从幂律下降。
+- 提出联合模型-数据公式 \(L(N,D)\)，解释过拟合与数据不足时的收益递减。
+- 发现模型形状如深度、宽度、attention heads 在合理范围内影响较弱，非 embedding 参数规模更关键。
+- 得到固定 compute 下的分配建议：\(N\propto C_{\min}^{0.73}\)、\(B\propto C_{\min}^{0.24}\)、\(S\propto C_{\min}^{0.03}\)，数据需求约随 \(C^{0.27}\) 缓慢增长。
+- 强调大模型更 sample-efficient，计算最优训练通常应早停，而不是把较小模型训练到收敛。
 
 #### 🔬 深入细节
 
-![OpenAI Scaling Laws 总览图](https://ar5iv.labs.arxiv.org/html/2001.08361/assets/x1.png)
-*图：论文 Figure 1，语言模型 loss 随模型参数量、数据量和训练计算量平滑下降，三者都需要协同扩展。*
+![Kaplan Scaling Laws Figure 1](https://ar5iv.labs.arxiv.org/html/2001.08361/assets/x1.png)
+*图：论文 Figure 1 展示测试损失随训练 compute、数据集大小、非 embedding 参数量平滑下降，并可被幂律拟合。*
 
 ```python
-# OpenAI Scaling Laws 拟合与使用流程伪代码
-def fit_openai_scaling_law(training_runs):
-    # 每条 run 包含参数量 N、训练 token 数 D、计算量 C、验证 loss L
-    clean = remove_bottlenecked_runs(training_runs)
+# Kaplan Scaling Laws 的经验拟合流程伪代码
+runs = []
+for N in model_sizes:                  # 非 embedding 参数量，从小模型到十亿级模型
+    for D in dataset_sizes:            # WebText2 子集 token 数
+        for schedule in train_settings:
+            model = Transformer(params=N, context=1024)
+            curve = train_autoregressive_lm(model, tokens=D, schedule=schedule)
+            runs.append({"N": N, "D": D, "C": estimate_flops(curve), "loss": test_loss(curve)})
 
-    # 分别拟合单因素幂律，估计不可约 loss L_inf 和指数
-    fit_N = fit_power_law(clean, x="N", y="loss", hold_non_bottleneck=True)
-    fit_D = fit_power_law(clean, x="D", y="loss", hold_non_bottleneck=True)
-    fit_C = fit_power_law(clean, x="C_min", y="loss", hold_non_bottleneck=True)
+# 1. 在数据充足时拟合 L(N)
+fit_power_law(x=[r.N for r in converged_large_data_runs], y=[r.loss for r in runs])
 
-    # 在固定 FLOPs 下搜索最优 N 与 D
-    best = None
-    for N in candidate_model_sizes:
-        D = compute_budget / (6 * N)
-        predicted_loss = loss_model(N=N, D=D, fits=(fit_N, fit_D, fit_C))
-        best = min_by_loss(best, (N, D, predicted_loss))
-    return best
+# 2. 在模型足够大、早停时拟合 L(D)
+fit_power_law(x=[r.D for r in dataset_limited_runs], y=[r.loss for r in runs])
+
+# 3. 在每个 compute 预算下取最优模型，拟合 L(C_min)
+frontier = lower_envelope(runs, key="C", value="loss")
+fit_power_law(x=[p.C_min for p in frontier], y=[p.loss for p in frontier])
+
+# 4. 用联合公式预测过拟合边界和 compute-optimal 分配
+for C_budget in budgets:
+    choose N, batch_size, steps to minimize predicted_loss(N, D, C_budget)
 ```
 
-**动机与背景：把大模型训练从经验工程变成可预测外推。** 论文之前，大规模语言模型训练主要依赖少量昂贵实验和经验判断：该增加参数、增加数据，还是延长训练步数并不清楚。OpenAI 的做法是把许多不同规模的 Transformer 训练 run 放在同一坐标系中，度量 held-out cross-entropy loss，并检查在非瓶颈条件下 loss 是否与资源规模呈稳定的 log-log 线性关系。其核心发现是：只要没有被数据、模型或计算中的另一项卡住，loss 与规模之间的关系非常平滑，可以用于预测更大训练 run 的收益。
+论文的出发点不是提出一个新网络结构，而是把语言模型训练看成一个可预测的工程系统。作者把性能指标固定为自回归语言模型的 token 平均交叉熵 \(L\)，把模型规模固定为不含词表和位置 embedding 的参数量 \(N\)，把数据规模固定为训练语料 token 数 \(D\)，再用近似 \(C\approx 6NBS\) 估计非 embedding 训练计算量。这样做的关键好处是消除 embedding 参数、context 相关项、深宽比例等二阶因素，让不同深度和宽度的 Transformer 能落到同一条主趋势线上。
 
-**核心机制：用幂律分解三个主要瓶颈。** 论文将测试损失写成近似的幂律形式：
+单变量规模律是整篇论文的入口。在其他因素不成为瓶颈时，测试损失可写成：
 
 $$
-L(N) \approx \left(\frac{N_c}{N}\right)^{\alpha_N}, \quad
-L(D) \approx \left(\frac{D_c}{D}\right)^{\alpha_D}, \quad
-L(C_{\min}) \approx \left(\frac{C_c}{C_{\min}}\right)^{\alpha_C}
+L(N)=\left(\frac{N_c}{N}\right)^{\alpha_N},\quad \alpha_N\approx 0.076,\quad N_c\approx 8.8\times 10^{13}
 $$
 
-这里 \(N\) 是非 embedding 参数量，\(D\) 是训练 token 数，\(C_{\min}\) 是达到给定 loss 所需的最小计算量。直觉是：当模型太小，更多数据无法完全转化为性能；当数据太少，模型会被数据瓶颈限制；当计算不足，训练尚未抵达对应规模的可达 loss。把三种瓶颈分别拟合后，就可以在固定预算 \(C \approx 6ND\) 下寻找最优 \(N,D\) 组合。
+$$
+L(D)=\left(\frac{D_c}{D}\right)^{\alpha_D},\quad \alpha_D\approx 0.095,\quad D_c\approx 5.4\times 10^{13}
+$$
 
-**训练流程与资源分配：大模型更样本高效。** Kaplan 论文的一个重要结论是，大模型在相同 loss 目标下需要更少训练样本，因此在固定计算预算下，最优策略不是把小模型训练到完全收敛，而是训练更大的模型并提前停止。论文给出的外推显示，最优数据量增长慢于计算量增长，常被概括为 \(D_{\text{opt}}\sim C^{0.27}\)、\(N_{\text{opt}}\sim C^{0.73}\)。这解释了当时“模型优先”的训练直觉，也直接影响了 GPT-3 时代的训练规划。
+$$
+L(C_{\min})=\left(\frac{C_c^{\min}}{C_{\min}}\right)^{\alpha_C^{\min}},\quad \alpha_C^{\min}\approx 0.050,\quad C_c^{\min}\approx 3.1\times 10^8\ \text{PF-days}
+$$
 
-**与传统调参的区别：从单点 benchmark 转向曲线预测。** 传统模型比较常看某个固定训练预算下的最终指标，而规模定律关心的是一族训练 run 的趋势是否可外推。它的价值不只是解释已有实验，而是帮助在大训练之前估计“再投入 10 倍计算会换来多少 loss 改善”。不过该论文后续也被 Chinchilla 修正：Kaplan 数据中许多大模型训练 token 不足，导致它低估了数据规模的重要性。换言之，Kaplan 是规模定律范式的奠基版本，而不是最终的计算最优答案。
+这些指数都很小，直觉上意味着 scale 的收益稳定但有强烈边际递减：参数、数据或 compute 翻倍时，loss 只会按一个小指数下降。论文重要的工程价值也来自这里：如果早期训练曲线已经落在幂律上，就可以外推更大模型或更长训练后的损失，而不必完整训练所有候选模型。
 
-> 💡 关键：Kaplan 规模定律最重要的贡献不是某个具体指数，而是证明了语言模型 loss 在大范围内可被简单幂律预测，从而让大模型训练预算分配有了可量化依据。
+为了刻画“模型太大但数据不够”或“数据很多但模型太小”的瓶颈，论文把 \(L(N)\) 和 \(L(D)\) 合成联合公式：
+
+$$
+L(N,D)=\left[\left(\frac{N_c}{N}\right)^{\alpha_N/\alpha_D}+\frac{D_c}{D}\right]^{\alpha_D}
+$$
+
+当 \(D\to\infty\) 时，第二项消失，公式退化为模型受限的 \(L(N)\)；当 \(N\to\infty\) 时，第一项消失，公式退化为数据受限的 \(L(D)\)。这也是“过拟合程度主要由 \(N^{0.74}/D\) 之类比例控制”的来源：因为 \(\alpha_N/\alpha_D\approx 0.8\)，模型变大时数据也要增长，但可低于线性增长。
+
+训练动态部分进一步说明，大模型并不只是最终 loss 更低，它们在达到同一 loss 时需要更少样本。论文用临界 batch size \(B_{crit}\) 和最小训练步数 \(S_{\min}\) 描述时间与计算效率的折中：batch 太小会浪费并行性，batch 太大会出现收益递减。由学习曲线公式和 \(B_{crit}\) 公式推导，固定 compute 下最优策略近似满足：
+
+$$
+N\propto C_{\min}^{0.73},\quad B\propto C_{\min}^{0.24},\quad S\propto C_{\min}^{0.03},\quad D=B\cdot S\propto C_{\min}^{0.27}
+$$
+
+这组指数后来成为 Chinchilla 论文重点修正的对象。Kaplan 结论认为新增预算主要应扩大模型，数据和串行训练步数增长较慢，因此会得到“训练很大的模型但远未收敛”的计算最优方案。它在 2020 年极大推动了大模型预训练的可预测化，但也因为实验中 token 数和学习率 schedule 的处理方式，低估了增加训练 token 的价值。
+
+与传统调参经验相比，这篇论文的创新在于把“大模型越大越好”转化为可用于预算规划的幂律方程。传统做法往往只比较几个模型大小的最终指标，无法回答“给定 10 倍 compute 应该增大模型、数据还是训练步数”。Kaplan Scaling Laws 给出的答案虽然后来被 Chinchilla 修正，但它奠定了 scaling-law 研究的基本语言：先拟合 loss surface，再沿 compute 约束求最优 frontier。
+
+> 💡 关键：Kaplan Scaling Laws 的贡献不是某个单独公式，而是证明 LLM 预训练损失在 \(N,D,C\) 上具有稳定、可外推的幂律结构，从而让“大规模训练”从经验赌博变成预算优化问题。
 
 #### 🧪 练习题
-
 ```yaml
-question: "Kaplan Scaling Laws 在固定训练计算预算下给出的核心资源分配倾向是什么？"
+question: "Kaplan Scaling Laws 中，固定 compute 下最核心的预算分配结论是什么？"
 options:
-  - "优先训练小模型到完全收敛"
-  - "优先增大模型规模，并在尚未完全收敛时停止训练"
-  - "固定模型规模，只增加数据清洗强度"
-  - "只增加 batch size，不改变参数量和数据量"
-answer: 1
-explain: "Kaplan 论文认为大模型更样本高效，因此固定 FLOPs 下应将更多计算分配给更大的模型，而不是把小模型训练到收敛。"
+  - "主要增加模型参数，并较早停止训练，而不是把小模型训练到完全收敛"
+  - "主要增加训练 epoch，模型参数保持不变"
+  - "只要增大 batch size，模型大小和数据量都不重要"
+  - "embedding 参数数量比非 embedding 参数更能预测损失"
+answer: 0
+explain: "论文推导出 N 随 compute 的指数约为 0.73，远高于训练步数的约 0.03，因此其计算最优建议偏向训练更大的模型并早停。"
 ```

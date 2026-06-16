@@ -1,184 +1,167 @@
-### 磐石 ScienceOne 100 — 跨学科科学基础大模型平台
+### ScienceOne 100 — 面向百场景科研工作流的科学基础模型系统
 
 ```yaml
 id: scienceone100
 name: ScienceOne 100
-full_name: "科学一号 (ScienceOne 100)"
-year: 2026
+full_name: 科学一号 (ScienceOne 100)
+year: '2026'
 org: 中国科学院
-paper_url: "https://arxiv.org/abs/2604.21409"
+paper_url: https://dig.watch/resources/scienceone-100
 category: unified_foundation
-parent: "—"
-motivation: "跨数学物理生物统一模型100+场景"
+parent: —
+motivation: 跨数学物理生物统一模型100+场景
 ```
 
 #### 📝 一句话总结
 
-ScienceOne（磐石）是中国科学院构建的"AI+科学"操作系统级平台，通过异构混合专家（MoE）基座模型、多模态科学推理模型和深度研究智能体三大核心组件，覆盖数学、物理、化学、天文、地球科学、生物六大基础学科的100+科学场景，实现了从科学数据理解、知识推理到工具编排的全链路科研智能化。
+ScienceOne 100 提出了以科学基础模型、领域模型和工具智能体共同组成的平台式 AI for Science 系统，解决通用大模型难以直接处理科学多模态数据、长链科研流程和跨学科工具调用的问题。
 
 #### 🎯 核心要点
 
-- **平台级架构**：ScienceOne 不是单一模型，而是包含 S1-Base（科学基座）、S1-VL（多模态推理）、S1-Omni（全模态）、S1-DeepResearch（深度研究智能体）四大模型族的统一科学操作系统
-- **异构 MoE 路由**：S1-Base 采用异构混合专家架构，可自动将用户查询路由至通用大语言模型或领域专用模型（波谱、场、蛋白质、生物序列等）
-- **六学科覆盖**：系统性学习数学、物理、化学、天文学、地球科学、生物学的核心理论与专业知识
-- **1.7 亿篇科学论文训练**：S1-Base 基于 1.7 亿篇科学论文预训练，并通过百万级高质量科学推理数据进行指令微调
-- **课程式强化学习**：采用高中→本科→研究生分阶段课程学习策略，逐步提升学科能力
-- **四阶段渐进式后训练**（S1-VL）：科学推理 SFT → 图像思维冷启动 SFT → 科学推理 RL（SAPO）→ 图像思维 RL（SAPO）
-- **Thinking-with-Images 范式**：S1-VL 在推理过程中主动调用 Python 代码执行图像操作（裁剪、缩放、增强、标注），实现多轮迭代视觉推理
-- **六维质量过滤框架**：对推理轨迹进行多维度质量评估与过滤，配合自适应数据路由策略
-- **深度研究智能体**：S1-DeepResearch 支持 128K 上下文窗口、150+ 轮连续工具调用、9 种内置工具
-- **多尺度参数**：S1-Base 提供 8B / 32B / 671B 三种规模；S1-VL 为 32B；S1-DeepResearch 为 8B / 32B
-- **13 个基准评测 SOTA**：S1-VL-32B 在 HRBench-4K/8K、MME-RealWorld 等 5 个图像操作推理基准上全部第一，科学推理基准上超越同等及更大规模模型
+- **平台而非单模型**：ScienceOne 100 将科学基础模型、学科专用大模型、文献分析、创新评估和工具编排组合成面向完整科研周期的系统
+- **异构 MoE 科学基座**：官方页面说明 ScienceOne 采用 heterogeneous mixture-of-experts 架构，面向波形、谱图、场数据等复杂科学模态
+- **百场景部署**：DIG Watch 可访问报道指出系统已覆盖 100+ 科研场景，并在 50+ 研究机构中部署
+- **三类核心功能**：文献罗盘用于检索、综述和技术路线抽取；创新评估引擎用于发现研究方向；Agent/ToolChain 用于调度科学工具
+- **大规模科学知识入口**：S1-Literature 连接约 170M 篇全球科学文献，并支持公式、图表和专业术语解析
+- **工具生态**：S1-ToolChain 集成 300+ 科学工具和 30+ 专业模型，覆盖数据处理、模型训练、特征分析和仿真执行
+- **多模态科学推理补充**：S1-VL 技术报告给出 ScienceOne 体系下的 Scientific Reasoning 与 Thinking-with-Images，两者支撑高分辨率科学图表、显微图像和地理图像推理
+- **来源限制**：输入 `paper_url` 是新闻/资源页；本文结合可访问 DIG Watch 更新页、ScienceOne 官方站、The Innovation Informatics 系统图和 S1-VL arXiv 技术报告进行方法级解读
 
 #### 🔬 深入细节
 
-##### 平台总体架构
+##### 系统框架与来源说明
 
-ScienceOne（磐石）是中国科学院依托科学基础大模型研发的"人工智能+科学"操作系统。与单一模型不同，ScienceOne 采用**模块化平台架构**，面向跨领域前沿科学发现与技术创新的共性需求，提供四大核心能力：
+![ScienceOne 100 系统框架](https://data.the-innovation.org/innovation-data/informatics/newcreate/TII-2026-0045-1_online.jpg)
+*图：The Innovation Informatics 文章 Figure 1，展示 ScienceOne 100 model system 的平台级框架。原始条目的 DIG Watch 资源页不稳定；可访问来源包括 DIG Watch 更新页 `https://dig.watch/updates/china-ai-driven-scientific-research-platform`、官方站 `https://www.scienceone.cn/index-en.html`、系统图文章 `https://www.the-innovation.org/article/doi/10.59717/j.xinn-inform.2026.100050` 和 S1-VL 技术报告 `https://arxiv.org/abs/2604.21409`。*
 
-1. **多模态科学数据专业理解**：处理科学图表、显微图像、遥感影像、天文观测数据等
-2. **科学文献萃取融合**：从海量论文中提取、整合知识
-3. **科学知识表征推理**：基于学科知识体系进行逻辑推理
-4. **科学工具编排规划**：自动调用计算工具完成复杂科研任务
+ScienceOne 100 的关键不是把一个通用聊天模型改名为科学模型，而是把“科学知识表征、科学数据理解、工具调用、研究流程管理”放进同一个操作系统式平台。官方站将其描述为可理解波形、谱图和场数据的科学基础模型，并强调四类能力：多模态科学数据专业理解、科学文献萃取融合、科学知识表征推理、科学工具编排规划。
 
-平台包含以下核心模型族：
+可以把 ScienceOne 100 看成三层结构。底层是科学基础模型与异构专家路由，负责把文本、公式、图像、谱图、场数据等输入转成可推理表示；中层是学科和任务专家，例如文献、数字细胞、粒子物理、晶体材料、谱图解读；上层是工作流智能体，用于完成“检索文献 - 形成假设 - 调用工具 - 运行仿真 - 解释结果 - 生成报告”的闭环。
 
-| 模型族 | 功能定位 | 参数规模 | 基座模型 |
-|--------|---------|---------|---------|
-| S1-Base | 科学基座语言模型 | 8B / 32B / 671B | Qwen3-8B / Qwen3-32B / DeepSeek-V3 |
-| S1-VL | 科学多模态推理 | 32B | Qwen3-VL-32B-Thinking |
-| S1-Omni | 全模态科学模型 | 29B | — |
-| S1-DeepResearch | 深度研究智能体 | 8B / 32B | Qwen3-32B |
-
-> 💡 **关键**：ScienceOne 的"100"指覆盖 100+ 科学应用场景，而非单一模型参数量，体现了其作为科学操作系统的广度定位。
-
-##### S1-Base：异构 MoE 科学基座模型
-
-S1-Base 是整个平台的基础层，其核心创新在于**异构混合专家（Heterogeneous MoE）架构**：
-
-```
-用户查询 → 路由器（Router）
-              ├─→ 通用科学 LLM（数学/物理/化学推理）
-              ├─→ 波谱模型（光谱、波形分析）
-              ├─→ 场模型（电磁场、引力场模拟）
-              ├─→ 蛋白质模型（结构预测、功能注释）
-              └─→ 生物序列模型（基因组、转录组分析）
-```
-
-**训练流程**分为三个层次：
-
-1. **大规模科学预训练**：基于 1.7 亿篇科学论文进行继续预训练，使模型系统性地学习六大基础学科（数学、物理、化学、天文学、地球科学、生物学）的核心理论、定律和专业知识
-
-2. **科学指令微调**：使用百万级高质量科学推理数据进行指令微调，提升模型在科学问答、推导、分析等任务上的表现
-
-3. **多学科复合强化学习 + 课程学习**：
-   - 采用**课程学习策略**，按高中→本科→研究生难度梯度逐步提升
-   - 通过多学科复合奖励函数进行强化学习，确保各学科能力均衡发展
-
-> ⚠️ **注意**：S1-Base-671B 基于 DeepSeek-V3 架构，本身即为 MoE 模型（激活参数远小于总参数），这使得 671B 规模在推理时具有较高的计算效率。
-
-##### S1-VL：科学多模态推理模型（Thinking-with-Images）
-
-S1-VL 是 ScienceOne 平台的多模态核心，其技术报告已发表于 arXiv（2604.21409）。该模型原生支持两种互补的推理范式：
-
-**范式一：Scientific Reasoning（科学推理）**
-
-基于结构化思维链（Chain-of-Thought）的多模态科学推理，适用于复杂多步骤问题的分析与求解。
-
-**范式二：Thinking-with-Images（图像思维）**
-
-这是 S1-VL 最具创新性的设计。模型在推理过程中可以**主动生成并执行 Python 代码**来操作图像：
+##### 平台执行流程伪代码
 
 ```python
-# S1-VL Thinking-with-Images 推理流程伪代码
-def thinking_with_images(query, image):
-    context = [image]
-    reasoning = ""
-    
-    for turn in range(max_turns):
-        # 模型生成推理文本 + 可选的代码操作
-        response = model.generate(query, context, reasoning)
-        
-        if response.has_code():
-            # 在沙箱环境中执行图像操作代码
-            code = response.extract_code()
-            # 支持操作：裁剪、缩放、增强、边界框标注、关键点标记
-            result_image = sandbox.execute(code, context[-1])
-            context.append(result_image)  # 中间视觉结果加入上下文
-            
-        reasoning += response.text
-        
-        if response.is_final():
-            return reasoning
+# ScienceOne 100 的高层工作流伪代码
+def scienceone_research_loop(user_goal, scientific_assets):
+    task_graph = planner.decompose(user_goal)
+    memory = EvidenceStore()
+
+    for task in task_graph:
+        modality = detect_modality(task, scientific_assets)
+        expert = router.select_expert(
+            task=task,
+            modality=modality,
+            candidates=["literature", "spectrum", "field", "biology", "simulation", "general_llm"],
+        )
+
+        if task.requires_external_tool:
+            tool = toolchain.match(task, constraints=task.safety_and_reproducibility)
+            result = tool.run(inputs=scientific_assets, params=task.params)
+        else:
+            result = expert.infer(task, context=memory.retrieve(task))
+
+        checked = verifier.cross_check(result, evidence=memory)
+        memory.add(task, checked)
+
+    return report_writer.synthesize(memory, citation_required=True)
 ```
 
-> 💡 **关键**：Thinking-with-Images 特别适用于高分辨率科学图表解读、显微图像理解、遥感影像分析和几何辅助推理等场景——这些场景中，模型需要"放大"或"标注"图像的特定区域才能准确推理。
+这个伪代码强调两个机制。第一，路由不是单纯按关键词分发，而是根据任务、数据模态和工具需求选择专家模型或科学工具。第二，科研任务天然是多轮闭环，系统需要把中间证据、工具输出和模型判断写回记忆，再由验证器交叉检查，降低科学场景中的幻觉风险。
 
-**四阶段渐进式后训练流程**：
+##### 异构 MoE：为什么科学平台需要专家路由
 
-$$\text{Stage 1: SFT}_{\text{sci}} \rightarrow \text{Stage 2: SFT}_{\text{TwI}} \rightarrow \text{Stage 3: RL}_{\text{sci}} \rightarrow \text{Stage 4: RL}_{\text{TwI}}$$
+通用大模型擅长自然语言，但科学研究中的输入经常是非自然语言对象，例如质谱峰、遥感多光谱图像、电磁场、蛋白质序列、微分方程和仿真日志。ScienceOne 官方站明确提到 heterogeneous mixture-of-experts 架构，其直觉是用一个路由器决定“该交给哪个专家处理”，而不是要求单一模型同时掌握所有科学数据类型。
 
-- **Stage 1 — 科学推理 SFT**：使用跨学科（数学、物理、化学、天文、地球科学、生物）大规模多模态指令数据进行混合训练，增强科学视觉理解与逻辑推理能力
-- **Stage 2 — 图像思维冷启动 SFT**：引入 Thinking-with-Images 范式，联合高质量科学推理课程学习数据与图像思维数据进行训练，使模型获得通过代码执行图像操作的能力
-- **Stage 3 — 科学推理 RL**：基于 **SAPO 算法**（Self-Aligned Policy Optimization）和多任务科学奖励函数，对高难度科学多模态推理样本进行强化学习，突破 SFT 阶段的性能天花板
-- **Stage 4 — 图像思维 RL**：基于 SAPO 算法和**四维复合奖励函数**，进一步优化模型的图像操作调用时机与质量，实现稳定高效的多轮视觉推理
+可以将路由写成：
 
-**六维质量过滤框架与自适应数据路由**：
+$$
+p(e \mid x, q)=\operatorname{softmax}(W_r \phi(x, q))_e
+$$
 
-为解决现有数据集中冗余、无效和错误视觉操作的问题，S1-VL 提出：
+$$
+y=\sum_{e \in \mathcal{E}} p(e \mid x, q)\, f_e(x, q)
+$$
 
-1. **六维质量过滤框架**：对推理轨迹从六个维度进行质量评估与过滤
-2. **多阶段过滤管线**：逐步筛选高质量训练样本
-3. **自适应数据路由策略**：将视觉信息增益低的样本转换为纯推理模式数据，使模型学会判断"何时真正需要图像操作"
+其中 \(x\) 是科学数据，\(q\) 是用户任务，\(\phi\) 是任务和模态表征，\(f_e\) 是文献、谱图、场、生命科学、仿真等专家。对于高置信任务可以只激活 Top-\(k\) 专家：
 
-##### S1-DeepResearch：长程深度研究智能体
+$$
+y=\sum_{e \in \operatorname{TopK}(p)} \tilde{p}_e f_e(x,q)
+$$
 
-S1-DeepResearch 是面向科研场景的端到端智能体模型，具备五大核心能力：
+这类设计的收益是参数和工具可以按学科扩展，推理时只调用必要专家，且新学科可以通过新增专家或工具协议接入，而不是重训整个平台。
 
-1. **长链复杂推理**：支持跨文档检索、证据聚合、状态记忆和策略迭代
-2. **深度研究指令遵循**：解析多约束指令，构建"任务定义→机制→工具执行→结果呈现"的全链路理解
-3. **深度研究报告撰写**：生成可论证、可引用的报告式输出
-4. **文件理解与生成**：覆盖 PDF、表格、网页等多模态输入输出
-5. **技能调用**：将文献检索、数据分析、实验设计、计算建模等组织为可调用模块
+##### 科学工作流中的工具编排
 
-技术特性：
-- **128K 上下文窗口**：单次会话可容纳超长证据链
-- **150+ 轮连续工具调用**：支持多阶段任务的持续规划、执行和自我修正
-- **9 种原生内置工具**：搜索、网页浏览、代码执行等
+ScienceOne 与普通科学问答系统的差别在于它强调工具执行。官方站显示 S1-ToolChain 集成 300+ 科学工具和 30+ 专业模型，可用于数据处理、模型训练、特征分析等流程。对科研来说，这一步很关键：很多结论不能仅由语言模型生成，而要由数值求解器、分子模拟器、粒子物理分析程序或材料性质预测模型给出可复现实验结果。
 
-在 20 个智能体能力基准上，S1-DeepResearch-32B 全面超越基座模型 Qwen3-32B，整体性能接近 GPT 5.2、Claude 4.6、GLM-5 等闭源旗舰模型。
+工具选择可以建模为带约束优化：
 
-##### 数据集与基准
+$$
+t^\*=\arg\max_{t \in \mathcal{T}}
+\left[
+s_{\text{match}}(t,q)
+-\lambda_c C(t)
+-\lambda_r R(t)
++\lambda_v V(t)
+\right]
+$$
 
-ScienceOne 团队同步开源了多个高质量数据集：
+其中 \(s_{\text{match}}\) 表示工具与任务的语义匹配，\(C(t)\) 是计算成本，\(R(t)\) 是失败或不可复现风险，\(V(t)\) 是输出可验证性。这个目标比“调用第一个看起来相关的工具”更适合科研场景，因为研究者需要稳定、可追溯、可复现的执行链。
 
-| 数据集 | 规模 | 用途 |
-|--------|------|------|
-| S1-MMAlign | 2110 万样本 | 多模态对齐训练 |
-| S1-DeepResearch-15k | 1.5 万条 | 智能体训练轨迹 |
-| PhysLogic | — | 物理逻辑推理评测 |
-| HiSciBench | — | 高阶科学能力基准 |
+##### S1-VL 对 ScienceOne 100 的方法补充
 
-##### 与传统方法的区别
+ScienceOne 100 的公开系统报道偏平台层，S1-VL arXiv 报告提供了更具体的模型训练机制。S1-VL 支持两种互补范式：Scientific Reasoning 使用结构化思维链处理多步科学问题；Thinking-with-Images 则允许模型在推理中生成并执行图像处理代码，获得裁剪、缩放、增强和标注后的中间图像，再继续多轮推理。
 
-| 维度 | 传统科学 AI 模型 | ScienceOne |
-|------|-----------------|------------|
-| 覆盖范围 | 单一学科/任务 | 六大学科 100+ 场景 |
-| 架构设计 | 单一模型 | 异构 MoE + 模型族平台 |
-| 推理方式 | 纯文本 CoT | CoT + Thinking-with-Images |
-| 图像理解 | 被动接收 | 主动操作（裁剪/缩放/标注） |
-| 研究能力 | 单步问答 | 150+ 轮长程深度研究 |
-| 训练数据 | 通用语料 | 1.7 亿篇科学论文 + 课程学习 |
+S1-VL 的四阶段训练可以概括为：
+
+$$
+\text{SFT}_{\text{sci}}
+\rightarrow
+\text{SFT}_{\text{TwI}}
+\rightarrow
+\text{RL}_{\text{sci}}
+\rightarrow
+\text{RL}_{\text{TwI}}
+$$
+
+对应流程是：先用跨数学、物理、化学、天文、地理、生物的科学多模态数据做监督微调；再用 Thinking-with-Images 数据让模型学会何时进行图像操作；之后通过强化学习优化科学推理；最后进一步优化图像操作的调用时机和质量。
+
+```python
+# S1-VL Thinking-with-Images 的简化机制
+def think_with_images(question, image):
+    visual_context = [image]
+    trace = []
+
+    while True:
+        action = vlm.next_action(question, visual_context, trace)
+        if action.type == "final_answer":
+            return action.answer
+        if action.type == "image_code":
+            # 例如 crop / zoom / contrast enhancement / annotation
+            new_image = sandbox.execute(action.python_code, visual_context[-1])
+            visual_context.append(new_image)
+            trace.append((action.reason, new_image))
+        else:
+            trace.append(action.reason)
+```
+
+这种机制适合科学图表、显微图像和遥感图像，因为关键信息往往只出现在局部区域。传统 VLM 一次性把整张图压成视觉 token，容易丢失局部细节；主动图像操作相当于让模型在推理过程中重新采样信息。
+
+##### 与传统科研 AI 工具的区别
+
+传统工具通常是单点能力：文献检索系统只找论文，仿真平台只运行模型，通用大模型只生成文本，领域模型只处理固定数据类型。ScienceOne 100 的创新在于把这些能力组织成一个可路由、可编排、可验证的平台。它不只是“更懂科学的聊天机器人”，而是把模型和工具放进一个任务图中运行。
+
+> 💡 关键：ScienceOne 100 的“100”应理解为覆盖 100+ 科研场景的平台化目标；方法核心是异构专家路由、科学多模态理解、证据交叉检查和工具链编排，而不是单一架构组件。
 
 #### 🧪 练习题
 
 ```yaml
-question: "S1-VL 模型的 Thinking-with-Images 范式的核心创新是什么？"
+question: "ScienceOne 100 相比普通通用大模型的核心技术差异是什么？"
 options:
-  - "使用更大的视觉编码器提升图像分辨率"
-  - "在推理过程中主动生成并执行代码来操作图像，获取中间视觉结果后继续推理"
-  - "将图像转换为文本描述后进行纯文本推理"
-  - "使用多个视觉编码器分别处理不同类型的科学图像"
+  - "只扩大参数量并直接生成科研报告"
+  - "用异构专家路由和工具编排把科学数据理解、文献分析、仿真执行和结果验证组织成平台化流程"
+  - "只依赖人工编写规则库回答科学问题"
+  - "完全取消领域模型，仅保留一个统一聊天入口"
 answer: 1
-explain: "Thinking-with-Images 的核心在于模型在推理过程中可以主动调用 Python 代码执行图像操作（裁剪、缩放、增强、标注等），在沙箱环境中获取中间视觉结果，然后以多轮迭代方式继续推理，而非被动地一次性处理输入图像。"
+explain: "ScienceOne 100 的重点是平台化 AI for Science：根据任务和模态路由到专家模型或科学工具，并通过工作流和证据检查支撑完整科研周期。"
 ```

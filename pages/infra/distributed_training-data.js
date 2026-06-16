@@ -1,5 +1,5 @@
 /**
- * distributed_training-data.js — 由 pipeline/build.py 于 2026-06-15 18:08:24 自动生成。
+ * distributed_training-data.js — 由 pipeline/build.py 于 2026-06-16 17:00:15 自动生成。
  * 源文件：content/infra/distributed_training.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "distributed_training",
     "topic_name": "distributed_training",
     "page_title": "distributed_training",
-    "page_subtitle": "2026-06-15 版",
+    "page_subtitle": "2026-06-16 版",
     "page_desc": "",
     "page_icon": "📘",
     "hero_pills": [],
@@ -466,27 +466,26 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "dp",
       "motivation": "Server-Worker架构支持异步/同步梯度聚合",
-      "summary": "Parameter Server 通过引入灵活的异步一致性模型和用户自定义过滤器两大松弛策略，大幅降低分布式机器学习中的通信开销，并提出延迟块近端梯度法（Delayed Block Proximal Gradient）在非凸非光滑问题上给出收敛保证，实现了在 636TB 数据、1000 台机器上的近线性加速。",
+      "summary": "Parameter Server 将全局模型参数拆成键值分片放在 Server 组上，Worker 只拉取本地数据需要的 working set 并推送梯度，解决大规模数据并行训练中参数同步、异步容忍和网络通信开销过高的问题。",
       "keyPoints": [
-        "<strong>参数服务器架构</strong>：Server 节点维护全局共享参数，Worker 节点并行计算梯度并通过 push/pull 接口通信",
-        "<strong>两大通信松弛策略</strong>：(1) 异步任务依赖的灵活一致性模型（Sequential / Eventual / Bounded Delay）；(2) 用户自定义过滤器（如 KKT filter）",
-        "<strong>延迟块近端梯度法 (DBPG)</strong>：针对非凸非光滑复合优化问题，在有界延迟 <span class=\"kb-math kb-math-inline\">\\tau</span> 下证明收敛到临界点",
-        "<strong>KKT 过滤器</strong>：仅传输可能改变最优活跃集的参数，对稀疏模型可过滤 98%+ 的无效通信",
-        "<strong>Key Caching + Compression</strong>：利用参数键的时间局部性缓存 key 列表，结合 Snappy 压缩降低带宽",
-        "<strong>实验规模</strong>：ℓ₁ 正则化逻辑回归在 636TB 广告点击数据上训练，1000 台机器实现 800× 加速",
-        "<strong>极简接口</strong>：用户仅需约 300 行代码即可实现完整算法，对比同类系统需 10,000+ 行"
+        "Server-Worker 架构：Server 保存全局共享参数，Worker 保存数据分片并通过 <code>push</code>/<code>pull</code> 读写参数。",
+        "参数按 key range 分片：每个 Server 只维护一部分参数，多个 Server 聚合带宽并避免单点瓶颈。",
+        "支持同步与异步：通过任务依赖图表达 Sequential、Eventual、Bounded Delay 等一致性模型。",
+        "支持用户自定义过滤器：Significantly modified、Random skip、KKT、Key caching、Compression 等过滤器减少无效通信。",
+        "Delayed Block Proximal Gradient：只更新参数块，在有界延迟下求解非凸、非光滑复合目标并给出收敛条件。",
+        "面向稀疏超大规模数据：论文在 636TB 点击数据、170B 样本、65B 特征、1000 台机器上验证通信压缩与等待时间降低。"
       ],
-      "detail": "<h5>系统架构示意</h5>\n<pre><code>┌─────────────────────────────────────────────────────┐\n│                   Server Group                       │\n│  ┌─────────┐  ┌─────────┐  ┌─────────┐            │\n│  │Server 1 │  │Server 2 │  │Server 3 │  ...       │\n│  │(keys    │  │(keys    │  │(keys    │            │\n│  │ 1..k/3) │  │k/3..2k/3│  │2k/3..k) │            │\n│  └────┬────┘  └────┬────┘  └────┬────┘            │\n└───────┼─────────────┼─────────────┼────────────────┘\n        │  push/pull  │             │\n┌───────┼─────────────┼─────────────┼────────────────┐\n│  ┌────┴────┐  ┌────┴────┐  ┌────┴────┐            │\n│  │Worker 1 │  │Worker 2 │  │Worker 3 │  ...       │\n│  │(data    │  │(data    │  │(data    │            │\n│  │ shard 1)│  │ shard 2)│  │ shard 3)│            │\n│  └─────────┘  └─────────┘  └─────────┘            │\n│                   Worker Group                       │\n└─────────────────────────────────────────────────────┘\n</code></pre>\n<p><em>图：Parameter Server 架构。Server 按 key range 分片存储全局参数，Worker 持有数据分片并通过 push/pull 与 Server 交互。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># Delayed Block Proximal Gradient (DBPG) - Worker 端\ndef worker_task(worker_id, data_shard, server):\n    while not converged:\n        # 1. Pull: 从 Server 拉取当前参数（可能有延迟 τ）\n        w = server.pull(keys, deps=task_dependencies)\n\n        # 2. Compute: 在本地数据上计算梯度\n        grad = compute_gradient(data_shard, w)\n\n        # 3. Filter: 应用用户自定义过滤器（如 KKT filter）\n        filtered_grad = kkt_filter(grad, w)\n\n        # 4. Push: 将过滤后的梯度推送到 Server\n        server.push(filtered_keys, filtered_grad)\n\n# Server 端聚合\ndef server_update(key, received_grads):\n    # 聚合梯度并执行近端算子\n    g = aggregate(received_grads)\n    # 近端梯度更新（处理 ℓ₁ 正则化等非光滑项）\n    w[key] = prox_operator(w[key] - η * g, λ)\n</code></pre>\n<h5>动机与背景</h5>\n<p>分布式机器学习的核心瓶颈在于<strong>通信开销</strong>。当数据规模达到数百 TB、参数维度达到数十亿时，Worker 与 Server 之间的参数同步成为性能瓶颈。传统 BSP（Bulk Synchronous Parallel）模式要求所有 Worker 完成当前迭代后才能进入下一轮，导致：</p>\n<ol>\n<li><strong>同步屏障</strong>（Barrier）使得最慢的 Worker 决定整体速度</li>\n<li><strong>全量通信</strong>每轮传输所有参数，即使大部分参数变化极小</li>\n<li><strong>网络带宽</strong>成为扩展性的硬约束</li>\n</ol>\n<div class=\"key-point\">💡 关键：本文的核心洞察是——大多数分布式 ML 算法并不需要完全同步的参数视图，适度的\"陈旧性\"（staleness）不会破坏收敛性，反而能大幅提升吞吐量。</div>\n<h5>核心机制一：灵活一致性模型</h5>\n<p>论文提出三种一致性模型，通过任务间的依赖关系（dependency）控制：</p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>一致性模型</th>\n<th>描述</th>\n<th>延迟</th>\n<th>适用场景</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>Sequential</td>\n<td>所有任务串行执行</td>\n<td>0</td>\n<td>调试、精确验证</td>\n</tr>\n<tr>\n<td>Eventual</td>\n<td>无任何依赖约束</td>\n<td>无界</td>\n<td>对陈旧性不敏感的算法</td>\n</tr>\n<tr>\n<td>Bounded Delay</td>\n<td>新任务需等待 <span class=\"kb-math kb-math-inline\">\\tau</span> 轮前的任务完成</td>\n<td>≤ <span class=\"kb-math kb-math-inline\">\\tau</span></td>\n<td>大多数实际场景</td>\n</tr>\n</tbody>\n</table></div>\n<p>Bounded Delay 模型的形式化定义：</p>\n<div class=\"kb-math kb-math-display\">\\text{task } t \\text{ 开始前，所有 task } t&#x27; \\leq t - \\tau \\text{ 必须已完成}</div>\n<p>这意味着 Worker 看到的参数最多落后 <span class=\"kb-math kb-math-inline\">\\tau</span> 个迭代，在实践中 <span class=\"kb-math kb-math-inline\">\\tau</span> 通常设为 Worker 数量的一小部分。</p>\n<h5>核心机制二：用户自定义过滤器</h5>\n<p>过滤器在 push/pull 操作时决定哪些 (key, value) 对需要实际传输。论文重点介绍了 <strong>KKT Filter</strong>：</p>\n<p>对于 ℓ₁ 正则化问题 <span class=\"kb-math kb-math-inline\">\\min_w f(w) + \\lambda \\|w\\|_1</span>，KKT 最优性条件为：</p>\n<div class=\"kb-math kb-math-display\">|[\\nabla f(w)]_i| \\leq \\lambda \\implies w_i^* = 0</div>\n<p>即如果某个参数的梯度绝对值小于正则化系数 <span class=\"kb-math kb-math-inline\">\\lambda</span>，则该参数在最优解处为零，无需传输。KKT Filter 的工作原理：</p>\n<ol>\n<li>Worker 计算局部梯度后，检查每个参数是否满足 KKT 条件</li>\n<li>仅传输<strong>违反</strong> KKT 条件的参数（即活跃集中的参数）</li>\n<li>对于高度稀疏的模型（如广告 CTR 预估），可过滤掉 <strong>98% 以上</strong>的参数通信</li>\n</ol>\n<div class=\"warn-box\">⚠️ 注意：KKT Filter 不是近似——它利用的是精确的最优性条件，因此不会影响最终收敛精度，只是跳过了\"确定为零\"的参数更新。</div>\n<h5>核心机制三：延迟块近端梯度法 (DBPG) 的收敛分析</h5>\n<p>论文考虑如下非凸非光滑复合优化问题：</p>\n<div class=\"kb-math kb-math-display\">\\min_{w \\in \\mathbb{R}^p} F(w) = f(w) + h(w)</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">f</span> 是光滑（可能非凸）函数，<span class=\"kb-math kb-math-inline\">h</span> 是非光滑凸正则化项（如 <span class=\"kb-math kb-math-inline\">\\|w\\|_1</span>）。</p>\n<p><strong>关键假设：</strong>\n- <span class=\"kb-math kb-math-inline\">\\nabla f</span> 是 Lipschitz 连续的，常数为 <span class=\"kb-math kb-math-inline\">L</span>\n- 延迟有界：<span class=\"kb-math kb-math-inline\">\\tau_{\\max} \\leq \\tau</span>\n- 块坐标更新：每次仅更新参数的一个子集（block）</p>\n<p><strong>收敛定理（Theorem 1）：</strong> 设学习率 <span class=\"kb-math kb-math-inline\">\\eta = \\frac{c}{L(\\tau+1)}</span>（其中 <span class=\"kb-math kb-math-inline\">c &lt; 1</span>），则经过 <span class=\"kb-math kb-math-inline\">T</span> 次迭代后：</p>\n<div class=\"kb-math kb-math-display\">\\frac{1}{T} \\sum_{t=1}^{T} \\mathbb{E}\\left[\\left\\| G_\\eta(w^t) \\right\\|^2\\right] \\leq \\frac{2L(\\tau+1)(F(w^0) - F^*)}{cT}</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">G_\\eta(w) = \\frac{1}{\\eta}(w - \\text{prox}_{\\eta h}(w - \\eta \\nabla f(w)))</span> 是广义梯度映射。</p>\n<div class=\"key-point\">💡 关键：收敛速率为 <span class=\"kb-math kb-math-inline\">O\\left(\\frac{\\tau+1}{T}\\right)</span>，说明延迟 <span class=\"kb-math kb-math-inline\">\\tau</span> 仅线性减慢收敛，而并行带来的吞吐量提升通常远超此代价。当 Worker 数 <span class=\"kb-math kb-math-inline\">P</span> 满足 <span class=\"kb-math kb-math-inline\">P \\leq O(\\sqrt{T})</span> 时，可实现近线性加速。</div>\n<h5>通信优化：Key Caching 与压缩</h5>\n<p>除了算法层面的过滤，系统层面还采用：</p>\n<ol>\n<li><strong>Key Caching</strong>：Worker 与 Server 之间缓存已传输的 key 列表。若连续两次 push 的 key 集合相同（时间局部性），则第二次仅传 value，节省 key 传输开销</li>\n<li><strong>Value 压缩</strong>：使用 Snappy 对 value 向量进行压缩，对稀疏梯度效果显著</li>\n<li><strong>Range Push/Pull</strong>：支持按 key 范围批量操作，减少 RPC 次数</li>\n</ol>\n<h5>与传统方法的对比</h5>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>特性</th>\n<th>MapReduce/AllReduce</th>\n<th>第一代 PS</th>\n<th>本文 (第三代 PS)</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>同步模型</td>\n<td>严格 BSP</td>\n<td>简单异步</td>\n<td>灵活一致性（3种）</td>\n</tr>\n<tr>\n<td>通信过滤</td>\n<td>无</td>\n<td>无</td>\n<td>KKT Filter 等</td>\n</tr>\n<tr>\n<td>收敛保证</td>\n<td>同步保证</td>\n<td>无理论</td>\n<td>DBPG 定理</td>\n</tr>\n<tr>\n<td>容错</td>\n<td>重启任务</td>\n<td>检查点</td>\n<td>向量时钟+复制</td>\n</tr>\n<tr>\n<td>编程复杂度</td>\n<td>高</td>\n<td>中</td>\n<td>低（~300行）</td>\n</tr>\n</tbody>\n</table></div>\n<h5>实验结果</h5>\n<p>在 636TB 广告点击预测数据集上（1000 台机器，每台 16 核 + 192GB 内存）：</p>\n<ul>\n<li><strong>稀疏逻辑回归</strong>（170 亿参数）：Bounded Delay (<span class=\"kb-math kb-math-inline\">\\tau=8</span>) 相比 Sequential 获得 <strong>800×</strong> 加速</li>\n<li><strong>KKT Filter 效果</strong>：过滤 98.4% 的参数通信，几乎不影响收敛精度</li>\n<li><strong>Key Caching</strong>：减少 40-50% 的网络传输量</li>\n<li><strong>对比 Vowpal Wabbit</strong>：PS 框架在相同精度下快 10× 以上</li>\n</ul>",
+      "detail": "<h5>远程示意图</h5>\n<p><img alt=\"多服务器参数服务器架构\" src=\"https://d2l.ai/_images/ps-multips.svg\" />\n<em>图：D2L 参数服务器章节提供的多服务器架构图，展示单个 Parameter Server 的带宽瓶颈以及多 Server 按参数分片聚合带宽的方案；该章节明确引用 Li et al. 2014 的参数服务器系统。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># Parameter Server 上的一轮同步或有界异步梯度聚合\ndef worker_loop(worker_id, data_shard, server_group, tau):\n    working_keys = infer_working_set(data_shard)\n    w_local = server_group.pull(working_keys)\n\n    for t in range(num_steps):\n        wait_until_iterations_before(t - tau).finished()\n\n        grad, coord_lr = compute_gradient_and_lr(data_shard, w_local)\n        active_grad = kkt_filter(grad, w_local)\n\n        server_group.push(keys=active_grad.keys(), values=(active_grad, coord_lr))\n        w_delta = server_group.pull(keys=working_keys, filter=&quot;significantly_modified&quot;)\n        w_local.update(w_delta)\n\ndef server_update(block_id, received_messages):\n    grad = sum(msg.grad for msg in received_messages)\n    coord_lr = aggregate_lr(msg.coord_lr for msg in received_messages)\n    U = diag(coord_lr)\n    w[block_id] = prox_update(w[block_id], grad, U)\n</code></pre>\n<h5>机制解读</h5>\n<p>Parameter Server 的核心抽象是把“分布式训练”改写成键值参数存储上的 <code>push</code> 和 <code>pull</code>。Worker 不需要知道全局参数如何分片，也不需要和其他 Worker 直接通信；它只负责用自己的数据分片计算梯度，并把梯度发给负责相应 key range 的 Server。Server 端执行可交换的聚合：</p>\n<div class=\"kb-math kb-math-display\">\\mathbf{g}^{(t)} = \\sum_{r=1}^{m} \\mathbf{g}_{r}^{(t)}, \\qquad\n\\mathbf{w}^{(t+1)} = \\mathbf{w}^{(t)} - \\eta \\left(\\mathbf{g}^{(t)} + \\partial h(\\mathbf{w}^{(t)})\\right)</div>\n<p>这里 <span class=\"kb-math kb-math-inline\">m</span> 是 Worker 数量，<span class=\"kb-math kb-math-inline\">h</span> 是正则项。实际系统并不总是全量同步所有参数，因为高维稀疏数据下，单个 Worker 只需要很小一部分 working set。论文报告在 100 个 Worker 时平均 Worker 只需要约 7.8% 的模型参数，Worker 数增加到 10000 时 working set 比例进一步降到 0.15%，这正是 <code>pull(keys)</code> 接口比全量广播更省通信的原因。</p>\n<p>一致性模型由任务依赖图控制，而不是硬编码在训练循环里。Sequential 等价于 BSP：第 <span class=\"kb-math kb-math-inline\">t+1</span> 个任务必须等待第 <span class=\"kb-math kb-math-inline\">t</span> 个任务完成；Eventual 允许任务尽快执行，但参数可能很旧；Bounded Delay 设置最大陈旧度 <span class=\"kb-math kb-math-inline\">\\tau</span>，新任务开始前必须保证 <span class=\"kb-math kb-math-inline\">t-\\tau</span> 以前的任务完成：</p>\n<div class=\"kb-math kb-math-display\">\\text{start}(t) \\Rightarrow \\forall t&#x27; \\le t-\\tau,\\ \\text{finished}(t&#x27;)</div>\n<p>这个设计把“系统吞吐”和“算法收敛”之间的取舍显式暴露出来。同步模型等待最慢 Worker，网络抖动和负载不均会形成 straggler；有界异步允许快 Worker 继续推进，只要延迟不超过 <span class=\"kb-math kb-math-inline\">\\tau</span>，算法仍能用适当学习率保持收敛。</p>\n<p>论文进一步提出 Delayed Block Proximal Gradient，把目标写成非凸、非光滑复合优化：</p>\n<div class=\"kb-math kb-math-display\">\\min_{\\mathbf{w}} F(\\mathbf{w}) = f(\\mathbf{w}) + h(\\mathbf{w})</div>\n<p>Server 对某个参数块执行广义近端更新：</p>\n<div class=\"kb-math kb-math-display\">\\operatorname{Prox}_{\\gamma}^{U}(x)=\n\\arg\\min_y h(y)+\\frac{1}{2\\gamma}\\|x-y\\|_{U}^{2},\n\\qquad\n\\mathbf{w}^{(t+1)}=\n\\operatorname{Prox}_{\\gamma_t}^{U}\\left(\\mathbf{w}^{(t)}-\\gamma_t\\nabla f(\\tilde{\\mathbf{w}}^{(t)})\\right)</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">\\tilde{\\mathbf{w}}^{(t)}</span> 是有界陈旧的参数视图，<span class=\"kb-math kb-math-inline\">U=\\operatorname{diag}(\\mathbf{u}^{(t)})</span> 表示坐标级学习率。论文给出的收敛条件体现了延迟代价：若最小坐标学习率为 <span class=\"kb-math kb-math-inline\">M_t</span>，学习率满足</p>\n<div class=\"kb-math kb-math-display\">\\gamma_t \\le \\frac{M_t}{L_{\\mathrm{var}}+\\tau L_{\\mathrm{cov}}+\\epsilon}</div>\n<p>则在有界延迟和过滤误差逐步减小的条件下，算法期望收敛到 stationary point。直觉是：<span class=\"kb-math kb-math-inline\">\\tau</span> 越大，陈旧梯度越不可靠，因此需要更保守的 <span class=\"kb-math kb-math-inline\">\\gamma_t</span>；但系统层面节省的等待时间通常可以覆盖这部分算法代价。</p>\n<p>用户自定义过滤器是 Parameter Server 相比朴素 Server-Worker 聚合的关键增强。以 <span class=\"kb-math kb-math-inline\">\\ell_1</span> 正则逻辑回归为例，KKT filter 利用 soft-shrinkage 的最优性条件：若某坐标当前为零且梯度不足以越过正则阈值，则该坐标更新后仍为零，可以跳过通信：</p>\n<div class=\"kb-math kb-math-display\">w_k=0 \\land |\\hat{g}_k| \\le \\lambda-\\delta\n\\Rightarrow \\text{skip coordinate } k</div>\n<p>这不是随机压缩，而是利用稀疏正则的活跃集结构；再叠加 key caching 和数值压缩后，论文在 636TB 点击数据实验中报告 Server 侧和 Worker 侧分别获得约 40x 和 12x 的通信压缩。相比 AllReduce 每步同步完整梯度，Parameter Server 更适合超高维稀疏模型，因为它把通信粒度从“整个张量”降到“会影响目标函数的 key-value 子集”。</p>",
       "quiz": {
-        "q": "Parameter Server 中 KKT Filter 的核心原理是什么？",
+        "q": "Parameter Server 的 Bounded Delay 一致性模型主要解决什么问题？",
         "options": [
-          "随机丢弃一定比例的梯度以减少通信量",
-          "利用 ℓ₁ 正则化的最优性条件，仅传输可能非零的参数梯度",
-          "对梯度进行 Top-K 稀疏化，只保留最大的 K 个分量",
-          "通过量化将 32 位浮点梯度压缩为 1 位信号"
+          "让所有 Worker 永远使用完全相同的最新参数",
+          "限制参数陈旧度，在减少同步等待的同时保持可分析的收敛条件",
+          "把模型权重切分到多个 GPU 的 tensor 维度",
+          "只保留梯度绝对值最大的 Top-K 坐标"
         ],
         "answer": 1,
-        "explain": "KKT Filter 利用 ℓ₁ 正则化的 KKT 条件：若 |∇f(w)_i| ≤ λ，则 w_i* = 0，该参数无需传输。这是精确的最优性条件而非近似。"
+        "explain": "Bounded Delay 允许 Worker 使用最多落后 tau 轮的参数，减少 straggler 等待；收敛条件中的学习率会随 tau 增大而更保守。"
       }
     },
     {
@@ -708,13 +707,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "tp",
       "motivation": "沿序列维度切分LayerNorm和Dropout激活值",
-      "summary": "Sequence Parallelism 的核心目标是：沿序列维度切分LayerNorm和Dropout激活值。",
+      "summary": "Sequence Parallelism 沿序列维度把输入切到多张 GPU，并用 Ring Self-Attention 在不复制完整序列激活的情况下计算跨分片注意力，解决 Transformer 长序列训练中单卡激活内存随序列长度快速增长的问题。",
       "keyPoints": [
-        "核心动机：沿序列维度切分LayerNorm和Dropout激活值",
-        "演化来源：继承或改进自 megatron_tp",
-        "代表机构：NUS/Colossal-AI"
+        "输入序列按长度维度切分：第 <span class=\"kb-math kb-math-inline\">i</span> 张 GPU 只保存 <span class=\"kb-math kb-math-inline\">L/N</span> 个 token 的激活和本地 <span class=\"kb-math kb-math-inline\">Q_i,K_i,V_i</span>。",
+        "Ring Self-Attention：先环形传递 Key 计算完整注意力分数，再环形传递 Value 聚合输出。",
+        "与 Data、Pipeline、Tensor Parallelism 兼容：论文将其作为可组成的第四个并行维度。",
+        "MLP 层天然本地化：逐 token 的 MLP 不需要跨序列通信，通信主要集中在 attention。",
+        "长序列内存优势明确：当 <span class=\"kb-math kb-math-inline\">BL&gt;32H</span> 或 <span class=\"kb-math kb-math-inline\">BL&gt;16AZ</span> 时，序列维度切分比 Megatron 式 tensor parallel 更节省激活内存。",
+        "实验结果：ACL 2023 版本报告在 64 张 NVIDIA P100 上，相比 tensor parallelism 支持 13.7x 最大 batch size 和 3.0x 最大序列长度；结合高效注意力可处理 114K token。"
       ],
-      "detail": "<h3>1. 核心动机：为什么需要序列并行？</h3>\n<p><strong>Tensor Parallelism (Megatron-LM)</strong> 切分的是模型权重的hidden维度(H/N)，但每个GPU仍需持有<strong>完整序列长度L</strong>的激活。当L很大时：\n- 注意力分数矩阵 S ∈ R^{L×L} 无法切分\n- 激活内存随L线性/平方增长，成为瓶颈</p>\n<p><strong>Sequence Parallelism</strong> 切分序列维度(L/N)，每GPU只需存储子序列的激活，从根本上解决长序列内存问题。</p>\n<h3>2. Ring Self-Attention 算法</h3>\n<pre><code>┌─────────────────────────────────────────────────────────────┐\n│  Ring Self-Attention (RSA) - N个GPU环形排列                    │\n├─────────────────────────────────────────────────────────────┤\n│                                                             │\n│  输入: 序列 X ∈ R^{B×L×H} 均分到N个GPU                       │\n│        GPU_n 持有 X^n ∈ R^{B×(L/N)×H}                       │\n│        各GPU本地计算 Q^n, K^n, V^n                            │\n│                                                             │\n│  ═══════════════════════════════════════════════════════     │\n│  阶段1: 计算注意力分数 (环形传递K)                              │\n│  ═══════════════════════════════════════════════════════     │\n│                                                             │\n│  for step = 0 to N-1:                                       │\n│      # GPU_n 当前持有 K^{(n+step)%N}                         │\n│      S_step^n = Q^n × (K^{(n+step)%N})^T   # 局部分数        │\n│      # 环形发送K到下一个GPU                                    │\n│      send K^{(n+step)%N} → GPU_{(n+1)%N}                    │\n│      recv K^{(n+step-1)%N} ← GPU_{(n-1)%N}                  │\n│                                                             │\n│  # 拼接得到完整注意力分数                                      │\n│  S^n = [S_0^n, S_1^n, ..., S_{N-1}^n]  ∈ R^{(L/N)×L}       │\n│  S^n = softmax(S^n / √d)                                    │\n│                                                             │\n│  ═══════════════════════════════════════════════════════     │\n│  阶段2: 计算注意力输出 (环形传递V)                              │\n│  ═══════════════════════════════════════════════════════     │\n│                                                             │\n│  O^n = 0                                                    │\n│  for step = 0 to N-1:                                       │\n│      # GPU_n 当前持有 V^{(n+step)%N}                         │\n│      O^n += S_{step}^n × V^{(n+step)%N}                     │\n│      # 环形发送V到下一个GPU                                    │\n│      send V^{(n+step)%N} → GPU_{(n+1)%N}                    │\n│      recv V^{(n+step-1)%N} ← GPU_{(n-1)%N}                  │\n│                                                             │\n│  输出: O^n ∈ R^{B×(L/N)×H}  (GPU_n的局部输出)                │\n└─────────────────────────────────────────────────────────────┘\n</code></pre>\n<p><strong>关键公式：</strong></p>\n<div class=\"kb-math kb-math-display\">O^n = \\sum_{i=1}^{N} S_i^n \\cdot V_i</div>\n<p>其中 $S_i^n = \\text{softmax}(Q^n \\cdot (K^i)^T / \\sqrt{d})$ 的第i个分块。</p>\n<h3>3. 内存对比分析</h3>\n<h4>MLP块内存 (Table 1)</h4>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>操作</th>\n<th>Tensor Parallelism</th>\n<th>Sequence Parallelism</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>Linear 1</td>\n<td>(B,L,H) × (H, 4H/N) → (B,L,4H/N)</td>\n<td>(B,L/N,H) × (H,4H) → (B,L/N,4H)</td>\n</tr>\n<tr>\n<td>GeLU</td>\n<td>(B,L,4H/N)</td>\n<td>(B,L/N,4H)</td>\n</tr>\n<tr>\n<td>Linear 2</td>\n<td>(B,L,4H/N) × (4H/N,H) → (B,L,H)</td>\n<td>(B,L/N,4H) × (4H,H) → (B,L/N,H)</td>\n</tr>\n<tr>\n<td><strong>总激活内存</strong></td>\n<td><strong>32H²/N + 5BLH/N</strong></td>\n<td><strong>32H² + 4BLH/N + BLH</strong> → 但当BL&gt;32H时SP更优</td>\n</tr>\n</tbody>\n</table></div>\n<blockquote>\n<p><strong>SP更优条件 (MLP)</strong>: BL &gt; 32H</p>\n</blockquote>\n<h4>注意力块内存 (Table 2)</h4>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>方法</th>\n<th>切分维度</th>\n<th>注意力矩阵大小</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>Tensor Parallelism</td>\n<td>切attention heads (Z/N)</td>\n<td>B×(Z/N)×L×L (仍含完整L²)</td>\n</tr>\n<tr>\n<td>Sequence Parallelism</td>\n<td>切sequence (L/N)</td>\n<td>B×Z×(L/N)×L (行维度缩小)</td>\n</tr>\n</tbody>\n</table></div>\n<blockquote>\n<p><strong>SP更优条件 (Attention)</strong>: BL &gt; 16AZ</p>\n</blockquote>\n<h3>4. 通信开销对比</h3>\n<pre><code>┌──────────────────────────────────────────────────────────────┐\n│              通信量对比 (单层Transformer)                       │\n├────────────────────┬─────────────────┬───────────────────────┤\n│                    │ Tensor Parallel │ Sequence Parallel      │\n├────────────────────┼─────────────────┼───────────────────────┤\n│ MLP Forward        │ 1 all-reduce    │ 0 (无通信!)            │\n│ MLP Backward       │ 1 all-reduce    │ 0                     │\n│ Attn Forward       │ 1 all-reduce    │ 2 ring P2P            │\n│ Attn Backward      │ 1 all-reduce    │ 2 all-reduce+2 ring   │\n├────────────────────┼─────────────────┼───────────────────────┤\n│ 总数据量            │ 8(N-1)BZA(L/N) │ 8(N-1)BZA(L/N)        │\n│                    │ = 相同!          │ = 相同!               │\n├────────────────────┼─────────────────┼───────────────────────┤\n│ Pipeline兼容性      │ 需额外split+    │ 天然兼容，无需额外      │\n│                    │ all-gather      │ 通信                   │\n└────────────────────┴─────────────────┴───────────────────────┘\n</code></pre>\n<p><strong>核心洞察</strong>: SP将通信集中在注意力层（需要跨序列交互的地方），MLP层完全无通信；而TP在每层都需要通信。总量相同，但SP与Pipeline Parallelism组合时省去了stage间的额外通信。</p>\n<h3>5. 与稀疏注意力的兼容</h3>\n<p>论文展示了与Linformer（线性注意力）的结合：</p>\n<ul>\n<li>Linformer将K,V投影到低维 K' ∈ R^{K×d}（K &lt;&lt; L）</li>\n<li>结合SP后，所有包含L的内存项都被N整除</li>\n<li><strong>理论上可将序列长度扩展到无限长</strong>（内存不再是瓶颈）</li>\n<li>实验：32 P100 GPUs + 稀疏注意力 → <strong>114K tokens</strong></li>\n</ul>\n<h3>6. 实验结果</h3>\n<p><strong>实验设置</strong>: Piz Daint超算, P100 16GB GPUs, BERT Base/Large</p>\n<h4>关键结果</h4>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>实验</th>\n<th>结果</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>最大Batch Size</td>\n<td>SP(64 GPU) vs TP(12 GPU): <strong>13.7×</strong></td>\n</tr>\n<tr>\n<td>最大序列长度</td>\n<td>SP(64 GPU) vs TP(12 GPU): <strong>3×</strong> (同16 GPU: 1.4×)</td>\n</tr>\n<tr>\n<td>稀疏注意力序列长度</td>\n<td>114K tokens (<strong>27×</strong> 单卡稀疏注意力)</td>\n</tr>\n<tr>\n<td>吞吐量</td>\n<td>相同并行度下SP与TP相当；SP可扩展到更大并行度</td>\n</tr>\n</tbody>\n</table></div>\n<h4>弱缩放结果 (Weak Scaling)</h4>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>并行度</th>\n<th>Batch</th>\n<th>TP内存(MB)</th>\n<th>SP内存(MB)</th>\n<th>说明</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>1</td>\n<td>64</td>\n<td>8477</td>\n<td>8478</td>\n<td>基线相同</td>\n</tr>\n<tr>\n<td>2</td>\n<td>128</td>\n<td>9520</td>\n<td>8479</td>\n<td>SP内存不增长!</td>\n</tr>\n<tr>\n<td>4</td>\n<td>256</td>\n<td>12233</td>\n<td>8481</td>\n<td>TP内存快速增长</td>\n</tr>\n<tr>\n<td>8</td>\n<td>512</td>\n<td><strong>OOM</strong></td>\n<td>8491</td>\n<td>TP溢出，SP稳定</td>\n</tr>\n</tbody>\n</table></div>\n<blockquote>\n<p><strong>关键发现</strong>: SP的内存几乎不随并行度增加而增长（因为每GPU的子序列长度保持L/N不变），而TP因为持有完整序列，batch增大时必然OOM。</p>\n</blockquote>\n<h3>7. 与后续工作的关系</h3>\n<pre><code>时间线:\n2021.05 - 本文(Ring Self-Attention, Colossal-AI)\n2023.10 - Ring Attention (UC Berkeley, Liu et al.)  ← 类似思想，增加了blockwise计算\n2023.11 - Megatron-LM Context Parallelism           ← 工业级实现\n\n区别:\n- 本文: 先计算完整softmax再环形传V，需存储完整注意力分数S^n∈R^{(L/N)×L}\n- Ring Attention (2023): 结合FlashAttention的online softmax，无需存储完整S\n- Context Parallelism: Megatron框架内的工程实现，支持多种注意力mask\n</code></pre>\n<hr />"
+      "detail": "<h5>远程示意图</h5>\n<p><img alt=\"序列并行总体架构\" src=\"https://ar5iv.labs.arxiv.org/html/2105.13120/assets/x3.png\" />\n<em>图：论文 Figure 1(c) 的序列并行总览，来自 ar5iv 对 arXiv:2105.13120 的 HTML 渲染。Device 1 与 Device 2 共享相同参数，但各自处理不同子序列。</em></p>\n<p><img alt=\"Ring Self-Attention 的 Key 环形传递\" src=\"https://ar5iv.labs.arxiv.org/html/2105.13120/assets/x4.png\" />\n<em>图：论文 Figure 2(a)，Key 在设备间环形流动，用本地 Query 与所有 Key 分块计算注意力分数。</em></p>\n<p><img alt=\"Ring Self-Attention 的 Value 环形传递\" src=\"https://ar5iv.labs.arxiv.org/html/2105.13120/assets/x5.png\" />\n<em>图：论文 Figure 2(b)，Value 继续沿环传递，各设备用本地注意力概率块累加本地输出。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># Ring Self-Attention, rank i holds X_i with length L / N\ndef ring_self_attention(x_i, rank, world_size):\n    q_i = x_i @ W_q\n    k_i = x_i @ W_k\n    v_i = x_i @ W_v\n\n    # Stage 1: circulate K blocks and build logits for local Q_i against all K_j\n    logits_blocks = []\n    k_block = k_i\n    owner = rank\n    for step in range(world_size):\n        logits_blocks.append((owner, q_i @ k_block.transpose(-1, -2) / sqrt(d_head)))\n        k_block, owner = ring_send_recv(k_block, owner)\n\n    logits = concat_in_sequence_order(logits_blocks)\n    probs = softmax(logits, dim=-1)\n\n    # Stage 2: circulate V blocks and accumulate local output O_i\n    out_i = zeros_like(q_i)\n    v_block = v_i\n    owner = rank\n    for step in range(world_size):\n        probs_block = slice_probs_for_owner(probs, owner)\n        out_i += probs_block @ v_block\n        v_block, owner = ring_send_recv(v_block, owner)\n\n    return out_i @ W_o\n</code></pre>\n<h5>机制解读</h5>\n<p>传统 Tensor Parallelism 主要切 hidden/head 维度，因此每张 GPU 仍要保存完整长度 <span class=\"kb-math kb-math-inline\">L</span> 的序列激活。当 <span class=\"kb-math kb-math-inline\">L</span> 很长时，注意力 logits 或中间激活包含 <span class=\"kb-math kb-math-inline\">L^2</span> 或 <span class=\"kb-math kb-math-inline\">BLH</span> 级别项，单卡内存很快被序列长度打满。Sequence Parallelism 的出发点是：模型参数可以复制，序列 token 可以切分；每张卡只保存 <span class=\"kb-math kb-math-inline\">X_i \\in \\mathbb{R}^{B \\times L/N \\times H}</span>，把长序列的激活压力按 <span class=\"kb-math kb-math-inline\">N</span> 分摊。</p>\n<p>注意力层是唯一不能简单本地计算的部分，因为本地 Query 需要看见所有 Key/Value。RSA 的第一阶段让 <span class=\"kb-math kb-math-inline\">K_0,\\ldots,K_{N-1}</span> 沿环传递；第 <span class=\"kb-math kb-math-inline\">i</span> 张卡在每一步计算一块 <span class=\"kb-math kb-math-inline\">Q_iK_j^\\top</span>，最后拼出针对本地 Query 的完整 logits：</p>\n<div class=\"kb-math kb-math-display\">S_i =\n\\left[\nQ_iK_0^\\top,\\ Q_iK_1^\\top,\\ \\ldots,\\ Q_iK_{N-1}^\\top\n\\right] / \\sqrt{d}</div>\n<p>softmax 必须在拼接后的完整 key 维度上做，而不是每个块单独归一化。第二阶段再让 <span class=\"kb-math kb-math-inline\">V_j</span> 沿环传递，并按 softmax 后对应的概率块累加：</p>\n<div class=\"kb-math kb-math-display\">P_i=\\operatorname{softmax}(S_i), \\qquad\nO_i=\\sum_{j=0}^{N-1} P_{i,j}V_j</div>\n<p>这样每张 GPU 最终只得到自己 <span class=\"kb-math kb-math-inline\">L/N</span> 个 token 的输出 <span class=\"kb-math kb-math-inline\">O_i</span>，无需 materialize 其他设备的输出激活。MLP、LayerNorm、Dropout 等逐 token 操作则不需要跨设备交互，这也是序列维度切分可以和 Megatron TP 的非矩阵算子激活切分思想兼容的原因。</p>\n<p>论文从内存角度给出两个判断条件。MLP 块中，Tensor Parallelism 切权重但保留完整序列；Sequence Parallelism 保留完整权重但只处理子序列。论文推导出在 MLP 块中满足</p>\n<div class=\"kb-math kb-math-display\">BL &gt; 32H</div>\n<p>时，Sequence Parallelism 的激活内存更优。对于多头注意力，Tensor Parallelism 切 head 但每个 head 仍面对完整 <span class=\"kb-math kb-math-inline\">L \\times L</span> 关系；Sequence Parallelism 把注意力矩阵的 query 行切成 <span class=\"kb-math kb-math-inline\">L/N</span>，论文给出的优势条件为</p>\n<div class=\"kb-math kb-math-display\">BL &gt; 16AZ</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">B</span> 为 batch size，<span class=\"kb-math kb-math-inline\">A</span> 为每头维度，<span class=\"kb-math kb-math-inline\">Z</span> 为 attention head 数。直觉上，序列越长、batch 越大，切序列比切隐藏维度更直接地压低激活峰值。</p>\n<p>通信上，Sequence Parallelism 把成本集中在 attention 的两次 ring P2P 与反向传播的对应通信；MLP 层无通信。论文将其和 Megatron Tensor Parallelism 的单层总通信量比较，得到同阶且可写成：</p>\n<div class=\"kb-math kb-math-display\">\\text{Comm}_{\\mathrm{SP}} =\n8(N-1)BZA\\frac{L}{N}\n\\approx\n\\text{Comm}_{\\mathrm{TP}}</div>\n<p>差异在于 Pipeline Parallelism 组合时的激活传递。TP 下跨 pipeline stage 传递完整序列激活常需要 split 与 all-gather；SP 的激活天然已经按序列切好，可以直接把子序列交给下一 stage，因此减少额外 all-gather。这个工程差异解释了为什么论文不仅关注单层通信量，还强调 4D parallelism 的可组合性。</p>",
+      "quiz": {
+        "q": "Ring Self-Attention 为什么需要先传 Key 再传 Value？",
+        "options": [
+          "因为 Key 用于计算完整 softmax 归一化所需的 logits，Value 用于按概率块累加输出",
+          "因为 Value 不能跨 GPU 通信，只能在本地复制",
+          "因为 MLP 层需要先聚合所有 Key",
+          "因为序列并行会把模型权重切成 Key 和 Value 两部分"
+        ],
+        "answer": 0,
+        "explain": "本地 Query 必须先和所有 Key 分块形成完整 logits 并做全局 softmax；随后才用对应概率块乘以各 Value 分块得到本地输出。"
+      }
     },
     {
       "id": "ulysses",
@@ -831,13 +844,26 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "tp",
       "motivation": "选择性重计算+序列并行减少30-40%开销",
-      "summary": "Selective Recomputation 的核心目标是：选择性重计算+序列并行减少30-40%开销。",
+      "summary": "Selective Activation Recomputation 提出“只重算最占显存但计算便宜的激活”，并与 Megatron 的序列并行结合，解决大 Transformer 训练中全层 checkpoint 带来的 30-40% 额外计算开销。",
       "keyPoints": [
-        "核心动机：选择性重计算+序列并行减少30-40%开销",
-        "演化来源：继承或改进自 sequence_parallel",
-        "代表机构：NVIDIA"
+        "将激活内存拆成 attention、MLP、LayerNorm、dropout、tensor-parallel 通信边界等组成部分，证明全层重计算并不是唯一选择。",
+        "序列并行把非 tensor-parallel 区域的激活沿 sequence 维切分，使 LayerNorm、dropout 等激活从每张卡完整复制变成分片保存。",
+        "选择性重计算只丢弃 attention softmax/dropout 等“内存大、FLOPs 相对小”的中间量，避免重算整层 MLP 和投影矩阵乘法。",
+        "与 tensor parallelism 正交：TP 负责切 hidden/head，sequence parallel 负责切序列维，selective recompute 负责补足剩余峰值内存。",
+        "在千亿到万亿参数 GPT 风格模型上，将重计算开销降低 90% 以上，并在 530B 模型训练中把 MFU 从约 42.1% 提升到 54.2%。"
       ],
-      "detail": "<p>选择性重计算+序列并行减少30-40%开销</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"Tensor 与 Sequence Parallel 结合示意\" src=\"https://ar5iv.labs.arxiv.org/html/2205.05198/assets/figures/transformer-tensor-sequence-parallel.jpg\" />\n<em>图：论文展示的 Transformer tensor-parallel + sequence-parallel 切分方式；sequence parallel 让原本复制在 TP 组内的序列激活变成分片保存。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># selective activation recomputation for one Transformer block\ndef forward_block(x):\n    x_sp = scatter_sequence(x)          # sequence parallel: each TP rank keeps S / tp tokens\n    h = layer_norm(x_sp)                # save small inputs, not full replicated activations\n    q, k, v = column_parallel_qkv(h)\n\n    # Do not save large attention probabilities / dropout outputs.\n    # Save only q, k, v and RNG state needed to replay dropout.\n    ctx = attention(q, k, v, save_probs=False, save_rng=True)\n    y = row_parallel_proj(ctx)\n\n    z = layer_norm(x_sp + y)\n    m = mlp(z)                          # keep expensive GEMM boundary activations\n    return gather_sequence(x_sp + y + m)\n\ndef backward_block(saved):\n    # recompute only the attention core, not the whole Transformer layer\n    probs = recompute_softmax_dropout(saved.q, saved.k, saved.v, saved.rng)\n    return attention_backward(probs, saved)\n</code></pre>\n<h5>方法解释</h5>\n<p>传统 activation checkpointing 的做法是整层丢弃激活，反向传播前再完整执行一次前向。它能把显存压下来，但代价是每个 Transformer 层的 QKV、MLP 两个大 GEMM 都要重跑，计算开销通常达到 30-40%。论文的出发点是重新做一遍激活内存账本：并非所有激活都同样昂贵，attention 的概率矩阵和 dropout mask 往往占显存很大，但重算它们主要是矩阵乘法后的 softmax/dropout；而 MLP 中间激活虽然也大，但重算需要昂贵 GEMM，性价比低。</p>\n<p>序列并行先降低“必须保存”的部分。Megatron tensor parallelism 在行并行/列并行线性层之间需要 all-reduce 或 all-gather，使一些区域的激活在 TP 组内复制。Sequence parallel 把这些区域改成沿序列维分片，LayerNorm 和 dropout 在本地 token 上独立执行，必要时通过 reduce-scatter/all-gather 与 TP 线性层衔接。若 TP 度为 <span class=\"kb-math kb-math-inline\">p</span>，这类激活的单卡占用近似从 <span class=\"kb-math kb-math-inline\">O(BSH)</span> 降到 <span class=\"kb-math kb-math-inline\">O(BSH/p)</span>。</p>\n<p>选择性重计算再处理无法仅靠切分解决的 attention 峰值。对 attention，训练需要保存 softmax 后的概率 <span class=\"kb-math kb-math-inline\">P=\\mathrm{softmax}(QK^T/\\sqrt{d})</span> 以及 dropout 结果，规模与 <span class=\"kb-math kb-math-inline\">B \\times n_h \\times S^2</span> 相关。论文选择在前向时不保存这些矩阵，反向时用保存的 <span class=\"kb-math kb-math-inline\">Q,K,V</span> 和随机数状态重新计算：</p>\n<div class=\"kb-math kb-math-display\">P = \\mathrm{Dropout}\\left(\\mathrm{softmax}\\left(\\frac{QK^\\top}{\\sqrt{d}}\\right)\\right), \\quad O = PV</div>\n<div class=\"key-point\">💡 关键：它不是“少保存一切”，而是用显存节省量除以重算 FLOPs 做取舍。只有内存收益高、重算成本低的 attention 中间量被丢弃。</div>\n<p>与全层 checkpoint 相比，这种策略保留了 MLP 和线性投影所需的关键边界激活，因此反向不会重复执行最贵的大 GEMM；与单纯 sequence parallel 相比，它仍能压掉 attention <span class=\"kb-math kb-math-inline\">S^2</span> 相关的峰值。二者组合后，大模型训练通常可以关闭或大幅减少 full recomputation，只在极端长序列或显存预算紧张时保留少量 checkpoint。</p>\n<h5>训练流程与传统方法对比</h5>\n<p>标准 checkpoint 的流程是“前向少存整层，反向重跑整层”；Selective Recomputation 的流程是“前向分片保存必要激活，attention 内部大张量不保存，反向只重算 attention 内部”。因此它保留了数据并行和 tensor parallel 的编程模型，不需要修改模型数学语义，也不改变优化器状态，只改变 activation 的保存策略。</p>\n<p>在 Megatron/NeMo 这类训练栈中，这个方法通常与 TP、PP、DP 同时启用。TP 组内部先用 sequence parallel 缩小本地激活，PP 负责跨层切分，DP 负责扩 batch；selective recompute 只影响每层内部的 autograd 保存点。这个边界很重要，因为它让方法可以作为系统优化加入，而不是引入新的模型结构。</p>",
+      "quiz": {
+        "q": "Selective Activation Recomputation 相比全层 checkpoint 的核心优势是什么？",
+        "options": [
+          "重算所有层以获得更稳定的梯度",
+          "只重算显存占用高但计算相对便宜的 attention 中间量",
+          "把优化器状态从 GPU 全部卸载到 CPU",
+          "用 Top-1 路由减少 MoE 通信"
+        ],
+        "answer": 1,
+        "explain": "该方法的核心是按激活内存和重算成本做选择，避免重复执行整层 MLP/GEMM。"
+      }
     },
     {
       "id": "dynamic_cp",
@@ -851,13 +877,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "tp",
       "motivation": "自适应调整并行尺寸实现变长序列1.48x加速",
-      "summary": "Dynamic Context Parallelism 的核心目标是：自适应调整并行尺寸实现变长序列1.48x加速。",
+      "summary": "Dynamic Context Parallelism 在 Megatron Core 中按 microbatch 的真实 packed sequence 形状动态选择 CP size 和 CP group，解决变长序列训练里短样本被最长样本强制大规模 context sharding 后产生的通信浪费与 DP/PP 气泡问题。",
       "keyPoints": [
-        "核心动机：自适应调整并行尺寸实现变长序列1.48x加速",
-        "演化来源：继承或改进自 loogtrain",
-        "代表机构：NVIDIA"
+        "面向 variable-length packed sequences：pack 后 token 总数相同，attention FLOPs 仍由子序列长度平方和决定。",
+        "动态 CP size：短样本或轻工作量 microbatch 使用较小 CP，长样本才升高 CP 以满足显存约束。",
+        "预建多组 CP group：初始化时为每个 rank 创建多个 power-of-two CP group，运行时只选择，不临时建通信组。",
+        "<code>PackedSeqParams</code> 承载动态配置：把 <code>cp_size</code>、<code>cp_group</code>、<code>max_seqlen</code>、<code>cu_seqlens</code> 传给 position embedding、TE Attention、FLOPs 统计等组件。",
+        "三段式调度器：cost model 估计样本执行成本，solver 近似 packing 与 CP 分配，simulator 在 PP/DP schedule 下评估端到端时间和峰值显存。",
+        "官方结果：NVIDIA 博客报告 Llama-13B 在 GitHub 与 CommonCrawl 数据集上分别达到 1.48x 与 1.25x 加速，多千 GPU 工业环境端到端提升超过 35%。"
       ],
-      "detail": "<h1>Dynamic Context Parallelism (DCP)</h1>\n<h2>一句话总结</h2>\n<p>DCP将分布式注意力计算建模为超图划分问题，根据每个batch的序列长度和注意力mask动态生成细粒度的数据/计算放置方案，相比静态Context Parallelism在稀疏mask下端到端训练加速最高1.46倍。</p>\n<h2>核心要点（≤5个）</h2>\n<ol>\n<li>\n<p><strong>问题洞察</strong>：现有静态CP（如RingAttention、LoongTrain、TransformerEngine）对所有batch使用固定的数据划分和通信模式，导致两个关键低效：(a) 短序列被强制分散到多设备产生不必要的通信；(b) 无法利用稀疏注意力mask跳过无效计算和通信。</p>\n</li>\n<li>\n<p><strong>超图划分建模</strong>：将分布式注意力的数据放置问题建模为带2D权重约束的超图划分。顶点=计算块∪数据块，超边连接每个数据块到依赖它的所有计算块，目标函数最小化跨分区通信（连通性度量），约束保证计算量和数据量的跨设备均衡。</p>\n</li>\n<li>\n<p><strong>三模块架构</strong>：Data-loader（预取序列长度和mask→生成块）→ Planner（超图划分+多division调度→执行计划）→ Executor（5条DCP指令在block buffer上执行），规划与训练异步重叠。</p>\n</li>\n<li>\n<p><strong>细粒度块抽象</strong>：将Q/KV/O按(head, seq_block)二维划分为数据块，计算块为(Qi, KVj)对，mask全零的计算块直接跳过。通过block size控制粒度，支持causal、Λ-mask、causal blockwise、shared question等多种稀疏mask。</p>\n</li>\n<li>\n<p><strong>显著性能提升</strong>：微基准测试在32 GPU上causal mask加速1.19-2.45×，稀疏mask加速2.15-3.77×；端到端训练8B模型（64 GPU）causal mask加速0.94-1.16×，稀疏mask加速1.00-1.46×。通信量随mask稀疏度近线性下降。</p>\n</li>\n</ol>\n<h2>深入细节</h2>\n<h3>1. 问题背景：静态CP的局限</h3>\n<p><strong>Context Parallelism (CP)</strong> 将注意力计算沿序列维度分布到多个设备。现有方法（Ring、ZigZag、Ulysses等）在训练开始前确定固定的数据划分策略，对所有batch一视同仁。</p>\n<p><strong>两个核心问题：</strong></p>\n<ul>\n<li>\n<p><strong>变长序列低效</strong>：真实训练数据的序列长度分布高度偏斜（长尾分布）。短序列被分散到R个设备后，每个设备只持有极少token，但仍需参与R-1轮通信。例如一个1024 token的序列在32-way CP下每设备仅32 token，通信开销远超计算。</p>\n</li>\n<li>\n<p><strong>稀疏mask不感知</strong>：Λ-shaped mask（attention sink + sliding window）、causal blockwise mask、shared question mask等稀疏注意力模式下，大量(Q_i, KV_j)对的注意力权重为零，但静态CP仍然传输和计算这些无效块。</p>\n</li>\n</ul>\n<!-- 对应论文 Figure 2: 序列长度分布的长尾特性；Figure 3-6: 四种注意力mask模式 -->\n\n<h3>2. 块生成（Block Generation）</h3>\n<p><strong>数据块</strong>：将每个序列的Q、KV、O张量沿head维度和序列维度切分为大小为 <code>[1, B, D]</code> 的块（B为block size，D为head dimension）。对于GQA，KV按KV group划分。</p>\n<p><strong>计算块</strong>：每个 <code>(Q_i, KV_j)</code> 对构成一个计算块，对应一次blockwise attention操作。关键优化：如果attention mask指示Q_i对KV_j的注意力全为零，则该计算块不生成，从源头消除无效计算和通信。</p>\n<p><strong>块的属性</strong>：\n- 计算块权重：<code>f_c</code> = FLOPS（考虑mask后的有效计算量）\n- 数据块权重：<code>s_d</code> = 数据大小（字节数）</p>\n<h3>3. 超图划分（Hypergraph Partitioning）</h3>\n<p><strong>超图构建 <code>G = (N, E)</code></strong>：\n- <strong>顶点集 N</strong>：所有计算块 ∪ 所有数据块\n- <strong>超边集 E</strong>：每个数据块 <code>d</code> 对应一条超边，连接 <code>d</code> 和所有依赖 <code>d</code> 的计算块\n- <strong>顶点权重</strong>：2D向量 <code>w_n = [f_{n_c}, s_{n_d}]</code>（计算块有FLOPS权重，数据块有size权重）\n- <strong>超边权重</strong>：<code>s_e</code> = 对应数据块的大小</p>\n<p><strong>优化目标</strong>：</p>\n<pre><code>min_{P_1,...,P_R} Σ_{e∈E} s_e(λ_e - 1)\n</code></pre>\n<p>其中 <code>λ_e</code> 是超边 <code>e</code> 跨越的分区数（connectivity metric），<code>s_e</code> 是数据块大小。直觉：一个数据块被越多分区使用，需要的通信越多。</p>\n<p><strong>约束</strong>：</p>\n<pre><code>w(P_i) ≤ [1+ε, 1] ⊙ w(N)/R,  ∀i ∈ [1,R]\n</code></pre>\n<p>保证每个分区的计算量偏差不超过 <code>ε</code>，数据量尽可能均衡。</p>\n<p><strong>层次化放置</strong>：先做机器间划分（inter-node），再在每台机器内做设备间划分（intra-node），利用不同层级的带宽差异（NVSwitch &gt;&gt; NIC）。使用KaHyPar求解器。</p>\n<!-- 对应论文 Figure 10: 超图构建示例；Figure 11: 层次化放置 -->\n\n<h3>4. 计算与通信调度（Multi-Division Scheduling）</h3>\n<p>将每个设备上的计算块分为T个division（实验中T=4），实现计算与通信的流水线重叠：</p>\n<pre><code>Division 1: [compute] ──────────────────\nDivision 2:           [comm] [compute] ──\nDivision 3:                  [comm] [compute]\n...\n</code></pre>\n<p><strong>贪心调度算法</strong>（伪代码简述）：\n1. 计算每个设备的总通信量，每个division分配 1/T 的通信\n2. 无通信的计算块全部放入第一个division\n3. 按设备计算负载从小到大，依次填充第2到T-1个division，超过通信配额的块延后\n4. 剩余块全部放入最后一个division\n5. 输出块的跨设备传输在所有division完成后执行</p>\n<h3>5. 执行器（Executor）</h3>\n<p><strong>Block Buffer</strong>：GPU内存中为每种数据类型（Q/KV/O）维护一个连续buffer，通过index访问各block。Buffer index在调度阶段确定，最大化复用已释放的index以减少内存占用。</p>\n<p><strong>5条DCP指令</strong>：</p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>指令</th>\n<th>功能</th>\n<th>实现</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><strong>Blockwise Attention</strong></td>\n<td>对一个division内所有计算块执行fused masked attention</td>\n<td>修改版FlashAttention + block table（类似PagedAttention）</td>\n</tr>\n<tr>\n<td><strong>Blockwise Reduction</strong></td>\n<td>对多个attention输出块执行fused update和reduction</td>\n<td>Triton</td>\n</tr>\n<tr>\n<td><strong>Blockwise Copy</strong></td>\n<td>单设备内的fused GPU内存拷贝（buffer管理）</td>\n<td>Triton</td>\n</tr>\n<tr>\n<td><strong>Comm. Launch</strong></td>\n<td>异步发起跨设备数据块传输</td>\n<td>PyTorch P2P (NCCL)</td>\n</tr>\n<tr>\n<td><strong>Comm. Wait</strong></td>\n<td>等待之前发起的通信完成</td>\n<td>-</td>\n</tr>\n</tbody>\n</table></div>\n<p>执行计划 = 指令序列 + 参数，由executor顺序执行。</p>\n<h3>6. 工程优化</h3>\n<ul>\n<li><strong>规划与执行重叠</strong>：定义κ个look-ahead迭代，dataloader提前预取并行规划。不同迭代的规划分配到不同机器的CPU核心并行执行，结果通过Redis分发。</li>\n<li><strong>与其他并行策略组合</strong>：TP正交（DCP的head维度除以TP度）；PP正交（每个stage内用DCP）；DCP占据传统DP+CP的rank位置，推荐rank顺序：TP-DCP-PP。</li>\n<li><strong>实现规模</strong>：14k LOC Python + 300 LOC C++加速规划算法。</li>\n</ul>\n<h3>7. 实验结果</h3>\n<p><strong>实验配置</strong>：\n- 微基准：4× p4de.24xlarge（32× A100 80GB），NVSwitch 600GB/s，4×100Gbps EFA\n- 端到端：8× p4de.24xlarge（64× A100 80GB），GPT-8B（Llama3-8B配置），4-way TP + 16-way CP\n- 数据集：LongDataCollections（长尾分布）、LongAlign（对齐数据，更长均长）\n- 全局batch size：131072 tokens</p>\n<p><strong>微基准结果</strong>（32 GPU，注意力算子）：\n- Causal mask：短序列多时加速最高2.45×（vs LoongTrain），长序列时接近baseline\n- 稀疏mask：最高3.77×加速（vs TransformerEngine），Λ-mask和causal blockwise因稀疏度更高加速更显著</p>\n<p><strong>端到端结果</strong>（64 GPU，完整模型训练）：\n- Causal mask：0.94×-1.16×（短序列多时收益大，长序列为主时因计算通信重叠不足可能略慢）\n- 稀疏mask：1.00×-1.46×（一致加速，Λ-mask和causal blockwise加速更大）\n- 训练loss曲线与baseline完全匹配（不影响精度）</p>\n<p><strong>关键分析</strong>：\n- 通信量随mask稀疏度近线性下降，验证DCP有效利用稀疏性\n- Block size增大→通信略增（放置灵活性降低）但规划时间急剧下降\n- 计算不均衡容忍度ε存在通信-均衡trade-off：通信受限场景应增大ε\n- 规划时间&lt;10s/iteration，可被模型执行时间（&gt;1s）完全掩盖</p>\n<!-- 对应论文 Figure 13-14: 微基准结果；Figure 15-16: 端到端结果；Figure 17-20: 消融分析；Figure 21: loss曲线 -->\n\n<h3>8. 局限与讨论</h3>\n<ul>\n<li>Causal mask下长序列为主时，DCP可能因计算通信重叠不足而略慢于baseline（调度算法的局限）</li>\n<li>当前attention kernel限制每个token最多2个注意力范围，更灵活的实现可借助FlexAttention/FlashMask</li>\n<li>规划开销随集群规模亚线性增长（与模型大小无关，图划分主要取决于块数而非设备数）</li>\n</ul>\n<h2>练习题</h2>\n<ol>\n<li>\n<p><strong>概念题</strong>：解释为什么DCP使用超图（hypergraph）而非普通图来建模数据放置问题。提示：考虑一个数据块可能被多个计算块共享的情况。</p>\n</li>\n<li>\n<p><strong>分析题</strong>：假设一个batch包含4个序列，长度分别为[64K, 32K, 16K, 16K] tokens，使用8-way CP和causal mask。对比静态ZigZag划分和DCP可能的划分策略，分析各自的通信量差异。</p>\n</li>\n<li>\n<p><strong>设计题</strong>：DCP当前的multi-division调度使用贪心算法。请设计一个改进方案，使其在causal mask场景下也能实现良好的计算-通信重叠（论文§7.5指出这是当前的不足）。</p>\n</li>\n<li>\n<p><strong>扩展题</strong>：如果将DCP应用于MoE（Mixture of Experts）模型的训练，其中expert parallelism引入了额外的all-to-all通信，DCP的超图模型需要如何扩展？</p>\n</li>\n</ol>"
+      "detail": "<h5>远程示意图</h5>\n<p><img alt=\"Dynamic-CP 集成到 Megatron Core 的流程\" src=\"https://developer-blogs.nvidia.com/wp-content/uploads/2026/01/Dynamic-CP-Integration-png.webp\" />\n<em>图：NVIDIA 官方技术博客 Figure 6，展示 Dynamic-CP 如何通过 data iterator wrapper、PackedSeqParams、CP group 广播、position embedding、Transformer Engine Attention 和 FLOPs 统计集成到 Megatron Core。</em></p>\n<p><img alt=\"Dynamic-CP 降低 DP/PP 气泡\" src=\"https://developer-blogs.nvidia.com/wp-content/uploads/2026/01/Dynamic-CP-1-png.webp\" />\n<em>图：NVIDIA 官方技术博客 Figure 5，展示调度前后的 DP rank 与 microbatch 工作量气泡变化。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># Dynamic Context Parallelism scheduler and runtime selection\ndef plan_dynamic_cp(global_batch, dp_size, pp_size, max_cp_size, memory_limit):\n    samples = probe_sequence_lengths_and_shapes(global_batch)\n    candidates = []\n\n    for microbatch_count in grid_search_counts(start=pp_size, stop=small_multiple(pp_size)):\n        quotas = build_work_and_memory_quotas(samples, dp_size, microbatch_count, pp_size)\n        buckets = initialize_microbatch_buckets(dp_size, microbatch_count, quotas)\n\n        for sample in sort_by_estimated_work(samples, descending=True):\n            cp_size = 1\n            while estimate_memory(sample, cp_size) &gt; memory_limit:\n                cp_size *= 2\n                assert cp_size &lt;= max_cp_size\n\n            bucket = choose_bucket_by_work_then_memory(buckets, sample, cp_size)\n            bucket.add(sample, cp_size=cp_size)\n\n        schedule = simulate_pipeline_and_dp_execution(buckets)\n        if schedule.peak_memory &lt;= memory_limit:\n            candidates.append(schedule)\n\n    return min(candidates, key=lambda s: s.estimated_iteration_time)\n\ndef dynamic_cp_data_iterator(data_iterator, prebuilt_cp_groups):\n    for global_batch in data_iterator:\n        schedule = plan_dynamic_cp(global_batch, dp_size, pp_size, max_cp_size, memory_limit)\n        for microbatch in schedule.microbatches_for_this_rank():\n            cp_size = microbatch.cp_size\n            yield PackedSeqParams(\n                tokens=microbatch.tokens_thd,\n                cu_seqlens=microbatch.cu_seqlens,\n                max_seqlen=microbatch.max_seqlen,\n                cp_size=cp_size,\n                cp_group=prebuilt_cp_groups[cp_size],\n            )\n</code></pre>\n<h5>机制解读</h5>\n<p>静态 Context Parallelism 通常为整次训练或整个 batch 使用同一个 CP size。这个选择必须能容纳最长样本，否则长序列会 OOM；但真实后训练、长文档和视频 DiT 数据有明显长尾分布，绝大多数 packed microbatch 并不需要最大 CP。结果是短序列也被切到多张 GPU 上，attention 计算量不足以隐藏 NCCL 通信，尤其当 CP 通信跨 InfiniBand 域时，通信 kernel 会暴露成瓶颈。</p>\n<p>Dynamic-CP 的第一步是认识到 packed token 数相等不代表工作量相等。一个 packed 样本包含若干子序列 <span class=\"kb-math kb-math-inline\">\\{S_i\\}</span> 时，注意力有效计算近似与平方和相关：</p>\n<div class=\"kb-math kb-math-display\">C_{\\mathrm{attn}} \\propto \\sum_i S_i^2</div>\n<p>激活显存则更接近线性：</p>\n<div class=\"kb-math kb-math-display\">M_{\\mathrm{act}} \\propto \\sum_i S_i</div>\n<p>因此 FLOPs 均衡和显存均衡并不总能同时满足：把短样本凑到一起可以平衡工作量，但可能推高一个 microbatch 的 token 峰值；把长样本拆得更细可以控显存，却会增加 CP 通信。Dynamic-CP 的调度器在这两个目标之间做近似搜索。</p>\n<p>在 Megatron Core 集成上，Dynamic-CP 避免了动态 TP/PP 那类高开销重构。TP/PP 改变通常意味着权重重分布或 pipeline graph 重建；CP 改变主要影响序列激活分片和 attention 通信组。系统在初始化阶段为 rank 预先构造多个 CP group，大小从 1 到 <span class=\"kb-math kb-math-inline\">dp \\times cp</span> 的 2 次幂。运行时 <code>PackedSeqParams</code> 携带当前 microbatch 的 <code>cp_size</code> 与 <code>cp_group</code>，让 position embedding 和 Transformer Engine Attention 从该对象读取动态 CP 配置，而不是读取全局静态 CP 变量。</p>\n<p>调度器由 cost model、solver、simulator 三段组成。Cost model 用序列长度和模型配置估计每个样本的执行时间；solver 使用启发式方法把样本打包成 microbatch，并给重样本分配更大 CP size；simulator 再把候选 microbatch 放进 DP/PP schedule 中，估计 pipeline bubble、DP rank 等待和峰值显存。NVIDIA 博客给出的端到端平衡公式可以写为：</p>\n<div class=\"kb-math kb-math-display\">W_1(m_1V+p-1)=W_2(m_2V+p-1)</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">W_i</span> 是第 <span class=\"kb-math kb-math-inline\">i</span> 个 DP rank 的 microbatch 工作量 quota，<span class=\"kb-math kb-math-inline\">m_i</span> 是 microbatch 数，<span class=\"kb-math kb-math-inline\">V</span> 是 virtual pipeline stage 数，<span class=\"kb-math kb-math-inline\">p</span> 是 pipeline stage 数。这个公式表达的是：不同 DP rank 的总执行时间应接近，而不是只让每个 microbatch 的 token 数相同。</p>\n<p>Zero-overhead execution 的关键在于把额外工作移出主训练路径。为生成计划，系统需要额外 probe 一次 global batch 的长度与形状元信息；NVIDIA 的方案将 probe 分散到集群并只 gather 轻量 metadata。Solver 运行在 <code>data_sampler</code> 后台，与当前训练 iteration 重叠；microbatch 数不是全量穷举，而是在从 <span class=\"kb-math kb-math-inline\">PP \\times 1</span> 到小倍数 <span class=\"kb-math kb-math-inline\">PP</span> 的小网格中找 knee point，限制搜索区域。</p>\n<p>官方 benchmark 使用 Llama-13B、global batch size 2048、PP=8、CP=8、full recompute，并把 Dynamic CP 与 only packing 对比。GitHub 数据集 TFLOPS/GPU 从 195.88 提升到 289.32：</p>\n<div class=\"kb-math kb-math-display\">\\frac{289.32}{195.88}\\approx 1.48</div>\n<p>CommonCrawl 数据集从 139.17 到 174.39：</p>\n<div class=\"kb-math kb-math-display\">\\frac{174.39}{139.17}\\approx 1.25</div>\n<p>这些数字说明 Dynamic-CP 的收益主要来自减少变长样本引入的 DP 等待、PP 气泡和短样本过度 CP 通信，而不是改变 attention 的数学语义。训练 loss 仍按 valid token 归一化：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}=\\frac{\\sum_{\\text{valid token}} \\ell}{N_{\\text{valid token}}}</div>\n<p>这避免 padding token 或不同 packing 形状改变优化目标。</p>",
+      "quiz": {
+        "q": "Dynamic Context Parallelism 为什么要把 cp_size 放进 PackedSeqParams？",
+        "options": [
+          "因为每个 microbatch 可能选择不同 CP group，运行时组件不能再依赖全局静态 CP 配置",
+          "因为 cp_size 决定模型参数量，必须写入 checkpoint",
+          "因为它会把所有变长样本强制 pad 到同一长度",
+          "因为 Dynamic-CP 只适用于推理，不需要训练 scheduler"
+        ],
+        "answer": 0,
+        "explain": "Dynamic-CP 的核心是按 microbatch 切换 CP size。PackedSeqParams 携带 cp_size 和 cp_group，保证 position embedding、TE Attention 和 FLOPs 统计使用一致的动态上下文配置。"
+      }
     },
     {
       "id": "gpipe",
@@ -1010,13 +1050,26 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "pp",
       "motivation": "内存-并行协同优化动态解耦优化过程",
-      "summary": "Mist 的核心目标是：内存-并行协同优化动态解耦优化过程。",
+      "summary": "Mist 是一个 memory、overlap、imbalance aware 的自动分布式训练系统，联合搜索数据/张量/流水线并行和 activation checkpointing、冗余消除、offload 等内存优化，解决手工 3D 并行配置忽略重叠与 microbatch 不均衡的问题。",
       "keyPoints": [
-        "核心动机：内存-并行协同优化动态解耦优化过程",
-        "演化来源：继承或改进自 zero_bubble",
-        "代表机构：UCSD/Meta"
+        "将并行策略和内存优化放进同一个搜索空间，而不是先选 3D 并行再局部决定 checkpoint/offload。",
+        "提出细粒度 overlap-centric scheduling，把重计算、通信、offload/prefetch 安排到可被计算隐藏的位置。",
+        "使用符号化性能分析同时预测运行时间和显存占用，减少对昂贵 profiling 或穷举试跑的依赖。",
+        "采用层次化调优：stage 间用 MILP 处理 pipeline imbalance，stage 内用双目标约束优化处理 overlap 和内存。",
+        "论文报告相对 Megatron-LM 平均 1.28x、最高 1.73x 加速，相对 Aceso 平均 1.27x、最高 2.04x 加速。"
       ],
-      "detail": "<p>内存-并行协同优化动态解耦优化过程</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"Mist 系统概览\" src=\"https://ar5iv.labs.arxiv.org/html/2503.19050/assets/x1.png\" />\n<em>图：Mist 将并行配置、内存优化、性能建模和层次化搜索组织成自动训练配置系统。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># high-level Mist tuner\ndef mist_search(model, cluster, memory_budget):\n    profiles = symbolic_profile(model, cluster)\n    pareto_by_stage = []\n\n    for stage in candidate_pipeline_stages(model):\n        local_candidates = []\n        for tp, dp, checkpoint, offload, zero in enumerate_local_plans(stage):\n            schedule = overlap_centric_schedule(stage, tp, checkpoint, offload, zero)\n            time = symbolic_time(schedule, profiles)\n            memory = symbolic_memory(schedule, profiles)\n            if memory &lt;= memory_budget:\n                local_candidates.append((schedule, time, memory))\n        pareto_by_stage.append(pareto_frontier(local_candidates))\n\n    global_plan = solve_milp_for_pipeline_balance(pareto_by_stage)\n    return instantiate_training_plan(global_plan)\n</code></pre>\n<h5>方法解释</h5>\n<p>大模型训练系统通常把问题拆开处理：先由工程师决定 DP/TP/PP，再选择是否 activation checkpoint、是否 ZeRO、是否 offload。Mist 指出这种流程会漏掉关键相互作用。例如 checkpoint 节省显存但增加重算，如果重算能被 pipeline bubble 或通信隐藏，实际开销就很小；反之，如果它落在 critical path 上，显存节省会直接换成吞吐下降。</p>\n<p>Mist 的第一个设计是细粒度 overlap-centric scheduling。它把内存优化不再看成“开/关选项”，而是看成可调度操作：重算可以放在反向所需激活之前，CPU/NVMe offload 可以提前 prefetch，ZeRO/DP 通信可以与相邻层计算重叠。调度器的目标不是单纯减少每个操作时间，而是最小化未被隐藏的暴露时间。</p>\n<p>第二个设计是符号化建模。对某个层或 stage，Mist 以符号表达式描述计算、通信、重算、offload 和显存峰值，例如：</p>\n<div class=\"kb-math kb-math-display\">T_{\\text{stage}}=\\max(T_{\\text{compute}}, T_{\\text{comm}}^{\\text{hidden}} + T_{\\text{comm}}^{\\text{exposed}}) + T_{\\text{recompute}}^{\\text{exposed}}</div>\n<p>显存侧则累加参数、梯度、优化器状态、激活检查点、通信 buffer 和 offload staging buffer。符号模型的好处是搜索时可以快速替换 batch size、TP 度、PP 切分、checkpoint 粒度，而不用为每个候选计划完整训练几步。</p>\n<div class=\"key-point\">💡 关键：Mist 的“memory-parallelism co-optimization”不是多加一个搜索维度，而是把显存节省、通信重叠和 pipeline 负载均衡放进同一个目标函数。</div>\n<p>第三个设计是层次化搜索。完整空间包含层切分、stage 数、TP/DP 度、microbatch 数、checkpoint/offload 策略，直接穷举不可行。Mist 先在 stage 内生成多种满足显存约束的 Pareto 候选，再用 MILP 在 stage 间组合这些候选，使每个 pipeline stage 的时间接近，减少 inter-microbatch imbalance。这个设计与 Zero Bubble 的动机相邻，但 Mist 更强调自动地为每个 stage 选择不同的内存优化和并行组合。</p>\n<h5>与传统自动并行的区别</h5>\n<p>早期自动并行系统通常优化算子切分或 3D 并行配置，内存优化要么固定，要么只用 activation checkpointing 的粗粒度策略。Mist 则把 offload、checkpoint、ZeRO-like redundancy elimination 与并行策略一起建模，并显式区分 hidden overhead 和 exposed overhead。因此同样的 checkpoint 开销在不同 pipeline stage 上可能被选择或放弃，体现出系统级协同。</p>",
+      "quiz": {
+        "q": "Mist 为什么需要 overlap-aware 的性能模型？",
+        "options": [
+          "因为所有通信都不能和计算并行",
+          "因为内存优化的额外计算/传输只有暴露在 critical path 上才真正降低吞吐",
+          "因为 pipeline parallelism 不会产生气泡",
+          "因为符号模型只能估计参数量，不能估计时间"
+        ],
+        "answer": 1,
+        "explain": "checkpoint、offload 和通信的开销可能被计算或 pipeline bubble 隐藏，Mist 需要判断暴露部分而不是只看总操作耗时。"
+      }
     },
     {
       "id": "dgc",
@@ -1030,12 +1083,26 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "comm",
       "motivation": "动量校正+局部梯度裁剪99.9%压缩率",
-      "summary": "Deep Gradient Compression 的核心目标是：动量校正+局部梯度裁剪99.9%压缩率。",
+      "summary": "Deep Gradient Compression 通过 Top-k 梯度稀疏化配合动量校正、局部梯度裁剪、动量因子掩码和 warm-up，在不明显损失精度的情况下将分布式 SGD 的梯度通信压缩到 0.1% 量级。",
       "keyPoints": [
-        "核心动机：动量校正+局部梯度裁剪99.9%压缩率",
-        "代表机构：Tsinghua/MIT"
+        "发现分布式训练中绝大部分梯度通信是冗余的，只传输绝对值最大的少量梯度即可保持训练效果。",
+        "使用 residual accumulation/error feedback，把未发送的小梯度留在本地累积，避免长期偏置。",
+        "Momentum correction 让动量先在本地累积再参与稀疏选择，修正“只压缩裸梯度”破坏动量轨迹的问题。",
+        "Local gradient clipping 在压缩前裁剪本地梯度，降低个别 worker 的异常大梯度对 Top-k 选择的影响。",
+        "Momentum factor masking 清除已发送坐标上的动量残留，配合 warm-up 从低压缩率逐渐过渡到 99.9% 稀疏。"
       ],
-      "detail": "<p>动量校正+局部梯度裁剪99.9%压缩率</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"DGC 梯度压缩效果概览\" src=\"https://ar5iv.labs.arxiv.org/html/1712.01887/assets/x1.png\" />\n<em>图：DGC 通过极高稀疏率显著降低每轮需要传输的梯度数据量。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># Deep Gradient Compression on each worker\nfor step in range(T):\n    g = backward(model, batch)\n    g = local_gradient_clip(g, clip_norm)\n\n    # momentum correction: momentum is accumulated before sparsification\n    u = momentum * u + g\n    v = v + u                       # residual / gradient accumulation\n\n    mask = abs(v) &gt;= topk_threshold(abs(v), k)\n    sparse_update = v[mask]\n    all_reduce_sparse(mask, sparse_update)\n\n    # clear transmitted coordinates, keep unsent residuals\n    v[mask] = 0\n    u[mask] = 0                     # momentum factor masking\n    optimizer_apply(aggregated_sparse_update)\n</code></pre>\n<h5>方法解释</h5>\n<p>朴素 Top-k 梯度压缩的问题是收敛容易掉点。若每轮只发送最大的 <span class=\"kb-math kb-math-inline\">k</span> 个坐标，其余梯度被直接丢弃，优化方向会系统性偏向“短期大幅变化”的参数。DGC 保留本地残差 <span class=\"kb-math kb-math-inline\">v_t</span>，未发送的坐标继续累积，直到其幅度足够大再发送。这相当于 error feedback：</p>\n<div class=\"kb-math kb-math-display\">v_t = v_{t-1} + g_t,\\quad \\Delta_t = \\mathrm{TopK}(v_t),\\quad v_t \\leftarrow v_t - \\Delta_t</div>\n<p>动量校正进一步解决 momentum SGD 的特殊问题。标准动量为 <span class=\"kb-math kb-math-inline\">u_t = m u_{t-1}+g_t</span>，如果先稀疏化 <span class=\"kb-math kb-math-inline\">g_t</span> 再更新动量，未发送坐标的动量会被破坏。DGC 先在本地计算完整动量，再对动量累积量做 Top-k，这让稀疏更新更接近未压缩 SGD 的轨迹。</p>\n<p>局部梯度裁剪和 momentum factor masking 是稳定性补丁。前者防止单个 worker 的异常 batch 产生过大的稀疏坐标，后者在某坐标已经发送后清除该坐标的动量项，避免同一方向的旧动量在下一轮重复触发发送。Warm-up 则从较低压缩率逐步提高到目标稀疏率，使训练早期还未稳定的表示不会被过强压缩扰动。</p>\n<div class=\"warn-box\">⚠️ 注意：DGC 的通信省的是带宽，不是完全消除同步。每轮仍要交换稀疏索引和值，并且各 worker 的 Top-k 索引可能不同，因此实现通常比 dense all-reduce 更复杂。</div>\n<h5>与传统方法的区别</h5>\n<p>梯度量化方法降低每个坐标的 bit 数，DGC 则减少坐标数量；参数服务器式稀疏更新容易受中心节点瓶颈影响，DGC 面向数据并行训练的梯度交换过程；随机丢弃梯度虽然便宜，但没有 Top-k 的重要性选择。DGC 的贡献在于把 Top-k 稀疏化与优化器状态修正结合，使 270x 到 600x 压缩率在 CNN、RNN 和语言模型任务上仍能维持精度。</p>",
+      "quiz": {
+        "q": "DGC 中 momentum factor masking 的作用是什么？",
+        "options": [
+          "把所有未发送梯度立即置零",
+          "在坐标被发送后清除该坐标动量，避免旧动量重复触发稀疏更新",
+          "将稀疏梯度转换成 8-bit 表示",
+          "动态改变 pipeline stage 数量"
+        ],
+        "answer": 1,
+        "explain": "DGC 对已发送坐标清除动量残留，使后续 Top-k 选择不会被已经应用过的旧动量主导。"
+      }
     },
     {
       "id": "gradient_sparsification",
@@ -1084,18 +1151,25 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "comm",
       "motivation": "可扩展稀疏梯度压缩框架",
-      "summary": "ScaleCom提出CLT-k压缩器（循环本地Top-k）和低通滤波器，解决了梯度稀疏压缩在大规模分布式训练中的两大瓶颈——通信量随worker数线性增长（O(n)→O(1)）和大batch下精度退化——实现65-400倍压缩且兼容all-reduce。",
+      "summary": "ScaleCom 提出 Cyclic Local Top-k (CLT-k) 与残差低通滤波，把稀疏梯度压缩改造成可交换、可 all-reduce 的形式，解决大规模 worker 下 Top-k 稀疏索引发散导致的 gradient build-up。",
       "keyPoints": [
-        "核心动机：可扩展稀疏梯度压缩框架",
-        "演化来源：继承或改进自 gradient_sparsification",
-        "代表机构：IBM"
+        "<code>paper_url</code> 对应的 arXiv 2004.13334 不是 ScaleCom 论文；本文基于 NeurIPS 2020 官方论文与 IBM/ arXiv 2104.11125 版本精读，YAML 保持 worker prompt 元信息不变。",
+        "传统本地 Top-k 每个 worker 选择不同坐标，聚合后非零坐标接近 <span class=\"kb-math kb-math-inline\">nk</span>，压缩率随 worker 数增加快速下降。",
+        "CLT-k 每轮循环选择一个 leader，所有 worker 采用 leader 的 Top-k 索引，从而让稀疏压缩满足求和可交换性并兼容 all-reduce。",
+        "低通滤波残差更新在 error-feedback memory 中衰减高频噪声，缓解大 batch 与线性放大学习率带来的残差发散。",
+        "论文在视觉、语言、语音任务中报告 65-400x 压缩率，并展示最多 64 learners 与 8-12x 更大 batch 下的可扩展训练。"
       ],
-      "detail": "<h5>问题背景：梯度压缩的可扩展性困境</h5>\n<p><img alt=\"ScaleCom Overview\" src=\"https://ar5iv.labs.arxiv.org/html/2104.11125/assets/intro.png\" /></p>\n<p><strong>现有方法的两大问题：</strong></p>\n<ol>\n<li>\n<p><strong>Gradient Build-up（梯度堆积）</strong>：Top-k压缩后每个worker发送k个非零梯度，但索引不同。在gather操作中，合并后的梯度向量非零元素数为O(nk)而非k，导致通信量随worker数n线性增长，无法使用高效的all-reduce。</p>\n</li>\n<li>\n<p><strong>大Batch精度退化</strong>：分布式训练扩大batch size时需线性缩放学习率（linear scaling rule）。大学习率放大了梯度噪声，而error-feedback机制中的本地memory累积了这些噪声，导致worker间memory发散，压缩质量下降。</p>\n</li>\n</ol>\n<h5>核心方法：CLT-k + 低通滤波器</h5>\n<p><strong>算法伪代码（Algorithm 1 - ScaleCom）：</strong></p>\n<pre><code>Input: 学习率η, 压缩率k/d, 低通滤波系数β, worker数n\nInitialize: x⁰ (模型参数), m⁰ᵢ=0 (本地memory)\n\nFor t = 0, 1, 2, ..., T-1:\n  For each worker i in parallel:\n    1. 计算梯度: ∇fᵢ(xᵗ; ξᵗᵢ)\n    2. 累积到memory: pᵗᵢ = mᵗᵢ + ∇fᵢ(xᵗ; ξᵗᵢ)\n\n    3. [CLT-k] 确定leader: leader = t mod n\n       If i == leader:\n         对pᵗᵢ排序，选top-k索引集Iᵗ\n         广播Iᵗ给所有worker\n\n    4. 压缩: gᵗᵢ = Compress(pᵗᵢ, Iᵗ)  // 只保留Iᵗ位置的值\n\n    5. [低通滤波] 更新memory:\n       mᵗ⁺¹ᵢ = (1-β)·mᵗᵢ + β·(pᵗᵢ - gᵗᵢ)\n       // β=1时退化为标准error-feedback\n       // β∈(0.1, 0.3)时有效抑制噪声\n\n    6. All-Reduce: gᵗ = (1/n)·Σᵢ gᵗᵢ  // 索引相同，可直接all-reduce!\n\n    7. 更新参数: xᵗ⁺¹ = xᵗ - η·gᵗ\n</code></pre>\n<p><strong>CLT-k的关键性质——交换律（Commutativity）：</strong></p>\n<div class=\"kb-math kb-math-display\">\\text{Compress}\\left(\\frac{1}{n}\\sum_i p_i\\right) = \\frac{1}{n}\\sum_i \\text{Compress}(p_i)</div>\n<p>因为所有worker使用相同索引集Iᵗ，压缩操作等价于对固定位置的mask，与求和顺序无关。这使得：\n- 可以先各自压缩再all-reduce（而非先gather再压缩）\n- 通信量恒为k个浮点数，与worker数n无关 → <strong>O(1)复杂度</strong></p>\n<p><strong>低通滤波器的直觉：</strong></p>\n<p>标准error-feedback: <code>m^{t+1} = p^t - g^t</code>（残差全部保留）</p>\n<p>ScaleCom: <code>m^{t+1} = (1-β)·m^t + β·(p^t - g^t)</code>（残差指数衰减）</p>\n<p>当学习率大时，梯度噪声大 → 残差中噪声累积 → worker间memory发散 → CLT-k选出的索引对非leader worker不再最优。低通滤波器通过衰减历史残差，保持worker间memory的相似性。</p>\n<h5>理论保证</h5>\n<p><strong>定理1（收敛率）：</strong> 在标准假设下（L-smooth, σ-bounded variance, ρ-contraction），ScaleCom以O(1/√(nT))速率收敛，与SGD相同，且保持n个worker的线性加速比。</p>\n<p><strong>Hamming距离分析：</strong> 论文证明CLT-k的contraction property——leader的top-k索引与全局最优top-k索引的Hamming距离有界，保证压缩质量。</p>\n<h5>实验结果</h5>\n<p><strong>标准Batch Size（Table 2）：</strong></p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>模型 (数据集)</th>\n<th>#GPU</th>\n<th>Batch</th>\n<th>压缩率</th>\n<th>Baseline</th>\n<th>ScaleCom</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>ResNet34 (CIFAR10)</td>\n<td>4</td>\n<td>128</td>\n<td>92X</td>\n<td>93.78</td>\n<td>93.98</td>\n</tr>\n<tr>\n<td>ResNet18 (ImageNet)</td>\n<td>8</td>\n<td>256</td>\n<td>112X</td>\n<td>70.48</td>\n<td>70.17</td>\n</tr>\n<tr>\n<td>ResNet50 (ImageNet)</td>\n<td>8</td>\n<td>256</td>\n<td>96X</td>\n<td>76.44</td>\n<td>75.99</td>\n</tr>\n<tr>\n<td>MobileNetV2 (ImageNet)</td>\n<td>8</td>\n<td>256</td>\n<td>155X</td>\n<td>71.64</td>\n<td>71.52</td>\n</tr>\n<tr>\n<td>Transformer (WMT14) [BLEU]</td>\n<td>8</td>\n<td>36K</td>\n<td>47-65X</td>\n<td>27.64</td>\n<td>27.27</td>\n</tr>\n<tr>\n<td>LSTM (SWB300) [WER↓]</td>\n<td>4</td>\n<td>128</td>\n<td>400X</td>\n<td>10.4</td>\n<td>10.1</td>\n</tr>\n</tbody>\n</table></div>\n<p><strong>大Batch Size（Table 3，验证可扩展性）：</strong></p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>模型 (数据集)</th>\n<th>#GPU</th>\n<th>Batch</th>\n<th>压缩率</th>\n<th>Baseline</th>\n<th>ScaleCom</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>ResNet18 (ImageNet)</td>\n<td>64</td>\n<td>2048</td>\n<td>112X</td>\n<td>70.29</td>\n<td>69.88</td>\n</tr>\n<tr>\n<td>ResNet50 (ImageNet)</td>\n<td>64</td>\n<td>2048</td>\n<td>96X</td>\n<td>76.47</td>\n<td>75.90</td>\n</tr>\n<tr>\n<td>MobileNetV2 (ImageNet)</td>\n<td>64</td>\n<td>2048</td>\n<td>155X</td>\n<td>71.49</td>\n<td>71.01</td>\n</tr>\n<tr>\n<td>Transformer (WMT14) [BLEU]</td>\n<td>64</td>\n<td>288K</td>\n<td>47-115X</td>\n<td>27.79</td>\n<td>28.03</td>\n</tr>\n<tr>\n<td>LSTM (SWB300) [WER↓]</td>\n<td>12</td>\n<td>1536</td>\n<td>100X</td>\n<td>9.9</td>\n<td>10.0</td>\n</tr>\n</tbody>\n</table></div>\n<p><strong>系统性能（Figure 6）：</strong>\n- 100 TFLOPs/worker: 2X-1.23X端到端加速\n- 300 TFLOPs/worker: 4.1X-1.75X端到端加速\n- 128 workers时通信占比&lt;3%（baseline为56%）\n- 关键特性：性能增益随worker数增加保持恒定（vs. prior top-k线性退化）</p>\n<p><strong>与现有方法对比：</strong></p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>方法</th>\n<th>All-Reduce兼容</th>\n<th>O(1)通信</th>\n<th>大Batch支持</th>\n<th>收敛保证</th>\n<th>广泛验证</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>TopK/Random-k</td>\n<td>✗</td>\n<td>✗</td>\n<td>✗</td>\n<td>✓</td>\n<td>✗</td>\n</tr>\n<tr>\n<td>DGC</td>\n<td>✗</td>\n<td>✗</td>\n<td>部分</td>\n<td>✗</td>\n<td>部分</td>\n</tr>\n<tr>\n<td>gTop-k</td>\n<td>✓</td>\n<td>✗(需额外all-reduce)</td>\n<td>✗</td>\n<td>✗</td>\n<td>✗</td>\n</tr>\n<tr>\n<td>PowerSGD</td>\n<td>✓</td>\n<td>✓</td>\n<td>✗</td>\n<td>✓</td>\n<td>✗</td>\n</tr>\n<tr>\n<td><strong>ScaleCom</strong></td>\n<td><strong>✓</strong></td>\n<td><strong>✓</strong></td>\n<td><strong>✓</strong></td>\n<td><strong>✓</strong></td>\n<td><strong>✓</strong></td>\n</tr>\n</tbody>\n</table></div>",
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"ScaleCom gradient build-up 与 CLT-k 示意\" src=\"https://ar5iv.labs.arxiv.org/html/2104.11125/assets/intro.png\" />\n<em>图：arXiv 2104.11125 版本中的 ScaleCom 总览图，展示传统 Top-k 的 gradient build-up 以及 CLT-k 统一索引后可直接稀疏归约的思路。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># ScaleCom / CLT-k on worker i\nmemory_i = zeros_like(theta)\n\nfor t in range(1, T + 1):\n    grad_i = backward(theta, minibatch_i)\n    p_i = memory_i + grad_i\n\n    leader = t % world_size\n    if rank == leader:\n        index = topk_indices(abs(p_i), k)\n    index = broadcast(index, src=leader)\n\n    # all workers compress with the same index set\n    sparse_i = gather(p_i, index)\n    sparse_avg = all_reduce_sum(sparse_i) / world_size\n\n    g_i = scatter_like(theta, index, sparse_avg)\n    residual_i = p_i - scatter_like(theta, index, gather(p_i, index))\n    memory_i = (1 - beta) * memory_i + beta * residual_i\n\n    theta = theta - lr * g_i\n</code></pre>\n<h5>方法机制解读</h5>\n<p>ScaleCom 的起点是一个系统问题，而不只是压缩算子问题。Top-k SGD 在单机或少量 worker 下可以只发送 <span class=\"kb-math kb-math-inline\">k</span> 个最大幅值坐标，但在同步分布式训练中，每个 worker 的 Top-k 索引集合通常不同。若第 <span class=\"kb-math kb-math-inline\">i</span> 个 worker 的索引为 <span class=\"kb-math kb-math-inline\">I_i</span>，聚合后的稀疏集合是 <span class=\"kb-math kb-math-inline\">\\cup_i I_i</span>，其大小会从 <span class=\"kb-math kb-math-inline\">k</span> 膨胀到接近 <span class=\"kb-math kb-math-inline\">nk</span>。这就是论文称为 gradient build-up 的现象：压缩后的数据可以 gather，却很难像 dense tensor 一样 reduce，最终通信量随 worker 数线性增长。</p>\n<p>CLT-k 利用论文观察到的 worker 间 residual memory 相似性，把“每个 worker 自己选 Top-k”改成“所有 worker 跟随一个 leader 的 Top-k”。令 <span class=\"kb-math kb-math-inline\">I_k(x_\\ell)</span> 是 leader <span class=\"kb-math kb-math-inline\">\\ell</span> 的 Top-k 坐标集合，CLT-k 对任意 worker 向量 <span class=\"kb-math kb-math-inline\">x_j</span> 的定义为：</p>\n<div class=\"kb-math kb-math-display\">[\\mathrm{CLT}^k_\\ell(x_j)]_m =\n\\begin{cases}\n(x_j)_m, &amp; m \\in I_k(x_\\ell) \\\\\n0, &amp; \\text{otherwise}\n\\end{cases}</div>\n<p>因为所有 worker 使用同一个 mask，压缩与求和可以交换：</p>\n<div class=\"kb-math kb-math-display\">\\frac{1}{n}\\sum_{j=1}^{n}\\mathrm{CLT}^k_\\ell(x_j)\n=\n\\mathrm{CLT}^k_\\ell\\left(\\frac{1}{n}\\sum_{j=1}^{n}x_j\\right)</div>\n<p>这正是它能接入 all-reduce 的关键。实际实现中只需要广播 leader 的索引集合，再对这些坐标上的数值执行 collective reduction；布局一致后，不再需要为每个 worker 的不同坐标做昂贵的 gather/scatter 式合并。</p>\n<p>低通滤波处理的是大 batch 训练的第二个问题：为了保持吞吐，分布式训练往往线性放大学习率，而 error feedback memory 会因此积累更强的高频噪声，降低不同 worker 的 Top-k 重叠。ScaleCom 用带折扣的 residual memory 替代标准 error feedback：</p>\n<div class=\"kb-math kb-math-display\">p_i^t = m_i^t + \\nabla f_{B_i}(\\theta^t), \\quad\ng_i^t = \\mathrm{CLT}^k_{t \\bmod n}(p_i^t)</div>\n<div class=\"kb-math kb-math-display\">m_i^{t+1}=(1-\\beta)m_i^t+\\beta(p_i^t-g_i^t), \\quad 0 &lt; \\beta \\le 1</div>\n<p>当 <span class=\"kb-math kb-math-inline\">\\beta=1</span> 时，它退化为普通残差累积；当 <span class=\"kb-math kb-math-inline\">\\beta&lt;1</span> 时，历史残差被平滑衰减，能减少学习率放大带来的突变，使 leader 的 Top-k 更可能代表全局 Top-k。直觉上，CLT-k 让通信结构可扩展，低通滤波则让这个共享索引假设在大 batch 噪声下仍然成立。</p>\n<p>论文的理论分析把 CLT-k 的有效性与 Top-k 索引重叠联系起来。若真实 Top-k 集合与 leader Top-k 集合的 Hamming 距离为 <span class=\"kb-math kb-math-inline\">2d</span>，并且标准 Top-k 的收缩系数为 <span class=\"kb-math kb-math-inline\">\\rho_0</span>，则 CLT-k 的收缩系数可写成：</p>\n<div class=\"kb-math kb-math-display\">\\rho \\le \\frac{d}{k}+\\left(1-\\frac{d}{k}\\right)\\rho_0</div>\n<p>只要重叠不是太差，即 <span class=\"kb-math kb-math-inline\">d&lt;k</span>，就有 <span class=\"kb-math kb-math-inline\">\\rho&lt;1</span>，压缩误差仍可控。进一步在随机梯度有界方差等假设下，ScaleCom 给出与分布式 SGD 类似的平均梯度范数收敛阶：</p>\n<div class=\"kb-math kb-math-display\">\\frac{1}{T}\\sum_{t=1}^{T}\\mathbb{E}\\|\\nabla f(\\theta^t)\\|^2\n= O\\left(\\frac{1}{\\sqrt{nT}}\\right)</div>\n<p>这说明 CLT-k 不是仅靠经验 trick 工作：它把“worker 残差相似”转化为索引重叠，再通过收缩性保证压缩 SGD 的收敛。</p>\n<div class=\"key-point\">💡 关键：ScaleCom 不追求每个 worker 的局部 Top-k 最优，而是追求一个全局通信友好的共同稀疏子空间；在大规模训练中，可归约性比单个 worker 的 Top-k 精确性更重要。</div>\n<h5>与普通 Top-k / DGC 的区别</h5>\n<p>普通 Top-k 与 DGC 更关注如何在压缩后保留优化精度，例如 error feedback、动量修正和 warm-up；ScaleCom 进一步把 collective 通信原语纳入算法设计。它让所有 worker 发送相同坐标上的值，因此压缩梯度可以像 dense tensor 一样归约。这个设计牺牲少量局部选择自由度，换取了通信复杂度不随 worker 数爆炸，适合 IBM 论文目标中的大规模同步训练场景。</p>",
       "quiz": {
-        "q": "",
-        "options": [],
+        "q": "ScaleCom 的 CLT-k 为什么能缓解 gradient build-up？",
+        "options": [
+          "所有 worker 使用同一个 leader Top-k 索引集合，使稀疏布局一致并可直接 all-reduce",
+          "每个 worker 独立随机选择坐标，提升坐标覆盖率",
+          "它把所有梯度量化成 1-bit 符号，避免传输索引",
+          "它取消了 error feedback memory，因此没有残差需要通信"
+        ],
         "answer": 0,
-        "explain": ""
+        "explain": "gradient build-up 来自不同 worker 的稀疏索引并集膨胀；CLT-k 统一索引，使压缩与求和可交换。"
       }
     },
     {
@@ -1110,12 +1184,26 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "comm",
       "motivation": "块量化Adam/AdaGrad减少75%状态内存",
-      "summary": "8-bit Optimizers 的核心目标是：块量化Adam/AdaGrad减少75%状态内存。",
+      "summary": "8-bit Optimizers 用块级动态量化保存 Adam/AdaGrad/momentum 的优化器状态，解决大模型训练中优化器状态占用显存远超参数本身的问题，同时保持接近 32-bit 优化器的收敛表现。",
       "keyPoints": [
-        "核心动机：块量化Adam/AdaGrad减少75%状态内存",
-        "代表机构：Univ. of Washington"
+        "将一阶/二阶动量等 stateful optimizer 统计量从 32-bit 降到 8-bit，理论上可减少约 75% 状态内存。",
+        "Block-wise quantization 将张量切成小块，每块独立 scale，避免少数 outlier 破坏整张量量化精度。",
+        "Dynamic quantization 使用非线性分桶，对小幅值和大幅值都保留较好分辨率。",
+        "Stable embedding layer 降低语言模型中 token 频率极不均衡带来的 embedding 梯度方差。",
+        "作为 drop-in optimizer 使用，论文报告在 LM、GLUE、ImageNet、WMT14、MoCo、RoBERTa 等任务中无需改原始超参即可接近 32-bit 表现。"
       ],
-      "detail": "<p>块量化Adam/AdaGrad减少75%状态内存</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"8-bit Optimizers 块量化示意\" src=\"https://ar5iv.labs.arxiv.org/html/2110.02861/assets/x1.png\" />\n<em>图：论文展示 8-bit optimizer state 通过块级量化降低内存占用，并在反量化后参与标准优化器更新。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># 8-bit Adam update with block-wise quantized states\nfor param, grad in model.parameters():\n    m = dequantize(state_m8[param], scale_m[param])\n    v = dequantize(state_v8[param], scale_v[param])\n\n    m = beta1 * m + (1 - beta1) * grad\n    v = beta2 * v + (1 - beta2) * grad * grad\n    update = m / (sqrt(v) + eps)\n    param -= lr * update\n\n    state_m8[param], scale_m[param] = blockwise_quantize_dynamic(m, block_size=2048)\n    state_v8[param], scale_v[param] = blockwise_quantize_dynamic(v, block_size=2048)\n</code></pre>\n<h5>方法解释</h5>\n<p>Adam 的显存瓶颈来自优化器状态。混合精度训练中，参数可用 fp16/bf16，但 Adam 通常仍保存 fp32 的一阶动量 <span class=\"kb-math kb-math-inline\">m_t</span>、二阶动量 <span class=\"kb-math kb-math-inline\">v_t</span>，有时还保存 fp32 master weight。对大模型来说，优化器状态可能是参数显存的数倍，限制最大模型规模和 batch size。</p>\n<p>直接把 <span class=\"kb-math kb-math-inline\">m_t,v_t</span> 线性量化到 8-bit 会遇到 outlier 问题：若整张量共享一个 scale，少数极大值会压缩绝大多数小值的分辨率。论文采用 block-wise quantization，把张量分成固定大小块，每块独立统计 scale：</p>\n<div class=\"kb-math kb-math-display\">q_i = \\mathrm{round}\\left(\\frac{x_i}{s_b}\\right), \\quad s_b=\\frac{\\max_{j \\in b}|x_j|}{127}</div>\n<p>这样 outlier 只影响所在 block。动态量化进一步使用非线性码本，让靠近 0 的值拥有更密集的表示，因为优化器状态中大量元素幅值较小但对更新方向仍重要。</p>\n<p>语言模型还需要 stable embedding。输入 token 频率高度不均匀，常见 token 的 embedding 梯度统计与稀有 token 差异很大，量化状态更容易不稳定。Stable embedding 将 embedding 的归一化和初始化做得更保守，降低梯度方差，使 8-bit state 不会在训练早期被异常更新破坏。</p>\n<div class=\"key-point\">💡 关键：8-bit Optimizers 并不是把前向/反向计算都变成 8-bit，而是只压缩优化器历史统计量；计算更新时仍可反量化到较高精度。</div>\n<h5>与通信压缩的关系</h5>\n<p>它在任务分类中属于 <code>comm</code>，但核心收益更偏显存：减小 optimizer state 后，单 GPU 可容纳更大模型或 batch，分布式训练中也能减少 ZeRO/offload 需要搬运的状态量。与 DGC/ScaleCom 压缩每轮梯度通信不同，8-bit Optimizers 压缩的是跨 step 保存的优化器状态，通常与梯度 all-reduce、ZeRO 和 activation checkpointing 互补。</p>",
+      "quiz": {
+        "q": "8-bit Optimizers 为什么采用 block-wise quantization？",
+        "options": [
+          "让每个小块独立缩放，减少 outlier 对整张量量化精度的影响",
+          "强制每个参数块使用不同学习率",
+          "替代反向传播中的梯度计算",
+          "只为了减少模型参数数量"
+        ],
+        "answer": 0,
+        "explain": "块级量化把 outlier 的影响限制在局部 block 内，提高大多数元素的 8-bit 表示精度。"
+      }
     },
     {
       "id": "coconet",
@@ -1129,12 +1217,26 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "comm",
       "motivation": "打破计算通信抽象屏障算子融合",
-      "summary": "CoCoNet 的核心目标是：打破计算通信抽象屏障算子融合。",
+      "summary": "CoCoNet 将分布式训练中的计算和通信都提升为 DSL 的一等操作，通过编译器做融合、分解和重排，解决深度学习框架把 GEMM/update 与 all-reduce/all-gather 分开后错失跨边界优化的问题。",
       "keyPoints": [
-        "核心动机：打破计算通信抽象屏障算子融合",
-        "代表机构：Microsoft"
+        "任务中的 <code>paper_url</code> 与 CoCoNet 论文不匹配；本文基于 Microsoft Research 页面、官方仓库和真实 arXiv <code>https://arxiv.org/abs/2105.05720</code> 完成，YAML 保持任务元信息不变。",
+        "DSL 用 Local、Replicated、Sliced 三种 tensor layout 描述分布式张量状态，显式表达计算和 collective。",
+        "编译器可以把 AllReduce + 参数更新、ReduceScatter + 局部更新 + AllGather 等模式融合成自定义通信计算 kernel。",
+        "提供面向 ML 的变换：通信分解、计算通信融合、overlap、layout-aware code generation。",
+        "在 data/model/pipeline parallel 训练负载中，只需少量 DSL 代码即可生成比手写 baseline 更快的执行路径。"
       ],
-      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"CoCoNet 编译流程图\" src=\"https://ar5iv.labs.arxiv.org/html/2105.05720/assets/x2.png\" />\n<em>图：CoCoNet 将包含计算与通信的高层 DSL 程序变换为定制 CUDA/NCCL 执行代码。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-cpp\">// CoCoNet-style SGD program\nVariable N(Int32, &quot;N&quot;);\nVariable lr(Float32, &quot;lr&quot;);\nTensor g(Float32, N, Local, &quot;g&quot;);       // each worker has local gradients\nTensor w(Float32, N, Replicated, &quot;w&quot;);  // all workers keep same weights\n\nStage g1 = AllReduce(Summation, g);\nStage w1 = Update(w, w - lr * g1);\n\nPipeline pipeline({g, w, lr}, {w1});\npipeline.codegen(&quot;sgd-ar-c.cu&quot;);\n</code></pre>\n<h5>方法解释</h5>\n<p>传统深度学习框架把计算 kernel 和通信 collective 分开调度。比如数据并行 Adam 通常先 all-reduce 梯度，再启动 optimizer update kernel；模型并行层先 GEMM，再 all-reduce 或 all-gather。这种边界便于模块化，但会导致优化器看不到通信内部结构，通信库也看不到后续计算，无法做跨边界融合。</p>\n<p>CoCoNet 的 DSL 明确描述张量布局和操作语义。Local 表示每个 rank 拥有不同内容，Replicated 表示每个 rank 拥有相同内容，Sliced 表示张量按 rank 分片。基于这些 layout，编译器可以判断某个 Update 是否只需要分片数据，是否可以把 all-reduce 拆成 reduce-scatter + all-gather，或者是否可以把 reduce-scatter 后的本地更新融合到通信过程中。</p>\n<p>一个典型变换是把：</p>\n<div class=\"kb-math kb-math-display\">g&#x27;=\\mathrm{AllReduce}(g), \\quad w \\leftarrow w-\\eta g&#x27;</div>\n<p>改写为：</p>\n<div class=\"kb-math kb-math-display\">g_s=\\mathrm{ReduceScatter}(g), \\quad w_s \\leftarrow w_s-\\eta g_s,\\quad w=\\mathrm{AllGather}(w_s)</div>\n<p>如果权重更新能在每个分片上本地完成，通信量和临时内存都会下降；进一步融合时，编译器可以生成在通信 chunk 到达时立即做 update 的 kernel，从而减少单独 kernel launch 和全量 buffer 往返。</p>\n<div class=\"key-point\">💡 关键：CoCoNet 的创新不是某个新的 collective，而是让 compiler 同时理解“这段通信在数学上做什么”和“通信之后紧接着的计算是什么”。</div>\n<h5>与库级通信优化的区别</h5>\n<p>NCCL 优化单个 collective 的带宽和延迟，cuBLAS/cuDNN 优化单个计算 kernel；CoCoNet 关注二者之间的组合空间。与手工写 fused kernel 相比，DSL 方式可以把 data parallel、model parallel、pipeline parallel 的常见模式系统化表达，再由编译器应用语义保持变换。这种方法尤其适合训练系统中反复出现的 optimizer update、梯度同步、分片参数同步等模式。</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"CoCoNet 编译流程图\" src=\"https://ar5iv.labs.arxiv.org/html/2105.05720/assets/x2.png\" />\n<em>图：CoCoNet 将包含计算与通信的高层 DSL 程序变换为定制 CUDA/NCCL 执行代码。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-cpp\">// CoCoNet-style SGD program\nVariable N(Int32, &quot;N&quot;);\nVariable lr(Float32, &quot;lr&quot;);\nTensor g(Float32, N, Local, &quot;g&quot;);       // each worker has local gradients\nTensor w(Float32, N, Replicated, &quot;w&quot;);  // all workers keep same weights\n\nStage g1 = AllReduce(Summation, g);\nStage w1 = Update(w, w - lr * g1);\n\nPipeline pipeline({g, w, lr}, {w1});\npipeline.codegen(&quot;sgd-ar-c.cu&quot;);\n</code></pre>\n<h5>方法解释</h5>\n<p>传统深度学习框架把计算 kernel 和通信 collective 分开调度。比如数据并行 Adam 通常先 all-reduce 梯度，再启动 optimizer update kernel；模型并行层先 GEMM，再 all-reduce 或 all-gather。这种边界便于模块化，但会导致优化器看不到通信内部结构，通信库也看不到后续计算，无法做跨边界融合。</p>\n<p>CoCoNet 的 DSL 明确描述张量布局和操作语义。Local 表示每个 rank 拥有不同内容，Replicated 表示每个 rank 拥有相同内容，Sliced 表示张量按 rank 分片。基于这些 layout，编译器可以判断某个 Update 是否只需要分片数据，是否可以把 all-reduce 拆成 reduce-scatter + all-gather，或者是否可以把 reduce-scatter 后的本地更新融合到通信过程中。</p>\n<p>一个典型变换是把：</p>\n<div class=\"kb-math kb-math-display\">g&#x27;=\\mathrm{AllReduce}(g), \\quad w \\leftarrow w-\\eta g&#x27;</div>\n<p>改写为：</p>\n<div class=\"kb-math kb-math-display\">g_s=\\mathrm{ReduceScatter}(g), \\quad w_s \\leftarrow w_s-\\eta g_s,\\quad w=\\mathrm{AllGather}(w_s)</div>\n<p>如果权重更新能在每个分片上本地完成，通信量和临时内存都会下降；进一步融合时，编译器可以生成在通信 chunk 到达时立即做 update 的 kernel，从而减少单独 kernel launch 和全量 buffer 往返。</p>\n<div class=\"key-point\">💡 关键：CoCoNet 的创新不是某个新的 collective，而是让 compiler 同时理解“这段通信在数学上做什么”和“通信之后紧接着的计算是什么”。</div>\n<h5>与库级通信优化的区别</h5>\n<p>NCCL 优化单个 collective 的带宽和延迟，cuBLAS/cuDNN 优化单个计算 kernel；CoCoNet 关注二者之间的组合空间。与手工写 fused kernel 相比，DSL 方式可以把 data parallel、model parallel、pipeline parallel 的常见模式系统化表达，再由编译器应用语义保持变换。这种方法尤其适合训练系统中反复出现的 optimizer update、梯度同步、分片参数同步等模式。</p>",
+      "quiz": {
+        "q": "CoCoNet 为什么需要显式建模 Local/Replicated/Sliced 三种 tensor layout？",
+        "options": [
+          "因为 layout 决定通信和计算是否能合法重排或融合",
+          "因为所有 tensor 都必须复制到每张 GPU",
+          "因为 DSL 只能表达单机计算",
+          "因为它不支持 collective 通信"
+        ],
+        "answer": 0,
+        "explain": "分布式张量布局决定数据依赖和通信语义，编译器只有理解 layout 才能安全地分解或融合 collective。"
+      }
     },
     {
       "id": "zero_pp",
@@ -1148,26 +1250,25 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "comm",
       "motivation": "量化权重通信+层次化分区4x通信效率",
-      "summary": "ZeRO 通过将优化器状态、梯度和参数在数据并行进程间进行分区（而非复制），分三阶段逐步消除内存冗余，在保持数据并行通信效率的同时实现了模型并行级别的内存效率，使得仅用数据并行即可训练万亿参数模型。",
+      "summary": "ZeRO++ 在 ZeRO-3 的参数 all-gather、梯度 reduce-scatter 和跨节点分区通信上分别引入量化与层次化分区，把巨模型训练的通信量降低约 4 倍，缓解低带宽集群和小 per-GPU batch 下 ZeRO 通信暴露的问题。",
       "keyPoints": [
-        "<strong>内存分析</strong>：混合精度 Adam 训练中每参数占用 <span class=\"kb-math kb-math-inline\">16\\Psi</span> 字节（2Ψ fp16 参数 + 2Ψ fp16 梯度 + 12Ψ 优化器状态含 fp32 参数/动量/方差副本）",
-        "<strong>ZeRO-DP 三阶段</strong>：Stage 1 切分优化器状态（<span class=\"kb-math kb-math-inline\">P_{os}</span>）→ 4x 省存；Stage 2 加切分梯度（<span class=\"kb-math kb-math-inline\">P_{os+g}</span>）→ 8x 省存；Stage 3 加切分参数（<span class=\"kb-math kb-math-inline\">P_{os+g+p}</span>）→ <span class=\"kb-math kb-math-inline\">N_d</span>x 省存",
-        "<strong>通信量不变/极低开销</strong>：Stage 1+2 通信量与标准 DP 相同（<span class=\"kb-math kb-math-inline\">2\\Psi</span>）；Stage 3 仅增加 50%（<span class=\"kb-math kb-math-inline\">3\\Psi</span>）",
-        "<strong>ZeRO-R 残余内存优化</strong>：激活分区（<span class=\"kb-math kb-math-inline\">P_a</span>）按 MP 度切分激活检查点；常量大小临时缓冲区；内存碎片整理",
-        "<strong>ZeRO-100B 实现</strong>：Stage 1+2 + ZeRO-R，400 GPU 上高效训练 100B 参数模型，达 15 PFlops（38 TFlops/GPU）",
-        "<strong>线性扩展</strong>：模型状态内存随 DP 度线性下降，理论上 1024 GPU 可支持万亿参数"
+        "目标不是重新设计 ZeRO 的内存切分，而是降低 ZeRO-3 三类 collective 的通信体积和跨节点压力。",
+        "<code>qwZ</code> 使用 block-based quantization 压缩前向/反向 all-gather 的权重分片。",
+        "<code>hpZ</code> 采用 hierarchical partitioning，在节点内保留更多参数副本，以增加少量显存换取跨节点通信减少。",
+        "<code>qgZ</code> 用量化梯度通信替代标准 reduce-scatter，通过 all-to-all 风格聚合保持训练精度。",
+        "论文报告总体通信量约 4x 降低，在 384 GPU 规模最高 2.16x 吞吐提升。"
       ],
-      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"ZeRO-DP 内存节省示意\" src=\"https://ar5iv.labs.arxiv.org/html/1910.02054/assets/x1.png\" />\n<em>图：ZeRO-DP 三阶段优化对 7.5B 参数模型内存占用的影响。基线 DP 需要 120GB，Stage 1 降至 31.4GB，Stage 1+2 降至 16.6GB，Stage 1+2+3 降至 1.9GB（Nd=64）。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># ZeRO-DP Stage 1+2 训练流程伪代码\n# 假设 Nd 个数据并行进程，每个进程负责 1/Nd 的参数分区\n\ndef zero_dp_train_step(model, data, rank, world_size):\n    # 每个进程持有完整 fp16 参数（Stage 1+2）\n    # 但只持有 1/Nd 的优化器状态和梯度\n\n    # Forward pass（所有进程用完整参数）\n    loss = model.forward(data)\n\n    # Backward pass\n    loss.backward()  # 计算本地梯度\n\n    # Stage 2: Reduce-Scatter 梯度\n    # 每个进程只保留自己负责分区的归约梯度\n    for partition_id in range(world_size):\n        if partition_id == rank:\n            # 归约收集本分区梯度（reduce 到本进程）\n            reduce(gradients[partition_id], dst=rank)\n        else:\n            # 发送梯度给负责的进程后释放内存\n            reduce(gradients[partition_id], dst=partition_id)\n            free(gradients[partition_id])\n\n    # 只更新本进程负责的 1/Nd 参数分区\n    optimizer.step(params[rank], grads[rank])  # 用本地优化器状态\n\n    # All-Gather 更新后的参数\n    all_gather(params)  # 收集所有分区的更新参数\n</code></pre>\n<pre><code class=\"language-python\"># ZeRO-DP Stage 3 训练流程伪代码（额外切分参数）\ndef zero_dp_stage3_train_step(model, data, rank, world_size):\n    # 每个进程只持有 1/Nd 的参数、梯度和优化器状态\n\n    # Forward pass: 流水线式 All-Gather 参数\n    for layer in model.layers:\n        # 收集该层完整参数（从负责的进程广播）\n        full_params = all_gather(layer.params)\n        output = layer.forward(input, full_params)\n        del full_params  # 用完即弃，不保留\n        input = output\n\n    # Backward pass: 反向再次 All-Gather\n    for layer in reversed(model.layers):\n        full_params = all_gather(layer.params)\n        grad = layer.backward(full_params)\n        del full_params\n        # Reduce-Scatter 梯度到负责进程\n        reduce_scatter(grad)\n\n    # 更新本地 1/Nd 分区\n    optimizer.step(local_params, local_grads)\n</code></pre>\n<h5>深入解释</h5>\n<p><strong>动机与背景</strong></p>\n<p>大模型训练面临严峻的内存墙问题。以混合精度 Adam 训练为例，一个 <span class=\"kb-math kb-math-inline\">\\Psi</span> 参数的模型需要：</p>\n<div class=\"kb-math kb-math-display\">\\text{总内存} = \\underbrace{2\\Psi}_{\\text{fp16 参数}} + \\underbrace{2\\Psi}_{\\text{fp16 梯度}} + \\underbrace{4\\Psi + 4\\Psi + 4\\Psi}_{\\text{fp32 参数副本 + 动量 + 方差}} = 16\\Psi \\text{ bytes}</div>\n<p>对于 GPT-2（1.5B 参数），这意味着至少 24GB 内存仅用于模型状态。传统数据并行（DP）在每个 GPU 上完整复制所有 <span class=\"kb-math kb-math-inline\">16\\Psi</span> 字节，造成巨大冗余。而模型并行（MP）虽然切分了模型状态，但通信开销大、计算粒度低、扩展性差。</p>\n<div class=\"key-point\">💡 关键洞察：DP 的内存冗余来自于每个进程都存储完整的模型状态，但实际上每个进程在每一步只需要更新 <span class=\"kb-math kb-math-inline\">1/N_d</span> 的参数。</div>\n<p><strong>ZeRO-DP 核心机制</strong></p>\n<p>ZeRO-DP 的核心思想是：<strong>保留 DP 的高计算效率和低通信量，同时通过分区（partition）而非复制（replicate）来消除内存冗余。</strong></p>\n<p><strong>Stage 1（<span class=\"kb-math kb-math-inline\">P_{os}</span>）— 优化器状态分区：</strong></p>\n<p>将优化器状态（fp32 参数副本 + 动量 + 方差，共 <span class=\"kb-math kb-math-inline\">12\\Psi</span> 字节）均分到 <span class=\"kb-math kb-math-inline\">N_d</span> 个进程。每个进程只维护 <span class=\"kb-math kb-math-inline\">1/N_d</span> 的优化器状态，只更新对应的参数分区。更新后通过 All-Gather 同步完整参数。</p>\n<div class=\"kb-math kb-math-display\">\\text{Stage 1 内存} = 4\\Psi + \\frac{12\\Psi}{N_d} \\xrightarrow{N_d \\to \\infty} 4\\Psi \\quad (\\text{4x 节省})</div>\n<p><strong>Stage 2（<span class=\"kb-math kb-math-inline\">P_{os+g}</span>）— 梯度分区：</strong></p>\n<p>既然每个进程只更新 <span class=\"kb-math kb-math-inline\">1/N_d</span> 的参数，那它也只需要对应分区的归约梯度。因此将标准 All-Reduce 替换为 Reduce-Scatter：每个梯度只归约到负责该分区的进程，归约后立即释放其余梯度内存。</p>\n<div class=\"kb-math kb-math-display\">\\text{Stage 2 内存} = 2\\Psi + \\frac{14\\Psi}{N_d} \\xrightarrow{N_d \\to \\infty} 2\\Psi \\quad (\\text{8x 节省})</div>\n<p><strong>Stage 3（<span class=\"kb-math kb-math-inline\">P_{os+g+p}</span>）— 参数分区：</strong></p>\n<p>进一步地，每个进程只存储 <span class=\"kb-math kb-math-inline\">1/N_d</span> 的模型参数。前向/反向传播时，通过流水线式 All-Gather 按需获取完整层参数，用完即弃。</p>\n<div class=\"kb-math kb-math-display\">\\text{Stage 3 内存} = \\frac{16\\Psi}{N_d} \\quad (N_d\\text{x 线性节省})</div>\n<div class=\"warn-box\">⚠️ 注意：Stage 3 的通信量从 <span class=\"kb-math kb-math-inline\">2\\Psi</span> 增加到 <span class=\"kb-math kb-math-inline\">3\\Psi</span>（前向 All-Gather <span class=\"kb-math kb-math-inline\">\\Psi</span> + 反向 All-Gather <span class=\"kb-math kb-math-inline\">\\Psi</span> + 梯度 Reduce-Scatter <span class=\"kb-math kb-math-inline\">\\Psi</span>），即 1.5 倍开销，但换来了线性内存缩减。</div>\n<p><strong>通信量分析</strong></p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>方案</th>\n<th>通信量</th>\n<th>内存节省</th>\n<th>通信原语</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>标准 DP (All-Reduce)</td>\n<td><span class=\"kb-math kb-math-inline\">2\\Psi</span></td>\n<td>1x</td>\n<td>Reduce-Scatter + All-Gather</td>\n</tr>\n<tr>\n<td>ZeRO Stage 1+2</td>\n<td><span class=\"kb-math kb-math-inline\">2\\Psi</span></td>\n<td>8x</td>\n<td>Reduce-Scatter + All-Gather</td>\n</tr>\n<tr>\n<td>ZeRO Stage 3</td>\n<td><span class=\"kb-math kb-math-inline\">3\\Psi</span></td>\n<td><span class=\"kb-math kb-math-inline\">N_d</span>x</td>\n<td>2×All-Gather + Reduce-Scatter</td>\n</tr>\n</tbody>\n</table></div>\n<p>标准 All-Reduce 本质上就是 Reduce-Scatter + All-Gather，通信量为 <span class=\"kb-math kb-math-inline\">2\\Psi</span>。ZeRO Stage 1+2 将 All-Reduce 拆解为：先 Reduce-Scatter 梯度（<span class=\"kb-math kb-math-inline\">\\Psi</span>），再 All-Gather 更新后的参数（<span class=\"kb-math kb-math-inline\">\\Psi</span>），总量完全相同。</p>\n<p><strong>ZeRO-R 残余内存优化</strong></p>\n<p>除模型状态外，训练还消耗大量内存用于：</p>\n<ol>\n<li><strong>激活内存</strong>（<span class=\"kb-math kb-math-inline\">P_a</span>）：MP 中激活被复制到所有 MP 进程。ZeRO 将激活检查点按 MP 度分区，需要时通过 All-Gather 重建。对于 100B 模型（MP=16），激活从 33GB 降至约 2GB。</li>\n<li><strong>临时缓冲区</strong>（<span class=\"kb-math kb-math-inline\">C_B</span>）：All-Reduce 等操作的临时缓冲区随模型增大而膨胀。ZeRO 使用固定大小缓冲区。</li>\n<li><strong>内存碎片</strong>（<span class=\"kb-math kb-math-inline\">M_D</span>）：短生命周期（激活）和长生命周期（梯度）对象交错分配导致碎片。ZeRO 将长生命周期对象预分配到连续内存块。</li>\n</ol>\n<p><strong>与传统方法的对比</strong></p>\n<div class=\"table-wrap\"><table>\n<thead>\n<tr>\n<th>维度</th>\n<th>标准 DP</th>\n<th>模型并行 (MP)</th>\n<th>ZeRO-DP</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>内存效率</td>\n<td>差（全复制）</td>\n<td>好（切分）</td>\n<td>好（切分）</td>\n</tr>\n<tr>\n<td>计算粒度</td>\n<td>高</td>\n<td>低（切分计算）</td>\n<td>高</td>\n</tr>\n<tr>\n<td>通信量</td>\n<td><span class=\"kb-math kb-math-inline\">2\\Psi</span></td>\n<td>随模型/硬件变化</td>\n<td><span class=\"kb-math kb-math-inline\">2\\Psi</span> ~ <span class=\"kb-math kb-math-inline\">3\\Psi</span></td>\n</tr>\n<tr>\n<td>扩展性</td>\n<td>好</td>\n<td>差（跨节点）</td>\n<td>好</td>\n</tr>\n<tr>\n<td>易用性</td>\n<td>高（无需改模型）</td>\n<td>低（需重构）</td>\n<td>高（无需改模型）</td>\n</tr>\n</tbody>\n</table></div>\n<div class=\"key-point\">💡 关键：ZeRO 证明了\"内存效率\"和\"通信效率\"并非不可兼得——通过巧妙利用模型状态的时序特性（不是所有状态在所有时刻都需要），可以在几乎不增加通信的前提下大幅降低内存。</div>",
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"ZeRO++ 总览图\" src=\"https://ar5iv.labs.arxiv.org/html/2306.10209/assets/x1.png\" />\n<em>图：ZeRO++ 针对 ZeRO-3 的权重 all-gather、分区方式和梯度平均分别加入 qwZ、hpZ、qgZ。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># one ZeRO++ training step, simplified\nfor layer in model.layers:\n    # qwZ: gather quantized parameter partitions and dequantize for compute\n    q_part, scale = quantize_blockwise(local_param_partition(layer))\n    full_param = dequantize(all_gather(q_part, scale))\n    activation = layer.forward(activation, full_param)\n\nfor layer in reversed(model.layers):\n    full_param = gather_quantized_params(layer)\n    grad = layer.backward(full_param)\n\n    # qgZ: quantized gradient averaging\n    q_grad, g_scale = quantize_blockwise(grad)\n    avg_grad_partition = quantized_all_to_all_average(q_grad, g_scale)\n\n    # hpZ: update partition within hierarchical ZeRO groups\n    optimizer_step(local_partition(layer), avg_grad_partition)\n</code></pre>\n<h5>方法解释</h5>\n<p>ZeRO-3 的优势是每张 GPU 只保存参数、梯度和优化器状态的一部分；代价是每层前向和反向都要 all-gather 参数，反向还要 reduce-scatter 梯度。在高带宽集群且 batch 较大时，这些通信能被部分隐藏；但在低带宽网络、小 microbatch 或超大 DP 规模下，通信暴露成为吞吐瓶颈。</p>\n<p><code>qwZ</code> 处理权重 all-gather。ZeRO-3 all-gather 的参数只是用于当前层计算，通信后可反量化为计算精度，因此可以在通信前做 block-wise quantization：</p>\n<div class=\"kb-math kb-math-display\">\\hat{W}_b = Q(W_b), \\quad W_b \\approx D(\\hat{W}_b, s_b)</div>\n<p>每个 block 独立 scale，减少 outlier 影响。这样 all-gather 传输的是低 bit 权重加少量 scale 元数据，显著降低前向和反向参数通信体积。</p>\n<p><code>hpZ</code> 处理跨节点通信。大集群里节点内 NVLink/NVSwitch 带宽远高于跨节点网络。Hierarchical partitioning 把 ZeRO 分区分成节点内和节点间层次，在节点内适度复制部分参数分区，使更多同步留在高速域内，减少慢速跨节点 all-gather 的次数或体积。这是典型的“用显存换网络”设计。</p>\n<p><code>qgZ</code> 处理梯度平均。梯度 reduce-scatter 直接低精度化容易影响收敛，因为梯度噪声会累积到优化器状态。ZeRO++ 设计量化梯度平均流程，在 all-to-all/分组聚合中传输量化梯度，并通过合适的 scale 与聚合顺序控制误差，使最终更新接近 full precision reduce-scatter。</p>\n<div class=\"key-point\">💡 关键：ZeRO++ 的三项技术分别对准 ZeRO-3 的三段主要通信路径，因此能组合成端到端 4x 通信体积降低，而不是单点优化。</div>\n<h5>与 ZeRO 的区别</h5>\n<p>ZeRO 解决的是“每张卡是否需要保存完整模型状态”；ZeRO++ 解决的是“切分后每一步把状态临时拼回来和同步回去要传多少数据”。在内存模型上，ZeRO++ 仍继承 ZeRO-3 的参数/梯度/优化器分区；在通信模型上，它引入量化和层次化，把 ZeRO-3 从高带宽集群友好扩展到更低带宽或更大规模的环境。</p>",
       "quiz": {
-        "q": "ZeRO-DP Stage 2 (Pos+g) 相比标准数据并行，通信量变化如何？",
+        "q": "ZeRO++ 中 hpZ 的主要 trade-off 是什么？",
         "options": [
-          "通信量减少为原来的 1/Nd",
-          "通信量保持不变，仍为 2Ψ",
-          "通信量增加 50%，变为 3Ψ",
-          "通信量翻倍，变为 4Ψ"
+          "用更多节点内参数副本和少量显存换取更少跨节点通信",
+          "用更高学习率换取更低显存",
+          "把所有梯度永久丢弃",
+          "取消 ZeRO 的参数分区"
         ],
-        "answer": 1,
-        "explain": "Stage 1+2 将 All-Reduce 拆解为 Reduce-Scatter（Ψ）+ All-Gather（Ψ）= 2Ψ，与标准 DP 的 All-Reduce 通信量完全相同，但内存节省 8 倍。"
+        "answer": 0,
+        "explain": "hpZ 利用节点内带宽更高的事实，分层组织 ZeRO 分区，减少慢速跨节点通信。"
       }
     },
     {
@@ -1182,13 +1283,26 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "comm",
       "motivation": "通信分区调度细粒度计算-通信重叠",
-      "summary": "Centauri 的核心目标是：通信分区调度细粒度计算-通信重叠。",
+      "summary": "Centauri 通过通信分区和层次化调度扩大计算-通信重叠空间，解决大模型混合并行训练中 collective 粒度过粗、依赖复杂而难以隐藏通信的问题。",
       "keyPoints": [
-        "核心动机：通信分区调度细粒度计算-通信重叠",
-        "演化来源：继承或改进自 coconet",
-        "代表机构：SJTU/Alibaba"
+        "针对 LLM 混合并行中的多类 collective：数据并行梯度、张量并行激活/梯度、流水线边界通信同时出现，调度空间高度耦合。",
+        "提出三维通信分区：primitive partitioning、group partitioning、workload partitioning，逐步把粗粒度 collective 拆成可调度子任务。",
+        "构造每个通信操作的 partition tree，在 operation/model 层级搜索可行分区方案。",
+        "使用 hierarchical scheduling 根据依赖关系和硬件层级决定哪些子通信应提前、延后或与计算重叠。",
+        "ASPLOS 2024 论文报告 Centauri 可显著提升通信-计算重叠效率，并获得 ASPLOS 2024 Best Paper Award。"
       ],
-      "detail": "<p>通信分区调度细粒度计算-通信重叠</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"Centauri 论文 PDF，含 Figure 4 通信分区流程\" src=\"https://openreview.net/pdf/58de1dd82ec19b52473be7e4af3f6ed777c4a525.pdf\" />\n<em>图：可访问论文 PDF 中的 Figure 4 展示了对混合训练任务中 N 个通信操作构造分区树，并选择最小调度成本方案的流程。ACM 页面未直接暴露独立图片资源。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># Centauri-style communication partitioning and scheduling\ndef centauri_schedule(training_graph):\n    comm_ops = extract_collectives(training_graph)\n    partition_trees = {}\n\n    for op in comm_ops:\n        tree = PartitionTree(op)\n        for primitive in split_primitives(op):          # primitive partitioning\n            for group in split_process_groups(primitive):  # group partitioning\n                for chunk in split_workload(group):     # workload partitioning\n                    tree.add_candidate(chunk)\n        partition_trees[op] = tree\n\n    candidates = combine_partition_choices(partition_trees)\n    best = min(candidates, key=lambda c: scheduling_cost(c, training_graph))\n    return hierarchical_schedule(best, training_graph.dependencies)\n</code></pre>\n<h5>方法解释</h5>\n<p>大模型训练中的通信并不是单一 all-reduce。TP 可能在每层插入 all-reduce 或 all-gather，DP 在反向后同步梯度，PP 在 stage 间传激活和梯度。已有系统常用两类方法：一类是细粒度 kernel fusion，把通信和计算塞进同一个 kernel，但可能牺牲 GEMM/NCCL 的高性能实现；另一类是 operation-level scheduling，只移动完整 collective，粒度太粗，很多可重叠窗口无法利用。</p>\n<p>Centauri 的核心是先拆通信，再调度通信。Primitive partitioning 把一个 collective 拆成更小的通信 primitive；group partitioning 按 rank group 或节点层级拆分通信范围；workload partitioning 再把数据量按 chunk 切开。拆分后，一个原本必须整体执行的 all-reduce 可以变成多个有依赖关系的子通信，其中一部分能提前启动，一部分能延后到计算空隙。</p>\n<p>通信分区不是越细越好。过细会增加 kernel launch、同步和调度开销，也可能破坏 NCCL 的带宽效率。因此 Centauri 为每个通信操作构建 partition tree，节点表示不同层级的拆分选择，边表示从粗到细的分区扩展。调度器在这些树上选择一组方案，使总训练图的暴露通信时间最小：</p>\n<div class=\"kb-math kb-math-display\">\\min_{\\pi \\in \\Pi} \\; T_{\\text{compute}} + T_{\\text{comm}}^{\\text{exposed}}(\\pi) + T_{\\text{overhead}}(\\pi)</div>\n<div class=\"key-point\">💡 关键：Centauri 的“分区”是为了创造可重叠的调度单元，而不是单纯缩小通信消息。</div>\n<p>层次化调度再考虑硬件拓扑和依赖。节点内通信、跨节点通信、不同并行维度的 collective 有不同带宽和竞争关系；调度器需要避免把所有子通信同时压到同一网络链路，也要保证某个计算 kernel 真正需要的数据已经到位。相比 CoCoNet 更偏编译融合，Centauri 更偏运行图层面的通信分区与调度搜索。</p>\n<h5>与传统 overlap 的区别</h5>\n<p>传统 overlap 往往依赖框架自动把反向计算和梯度 all-reduce 异步重叠，粒度是 tensor bucket。Centauri 面向混合并行中的多种 collective，把“是否拆、怎么拆、拆到哪个 group、每块多大”纳入调度空间。这样它可以处理 TP/DP/PP 交织时的复杂依赖，而不只优化单一数据并行梯度同步。</p>",
+      "quiz": {
+        "q": "Centauri 为什么不直接把所有 collective 拆到最细粒度？",
+        "options": [
+          "过细分区会带来额外调度、同步和带宽效率损失，需要在重叠收益与开销之间权衡",
+          "细粒度分区会改变模型数学输出",
+          "collective 只能在 CPU 上执行",
+          "它只支持单 GPU 训练"
+        ],
+        "answer": 0,
+        "explain": "通信分区的目标是减少暴露通信时间，过度拆分会增加 overhead 并降低 collective 效率。"
+      }
     },
     {
       "id": "fp8_allgather",
@@ -1271,13 +1385,26 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "hybrid",
       "motivation": "简化为Top-1路由万亿参数MoE模型",
-      "summary": "Switch Transformer 的核心目标是：简化为Top-1路由万亿参数MoE模型。",
+      "summary": "Switch Transformer 将 MoE 路由从 GShard 的 Top-2 简化为 Top-1，每个 token 只发往一个专家，从而降低通信和计算复杂度，并首次稳定训练到万亿参数级稀疏语言模型。",
       "keyPoints": [
-        "核心动机：简化为Top-1路由万亿参数MoE模型",
-        "演化来源：继承或改进自 gshard",
-        "代表机构：Google"
+        "用 Switch FFN 替换 Transformer 中部分 dense FFN 层，每个 token 只激活一个专家，参数量增加但每 token FLOPs 近似保持。",
+        "Top-1 router 简化 dispatch/combine：无需合并两个专家输出，all-to-all 通信量低于 Top-2 MoE。",
+        "使用 expert capacity 和 token dropping 控制每个专家的最大 token 数，避免热门专家 OOM。",
+        "辅助负载均衡损失鼓励 routing probability 和实际 token 分配均匀。",
+        "引入选择性精度、较小初始化、expert dropout 等稳定训练技巧，使 bfloat16 稀疏模型可训练。"
       ],
-      "detail": "<p>简化为Top-1路由万亿参数MoE模型</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"Switch Transformer 路由示意\" src=\"https://ar5iv.labs.arxiv.org/html/2101.03961/assets/x1.png\" />\n<em>图：Switch Transformer 中 router 为每个 token 选择一个专家，token 经 all-to-all 分发到专家 FFN，再组合回原序列位置。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># Switch FFN layer\ndef switch_ffn(tokens, experts, router_w, capacity_factor):\n    logits = tokens @ router_w\n    probs = softmax(logits, dim=-1)\n    expert_id = argmax(probs, dim=-1)        # Top-1 routing\n    gate = max(probs, dim=-1)\n\n    capacity = int(capacity_factor * len(tokens) / len(experts))\n    dispatch = build_capacity_limited_dispatch(expert_id, capacity)\n    expert_inputs = all_to_all(dispatch, tokens)\n\n    expert_outputs = [experts[e](expert_inputs[e]) for e in range(len(experts))]\n    outputs = inverse_all_to_all(dispatch, expert_outputs)\n    return gate[:, None] * outputs, load_balance_loss(probs, expert_id)\n</code></pre>\n<h5>方法解释</h5>\n<p>MoE 的基本目标是扩大参数量而不线性增加计算量。Dense FFN 对所有 token 使用同一组参数；MoE FFN 则准备多个专家 <span class=\"kb-math kb-math-inline\">E_i</span>，router 根据 token 表示 <span class=\"kb-math kb-math-inline\">x</span> 选择少数专家：</p>\n<div class=\"kb-math kb-math-display\">y = \\sum_i g_i(x) E_i(x)</div>\n<p>GShard 使用 Top-2 routing，每个 token 通常发给两个专家并加权合并。Switch Transformer 的关键简化是只选一个专家：</p>\n<div class=\"kb-math kb-math-display\">e=\\arg\\max_i p_i(x), \\quad y=p_e(x)E_e(x)</div>\n<p>这让 dispatch/combine 逻辑更简单，通信量和专家计算量也更低。Top-1 的代价是 router 更容易负载不均，因此论文保留并强化了 load balancing。辅助损失常写成：</p>\n<div class=\"kb-math kb-math-display\">L_{\\text{aux}} = \\alpha \\cdot N \\sum_{i=1}^{N} f_i P_i</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">f_i</span> 是实际路由到专家 <span class=\"kb-math kb-math-inline\">i</span> 的 token 比例，<span class=\"kb-math kb-math-inline\">P_i</span> 是 router 分配给专家 <span class=\"kb-math kb-math-inline\">i</span> 的平均概率。若某个专家概率高且实际 token 多，损失会增大，推动 router 更均匀。</p>\n<p>Expert capacity 是系统侧稳定器。每个专家只接收固定上限 <span class=\"kb-math kb-math-inline\">C=\\mathrm{capacity\\_factor}\\cdot T/N</span> 的 token，超出容量的 token 被 drop 或通过残差路径跳过专家。这避免单个专家因热门 token 过载导致 all-to-all buffer 爆炸。</p>\n<div class=\"key-point\">💡 关键：Switch 的“简单”不是功能减少，而是把 Top-2 MoE 中最昂贵的双专家通信/组合简化掉，换来更好的大规模可训练性。</div>\n<h5>与 GShard 的区别</h5>\n<p>GShard 证明了 Top-2 MoE Transformer 可扩展到数千 TPU；Switch Transformer 进一步面向稳定性和工程复杂度做减法。它的 Top-1 路由减少通信，选择性 fp32 router 计算和较小初始化缓解训练不稳定，expert dropout 提高下游迁移泛化。结果是更适合扩展到 trillion-parameter 的稀疏模型。</p>",
+      "quiz": {
+        "q": "Switch Transformer 相比 GShard Top-2 routing 的核心简化是什么？",
+        "options": [
+          "每个 token 只路由到一个专家，减少通信和 combine 复杂度",
+          "完全取消专家负载均衡损失",
+          "把所有专家复制到每张 GPU",
+          "只训练 encoder，不训练 decoder"
+        ],
+        "answer": 0,
+        "explain": "Switch 使用 Top-1 router，每个 token 只经过一个专家，因此 dispatch/combine 和 all-to-all 成本更低。"
+      }
     },
     {
       "id": "deepspeed_moe",
@@ -1291,13 +1418,26 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "hybrid",
       "motivation": "PR-MoE金字塔结构+MoE-Offload",
-      "summary": "DeepSpeed-MoE 的核心目标是：PR-MoE金字塔结构+MoE-Offload。",
+      "summary": "DeepSpeed-MoE 是面向 MoE 训练和推理的一体化系统，通过 PR-MoE 架构、专家并行、MoE inference 优化和 offload/压缩技术，让稀疏专家模型在训练成本、推理延迟和部署成本上优于质量相当的 dense 模型。",
       "keyPoints": [
-        "核心动机：PR-MoE金字塔结构+MoE-Offload",
-        "演化来源：继承或改进自 gshard",
-        "代表机构：Microsoft"
+        "将 DeepSpeed 的并行训练能力扩展到 MoE：专家并行与数据/张量/流水线并行组合，用 all-to-all 完成 token dispatch。",
+        "提出 Pyramid-Residual MoE（PR-MoE），用金字塔式专家配置和 residual dense 路径减少参数量并稳定质量。",
+        "面向推理提出 MoE-specific 优化：专家切分、分层通信、batch/token 调度和模型压缩。",
+        "支持 MoE-Offload，把不活跃或低频专家放到 CPU/NVMe 等层级，在显存受限下服务更大 MoE。",
+        "论文报告 MoE 训练相对质量等价 dense 模型可显著省训练成本，推理相对既有 MoE 系统最高 7.3x 更低延迟/成本。"
       ],
-      "detail": "<p>PR-MoE金字塔结构+MoE-Offload</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"DeepSpeed-MoE 系统与模型示意\" src=\"https://ar5iv.labs.arxiv.org/html/2201.05596/assets/x1.png\" />\n<em>图：DeepSpeed-MoE 将 MoE 层、专家并行、训练/推理系统优化整合到 DeepSpeed 栈中。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># DeepSpeed-MoE layer, simplified\ndef deepspeed_moe_layer(x, router, local_experts, ep_group):\n    score = softmax(router(x), dim=-1)\n    experts, gates = top_k(score, k=1 or 2)\n\n    send_buf = pack_tokens_by_expert(x, experts, ep_group)\n    expert_inputs = all_to_all(send_buf, group=ep_group)\n\n    expert_outputs = []\n    for expert_id, tokens in expert_inputs.items():\n        expert_outputs.append(local_experts[expert_id](tokens))\n\n    recv_buf = all_to_all(pack_outputs(expert_outputs), group=ep_group)\n    return combine_by_original_token(recv_buf, gates)\n</code></pre>\n<h5>方法解释</h5>\n<p>MoE 训练的基本瓶颈是 token dispatch。每个 GPU 只持有一部分专家，router 为 token 选专家后，token 必须通过 all-to-all 发到拥有对应专家的 GPU。DeepSpeed-MoE 将专家并行作为一等并行维度，与数据并行、张量并行、流水线并行组合，使专家数量可以随 GPU 数扩展，而 dense attention/embedding 等部分仍可使用已有 DeepSpeed 3D 并行策略。</p>\n<p>PR-MoE 的动机是 MoE 参数虽多，但不是所有层都需要同样多专家。Pyramid 结构让不同深度层使用不同专家规模，Residual 结构保留 dense FFN 路径并叠加稀疏专家输出：</p>\n<div class=\"kb-math kb-math-display\">y = \\mathrm{DenseFFN}(x) + \\sum_{i \\in \\mathrm{TopK}(x)} g_i E_i(x)</div>\n<p>这样可以在保持模型质量的同时减少专家参数和路由不稳定，推理时也能降低需要加载和调度的专家规模。</p>\n<p>推理比训练更难，因为在线服务的 batch 可能小、token 分布不稳定，MoE all-to-all 更容易暴露。DeepSpeed-MoE 通过专家切分和分层通信减少单设备热点，用调度把同专家 token 聚合，用压缩和 offload 降低显存压力。MoE-Offload 的直觉是推理时每个 token 只访问少数专家，未访问专家不必常驻 GPU；系统可以按热度和路由预测把专家在 GPU/CPU/NVMe 间迁移。</p>\n<div class=\"key-point\">💡 关键：DeepSpeed-MoE 不只是一层 MoE kernel，而是从模型结构、训练并行到推理部署都围绕“稀疏激活但专家巨大”这一特性设计。</div>\n<h5>与 GShard/Switch 的区别</h5>\n<p>GShard 和 Switch 更强调模型和路由机制，DeepSpeed-MoE 更强调端到端系统化。它既支持训练时的 expert parallel all-to-all，也关注推理时的专家放置、offload、低延迟调度和模型压缩。因此它把 MoE 从“可训练的大模型结构”推进到“可部署的稀疏大模型系统”。</p>",
+      "quiz": {
+        "q": "DeepSpeed-MoE 中 PR-MoE 的核心目的是什么？",
+        "options": [
+          "用金字塔式专家配置和 residual dense 路径降低 MoE 参数/推理成本并保持质量",
+          "让每个 token 必须经过全部专家",
+          "完全取消 all-to-all 通信",
+          "只用于图像分类，不能用于语言模型"
+        ],
+        "answer": 0,
+        "explain": "PR-MoE 通过结构设计减少专家参数和稳定训练/推理，是 DeepSpeed-MoE 的重要模型侧优化。"
+      }
     },
     {
       "id": "tutel",
@@ -1311,13 +1451,26 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "hybrid",
       "motivation": "自适应并行度+All-to-All优化",
-      "summary": "Tutel 的核心目标是：自适应并行度+All-to-All优化。",
+      "summary": "Tutel 提出 Flex MoE 系统栈，通过零迁移代价的自适应并行/流水切换和优化 all-to-all/token dispatch，在动态专家负载下显著提升 MoE 训练与推理效率。",
       "keyPoints": [
-        "核心动机：自适应并行度+All-to-All优化",
-        "演化来源：继承或改进自 deepspeed_moe",
-        "代表机构：Microsoft"
+        "针对 MoE token routing 的动态负载：不同专家接收 token 数随 batch 变化，静态并行和固定流水容易低效。",
+        "Flex 设计相同的数据和专家参数布局，使多种并行/流水策略可以在运行时切换而不改变数学语义或搬迁 tensor。",
+        "优化 token encode/decode、all-to-all、expert computation 和 combine 等 MoE 热路径。",
+        "支持大规模专家并行，在 16 到 2048 A100 GPU 上相对前 SOTA 单 MoE 层有 4.96x 和 5.75x 加速。",
+        "在 SwinV2-MoE 等真实模型上验证训练和推理收益，并保持下游视觉任务质量。"
       ],
-      "detail": "<p>自适应并行度+All-to-All优化</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"Tutel/Flex MoE 架构示意\" src=\"https://ar5iv.labs.arxiv.org/html/2206.03382/assets/x1.png\" />\n<em>图：Tutel 将路由、all-to-all、专家执行和自适应并行封装成可扩展 MoE runtime。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># Tutel Flex runtime sketch\ndef tutel_moe(x, gate, experts, runtime_state):\n    route = gate(x)\n    load = count_tokens_per_expert(route)\n    plan = choose_parallel_and_pipeline(load, runtime_state.available_layouts)\n\n    # identical layout allows switching without tensor migration\n    encoded = fast_encode_tokens(x, route, plan.capacity)\n    remote_inputs = optimized_all_to_all(encoded, plan.ep_group)\n    remote_outputs = run_experts_with_pipeline(remote_inputs, experts, plan)\n    gathered = optimized_all_to_all(remote_outputs, plan.ep_group)\n    return fast_decode_tokens(gathered, route)\n</code></pre>\n<h5>方法解释</h5>\n<p>MoE 系统的难点在于 workload 是数据相关的。router 每步根据 token 内容决定专家，热门专家可能接收大量 token，冷门专家可能几乎空闲。静态 expert parallelism 假设专家负载均衡，但真实负载会让部分 GPU 等待热点专家，或者让 all-to-all 产生长尾消息。</p>\n<p>Tutel/Flex 的关键设计是 identical layout：模型参数和输入数据采用一种能被不同并行或流水方法共享的布局。这样运行时可以根据当前 batch 的专家负载，在不同策略间切换，而不需要先把专家参数或 token tensor 迁移成另一种布局。论文称之为 no-penalty switching，因为切换策略本身不应引入抵消收益的搬运成本。</p>\n<p>系统热路径包括四步：encode 将 token 按专家打包；all-to-all 把 token 发到专家所在 rank；专家 FFN 执行；decode 把输出恢复到原 token 顺序。Tutel 对这些步骤做 fused/optimized implementation，减少 padding、排序和内存拷贝开销，并根据负载选择合适流水，使通信和专家计算重叠。</p>\n<div class=\"key-point\">💡 关键：Tutel 的自适应不是改变 router 决策，而是根据 router 造成的实际专家负载，动态选择更合适的执行并行方式。</div>\n<h5>与 DeepSpeed-MoE 的区别</h5>\n<p>DeepSpeed-MoE 提供训练和推理端到端方案，重点包括 PR-MoE、offload 和部署成本；Tutel 更聚焦 MoE runtime 的高性能执行，尤其是 all-to-all 和动态 parallelism/pipelining。它可以作为 MoE 执行层被上层模型系统调用，用较少模型改动获得更高专家并行效率。</p>",
+      "quiz": {
+        "q": "Tutel/Flex 的 identical layout 主要解决什么问题？",
+        "options": [
+          "让不同 MoE 并行/流水策略可运行时切换，而无需额外 tensor 迁移",
+          "让所有专家参数在每张 GPU 上完整复制",
+          "让 router 永远输出均匀分布",
+          "让 MoE 层退化为 dense FFN"
+        ],
+        "answer": 0,
+        "explain": "相同布局避免切换并行策略时重新搬运参数或数据，支持低开销自适应执行。"
+      }
     },
     {
       "id": "colossal_ai",
@@ -1350,12 +1503,26 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "hybrid",
       "motivation": "自动搜索最优3D并行配置",
-      "summary": "Galvatron 的核心目标是：自动搜索最优3D并行配置。",
+      "summary": "Galvatron 通过 cost model、决策树剪枝和动态规划，在 DP/TP/PP/重计算等大规模混合并行空间中自动搜索 Transformer 的高吞吐训练策略，解决手工配置 3D 并行难以适配模型和显存预算的问题。",
       "keyPoints": [
-        "核心动机：自动搜索最优3D并行配置",
-        "代表机构：PKU/Alibaba"
+        "覆盖数据并行、张量并行、流水线并行和 activation checkpointing 等常用训练策略组合。",
+        "用 profiling + analytical model 预测每层在不同并行策略下的时间和显存。",
+        "决策树先按经验约束分解和剪枝巨大搜索空间，避免直接枚举所有层策略组合。",
+        "动态规划为每层选择并行策略，并考虑相邻层策略切换产生的 resharding 通信。",
+        "在 BERT、GPT、T5、Swin 等 Transformer 工作负载上，在不同显存预算下均能自动找到优于有限搜索或手工方案的吞吐。"
       ],
-      "detail": "<p>自动搜索最优3D并行配置</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"Galvatron 系统流程\" src=\"https://ar5iv.labs.arxiv.org/html/2211.13878/assets/x1.png\" />\n<em>图：Galvatron 先建立并行策略成本模型，再通过搜索生成每层混合并行计划并执行训练。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># Galvatron dynamic programming search\ndef search_parallel_plan(layers, devices, memory_budget):\n    strategies = build_strategy_set(dp=True, tp=True, pp=True, checkpoint=True)\n    strategies = decision_tree_prune(strategies, model_shape=layers[0].shape)\n\n    dp = {}\n    for l, layer in enumerate(layers):\n        for s in strategies[layer.type]:\n            cost = compute_time(layer, s) + memory_penalty(layer, s, memory_budget)\n            if l == 0:\n                dp[l, s] = cost\n            else:\n                dp[l, s] = min(\n                    dp[l - 1, prev] + reshard_cost(prev, s) + cost\n                    for prev in strategies[layers[l - 1].type]\n                )\n\n    return backtrack_min_cost_plan(dp)\n</code></pre>\n<h5>方法解释</h5>\n<p>Transformer 训练的并行空间很大。DP 简单但显存复制严重；TP 降低单层参数和激活压力但引入层内 collective；PP 降低层级显存但有 pipeline bubble；checkpoint 节省激活但增加重算。不同模型结构、batch size、序列长度和 GPU 拓扑下，最佳组合不同，手工调参很难覆盖。</p>\n<p>Galvatron 的第一步是为候选策略建立成本模型。对每个层和并行策略，它估计计算时间、通信时间、激活/参数/优化器显存以及 checkpoint 后的重算开销。相邻层若采用不同张量布局，还要加入 resharding cost，因为输出张量可能需要从一种切分方式转换到另一种切分方式。</p>\n<p>搜索空间剪枝依靠决策树。论文把一些显然劣势或不适用的组合提前排除，例如在显存预算宽松时不必过度 checkpoint，在通信极重的策略上限制 TP 组合。剪枝后的核心问题可视为序列决策：每层选一个策略，使总时间最小且显存不超限：</p>\n<div class=\"kb-math kb-math-display\">\\min_{s_1,\\ldots,s_L} \\sum_{l=1}^{L} T(l,s_l)+\\sum_{l=2}^{L} R(s_{l-1},s_l)</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">R</span> 是策略切换的重分片通信。</p>\n<div class=\"key-point\">💡 关键：Galvatron 的自动化价值不只是选一个全局 TP/PP/DP 度，而是允许不同层在约束下选择不同策略，并把切换成本纳入搜索。</div>\n<h5>与手工 3D 并行的区别</h5>\n<p>手工 3D 并行通常为整个模型选择固定 <span class=\"kb-math kb-math-inline\">dp,tp,pp</span>，再微调 microbatch 和 checkpoint。Galvatron 把策略粒度下放到层，并用模型/硬件 profile 适配不同显存预算。相比只搜索 pipeline 切分或只搜索 tensor parallel 的系统，它的搜索空间更接近实际大模型训练栈的组合复杂度。</p>",
+      "quiz": {
+        "q": "Galvatron 动态规划中为什么要考虑相邻层策略切换成本？",
+        "options": [
+          "因为不同并行策略可能产生不同张量切分，层间需要 resharding 通信",
+          "因为所有层必须使用完全相同的参数",
+          "因为动态规划不能处理显存约束",
+          "因为 pipeline parallelism 不会产生通信"
+        ],
+        "answer": 0,
+        "explain": "层策略不同会导致输出布局不匹配，重分片通信可能抵消局部策略收益。"
+      }
     },
     {
       "id": "moe_folding",
@@ -1369,13 +1536,26 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "hybrid",
       "motivation": "异构并行映射专家-数据混合折叠",
-      "summary": "MoE Parallel Folding 的核心目标是：异构并行映射专家-数据混合折叠。",
+      "summary": "MoE Parallel Folding 在 Megatron Core 中解耦 Attention 层和 MoE 层的并行映射，让两类层分别采用最合适的 TP/EP/CP/DP/PP 组合，解决大规模 MoE 训练中单一并行配置无法同时兼顾 dense attention 与 sparse expert 的问题。",
       "keyPoints": [
-        "核心动机：异构并行映射专家-数据混合折叠",
-        "演化来源：继承或改进自 switch_transformer",
-        "代表机构：NVIDIA"
+        "提出五维混合并行：Tensor、Expert、Context、Data、Pipeline parallelism 同时参与大规模 MoE 训练。",
+        "核心思想是“folding”：Attention 和 MoE 层使用不同并行维度映射，但在 Transformer block 边界协调张量布局。",
+        "Flexible token-level dispatcher 支持 token dropping 和 dropless MoE，并处理跨五维并行的动态 token shape。",
+        "支持长上下文 MoE：CP 与 EP/TP/DP 协同，使序列长度可扩展到 128K token。",
+        "在 H100 上报告 Mixtral 8x22B 最高 49.3% MFU、Qwen2-57B-A14B 最高 39.0% MFU，并扩展到 1024 GPU。"
       ],
-      "detail": "<p>异构并行映射专家-数据混合折叠</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"MoE Parallel Folding 映射示意\" src=\"https://ar5iv.labs.arxiv.org/html/2504.14960/assets/images/MoE_Parallel_Folding-mapping-switch.png\" />\n<em>图：MoE Parallel Folding 展示 Attention 和 MoE 层采用不同并行映射，并在层边界进行布局切换。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># MoE Parallel Folding in a Transformer block\ndef folded_moe_block(x, attn_plan, moe_plan):\n    # Attention prefers TP/CP for dense matmul and long sequence\n    x_attn = layout_transform(x, attn_plan.input_layout)\n    h = attention(x_attn, tp=attn_plan.tp, cp=attn_plan.cp)\n    h = layout_transform(h, moe_plan.input_layout)\n\n    # MoE prefers EP/DP with token dispatcher\n    route = router(h)\n    packed = token_dispatch(h, route, ep=moe_plan.ep, dp=moe_plan.dp)\n    expert_out = expert_ffn(packed, tp=moe_plan.expert_tp)\n    y = token_combine(expert_out, route)\n\n    return layout_transform(y, attn_plan.output_layout)\n</code></pre>\n<h5>方法解释</h5>\n<p>MoE Transformer block 里有两类性质完全不同的计算。Attention 是 dense 的，所有 token 都经过同一套投影和 attention kernel，适合 TP/CP 来切 hidden、head 或 sequence；MoE FFN 是 sparse 的，token 被 router 分发到专家，适合 EP 来切专家、DP 来扩 batch。若强制两类层使用同一个并行映射，要么 attention 通信过重，要么专家负载和 all-to-all 低效。</p>\n<p>MoE Parallel Folding 的核心是允许并行维度在层内“折叠/展开”。Attention 子层可以选择 <span class=\"kb-math kb-math-inline\">TP_a, CP_a, DP_a</span>，MoE 子层可以选择 <span class=\"kb-math kb-math-inline\">TP_e, EP_e, DP_e</span>，二者在 block 边界通过 layout transform 对齐。这个 transform 是系统代价的一部分，但相比全层被迫使用次优并行，整体更优。</p>\n<p>Token dispatcher 是关键工程组件。MoE 路由会产生动态 token-to-expert 映射，dropless 训练还要求不能简单丢弃超容量 token。dispatcher 需要在 TP/EP/CP/DP/PP 同时存在时维护 token 原始位置、专家位置、容量和反向梯度路由，确保：</p>\n<div class=\"kb-math kb-math-display\">\\mathrm{combine}(\\mathrm{experts}(\\mathrm{dispatch}(x))) \\equiv \\mathrm{MoE}(x)</div>\n<div class=\"key-point\">💡 关键：Folding 的目标不是减少并行维度，而是让每种层“看见”对自己最自然的并行空间，再用受控布局转换把它们拼回一个训练图。</div>\n<p>长上下文场景进一步放大这个价值。Attention 的 <span class=\"kb-math kb-math-inline\">S^2</span> 或长序列激活压力需要 CP；MoE 的专家参数和 all-to-all 需要 EP。传统映射若把 CP/EP 绑定，会限制可扩展性。Folding 让 CP 主要服务 attention，EP 主要服务 expert，在 Mixtral/Qwen MoE 上获得更高 MFU。</p>\n<h5>与 Switch/DeepSpeed-MoE 的区别</h5>\n<p>Switch 关注 Top-1 路由简化，DeepSpeed-MoE 关注端到端 MoE 训练推理系统；MoE Parallel Folding 更关注现代 Megatron Core 中多维并行的映射问题。它面向已有 MoE 架构，在不改变模型数学的前提下调整并行拓扑，使 attention 和 expert 两个子系统都接近硬件最优。</p>",
+      "quiz": {
+        "q": "MoE Parallel Folding 为什么要解耦 Attention 和 MoE 层的并行配置？",
+        "options": [
+          "两类层的计算/通信瓶颈不同，统一并行映射通常无法同时最优",
+          "Attention 层不需要任何并行",
+          "MoE 层必须复制所有专家到每张 GPU",
+          "解耦会改变模型输出"
+        ],
+        "answer": 0,
+        "explain": "Attention 更依赖 TP/CP，MoE 更依赖 EP/DP 和 token dispatcher，分开映射能减少次优通信。"
+      }
     },
     {
       "id": "x_moe",
@@ -1389,13 +1569,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "hybrid",
       "motivation": "HPC平台MoE扩展专家专业化架构",
-      "summary": "X-MoE 的核心目标是：HPC平台MoE扩展专家专业化架构。",
+      "summary": "X-MoE 面向 DeepSeek-style expert-specialized MoE 和 HPC 平台，提出 padding-free MoE kernel、redundancy-bypassing dispatch 和 sequence-sharded MoE block，使大 top-k、细粒度专家模型能在 AMD/NVIDIA 超算集群上扩展训练。",
       "keyPoints": [
-        "核心动机：HPC平台MoE扩展专家专业化架构",
-        "演化来源：继承或改进自 switch_transformer",
-        "代表机构：ANL/ORNL"
+        "任务中的 <code>paper_url</code> 指向 Sparse Deformable Mamba，与 X-MoE 不匹配；本文基于 X-MoE 官方 arXiv <code>https://arxiv.org/abs/2508.13337</code> 和官方仓库信息完成，YAML 保持任务元信息不变。",
+        "针对 emerging expert-specialized MoE：专家更细、Top-k 更大、激活和 all-to-all 压力比传统 Switch/GShard 更高。",
+        "Padding-free MoE training 避免按最大专家容量填充，减少无效 token 计算和跨设备搬运。",
+        "Redundancy-bypassing dispatch 跳过不需要跨低带宽链路传输的重复 token/激活，降低 inter-node all-to-all 时间。",
+        "Sequence-sharded MoE blocks 将 MoE block 的序列激活分片，缓解 TP 度增大后 activation memory 成为瓶颈。",
+        "在 Frontier MI250X 上报告 DeepSeek-style MoE 可扩展到 545B 参数、1024 GPU，比同硬件预算下既有方法可训练模型大约 10x。"
       ],
-      "detail": "<p>HPC平台MoE扩展专家专业化架构</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"X-MoE 系统概览\" src=\"https://ar5iv.labs.arxiv.org/html/2508.13337/assets/x1.png\" />\n<em>图：X-MoE 面向 expert-specialized MoE 的训练瓶颈，围绕 padding-free、RBD 和 SSMB 组织跨平台 MoE 执行。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># X-MoE execution sketch\ndef x_moe_block(x, router, experts, topology):\n    route = router_topk(x)  # larger top-k for expert-specialized MoE\n\n    # SSMB: keep sequence dimension sharded for MoE activations\n    x_shard = sequence_shard(x, topology.tp_group)\n\n    # padding-free packing: exact token counts per expert\n    packed = pack_without_capacity_padding(x_shard, route)\n\n    # RBD: bypass redundant inter-node transfers when source/destination locality permits\n    local, remote = split_by_topology(packed, topology)\n    remote = redundancy_bypassing_dispatch(remote, topology.inter_node_group)\n\n    y_local = run_local_and_remote_experts(local, remote, experts)\n    return combine_without_padding(y_local, route)\n</code></pre>\n<h5>方法解释</h5>\n<p>DeepSeek-MoE 一类 expert-specialized 架构改变了传统 MoE 系统假设。它们使用更多细粒度专家和更大的 Top-k，让每个 token 激活多个专家以获得专业化能力。这样模型质量更强，但系统上会出现两个瓶颈：一是 token dispatch 的 all-to-all 消息更多，二是为了对齐专家容量而产生大量 padding，导致无效计算和显存浪费。</p>\n<p>X-MoE 的 padding-free kernel 直接按真实 token 数打包专家输入，不再把每个专家补齐到统一 capacity 后再计算。这样专家 FFN 处理的是实际 token，避免 <span class=\"kb-math kb-math-inline\">E \\times C</span> buffer 中大量空洞。对大 Top-k MoE，这个优化尤其重要，因为每个 token 会复制到多个专家，padding 浪费会被放大。</p>\n<p>Redundancy-bypassing dispatch 关注 HPC 拓扑。Frontier 等超算节点内带宽和跨节点带宽差异明显，普通 all-to-all 会把一些可本地复用或不必跨节点的 token 也送过低带宽链路。RBD 将 dispatch 按拓扑拆分，跳过冗余跨节点传输，把更多交换留在节点内或本地路径。论文报告 RBD 可显著降低 inter-node all-to-all 时间。</p>\n<p>SSMB（sequence-sharded MoE blocks）处理激活内存迁移。随着非 MoE dense block 的 TP 度增加，MoE block 若仍保存完整序列激活，内存瓶颈会从参数转向 activation。X-MoE 将 MoE block 中的序列维保持分片，使激活内存随 TP/sequence shard 下降，同时保持专家并行的 dispatch 语义。</p>\n<div class=\"key-point\">💡 关键：X-MoE 的目标是让新一代“专家更细、Top-k 更大”的 MoE 适配 HPC 互连和 AMD/NVIDIA 多平台，而不是只优化传统 Top-1/Top-2 MoE。</div>\n<h5>与 Switch/Megatron MoE 的区别</h5>\n<p>Switch Transformer 通过 Top-1 降低路由复杂度；X-MoE 反过来面向更复杂的 expert-specialized MoE，接受大 Top-k 带来的质量收益，并在系统层消化其开销。与只针对 NVIDIA GPU 的实现不同，X-MoE 强调 cross-platform kernel 和在 Frontier MI250X 等 HPC 系统上的扩展能力。</p>",
+      "quiz": {
+        "q": "X-MoE 的 padding-free MoE training 主要减少什么开销？",
+        "options": [
+          "专家容量 padding 带来的无效 token 计算、显存和通信",
+          "模型中所有 attention 计算",
+          "优化器状态的 32-bit 存储",
+          "pipeline parallel 的全部气泡"
+        ],
+        "answer": 0,
+        "explain": "X-MoE 按真实路由 token 打包专家输入，避免把每个专家补齐到最大容量造成浪费。"
+      }
     },
     {
       "id": "fsmoe",
@@ -1409,13 +1603,26 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "hybrid",
       "motivation": "灵活可扩展MoE训练框架",
-      "summary": "FSMoE 的核心目标是：灵活可扩展MoE训练框架。",
+      "summary": "任务 URL 对应的 FastMoE 是一个基于 PyTorch 的分布式 MoE 训练系统，它提供灵活接口和高性能专家并行 runtime，使普通 GPU 集群也能训练专家数量随设备数线性扩展的 MoE 模型。",
       "keyPoints": [
-        "核心动机：灵活可扩展MoE训练框架",
-        "演化来源：继承或改进自 tutel",
-        "代表机构：CUHK/Huawei"
+        "任务 id/name 写作 FSMoE，但 <code>paper_url</code> 指向 FastMoE 论文；本文按该论文和“灵活可扩展 MoE 训练框架”动机解读。",
+        "提供层次化接口：既支持像普通 PyTorch module 一样插入 MoE 层，也允许高级用户控制 gate、expert 和通信。",
+        "基于 expert parallelism 将不同专家放在多 GPU/多节点上，专家数量可随 GPU 数扩展。",
+        "优化 token dispatch、all-to-all 和 expert computation，避免直接 PyTorch 实现中的大量小 kernel 和拷贝开销。",
+        "支持与 Transformer-XL、Megatron-LM 等模型结合，使 GPU/PyTorch 社区能复现实用 MoE 训练。"
       ],
-      "detail": "<p>灵活可扩展MoE训练框架</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"FastMoE 系统架构示意\" src=\"https://ar5iv.labs.arxiv.org/html/2103.13262/assets/x1.png\" />\n<em>图：FastMoE 展示 gate、dispatcher、专家并行和输出组合构成的 PyTorch MoE 训练系统。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># FastMoE/FSMoE-style layer\nclass FMoELayer(nn.Module):\n    def forward(self, x):\n        gate_score = self.gate(x)\n        expert_id, gate = top_k(gate_score, k=self.top_k)\n\n        # dispatch tokens to remote experts\n        packed, metadata = fmoe_encode(x, expert_id)\n        remote_inputs = fmoe_all_to_all(packed, self.expert_group)\n\n        remote_outputs = []\n        for local_expert, tokens in zip(self.local_experts, remote_inputs):\n            remote_outputs.append(local_expert(tokens))\n\n        gathered = fmoe_all_to_all(remote_outputs, self.expert_group)\n        return fmoe_decode(gathered, metadata, gate)\n</code></pre>\n<h5>方法解释</h5>\n<p>早期大规模 MoE 系统主要依赖 Google TPU 和 Mesh TensorFlow，对 GPU/PyTorch 用户不友好。FastMoE 的动机是把 MoE 抽象成可复用 PyTorch 层，同时把高性能分布式 dispatch 隐藏在 runtime 里。用户可以像插入 FFN 一样插入 MoE 层，但底层会根据 gate 输出把 token 发往远端专家。</p>\n<p>专家并行是系统核心。若共有 <span class=\"kb-math kb-math-inline\">E</span> 个专家、<span class=\"kb-math kb-math-inline\">G</span> 张 GPU，每张 GPU 只保存 <span class=\"kb-math kb-math-inline\">E/G</span> 个专家。router 为 token 选择专家后，runtime 将 token 按目标专家重新排序和打包，通过 all-to-all 发到对应 GPU；专家本地执行 FFN 后，再通过反向 all-to-all 返回原 GPU，并按 gate 权重组合输出。</p>\n<p>FastMoE 的工程优化集中在 encode/all-to-all/decode 热路径。朴素 PyTorch 实现会产生大量 scatter/gather、小 tensor 和 Python 调度开销；FastMoE 使用定制算子和通信调度减少内存拷贝，维护 token 原始位置元数据，使前向和反向都能高效恢复顺序和梯度。</p>\n<div class=\"key-point\">💡 关键：FastMoE 的贡献是把 MoE 从特定 TPU 编译栈迁移到通用 GPU/PyTorch 生态，同时保留专家并行的规模扩展能力。</div>\n<h5>与 Tutel 的关系</h5>\n<p>FastMoE 更早提供 PyTorch 分布式 MoE 基础设施，重点是接口灵活和 expert parallel 可扩展；Tutel 在此类系统基础上进一步强调自适应并行、all-to-all 优化和动态负载下的 runtime 性能。任务将 FSMoE 置于 Tutel 之后，可以理解为“灵活可扩展 MoE 框架”这一谱系中的基础系统。</p>",
+      "quiz": {
+        "q": "FastMoE/FSMoE 中 expert parallelism 的主要作用是什么？",
+        "options": [
+          "把不同专家分布到不同 GPU，使专家数量随设备数扩展",
+          "让每个 token 同时经过所有专家",
+          "取消 router 的 Top-k 选择",
+          "只压缩优化器状态"
+        ],
+        "answer": 0,
+        "explain": "专家并行将专家参数切到多设备上，token 通过 all-to-all 到达对应专家，是 MoE 扩展的核心机制。"
+      }
     },
     {
       "id": "megascale_moe",
@@ -1429,13 +1636,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "hybrid",
       "motivation": "生产级MoE训练1440GPU效率提升1.88x",
-      "summary": "MegaScale-MoE 的核心目标是：生产级MoE训练1440GPU效率提升1.88x。",
+      "summary": "MegaScale-MoE 是字节跳动面向生产级 MoE 训练的通信优化系统，通过 SP+EP 并行策略、算子级通信计算重叠与 BF16/FP8 通信压缩，在 1,440 张 Hopper/H800 GPU 上训练 352B MoE 模型实现 1.88x 于 Megatron-LM 的吞吐提升。",
       "keyPoints": [
-        "核心动机：生产级MoE训练1440GPU效率提升1.88x",
-        "演化来源：继承或改进自 moe_folding",
-        "代表机构：ByteDance"
+        "针对 MoE 层内部通信瓶颈重新选择并行策略：注意力用 Sequence Parallelism，专家 FFN 用 Expert Parallelism，外层仍结合 Pipeline/Data Parallelism。",
+        "用公式化通信量分析说明 SP attention 在 GQA 下可把关键路径通信降到 TP attention 的约四分之一。",
+        "EP 保持专家 GEMM 完整形状，避免 TP 切分专家隐藏维带来的小矩阵低效，并按 top-<span class=\"kb-math kb-math-inline\">k</span> 自适应选择 all-to-all 或 all-gather/reduce-scatter。",
+        "通过 inter-operator 调度与 intra-operator tile 级融合，把 A2A/AG/RS 与 GEMM/GroupedGEMM 重叠，减少暴露通信时间。",
+        "对 DP 梯度同步使用 FP32 累积、BF16 all-to-all、FP32 汇总；FP8 训练中使用 E4M3、per-token/per-channel/group quantization 保持收敛。",
+        "352B 模型强扩展实验中，MegaScale-MoE 在 1,440 GPU 上达到 1.4077M tokens/s，训练 1T tokens 估计 8.22 天。"
       ],
-      "detail": "<h3>系统架构总览</h3>\n<p><img alt=\"MegaScale-MoE并行策略设计空间\" src=\"https://ar5iv.labs.arxiv.org/html/2505.11432/assets/x4.png\" /></p>\n<p><em>图: MegaScale-MoE的并行策略设计空间。节点间采用Pipeline Parallelism + Expert Parallelism，节点内对注意力模块使用Sequence Parallelism，对FFN/专家模块使用Expert Parallelism，完全消除了节点内Tensor Parallelism。</em></p>\n<h3>方法一：通信高效并行策略</h3>\n<p><strong>核心思想：</strong> 传统方案对MoE模型的所有组件统一使用Tensor Parallelism (TP)，但TP存在两个问题：(1) 对专家维度的切分降低GEMM效率；(2) 通信量恒定不随并行度增加而摊薄。MegaScale-MoE针对不同组件采用不同并行策略。</p>\n<p><strong>注意力模块 → Sequence Parallelism (SP)：</strong> 采用DeepSpeed-Ulysses风格的SP，沿序列维度切分。使用GQA时，SP通信量相比TP降低至约1/4：</p>\n<div class=\"kb-math kb-math-display\">V_{TP} = 2bsh(n-1)/n</div>\n<div class=\"kb-math kb-math-display\">V_{SP} = 2bsh(n-1)/n \\times (2+2/m)/n</div>\n<p>其中 $m$ 为query头数与KV头数之比。当 $m=4, n=8$ 时，SP通信量仅为TP的约25%。</p>\n<p>虽然SP需要复制注意力参数（增加 $n\\times$ 参数同步），但由于：\n- MoE模型中专家参数占绝对主导（数十到数百个专家），注意力参数占比很小\n- 层级化通信（节点内reduce + 节点间allreduce）使实际同步开销可控</p>\n<p><strong>FFN/专家模块 → Expert Parallelism (EP)：</strong> 将TP替换为EP，每个GPU持有完整的若干专家而非所有专家的切片。优势：\n- 保持完整专家的GEMM尺寸，计算效率更高\n- 通信模式为all-to-all token dispatch/combine，可与计算重叠</p>\n<p>```</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"MegaScale-MoE 大规模 MoE 并行策略设计空间\" src=\"https://ar5iv.labs.arxiv.org/html/2505.11432/assets/x4.png\" />\n<em>图：arXiv HTML 版本 Figure 4，展示 MegaScale-MoE 在 MoE 层内选择 SP attention 与 EP FFN，并在层外结合 PP/DP 的设计空间。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># One MegaScale-MoE layer, simplified from the system design\ndef megascale_moe_layer(x, params, dp_group, mp_group):\n    # Attention: sequence parallelism, no tensor-parallel attention on the critical path\n    qkv_tiles = fused_gemm_a2a_or_a2a_gemm(\n        x_sharded_by_sequence=x,\n        weight=params.attn_qkv,\n        group=mp_group,\n    )\n    attn = grouped_query_attention(qkv_tiles)\n    x = fused_gemm_a2a_or_a2a_gemm(attn, params.attn_out, group=mp_group)\n\n    # FFN / MoE: expert parallelism\n    scores = router(x)\n    expert_ids, gate = topk(scores, k=params.top_k)\n    tokens = sort_by_expert_then_source_rank(x, expert_ids)\n\n    # Dispatch/combine are fused with GroupedGEMM tiles\n    hidden = fused_ag_scatter_grouped_gemm(tokens, params.expert_up_gate, mp_group)\n    hidden = swiglu(hidden)\n    out = fused_grouped_gemm_gather_rs(hidden, params.expert_down, mp_group)\n    x = weighted_combine(out, gate)\n\n    # Data-parallel gradient synchronization after accumulation\n    if accumulation_done():\n        grad_fp32 = main_grad_buffer()\n        shard_bf16 = cast_to_bf16(grad_fp32)\n        recv = all_to_all(shard_bf16, group=dp_group)\n        grad_synced = fp32_sum(recv)\n        write_back_in_place(grad_synced)\n    return x\n</code></pre>\n<h5>方法机制解读</h5>\n<p>MegaScale-MoE 的动机来自生产训练中的通信占比。论文报告内部 Hopper 训练中，forward pass 通信可占 43.6%，全训练过程通信约占 32%。MoE 比 dense Transformer 更容易暴露通信瓶颈：模型参数更大，需要更多 model parallelism；同时稀疏专家路由还会在前向与反向各引入 token dispatch/combine 的 all-to-all。GPU 计算能力和低精度训练越强，计算时间越短，通信反而越成为主瓶颈。</p>\n<p>第一层优化是重新匹配 MoE 子模块与并行策略。对注意力模块，传统 TP 的关键路径通信量为：</p>\n<div class=\"kb-math kb-math-display\">V_{\\mathrm{TP}}^{\\mathrm{attn}} = 2bsh\\frac{n-1}{n}</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">b</span> 是 micro-batch size，<span class=\"kb-math kb-math-inline\">s</span> 是序列长度，<span class=\"kb-math kb-math-inline\">h</span> 是 hidden size，<span class=\"kb-math kb-math-inline\">n</span> 是层内模型并行度。MegaScale-MoE 改用 DeepSpeed-Ulysses 风格的 SP，将序列维切分；在 grouped-query attention 中，通信量变为：</p>\n<div class=\"kb-math kb-math-display\">V_{\\mathrm{SP}}^{\\mathrm{attn}}\n=\n2bsh\\frac{n-1}{n}\\cdot\\frac{2+2/m}{n}</div>\n<p><span class=\"kb-math kb-math-inline\">m</span> 是 query heads 与 key-value heads 的比例。当 <span class=\"kb-math kb-math-inline\">n=8, m=4</span> 时，SP attention 的关键路径通信约为 TP attention 的 <span class=\"kb-math kb-math-inline\">0.3125</span>，论文按实际 Hopper/NVLink 配置给出约四分之一的通信延迟。SP 会复制注意力参数，但 MoE 中专家参数占主导，注意力参数同步和额外显存相对可控。</p>\n<p>对 FFN/专家模块，MegaScale-MoE 使用 EP 而不是 TP。TP 会切分专家 hidden dimension，导致专家 GEMM 形状变小、算子效率下降；EP 则让每张 GPU 持有完整专家，token 按路由结果在 GPU 间搬运。理论通信量对比如下：</p>\n<div class=\"kb-math kb-math-display\">V_{\\mathrm{EP}}^{\\mathrm{ffn}} = \\frac{2k}{n}bsh\\frac{n-1}{n},\n\\quad\nV_{\\mathrm{TP}}^{\\mathrm{ffn}} = 2bsh\\frac{n-1}{n}</div>\n<p>当 <span class=\"kb-math kb-math-inline\">k \\ll n</span> 时，EP 通信量更低；当 top-<span class=\"kb-math kb-math-inline\">k</span> 较大时，论文进一步将传统 all-to-all dispatch 切换为 all-gather + local scatter + reduce-scatter，使 EP 通信开销不高于 TP。系统层面还实现 CUDA scatter/gather，预计算 token 行映射，避免用通用 <code>torch.scatter_add</code>/<code>torch.gather</code> 拖慢路由路径。</p>\n<p>第二层优化是通信计算重叠。Inter-operator overlap 通过统一的 MoE layer macro 调度，把无依赖通信放到不同 CUDA stream 中与计算或 activation recomputation 重叠。更关键的是 intra-operator overlap：对于有直接依赖的通信和计算，系统把通信拆成 tile，在 device memory 中放 barrier，实现 A2A+GEMM、GEMM+A2A、AG+scatter+GroupedGEMM、GroupedGEMM+gather+RS 等融合 kernel。</p>\n<p><img alt=\"MegaScale-MoE tile 级通信计算重叠\" src=\"https://ar5iv.labs.arxiv.org/html/2505.11432/assets/x10.png\" />\n<em>图：arXiv HTML 版本 Figure 10，展示 A2A/AG/RS 与 GEMM/GroupedGEMM 在 tile 级别重叠的执行模式。</em></p>\n<p>在 A2A+GEMM 中，本地 tile 的 GEMM 与远端 tile 的通信同时启动，GPU copy engine 负责搬运数据，SM 继续做计算；远端 tile 到达后写 device barrier，GEMM kernel 再消费该 tile。对 MoE GroupedGEMM 更难，因为 token 需要按 expert 与 source rank shuffle。MegaScale-MoE 先按 routed expert 排序，再在每个 expert 内按 source rank 排序，让一个计算 tile 依赖尽可能少的 rank，从而减少等待并避免重复加载专家权重。</p>\n<p>第三层优化是通信压缩，但它不直接把训练精度降到底，而是调整通信模式来控制数值风险。BF16 mixed-precision 下，本地梯度累积仍保留 FP32；累积完成后只在通信前 cast 到 BF16，用 all-to-all 收集梯度分片，然后在接收端做 FP32 summation：</p>\n<div class=\"kb-math kb-math-display\">g_{\\mathrm{local}}^{\\mathrm{FP32}}=\\sum_{\\mu=1}^{M}\\nabla_\\theta L_\\mu,\\quad\ng_{\\mathrm{wire}}^{\\mathrm{BF16}}=\\mathrm{cast}_{\\mathrm{BF16}}(g_{\\mathrm{local}}^{\\mathrm{FP32}})</div>\n<div class=\"kb-math kb-math-display\">g_r^{\\mathrm{FP32}}=\n\\sum_{q\\in\\mathrm{DP}}\n\\mathrm{cast}_{\\mathrm{FP32}}\\left(\\mathrm{A2A}(g_{\\mathrm{wire}}^{\\mathrm{BF16}})_{q,r}\\right)</div>\n<p>这样相比 FP32 reduce-scatter 减少 50% 梯度通信，同时避免 ring reduce 中 BF16 反复累加。FP8 训练则采用 E4M3 格式，并对前向通信使用 per-token activation quantization，对反向通信使用 per-channel quantization，再沿 token 维做 group quantization，减少 overflow/underflow 引起的 loss mismatch。</p>\n<div class=\"key-point\">💡 关键：MegaScale-MoE 不是单点 MoE kernel 优化，而是把“并行策略选择、重叠调度、通信精度”放在同一个通信预算里联合设计。</div>\n<h5>结果与工程意义</h5>\n<p>论文在 352B MoE 模型上做强扩展对比：1,440 GPU 时 Megatron-LM 迭代 7.90s、746.6k tokens/s，MegaScale-MoE 迭代 4.19s、1,407.7k tokens/s，对应 1.88x 加速。消融显示 SP+EP 带来 13% normalized throughput 提升，inter-operator overlap 再加 9%，intra-operator overlap 再加 6%。这些收益的共同点是减少暴露通信时间，而不是只提高某一个 GEMM 的峰值 FLOPS。</p>",
+      "quiz": {
+        "q": "MegaScale-MoE 为什么在注意力模块选择 SP 而不是传统 TP？",
+        "options": [
+          "SP 沿序列维切分，在 GQA 下显著降低关键路径通信，且 MoE 中注意力参数冗余相对可控",
+          "SP 会把所有专家参数复制到每张 GPU，从而完全消除 token dispatch",
+          "TP 无法运行 FlashAttention，因此必须被完全禁用",
+          "SP 只用于推理，不参与训练中的梯度同步"
+        ],
+        "answer": 0,
+        "explain": "论文的通信量公式显示 SP attention 在 grouped-query attention 下可显著降低通信；注意力参数在 MoE 总参数中占比较小，因此复制成本可接受。"
+      }
     },
     {
       "id": "sub_moe",
@@ -1449,13 +1670,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "hybrid",
       "motivation": "子空间专家合并压缩缓解显存压力",
-      "summary": "Sub-MoE 的核心目标是：子空间专家合并压缩缓解显存压力。",
+      "summary": "Sub-MoE 提出一种训练后、无需微调的 MoE 专家合并框架：先按专家输出相似度自适应聚类，再用联合 SVD 把同组专家对齐到共享子空间，只合并专家特有的 \\(V\\) 分量，从而缓解直接权重平均造成的参数冲突。",
       "keyPoints": [
-        "核心动机：子空间专家合并压缩缓解显存压力",
-        "演化来源：继承或改进自 switch_transformer",
-        "代表机构：AAAI 2026"
+        "面向 MoE LLM 的显存、存储和部署压力，压缩对象是专家数量与专家内部维度，而不是 dense backbone。",
+        "Adaptive Expert Clustering 使用校准数据上的专家输出余弦相似度进行 K-means 聚类，保证只合并功能相近的专家。",
+        "Subspace Expert Merging 对同组专家权重做 Experts Union SVD，提取共享 <span class=\"kb-math kb-math-inline\">U\\Sigma</span> 基底，并对专家特有 <span class=\"kb-math kb-math-inline\">V</span> 矩阵做频率加权合并。",
+        "频率权重来自路由器 Top-<span class=\"kb-math kb-math-inline\">k</span> 激活次数，高频专家在合并后贡献更大，同时保留低频专家的部分能力。",
+        "Sub-MoE† 进一步引入 activation-aware truncated SVD，在合并专家内部截断低重要性奇异值以提高压缩率。",
+        "论文在 Mixtral、DeepSeek、Qwen1.5/3 MoE 上评估，摘要报告 Mixtral-8x7B 在 25%/50% expert reduction 下保留约 96%/86% 原始性能。"
       ],
-      "detail": "<h3>方法总览</h3>\n<blockquote>\n<p><strong>图示说明</strong>（对应论文Figure 2）：整体流程分三步——(1) 用校准数据收集专家输出，计算余弦相似度矩阵并K-means聚类；(2) 对同组专家权重做Union SVD，提取共享U矩阵；(3) 以路由频率加权合并V矩阵，重构合并专家权重。Sub-MoE†在此基础上对合并专家做激活感知截断SVD进一步压缩。</p>\n</blockquote>\n<h3>1. 专家相似度计算与聚类</h3>\n<p>对于MoE层 $l$ 中的专家 $E_i^l$ 和 $E_j^l$，使用校准数据集 $\\mathcal{D}$ 计算输出级余弦相似度：</p>\n<div class=\"kb-math kb-math-display\">S_{ij}^l = \\frac{1}{|\\mathcal{D}|} \\sum_{x \\in \\mathcal{D}} \\frac{E_i^l(x) \\cdot E_j^l(x)}{\\|E_i^l(x)\\| \\cdot \\|E_j^l(x)\\|}</div>\n<p>得到相似度矩阵 $\\mathbf{S}^l \\in \\mathbb{R}^{N \\times N}$ 后，将 $1 - \\mathbf{S}^l$ 作为距离矩阵，用<strong>K-means</strong>将 $N$ 个专家聚为 $M$ 个组。</p>\n<p><strong>聚类粒度选择</strong>：论文对比了逐层独立聚类（layer-wise）和多层联合聚类（2-layer, 4-layer等），发现<strong>2层联合聚类</strong>效果最佳——既能捕获跨层专家关联，又不会因粒度过粗丢失层间差异。</p>\n<h3>2. Union SVD 专家合并（核心算法）</h3>\n<p>假设一个聚类组包含专家 ${E_1, E_2, ..., E_K}$，每个专家的权重矩阵为 $W_k \\in \\mathbb{R}^{m \\times n}$。</p>\n<p><strong>Step 1: 联合SVD分解</strong></p>\n<p>将组内所有专家权重纵向拼接后做SVD：</p>\n<div class=\"kb-math kb-math-display\">[W_1; W_2; ...; W_K] = U \\Sigma V^T</div>\n<p>其中 $U \\in \\mathbb{R}^{Km \\times r}$ 是<strong>共享左奇异向量基底</strong>，$\\Sigma \\in \\mathbb{R}^{r \\times r}$ 是奇异值矩阵，$V \\in \\mathbb{R}^{n \\times r}$ 是右奇异向量。</p>\n<p><strong>Step 2: 提取各专家投影</strong></p>\n<p>将 $U$ 按行分块为 $[U_1; U_2; ...; U_K]$（每块 $m$ 行），则每个专家的权重可近似为：</p>\n<div class=\"kb-math kb-math-display\">W_k \\approx U_k \\Sigma V^T</div>\n<p>定义每个专家的<strong>特有右分量</strong>为 $\\hat{V}_k = \\Sigma^T U_k^T W_k$（在共享基底下的投影）。</p>\n<p><strong>Step 3: 频率加权合并</strong></p>\n<p>以路由器分配给各专家的<strong>激活频率</strong> $f_k$ 为权重，合并右分量：</p>\n<div class=\"kb-math kb-math-display\">\\hat{V}_{merged} = \\sum_{k=1}^{K} \\frac{f_k}{\\sum_{j} f_j} \\hat{V}_k</div>\n<p><strong>Step 4: 重构合并专家</strong></p>\n<div class=\"kb-math kb-math-display\">W_{merged} = U_{shared} \\cdot \\hat{V}_{merged}</div>\n<p>其中 $U_{shared}$ 取自联合SVD的前 $m$ 行（或任意一个 $U_k$，因为共享基底对所有专家一致）。</p>\n<h3>3. 伪代码</h3>\n<p>```\nAlgorithm: Sub-MoE Expert Compression\nInput: MoE model M with N experts per layer, target M experts, calibration data D\nOutput: Compressed model M' with M experts per layer</p>"
+      "detail": "<h5>核心示意图</h5>\n<p><img alt=\"Sub-MoE 框架公开快照\" src=\"https://moonlight-paper-snapshot.s3.ap-northeast-2.amazonaws.com/arxiv/sub-moe-efficient-mixture-of-expert-llms-compression-via-subspace-expert-merging-1.png\" />\n<em>图：Moonlight 对 Sub-MoE 论文图的公开 PNG 快照，对应论文中的专家聚类与 Subspace Expert Merging 流程；官方论文来源为 AAAI 页面 PDF。</em></p>\n<h5>算法伪代码</h5>\n<pre><code class=\"language-python\"># Sub-MoE expert compression for one or multiple MoE layers\ndef sub_moe_compress(model, calibration_tokens, target_expert_counts):\n    for layer_group in select_layer_groups(model.moe_layers):\n        # 1) Adaptive Expert Clustering\n        outputs = {}\n        for expert in layer_group.experts:\n            outputs[expert] = [expert(x) for x in calibration_tokens]\n\n        sim = cosine_similarity_matrix(outputs)\n        clusters = kmeans(features=outputs, k=target_expert_counts[layer_group])\n\n        # 2) Subspace Expert Merging\n        for cluster in clusters:\n            for weight_name in [&quot;W_gate&quot;, &quot;W_up&quot;, &quot;W_down&quot;]:\n                weights = [expert[weight_name] for expert in cluster]\n                W_stack = concat_along_input_or_output(weights)\n                U, Sigma, V_blocks = union_svd(W_stack)\n\n                freq = [\n                    routing_frequency(expert, calibration_tokens)\n                    for expert in cluster\n                ]\n                V_blocks = [ties_sparsify(V) for V in V_blocks]\n                V_merged = weighted_average(V_blocks, weights=freq)\n                W_merged = U @ Sigma @ V_merged.T\n                write_weight(cluster.merged_expert, weight_name, W_merged)\n\n            redirect_router(cluster.original_experts, cluster.merged_expert)\n\n    # Optional Sub-MoE dagger: activation-aware truncated SVD\n    for expert in model.merged_experts:\n        expert = activation_aware_truncated_svd(expert, calibration_tokens)\n    return model\n</code></pre>\n<h5>方法机制解读</h5>\n<p>Sub-MoE 要解决的是专家合并中的 parameter conflict。MoE 层对 token <span class=\"kb-math kb-math-inline\">x</span> 的输出可以写成：</p>\n<div class=\"kb-math kb-math-display\">y=\\sum_{i=1}^{n}G_i(x)\\cdot E_i(x),\n\\quad\nE_i(x)=\\left(\\sigma(xW_{\\mathrm{gate}}^i)\\odot xW_{\\mathrm{up}}^i\\right)W_{\\mathrm{down}}^i</div>\n<p>路由器会把不同输入分配给不同专家，长期训练后专家形成不同参数空间。直接做 <span class=\"kb-math kb-math-inline\">W_{\\mathrm{merged}}=\\sum_i\\alpha_iW^{(i)}</span> 往往把彼此冲突的方向平均掉，尤其在 Mixtral 这类专家相似度较低的模型上会显著损伤性能。因此 Sub-MoE 不在原始参数空间直接合并，而是先找到可共享的子空间。</p>\n<p>第一阶段用功能相似度决定谁能合并。给定校准 token 集合 <span class=\"kb-math kb-math-inline\">X=\\{x_1,\\dots,x_m\\}</span>，两个专家的相似度定义为输出余弦相似度平均：</p>\n<div class=\"kb-math kb-math-display\">\\mathrm{Sim}(E_i,E_j)=\n\\frac{1}{m}\\sum_{\\ell=1}^{m}\n\\frac{E_i(x_\\ell)\\cdot E_j(x_\\ell)}\n{\\|E_i(x_\\ell)\\|\\|E_j(x_\\ell)\\|}</div>\n<p>K-means 的目标是把专家输出表示分到 <span class=\"kb-math kb-math-inline\">k</span> 个簇 <span class=\"kb-math kb-math-inline\">Q_i</span>，最小化簇内距离：</p>\n<div class=\"kb-math kb-math-display\">J=\\sum_{i=1}^{k}\\sum_{E_j\\in Q_i}\\|Y_j-C_i\\|^2</div>\n<p>这里 <span class=\"kb-math kb-math-inline\">Y_j</span> 是专家 <span class=\"kb-math kb-math-inline\">E_j</span> 在校准集上的输出集合，<span class=\"kb-math kb-math-inline\">C_i</span> 是簇中心。使用输出而不是权重相似度很关键，因为两个专家即使权重坐标不同，也可能对真实数据产生相似函数行为；反过来，权重接近也不保证经过 SwiGLU 等非线性后输出相似。</p>\n<p>第二阶段是 Subspace Expert Merging。对一个簇 <span class=\"kb-math kb-math-inline\">Q</span> 内的专家，分别对 <span class=\"kb-math kb-math-inline\">W_{\\mathrm{gate}}, W_{\\mathrm{up}}, W_{\\mathrm{down}}</span> 做联合分解。论文把同组专家权重拼接后做 SVD：</p>\n<div class=\"kb-math kb-math-display\">\\mathrm{SVD}\\left([W^{(1)};\\ldots;W^{(n)}]\\right)\n=\nU\\Sigma [V^{(1)};\\ldots;V^{(n)}]^T</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">U\\Sigma</span> 被看作同组专家共享的正交基底，<span class=\"kb-math kb-math-inline\">V^{(i)}</span> 则保留第 <span class=\"kb-math kb-math-inline\">i</span> 个专家在该共享基底下的特有投影。这样，容易冲突的原始参数先被对齐到同一个低维子空间，再只对 <span class=\"kb-math kb-math-inline\">V</span> 侧做合并，避免把未对齐的权重方向直接平均。</p>\n<p>合并 <span class=\"kb-math kb-math-inline\">V</span> 时，Sub-MoE 使用路由频率作为权重。对专家 <span class=\"kb-math kb-math-inline\">i</span>，采样频率为：</p>\n<div class=\"kb-math kb-math-display\">f(V_i)=\n\\frac{\\sum_{x\\in X}\\mathbf{1}[i\\in\\mathrm{TopK}(G(x),k)]}{|X|}</div>\n<p>合并后的 <span class=\"kb-math kb-math-inline\">V</span> 为：</p>\n<div class=\"kb-math kb-math-display\">V_{\\mathrm{merged}}=\n\\frac{\\sum_{i\\in Q}f(V_i)\\cdot V_i}{\\sum_{i\\in Q}f(V_i)}</div>\n<p>最终重构：</p>\n<div class=\"kb-math kb-math-display\">W_{\\mathrm{merged}}=U\\Sigma V_{\\mathrm{merged}}^T</div>\n<p>这个设计的直觉是：共享 <span class=\"kb-math kb-math-inline\">U\\Sigma</span> 负责对齐同组专家的共同表达空间，频率加权的 <span class=\"kb-math kb-math-inline\">V_{\\mathrm{merged}}</span> 负责按真实路由分布保留更常用专家的特征。论文还在合并前对 <span class=\"kb-math kb-math-inline\">V_i</span> 使用 TIES-style sparsification，以减少方向符号冲突。</p>\n<p>Sub-MoE† 进一步压缩专家内部维度。它用输入激活统计构造 whitening/activation-aware 矩阵 <span class=\"kb-math kb-math-inline\">S_i</span>，先分解激活加权权重：</p>\n<div class=\"kb-math kb-math-display\">W_i&#x27; = W_iS_i,\\quad\n\\mathrm{SVD}([W&#x27;^{(1)};\\ldots;W&#x27;^{(n)}])\n=\nU&#x27;\\Sigma&#x27;[V&#x27;^{(1)};\\ldots;V&#x27;^{(n)}]^T</div>\n<p>合并时把 <span class=\"kb-math kb-math-inline\">S_i^{-1}</span> 映射回原空间：</p>\n<div class=\"kb-math kb-math-display\">V_{\\mathrm{merged}}=\n\\frac{\\sum_{i\\in Q}f(V_i)\\cdot V&#x27;^{(i)}S_i^{-1}}{\\sum_{i\\in Q}f(V_i)}</div>\n<p>再通过截断 <span class=\"kb-math kb-math-inline\">\\Sigma&#x27;</span> 中较小或低重要性的奇异值控制压缩率：</p>\n<div class=\"kb-math kb-math-display\">W_{\\mathrm{merged}}^{\\mathrm{trunc}}\n=\nU&#x27;\\cdot\\mathrm{Trunc}(\\Sigma&#x27;)\\cdot V_{\\mathrm{merged}}^T</div>\n<p>这一步把专家数量压缩与专家内部低秩压缩串联起来，适合显存预算更紧的部署场景。它的风险也更高，因为截断奇异值会直接丢弃部分表达能力，因此论文把它作为 Sub-MoE 的扩展版本，而非基础专家合并的必要步骤。</p>\n<div class=\"key-point\">💡 关键：Sub-MoE 的核心不是“平均相似专家”，而是“先把专家权重投到共享子空间，再在专家特有分量上按路由频率融合”。</div>\n<h5>与剪枝和普通合并的区别</h5>\n<p>专家剪枝直接删除低频或低贡献专家，优点是简单，缺点是丢掉专家知识；普通专家合并在原始权重空间做加权平均，容易产生参数冲突。Sub-MoE 处在两者之间：它保留每个被合并专家在 <span class=\"kb-math kb-math-inline\">V</span> 分量中的投影，再通过共享 <span class=\"kb-math kb-math-inline\">U\\Sigma</span> 对齐后重构一个代表专家，因此比剪枝保留更多信息，也比原始权重平均更稳定。</p>",
+      "quiz": {
+        "q": "Sub-MoE 为什么要在联合 SVD 后主要合并 V 矩阵？",
+        "options": [
+          "UΣ 表示同组专家共享子空间，V 保留专家特有投影；只合并 V 能减少未对齐权重的参数冲突",
+          "V 矩阵不参与前向传播，因此可以随意平均而不影响模型",
+          "U 矩阵只能用于图像模型，不能用于语言模型专家",
+          "联合 SVD 的目的只是把权重量化成 INT8"
+        ],
+        "answer": 0,
+        "explain": "Sub-MoE 先用联合 SVD 对齐共享基底，再按路由频率融合专家特有 V 分量，避免直接平均原始权重。"
+      }
     },
     {
       "id": "layer_dist_opt",

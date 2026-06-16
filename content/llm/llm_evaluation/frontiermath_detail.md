@@ -1,4 +1,4 @@
-### FrontierMath
+### FrontierMath：前沿数学基准 (2024)
 
 ```yaml
 id: frontiermath
@@ -14,78 +14,82 @@ motivation: 原创未发表数学问题研究级难度
 
 #### 📝 一句话总结
 
-FrontierMath 由 Epoch AI 组织专家创作并审查未发表高难数学题，使用从本科高难到研究级的分层问题检验 AI 是否具备推进前沿数学的能力。
+FrontierMath 提出了一套由专家数学家原创、同行评审、自动验证的高难数学评测，用未发表研究级问题解决传统数学基准饱和和训练数据污染的问题。它把“会不会做数学研究式推理”转化为可复现的程序化判分：模型必须给出精确答案对象，验证器只按数学正确性给分。
 
 #### 🎯 核心要点
 
-- 官方页面将 FrontierMath 分为 Tiers 1-4 和 Open Problems 两个组成部分
-- Tiers 1-4 包含数百道未发表、高难、专家创作并同行审查的问题
-- 难度从本科高难题、研究生探索题到 Tier 4 研究级数学问题
-- Open Problems 收录尚未被数学家解决的研究问题，用于测试 AI 对真正开放问题的潜在贡献
-- 数据不完全公开，主要是为了减少训练数据污染和答案泄漏
-- 评测强调最终答案可核验、问题原创性和专家审查，而不是依赖已有竞赛题库
+- 数据来源：由 Epoch AI 协调 60 多位数学家创作原创题目，覆盖数论、代数几何、组合、拓扑、表示论、概率、理论计算机等现代数学分支。
+- 难度定位：Tiers 1-3 覆盖本科到高阶研究生/早期研究者难度，Tier 4 面向研究级数学；论文强调许多题目需要领域专家花数小时到数天求解。
+- 抗污染设计：题目是新创且未公开发表，公开样题只作为展示，不直接构成私有评测集，降低模型从训练语料中记忆答案的风险。
+- 自动验证机制：答案通常是整数、符号表达式、矩阵、集合或其他可由 Python/SymPy 表示的对象，模型提交 `final_answer.p` 后由问题级验证脚本精确判分。
+- 题目约束：每题需满足原创性、自动可验证性、难以猜中、计算可行性；计算密集型题目需要作者提供可在常规硬件上快速运行的求解/验证脚本。
+- 质量控制：每题至少经过相关领域数学家的盲审，审查问题陈述、答案、证明、验证代码、猜测难度和难度评级。
+- 评测流程：模型可以进行长链推理和代码实验，但最终只按验证器检查的答案对象计分；近似答案、错误类型或不符合序列化格式均不得分。
+- 当前项目形态：任务给出的 Epoch 项目页把 FrontierMath 分为 Tiers 1-4 和 Open Problems；核心论文 `arXiv:2411.04872` 描述的是可自动验证的 Tiers 评测管线。
 
 #### 🔬 深入细节
 
-![FrontierMath 官方页面图](https://epoch.ai/legacy_assets/images/frontiermath-banner.png)
-*图：Epoch AI 官方 FrontierMath 页面中的 Tiers 1-4 横幅图，展示前沿数学评测定位。*
+![FrontierMath 自动验证脚本示意](https://arxiv.org/html/2411.04872v6/x2.png)
+*图：论文中的自动验证示例。左侧是模型需要生成并序列化的答案对象，右侧是题目作者提供的验证脚本；这正是 FrontierMath 与人工批改式数学评测的核心区别。*
+
+FrontierMath 的方法动机不是再收集一批更难的竞赛题，而是把评测对象从“高中/竞赛数学熟练度”推进到“研究数学中的长程推理、创造性构造和精确计算”。GSM8K、MATH、AIME 等基准在强模型上逐渐接近饱和，而且公开题目容易进入训练数据；FrontierMath 因此要求题目为全新、未发表、由专家设计，并且答案不能通过枚举或猜测轻易得到。论文把一个题目的有效性拆成四个约束：原创、可自动验证、猜测概率足够低、计算上可在评测环境中完成。
+
+![FrontierMath 与其他数学基准的未解率对比](https://arxiv.org/html/2411.04872v6/x1.png)
+*图：论文将 FrontierMath 与常见数学基准的未解率作对比，强调其为前沿模型保留了更长的评测寿命。*
+
+核心机制可以抽象为带验证器的任务集合。对第 \(i\) 道题，题目对象包含问题陈述 \(p_i\)、答案类型签名 \(\tau_i\)、参考答案或判定条件 \(a_i^\star\)、验证程序 \(V_i\)。模型 \(M\) 运行后必须产出一个可反序列化的答案对象 \(\hat a_i\)，判分函数是二值的：
+
+$$
+\mathrm{score}(M, i)=\mathbf{1}\left[V_i(\hat a_i)=\mathrm{true}\right].
+$$
+
+如果答案是唯一整数，验证器做精确相等比较；如果答案是唯一符号实数，验证器可使用 SymPy 化简 \(\hat a_i-a_i^\star\) 是否为 0；如果答案不是唯一解，例如丢番图方程的一组合法整数解或图论构造，则必须使用自定义验证脚本检查约束是否满足。这个设计牺牲了对“证明文字优美程度”的评价，但换来稳定、可重复、低成本的数学正确性判断。
 
 ```python
-# FrontierMath 题目创建与评测伪代码
-for proposal in mathematician_authored_problems:
-    if is_published_or_searchable(proposal):
-        continue
-    review = peer_review(proposal)
-    if not review.has_unique_verifiable_answer:
-        continue
-    tier = assign_difficulty_tier(proposal, review)
-    hidden_benchmark.add(problem=proposal, answer=review.verified_answer, tier=tier)
+# FrontierMath 评测流程伪代码
+for problem in frontiermath:
+    prompt = build_prompt(
+        statement=problem.statement,
+        answer_type=problem.answer_type,
+        final_file="final_answer.p",
+        instruction="pickle.dump the exact final answer"
+    )
+    workspace = run_model_with_tools(model, prompt, time_budget=problem.budget)
+    answer = load_pickle(workspace / "final_answer.p")
 
-for model in evaluated_ai_systems:
-    for problem in hidden_benchmark:
-        solution = model.solve(problem.statement, tools=allowed_tools, time_limit=budget)
-        final_answer = extract_final_answer(solution)
-        correct = exact_or_symbolic_check(final_answer, problem.answer)
-        record(model, problem.tier, correct, solution)
+    if problem.verifier(answer):
+        mark(problem, solved=True)
+    else:
+        mark(problem, solved=False)
+
+accuracy = solved_count / len(frontiermath)
 ```
 
-##### 动机与背景
+训练或推理流程上，FrontierMath 更像“实验型评测环境”而不是单轮问答。模型可以先读题、提出猜想、写 Python 程序搜索结构、用数值实验检验中间命题，最后再把精确答案写入指定文件。论文在附录的提示模板中特别强调类型签名：若答案应为 SymPy rational，就不能返回浮点近似；若最终文件缺失、代码不能执行、对象类型错误，即使自然语言推理看起来接近也不得分。这一点会强迫模型把数学直觉落实成可计算的精确对象。
 
-数学基准很容易被饱和或污染。竞赛题、教材题和公开题库长期暴露在互联网上，模型可能在预训练中见过题干、解法或近似变体。对前沿模型而言，真正有价值的问题是：面对原创、未发表、难以检索的数学问题，系统能否产生可靠解法。
+FrontierMath 的数据构建流程同样是算法的一部分。作者先让数学家按领域创作题目和解答，再提交验证脚本、MSC 分类、所需技术、背景难度、创造性耗时和执行耗时等元数据；随后由相关领域审稿人盲审。审稿人不仅看答案是否正确，还要检查题目是否有歧义、是否能通过暴力搜索绕过、验证脚本是否与题意等价、难度评级是否合理。这样的管线让评测集既保持研究级难度，又不完全依赖人工判卷。
 
-FrontierMath 正是围绕这个目标构建。它不把规模作为唯一目标，而强调原创性、专家审查和高难度分层。这样的评测更适合观察模型是否从“解已知题”走向“处理未知研究问题”。
+与传统数学评测相比，FrontierMath 最大的创新是把“研究级问题”压缩成“答案可判定”的格式。它不要求模型输出 Lean/Coq 形式化证明，因为当前形式化库覆盖不足且会把评测变成形式化语言能力测试；它也不接受自由文本证明，因为大规模自动判分不稳定。折中方案是让题目要求一个精确数学对象，再用验证器判定。这个机制的直觉是：如果模型真的完成了关键推理，它应该能够给出满足条件的对象；如果只是编造推理链，通常无法通过精确验证。
 
-##### 核心机制
+论文还使用 pass@k 衡量多次尝试下的求解率。若每道题允许模型提交 \(k\) 个独立尝试，整体指标可写为：
 
-题目由数学专家创作，经同行审查确认题意、答案和难度。只有满足答案可验证、题目未公开、难度足够高的问题才进入隐藏评测。隐藏题库减少了训练污染，但也意味着外部研究者无法像普通开源数据集那样完全复现实例级结果。
+$$
+\mathrm{pass@}k=\frac{1}{N}\sum_{i=1}^{N}\mathbf{1}\left[\max_{1\le j\le k}V_i(\hat a_{ij})=1\right].
+$$
 
-分层设计非常重要。Tier 1-3 覆盖本科到高级研究生/探索题，Tier 4 接近研究级；Open Problems 则指向尚未解决的问题。分层结果比单一总分更有解释力，因为模型可能能解决较低层级题，却完全无法处理研究级问题。
+这个指标适合评估前沿模型的搜索能力：模型也许单次推理失败，但多次采样加工具实验可能找到正确构造。FrontierMath 因而不仅评测知识记忆，还评测长程规划、符号计算、程序实验、错误修正和最终答案格式控制。
 
-##### 评测形式
-
-FrontierMath 依赖可核验答案。许多数学题可以通过最终数值、表达式、证明关键结论或符号形式验证。评测时需要从模型长解中抽取最终答案，并通过精确匹配、符号化简或专家核查确认。
-
-从形式上看，它测量的是：
-
-$$SolveRate_t=\frac{1}{|D_t|}\sum_{p\in D_t}\mathbb{1}[\text{verify}(f_\theta(p), a_p)=1]$$
-
-其中 \(t\) 是难度层级，\(a_p\) 是专家确认答案。
-
-##### 与传统数学基准的区别
-
-GSM8K、MATH、OlympiadBench 等基准对算术、竞赛或奥数推理很有价值，但题目公开且更接近训练分布。FrontierMath 的优势在于原创未发表和专家级难度，缺点是开放复现性较弱、评测成本高。它更像前沿能力审计，而不是日常模型开发的快速单元测试。
-
-> 💡 关键：FrontierMath 的核心不是“更长的数学题”，而是“未见过、专家审查、可验证且足够接近研究前沿”的题。
+> 💡 关键：FrontierMath 的“难”不只是题目难，而是评测闭环难。模型必须跨越理解题意、找关键数学结构、计算精确答案、按类型提交、通过验证器这整条链路；任意一环失败都会被记为未解。
 
 #### 🧪 练习题
 
 ```yaml
-question: "FrontierMath 为什么强调原创未发表问题？"
+question: "FrontierMath 为什么偏好自动可验证的精确答案，而不是要求模型提交完整自然语言证明？"
 options:
-  - "为了让题目更容易被搜索到"
-  - "为了降低训练数据污染和记忆解法带来的虚高分数"
-  - "为了取消专家审查"
-  - "为了只评测小学算术"
+  - "因为自然语言证明完全无法表达高级数学"
+  - "因为精确答案配合验证脚本可以实现可复现、低成本、低主观性的判分"
+  - "因为所有 FrontierMath 题目都只需要暴力枚举即可求解"
+  - "因为 SymPy 能自动证明所有研究级数学命题"
 answer: 1
-explain: "原创未发表问题能减少模型在预训练中见过题目或解法的概率，更接近真实未知数学问题求解。"
+explain: "FrontierMath 的核心是把研究级数学问题转化为可程序化判分的对象，避免人工批改和主观评分，同时保留高难推理要求。"
 ```

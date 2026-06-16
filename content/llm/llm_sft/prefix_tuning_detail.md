@@ -1,79 +1,101 @@
-### Prefix-Tuning
+### Prefix-Tuning：前缀调优 (Prefix-Tuning)
 
 ```yaml
-id: "prefix_tuning"
-name: "Prefix-Tuning"
-full_name: "前缀调优 (Prefix-Tuning)"
+id: prefix_tuning
+name: Prefix-Tuning
+full_name: 前缀调优 (Prefix-Tuning)
 year: "2021.05"
-org: "Stanford University"
-paper_url: "https://arxiv.org/abs/2101.00190"
-category: "peft"
-parent: "adapter"
-motivation: "优化连续前缀向量引导生成"
+org: Stanford University
+paper_url: https://arxiv.org/abs/2101.00190
+category: peft
+parent: adapter
+motivation: 优化连续前缀向量引导生成
 ```
 
 #### 📝 一句话总结
-
-Prefix-Tuning 冻结预训练生成模型，只优化一组连续前缀向量，让后续 token 在每层注意力中都能关注这些虚拟 token，从而用极少参数控制生成任务。
+Prefix-Tuning 冻结预训练语言模型，只学习一段连续的任务前缀向量，让后续 token 像关注“虚拟 token”一样关注该前缀，从而以极少参数完成生成任务适配。
 
 #### 🎯 核心要点
-
-- 将任务参数表示为连续 prefix，而不是离散自然语言 prompt。
-- 冻结 GPT-2 或 BART 主体参数，只训练 prefix 相关参数。
-- Prefix 不只加在输入 embedding，而是作为每层注意力的可学习 key/value 激活。
-- 使用 MLP 重参数化生成 prefix，训练后可只保存最终 prefix。
-- 在 table-to-text 和 summarization 上以约 0.1% 参数达到接近全量微调的效果，低数据场景尤其强。
+- 将任务特定信息表示为连续 prefix，而不是离散人工 prompt 或完整模型权重更新。
+- 冻结 GPT-2/BART 等预训练模型参数 \(\phi\)，只优化前缀矩阵 \(P_\theta\)。
+- 对自回归 LM，prefix 被放在输入序列之前；对 encoder-decoder 模型，prefix 可分别作用于 encoder 和 decoder。
+- prefix 不是普通词嵌入，而是每层 Transformer 可访问的激活/键值式连续参数，后续 token 可通过注意力读取它。
+- 训练时使用 MLP 对前缀重参数化以稳定优化，训练结束后丢弃 MLP，只保存最终 prefix。
+- 在表格到文本和摘要任务上，约 0.1% 参数即可接近全量微调；低数据和外推场景中通常优于 fine-tuning。
 
 #### 🔬 深入细节
 
-![Prefix-Tuning 与全量微调对比](http://ar5iv.labs.arxiv.org/html/2101.00190/assets/x1.png)
-*图源：论文 Figure 1，上方为全量微调，下方为只优化连续 prefix 的 Prefix-Tuning。*
+![Prefix-Tuning 与 Fine-Tuning 对比](https://ar5iv.labs.arxiv.org/html/2101.00190/assets/x1.png)
+![Prefix-Tuning 在自回归和编码器-解码器模型中的示意](https://ar5iv.labs.arxiv.org/html/2101.00190/assets/x2.png)
+*图：论文 Figure 1 展示 fine-tuning 需要为每个任务保存整份模型，而 prefix-tuning 只保存任务 prefix；Figure 2 展示 prefix 激活如何接入自回归 LM 和 encoder-decoder 架构。*
 
-![Prefix-Tuning 在 LM 与 encoder-decoder 中的形式](http://ar5iv.labs.arxiv.org/html/2101.00190/assets/x2.png)
-*图源：论文 Figure 2，展示自回归 LM 和 encoder-decoder 模型中的 prefix 位置。*
+Prefix-Tuning 的出发点是：生成式模型已经在预训练中学到丰富语言能力，下游任务并不一定需要修改所有权重；真正需要的是一个能“引导”模型行为的任务条件。离散 prompt 可以做到这一点，但人工设计不稳定、表达能力受词表限制；Prefix-Tuning 把 prompt 放到连续空间中学习，使它既像 prompt 一样作为条件，又能通过梯度吸收完整训练集信号。
+
+设输入为 \(x\)，输出序列为 \(y\)，预训练模型参数为 \(\phi\)。标准 fine-tuning 优化 \(\phi\)，而 Prefix-Tuning 固定 \(\phi\)，只优化 \(\theta\)：
+
+$$
+\theta^* = \arg\max_\theta \sum_{(x,y)} \log p_\phi(y \mid x; P_\theta).
+$$
+
+这里 \(P_\theta\) 是任务前缀，不对应真实词表 token。它的作用不是直接输出答案，而是改变后续 token 的注意力上下文：后续位置在计算 hidden state 时能 attend 到 prefix，就像序列前面真的存在一串“虚拟示例/指令”。
+
+论文给出的形式化递推可以简化为：
+
+$$
+h_i =
+\begin{cases}
+P_\theta[i,:], & i \in \mathsf{P}_{\text{idx}}, \\
+\mathrm{LM}_\phi(z_i, h_{<i}), & \text{otherwise}.
+\end{cases}
+$$
+
+其中 \(\mathsf{P}_{\text{idx}}\) 表示 prefix 的位置集合，\(z\) 是由 prefix、输入和输出拼接而成的序列。对于自回归模型，可理解为 \(z=[\textsc{Prefix};x;y]\)；对于 encoder-decoder 模型，论文使用类似 \(z=[\textsc{Prefix};x;\textsc{Prefix}^{\prime};y]\) 的形式，使 encoder 侧和 decoder 侧都获得任务条件。
+
+直接优化完整 \(P_\theta\) 在实验中对学习率和初始化敏感，因此论文使用重参数化：
+
+$$
+P_\theta[i,:] = \mathrm{MLP}_\theta(P'_\theta[i,:]).
+$$
+
+训练时优化较小的 \(P'_\theta\) 和 MLP 参数，通过 MLP 映射到实际 prefix 激活维度；训练完成后，只保存展开后的 \(P_\theta\)，丢弃 MLP。这个设计的直觉类似用一个平滑的生成器约束 prefix 空间，避免早期随机 prefix 直接扰乱深层注意力状态。
+
+核心训练伪代码如下：
 
 ```python
-# Prefix-Tuning 伪代码
-model = load_pretrained_generation_model()
-freeze(model.parameters())
-prefix_params = init_prefix(length=L, hidden=hidden_size)
-prefix_mlp = MLP(prefix_params)  # 训练期重参数化
+# Prefix-Tuning for conditional generation
+lm = load_pretrained_lm()        # GPT-2 for table-to-text, BART for summarization
+freeze(lm.parameters())
 
-for batch in generation_data:
-    past_key_values = prefix_mlp(prefix_params)
-    # 每层 attention 都将 prefix key/value 拼接到真实 token 的 key/value 前
-    logits = model(batch.input_ids, past_key_values=past_key_values)
-    loss = cross_entropy(logits, batch.target_ids)
-    update(prefix_params, prefix_mlp.parameters(), loss)
+P_prime = init_prefix(length=L, dim=k)
+mlp = PrefixMLP(input_dim=k, output_dim=lm_hidden_or_kv_dim)
 
-save(prefix_params_or_projected_past_key_values)
+for batch in train_data:
+    P = mlp(P_prime)             # produce prefix activations for all layers/positions
+    loss = 0.0
+    for x, y in batch:
+        states = inject_prefix(lm, x, P)
+        loss += negative_log_likelihood(lm, y, states)
+    update([P_prime, mlp.parameters()], loss)
+
+P_final = mlp(P_prime)
+save(P_final)                   # discard reparameterization MLP for inference
 ```
 
-Prefix-Tuning 的动机是离散 prompt 依赖人工设计且不稳定，而全量微调会为每个生成任务复制整套模型参数。作者把 prompt 从“词表中的 token”推广为连续可学习向量，并把它们放到 Transformer 每层的注意力上下文中，使冻结模型在生成时被任务特定的 prefix 条件化。
+与 Adapter 相比，Prefix-Tuning 更少触碰模型内部结构。Adapter 在每层插入新的残差模块，直接改变激活；Prefix-Tuning 保持 Transformer 层不变，只在注意力上下文中提供可学习前缀，让原模型利用已有注意力机制自行传播任务信息。因此它通常比 Adapter 更省参数，也更容易为不同用户或任务并行切换：同一个冻结 LM 加载不同 prefix 即可服务不同任务。
 
-对自回归模型，可把输入输出拼接为 \(z=[x;y]\)。Prefix-Tuning 令模型在每个时间步都能关注一组前缀位置 \(P_\theta\)，训练目标为：
+与全量 fine-tuning 相比，Prefix-Tuning 的归纳偏置更强。它不能任意改写模型权重，只能通过前缀调节生成轨迹，这限制了过拟合，也解释了论文中低数据和未见主题外推表现较好的现象。代价是 prefix 的位置、长度、初始化和重参数化会影响效果；如果任务需要深度改变模型知识或输出空间，单纯 prefix 可能不如全量微调灵活。
 
-$$
-\max_\theta \sum_{t\in Y_{\text{idx}}}\log p_\phi(z_t\mid h_{<t}, P_\theta)
-$$
-
-其中 \(\phi\) 是冻结的预训练模型参数，\(\theta\) 是 prefix 参数。因为 prefix 参与多层 attention，它对后续 token 的影响比仅在输入层添加几个向量更直接。
-
-论文还引入 MLP 重参数化：训练时用较小的 prefix embedding 经过 MLP 生成各层 key/value，缓解直接优化高维 prefix 的不稳定；推理时可以丢弃 MLP，只保留生成后的 prefix 激活。Prefix 长度是重要超参，任务不同所需长度不同，过短容量不足，过长可能过拟合。
-
-与 Adapter 相比，Prefix-Tuning 不在网络中插入新的非线性模块，而是修改注意力可见的上下文；与 Prompt Tuning 相比，它的任务参数存在于多层 key/value 空间中，因此参数略多但控制力更强，尤其适合生成式任务和低数据场景。
-
-> 💡 关键：Prefix-Tuning 把“任务适配”变成多层注意力上下文的可学习前缀，而不是改动模型权重本身。
+> 💡 关键：Prefix-Tuning 学的不是自然语言提示词，而是一组可被 Transformer 注意力读取的连续控制向量；它把“任务适配”转化为“学习如何条件化冻结语言模型”。
 
 #### 🧪 练习题
 
 ```yaml
-question: "Prefix-Tuning 相比普通 soft prompt 的关键区别是什么？"
+question: "Prefix-Tuning 训练完成后通常只需要保存什么？"
 options:
-  - "只训练分类头"
-  - "把连续前缀注入每层注意力的 key/value，而不只是输入 embedding"
-  - "必须全量微调模型"
-  - "只适用于图像模型"
+  - "完整微调后的语言模型参数"
+  - "最终 prefix 参数 P_theta，而不是训练时使用的重参数化 MLP"
+  - "人工编写的离散 prompt 文本"
+  - "每个训练样本对应的一套独立 prefix"
 answer: 1
-explain: "Prefix-Tuning 的 prefix 会影响每层注意力计算，因此对生成过程有更强、更直接的控制。"
+explain: "论文使用 MLP 重参数化来稳定训练，但推理时只保留生成后的 prefix；预训练 LM 参数始终冻结并在任务间共享。"
 ```

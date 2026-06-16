@@ -885,16 +885,80 @@ motivation: 解码器端多文档独立编码与联合注意力融合
 ```
 
 #### 📝 一句话总结
-FiD 的核心目标是：解码器端多文档独立编码与联合注意力融合。
+FiD 提出把多个检索段落在编码器端独立编码、在解码器端统一交叉注意力融合的开放域问答架构，解决了多文档拼接编码开销高和逐文档生成难以聚合证据的问题。
 
 #### 🎯 核心要点
-- 核心动机：解码器端多文档独立编码与联合注意力融合
-- 演化来源：继承或改进自 rag
-- 代表机构：INRIA/Meta
+- 两阶段开放域 QA：先用 BM25 或 DPR 检索支持段落，再用生成式 seq2seq reader 生成答案
+- 输入模板明确：每个段落独立构造成 `question: {q} title: {t} context: {p}`
+- 编码器独立处理段落：共享同一 T5/BART 编码器参数，但每个 passage 只在自身 token 内做 self-attention
+- 解码器统一融合证据：把所有 encoder hidden states 拼接后交给 decoder cross-attention
+- 复杂度优势：encoder 计算随段落数近似线性增长，能扩展到 100 个 retrieved passages
+- 多证据聚合能力：decoder 在每个生成步可同时关注所有段落表示，而不是对单段落答案概率做后验加权
+- 实验结果突出：在 Natural Questions 和 TriviaQA open benchmarks 上取得当时 SOTA，且段落数从 10 增至 100 时仍持续提升
 
 #### 🔬 深入细节
-解码器端多文档独立编码与联合注意力融合
+![FiD 架构图](https://aman.ai/images/papers/FiD.jpg)
+*图：FiD 架构。问题分别与多个 passage 拼接后独立编码，decoder 对拼接后的所有 encoder 表示做交叉注意力并生成答案。*
 
+```python
+# Fusion-in-Decoder 推理/训练流程伪代码
+def fusion_in_decoder(question, passages, encoder, decoder, answer=None):
+    encoded_blocks = []
+
+    for passage in passages:
+        x_i = (
+            "question: " + question
+            + " title: " + passage.title
+            + " context: " + passage.text
+        )
+        tokens_i = tokenize(x_i, max_length=250)
+        h_i = encoder(tokens_i)          # 每个 passage 独立 self-attention
+        encoded_blocks.append(h_i)
+
+    h_all = concatenate(encoded_blocks, dim="sequence")
+
+    if answer is None:
+        return decoder.generate(encoder_hidden_states=h_all)
+
+    y = tokenize(answer)
+    logits = decoder(y[:-1], encoder_hidden_states=h_all)
+    return cross_entropy(logits, y[1:])
+```
+
+FiD 处理的是开放域问答：给定问题 \(q\)，系统先从 Wikipedia 等外部语料检索 \(K\) 个候选段落，再生成答案 \(y\)。闭卷生成模型可以把知识压进参数，但需要极大的模型；抽取式 reader 可以利用检索文本，却通常只能从单个段落抽 span。FiD 的选择是保留检索系统的显式知识，同时用生成式 decoder 在答案生成时聚合多段证据。
+
+方法上，FiD 对每个段落 \(p_i\) 都构造一个独立输入 \(x_i=[q;t_i;p_i]\)，再用共享编码器得到：
+
+$$
+H_i=\mathrm{Encoder}_{\theta}(x_i), \qquad
+H=\mathrm{Concat}(H_1,H_2,\ldots,H_K).
+$$
+
+随后 decoder 以 \(H\) 作为统一的 cross-attention memory，按自回归方式生成答案：
+
+$$
+P(y\mid q,p_{1:K})=\prod_t P(y_t\mid y_{<t},H).
+$$
+
+这种设计的关键取舍是把跨段落交互推迟到 decoder。若把 \(K\) 个 passage 直接拼接进 encoder，self-attention 复杂度约为 \(O((Kn)^2)\)；FiD 则对每个长度为 \(n\) 的 passage 独立编码，encoder 复杂度约为 \(O(Kn^2)\)。由于开放域 QA 的答案通常很短，decoder 对 \(K n\) 个 hidden states 做 cross-attention 的额外代价可控。
+
+与 RAG 的区别在融合位置。RAG 类方法通常对每个 passage 独立计算生成概率，再按检索概率边际化；这意味着每条生成路径主要看见单个 passage。FiD 的 decoder 在同一生成步可以同时关注所有 passage 表示，因此更适合处理证据分散、需要比较多个段落或需要从多个候选中排除错误信息的问题。
+
+训练上，论文初始化 T5-base 或 T5-large，冻结或单独训练检索器不是重点；reader 直接用答案的负对数似然优化。实验中 Wikipedia 被切分为不重叠的 100-word passages，训练和测试默认检索 100 个 passage，并将每个输入截断到 250 word pieces。这个设置展示了 FiD 的核心价值：reader 的性能随着可读证据数量增加仍能提升，而不是在 10 到 20 个段落后迅速饱和。
+
+FiD 对后续 RAG 系统的影响在于明确了一个简单结构原则：检索文档可以先独立编码以控制成本，再在生成端用 cross-attention 进行深融合。后来的 RAG reader、multi-passage reranker 和轻量化 FiD 变体大多沿用了这个“独立编码、解码融合”的思想，只是在压缩 encoder 输出、选择证据 token 或加速 decoder attention 上做改进。
+
+#### 🧪 练习题
+```yaml
+question: "FiD 为什么把多个 passage 的融合放到 decoder 而不是 encoder？"
+options:
+  - "为了让 encoder 的 self-attention 随 passage 数线性扩展，同时保留 decoder 聚合多证据的能力"
+  - "因为 decoder 不能访问 encoder 输出"
+  - "为了完全取消检索模块"
+  - "因为 FiD 只能生成单 token 答案"
+answer: 0
+explain: "独立编码避免了拼接 passage 带来的二次方 self-attention 成本；decoder 对拼接后的 hidden states 做 cross-attention，仍能在生成时融合多段证据。"
+```
 
 ### Contriever
 
@@ -1363,155 +1427,95 @@ motivation: 弱监督大规模预训练提升嵌入质量
 ```
 
 #### 📝 一句话总结
-E5 提出从异构网络数据源中大规模采集文本对（CCPairs），通过一致性过滤筛选高质量弱监督信号，结合对比预训练与有监督微调两阶段训练，以 300M 参数量在 BEIR 和 MTEB 基准上超越参数量大 16 倍的模型，成为首个无监督即超越 BM25 的稠密检索模型。
+E5 通过构建并过滤大规模弱监督文本对 CCPairs，再用双塔对比学习和少量有监督微调训练通用文本嵌入，使稠密向量在零样本检索与多任务 embedding 基准上显著提升。
 
 #### 🎯 核心要点
-- **CCPairs 大规模弱监督数据集**：从 Reddit、StackExchange、Wikipedia、学术论文、Common Crawl 五大来源采集 1.3B 文本对，经一致性过滤保留 270M 高质量对
-- **一致性过滤（Consistency-based Filtering）**：使用两个独立嵌入模型对文本对打分，仅保留双模型一致认为高质量的样本，有效去噪
-- **两阶段训练**：Stage 1 对比预训练（CCPairs + InfoNCE + in-batch negatives）→ Stage 2 有监督微调（MS-MARCO + NQ + NLI + 知识蒸馏）
-- **超大 batch size（32K）**：利用 128 GPU 实现 32K batch，提供充足 in-batch negatives，相比 1K batch 提升约 9 个点
-- **"query:"/"passage:" 前缀机制**：区分查询与文档的语义角色，适配非对称检索场景
-- **BEIR 无监督 SOTA**：E5-PT\_large 以 44.2 nDCG@10 首次超越 BM25（41.7），证明弱监督预训练的价值
-- **MTEB 全面领先**：E5\_large（300M）以 61.3 分超越 GTR\_xxl（4.8B, 59.0）和 ST5\_xxl（4.8B, 59.5），参数效率极高
+- CCPairs 数据集：从 Reddit、StackExchange、Wikipedia、Scientific papers、Common Crawl/News 等半结构化来源挖掘约 1.3B 文本对
+- 一致性过滤：先在噪声文本对上训练模型，再只保留正例能在 1M 随机 passage 池中排到 top-2 的样本，得到约 270M 高质量文本对
+- 简单双塔架构：query 与 passage 使用共享 Transformer 编码器，输出层平均池化得到单向量 embedding
+- 角色前缀：用 `query:` 与 `passage:` 打破双塔对称性，适配非对称检索任务
+- InfoNCE 预训练：使用余弦相似度除以温度 \(\tau=0.01\)，并依赖大 batch in-batch negatives
+- 大 batch 是关键：预训练 batch size 设为 32,768，为每个 query 提供大量负例
+- 二阶段训练：先用 CCPairs 弱监督对比预训练，再用 NLI、MS-MARCO、NQ、硬负例和 cross-encoder 蒸馏做监督微调
 
 #### 🔬 深入细节
-##### 核心框架
-
-E5 的核心思想可概括为：**数据为王 + 简单框架**。与依赖复杂架构创新的方法不同，E5 将重心放在大规模高质量训练数据的构建上，配合标准的双塔对比学习框架即可取得 SOTA 性能。
-
-整体流程分为三个阶段：
-1. **数据采集与过滤**：从五大异构来源采集文本对 → 一致性过滤
-2. **对比预训练**：在 CCPairs 上用 InfoNCE 损失进行大规模预训练
-3. **有监督微调**：在标注数据上用硬负例 + 知识蒸馏进一步优化
-
-##### CCPairs 数据集构建
-
-E5 的核心创新在于 CCPairs（Colossal Clean text Pairs）数据集的构建。数据来源及构造方式如下：
-
-| 来源 | 文本对构造方式 | 原始规模 | 过滤后 |
-|------|---------------|---------|--------|
-| Reddit | (标题+正文, 最高赞评论) | — | — |
-| StackExchange | (问题, 最高赞回答) | — | — |
-| Wikipedia | (实体名, 相关段落) | — | — |
-| 学术论文 | (标题, 摘要) 及 (论文, 引用论文) | — | — |
-| Common Crawl | (标题, 正文段落) 及 (相邻段落对) | — | — |
-| **合计** | — | **1.3B** | **270M** |
-
-> 💡 **关键洞察**：不同来源的文本对覆盖了不同的语义关系——Reddit/SE 提供问答对，Wikipedia 提供实体-描述对，学术论文提供主题相关对，CC 提供通用语义相似对。这种**异构性**是 E5 泛化能力的关键来源。
-
-##### 一致性过滤机制
-
-原始 1.3B 文本对中包含大量噪声（尤其是 Common Crawl 来源）。E5 提出一致性过滤策略：
-
-1. 使用两个**独立训练**的嵌入模型（一个小规模 E5 和 coCondenser）分别对每个文本对计算相似度分数
-2. 仅保留**两个模型都给出高分**的文本对
-
-$$\text{keep}(q, d) = \mathbb{1}\left[s_1(q, d) > \theta_1 \wedge s_2(q, d) > \theta_2\right]$$
-
-这一设计的直觉是：如果两个架构不同的模型都认为某个文本对是高质量的，那么该对大概率确实包含有意义的语义关联。实验表明，在 1M 对上过滤带来 **+6 点**提升（34.9 → 40.7），在全量数据上 4 倍数据量的未过滤版本仍落后过滤版本 **1.6 点**（50.0 vs 51.6）。
-
-##### 对比预训练（Stage 1）
-
-**损失函数**：标准 InfoNCE 损失，使用 in-batch negatives：
-
-$$\mathcal{L} = -\log \frac{\exp(\text{sim}(q, d^+) / \tau)}{\sum_{j=1}^{N} \exp(\text{sim}(q, d_j) / \tau)}$$
-
-其中 \(\text{sim}(q, d) = \cos(\mathbf{h}_q, \mathbf{h}_d)\)，\(\tau = 0.01\) 为温度参数，\(N\) 为 batch 内所有文档（包括其他样本的正例作为负例）。
-
-**编码器设计**：
-- 共享参数的双塔 Transformer（query 和 passage 使用同一编码器）
-- 平均池化（Mean Pooling）获取句向量
-- 输入前添加 `"query: "` 或 `"passage: "` 前缀以区分语义角色
+![E5 数据构建与训练流程图](https://arxiv.org/html/2212.03533v2/x1.png)
+*图：E5 的 CCPairs 数据构建、过滤、对比预训练与有监督微调整体流程。*
 
 ```python
-# E5 对比预训练伪代码
-for batch in CCPairs_dataloader:  # batch_size = 32K
-    queries, passages = batch  # 每对 (query, passage+)
-    
-    # 编码（共享 encoder，不同前缀）
-    q_embs = encoder("query: " + queries)      # [B, D]
-    d_embs = encoder("passage: " + passages)    # [B, D]
-    
-    # 平均池化
-    q_embs = mean_pool(q_embs)  # [B, H]
-    d_embs = mean_pool(d_embs)  # [B, H]
-    
-    # 余弦相似度矩阵
-    sim_matrix = cosine_sim(q_embs, d_embs) / tau  # [B, B], tau=0.01
-    
-    # InfoNCE: 对角线为正例
-    labels = torch.arange(B)
-    loss = cross_entropy(sim_matrix, labels)
-    
-    loss.backward()
-    optimizer.step()
+# E5 弱监督对比预训练与监督微调伪代码
+def build_ccpairs(raw_sources, first_stage_encoder):
+    noisy_pairs = harvest_pairs(raw_sources)          # ~1.3B pairs
+    filtered_pairs = []
+    random_pool = sample_passages(size=1_000_000)
+
+    for q, p in noisy_pairs:
+        rank = rank_positive_among_pool(first_stage_encoder, q, p, random_pool)
+        if rank <= 2:
+            filtered_pairs.append((q, p))             # ~270M pairs
+    return filtered_pairs
+
+
+def contrastive_pretrain(encoder, ccpairs, batch_size=32768, tau=0.01):
+    for queries, passages in batches(ccpairs, batch_size):
+        q_emb = mean_pool(encoder(prefix("query: ", queries)))
+        p_emb = mean_pool(encoder(prefix("passage: ", passages)))
+        scores = cosine_similarity_matrix(q_emb, p_emb) / tau
+        labels = arange(len(queries))                 # 对角线为正例
+        loss = cross_entropy(scores, labels)
+        update(encoder, loss)
+
+
+def supervised_finetune(encoder, labeled_sets, ce_teacher, alpha):
+    for query, positive, hard_negatives in labeled_sets:
+        candidates = [positive] + hard_negatives
+        stu_scores = bi_encoder_scores(encoder, query, candidates)
+        ce_scores = ce_teacher.score(query, candidates)
+        loss = kl_divergence(softmax(ce_scores), softmax(stu_scores))
+        loss += alpha * contrastive_loss(stu_scores, positive_index=0)
+        update(encoder, loss)
 ```
 
-**关键超参数**：
-- 初始化：MiniLM（small）、BERT-base（base）、BERT-large-wwm（large）
-- Batch size：32,768（128 × A100 GPU，每卡 256）
-- 训练步数：20,000（约 2.5 epochs over 270M pairs）
-- 学习率：\(3 \times 10^{-4}\)（small）、\(2 \times 10^{-4}\)（base）、\(1 \times 10^{-4}\)（large）
-- 优化器：AdamW
+E5 的核心判断是：通用文本嵌入的瓶颈不一定是架构，而是训练对的规模、多样性和噪声控制。论文没有设计复杂的多塔或交互式 encoder，而是从五类网络半结构化数据中挖掘自然形成的 \((q,p)\) 关系，例如问题与高赞回答、实体名与百科段落、论文标题与摘要、网页标题与正文等。这些弱监督关系覆盖问答、实体描述、主题相关和语义相似等多种 embedding 需求。
 
-> ⚠️ **注意**：batch size 对性能影响极大。32K batch 相比 1K batch 在 BEIR 平均分上提升约 9 个点（51.6 vs 42.4）。这是因为更大的 batch 提供了更多高质量的 in-batch negatives，使模型能更好地学习细粒度语义区分。
+原始 1.3B 文本对噪声很高，因此 E5 使用 consistency-based filter。具体做法是先用噪声数据训练一个初始 embedding 模型，再把每个候选正例 \(p\) 放入 1M 随机 passage 池中排序；只有当模型能把真实配对排到 top-\(k\) 内时才保留，论文设置 \(k=2\)。这个过滤的直觉是：干净弱标签会先被模型学会，而随机或错配文本对很难在大候选池中保持高排名。
 
-##### 有监督微调（Stage 2）
+预训练目标是标准 InfoNCE。给定文本对集合 \(\{(q_i,p_i)\}_{i=1}^{n}\) 和负例 \(\{p^-_{ij}\}_{j=1}^{m}\)，损失为：
 
-在对比预训练的基础上，E5 进一步在标注数据上微调：
+$$
+\mathcal{L}_{cont}
+=-\frac{1}{n}\sum_i
+\log
+\frac{\exp(s_{\theta}(q_i,p_i))}
+{\exp(s_{\theta}(q_i,p_i))+\sum_j \exp(s_{\theta}(q_i,p^-_{ij}))}.
+$$
 
-**训练数据**：
-- **MS-MARCO**：搜索引擎查询-文档对（利于检索任务）
-- **Natural Questions (NQ)**：问答对（利于检索任务）
-- **NLI**：自然语言推理数据（利于语义相似度任务）
+其中 \(s_{\theta}(q,p)=\cos(\mathbf{E}_q,\mathbf{E}_p)/\tau\)，\(\tau=0.01\)。E5 使用共享 Transformer encoder 并做 mean pooling，query 和 passage 的区别主要通过文本前缀体现：`query:` 表示查询语义，`passage:` 表示待检索文本语义。这个小设计很重要，因为检索常常是非对称任务，查询短而意图明确，文档长且信息密集。
 
-**损失函数**：结合知识蒸馏与对比学习：
+负例策略上，E5 选择大 batch 的 in-batch negatives，而不是复杂的 memory bank 或 pre-batch 机制。batch size 32,768 意味着一个 query 在同一批次内能看到大量其他 passage 作为负例，模型必须学习更细粒度的语义边界。论文消融显示，batch size 从 1K 增至 32K 会带来稳定提升，这解释了为什么 E5 的方法看似简单但训练资源要求并不低。
 
-$$\mathcal{L} = D_{\text{KL}}\left(\text{softmax}(\mathbf{s} / \tau_2) \| \text{softmax}(\mathbf{t} / \tau_2)\right) + \alpha \cdot \mathcal{L}_{\text{contrastive}}$$
+第二阶段微调把弱监督预训练得到的通用语义空间推向标注任务。E5 使用 NLI 改善语义相似与分类相关能力，用 MS-MARCO 和 NQ 改善检索能力，并为 MS-MARCO/NQ 加入硬负例与 cross-encoder teacher 分数。微调目标可写为：
 
-其中 \(\mathbf{s}\) 为学生模型（E5）的相似度分数向量，\(\mathbf{t}\) 为教师模型（交叉编码器）的分数向量，\(\tau_2\) 为蒸馏温度，\(\alpha\) 为平衡系数。
+$$
+\mathcal{L}_{ft}
+=D_{\mathrm{KL}}(p_{\mathrm{ce}},p_{\mathrm{stu}})
++\alpha \mathcal{L}_{cont},
+$$
 
-**硬负例挖掘**：每个查询配 7 个硬负例（由 BM25 和预训练模型检索得到的高分但不相关文档），微调 3 个 epoch，batch size 256。
+其中 \(p_{\mathrm{ce}}\) 来自 cross-encoder teacher，\(p_{\mathrm{stu}}\) 来自 E5 bi-encoder。cross-encoder 更慢但能精细比较 query-candidate，bi-encoder 更快但交互弱；蒸馏让 E5 在保持向量检索效率的同时学习 teacher 的排序偏好。
 
-> 💡 **数据多样性的重要性**：消融实验表明，MS-MARCO + NQ 主要提升检索任务性能，NLI 主要提升语义相似度（STS）任务性能。三者结合才能在 MTEB 56 个任务上取得全面最优。
-
-##### 与传统方法的关键区别
-
-| 维度 | 传统方法 | E5 |
-|------|---------|-----|
-| 预训练任务 | ICT、随机裁剪等合成任务 | 真实网络文本对 + 一致性过滤 |
-| 数据规模 | 通常 < 10M | 270M 过滤后文本对 |
-| 数据多样性 | 单一来源（如仅 Wikipedia） | 5 大异构来源 |
-| 负例策略 | MoCo / pre-batch negatives | 纯 in-batch negatives（32K batch） |
-| 参数效率 | GTR/ST5 需 4.8B 参数 | 300M 参数即超越 |
-
-##### 核心实验结果
-
-**BEIR（18 个检索数据集）**：
-- E5-PT\_large（无监督）：**44.2** nDCG@10 — 首个超越 BM25（41.7）的无监督稠密检索模型
-- E5\_large（有监督）：**50.0** nDCG@10 — 当时 SOTA
-
-**MTEB（56 个任务）**：
-- E5\_large（300M 参数）：**61.3** 平均分
-- 对比：GTR\_xxl（4.8B）59.0，ST5\_xxl（4.8B）59.5
-- E5 以 **~16× 更少参数**实现更优性能
-
-**关键消融结论**：
-- Batch size 32K >> 1K（+9.2 点）
-- 一致性过滤在 1M 数据上 +5.8 点
-- In-batch negatives（51.6）> MoCo（45.5）> Pre-batch（43.3）
-- CCPairs 预训练至关重要：直接微调 BERT 远不如先在 CCPairs 上预训练再微调
+与 Contriever 这类从裁剪文本构造正例的无监督方法相比，E5 的正例来自真实网络结构，语义关系更自然；与只在 MS-MARCO 上微调的 dense retriever 相比，E5 在预训练阶段已经学到跨任务的通用匹配能力。因此 E5 可以作为 RAG 检索器、语义搜索、聚类和分类的通用 embedding backbone，而不是只服务单一检索数据集。
 
 #### 🧪 练习题
 ```yaml
-question: "E5 的一致性过滤（Consistency-based Filtering）策略的核心思想是什么？"
+question: "E5 中 `query:` 和 `passage:` 前缀的主要目的是什么？"
 options:
-  - "使用单个大模型对文本对打分，保留高分样本"
-  - "使用两个独立模型分别打分，仅保留双模型一致认为高质量的样本"
-  - "通过人工标注筛选高质量文本对"
-  - "根据文本长度和词频统计过滤低质量样本"
-answer: 1
-explain: "一致性过滤使用两个架构不同的独立嵌入模型（E5 和 coCondenser）分别对文本对打分，仅保留两者都给出高分的样本，利用模型间的一致性来降低噪声。"
+  - "区分查询和文档的语义角色，帮助共享编码器适配非对称检索"
+  - "把英文输入翻译成中文"
+  - "强制模型只使用 BM25 分数"
+  - "替代 InfoNCE 损失中的温度参数"
+answer: 0
+explain: "E5 使用同一个 encoder 编码 query 和 passage，前缀用于向模型显式标记输入角色，尤其适合查询短、文档长的检索场景。"
 ```
 
 ### HyDE
@@ -1673,118 +1677,64 @@ motivation: 低置信度Token触发检索，主动式知识增强
 ```
 
 #### 📝 一句话总结
-FLARE 通过监测生成过程中 token 级概率，在模型不确定时以临时生成的下一句作为查询主动检索外部文档并重新生成，实现自适应按需检索增强，避免了固定间隔检索的效率浪费与噪声引入。
+FLARE 提出 Forward-Looking Active Retrieval：先临时生成下一句，再用低置信度 token 判断是否检索，并把前瞻句改写成查询来重新生成，解决长文本生成中固定检索过度或单次检索不足的问题。
 
 #### 🎯 核心要点
-- 提出 **Active Retrieval Augmented Generation** 统一框架，将检索决策分解为 **when to retrieve**（何时检索）和 **what to retrieve**（如何构造查询）两个正交维度
-- 检索触发条件：临时生成句中任一 token 概率低于阈值 \(\theta\) 即触发检索，无需额外训练
-- 两种查询构造策略：**FLARE\_direct**（掩码低置信 token 后直接用临时句作查询）和 **FLARE\_instruct**（用 LM 显式生成检索查询）
-- 前瞻式查询（forward-looking）：用即将生成的内容而非已生成内容构造查询，更精准匹配当前信息需求
-- 在 4 个长文本知识密集型任务（2WikiMQA、StrategyQA、ASQA、WikiAsp）上全面优于或持平最强基线
-- 检索频率仅为固定间隔方法的约 45%，兼顾效果与效率
+- **主动检索框架**：把 RAG 从“输入前检索一次”扩展为生成过程中的动态检索。
+- **低置信触发**：当临时句中存在概率低于阈值 \(\theta\) 的 token 时触发检索。
+- **前瞻式查询**：用即将生成的下一句，而不是已生成历史，表达当前知识缺口。
+- **两种查询策略**：FLARE_direct 掩码低置信 token 后直接检索，FLARE_instruct 让 LM 生成显式搜索查询。
+- **免训练部署**：只需要语言模型 logprobs 和外部检索器，不要求额外训练检索策略。
+- **评测任务**：在 2WikiMQA、StrategyQA、ASQA、WikiAsp 等长文本知识密集任务上验证效果。
 
 #### 🔬 深入细节
-##### 框架总览
+![FLARE 工作流程](https://ar5iv.labs.arxiv.org/html/2305.06983/assets/x2.png)
 
-![Active Retrieval Augmented Generation 总览](https://ar5iv.labs.arxiv.org/html/2305.06983v2/assets/x1.png)
-*图 1：Active Retrieval Augmented Generation 框架总览——在每个生成步骤中，模型主动决定何时检索、检索什么。*
-
-![FLARE 核心流程图](https://ar5iv.labs.arxiv.org/html/2305.06983v2/assets/x2.png)
-*图 2：FLARE 工作流程——迭代生成临时句，检测低置信 token，触发检索后用检索结果重新生成。*
-
-##### 算法伪代码
+*图源：ar5iv 论文图 2，展示 FLARE 先预测下一句、检测低置信 token、检索并重新生成的循环。*
 
 ```python
-# FLARE 核心流程伪代码
-def flare_generate(x, LM, Retriever, corpus, theta=0.5):
-    y = ""           # 已生成输出
-    D_all = []       # 累积检索文档
-    while not finished:
-        # Step 1: 临时生成下一句
-        s_hat, token_probs = LM.generate_next_sentence(x, D_all, y)
+def flare_generate(question, lm, retriever, theta=0.5, top_k=5):
+    answer = ""
+    evidence = []
+    while not lm.finished(answer):
+        draft, token_probs = lm.generate_next_sentence(question, answer, evidence)
 
-        # Step 2: 检查是否存在低置信 token
-        if any(p < theta for p in token_probs):
-            # Step 3: 构造查询（FLARE_direct: 掩码低置信 token）
-            query = mask_low_conf_tokens(s_hat, token_probs, theta)
-            # 或 FLARE_instruct: query = LM.generate_query(x, y)
-
-            # Step 4: 检索相关文档
-            D_t = Retriever.search(query, corpus, top_k=5)
-            D_all.extend(D_t)
-
-            # Step 5: 基于检索结果重新生成
-            s = LM.regenerate_sentence(x, D_all, y)
+        if min(token_probs) < theta:
+            query = mask_low_confidence_tokens(draft, token_probs, theta)
+            docs = retriever.search(query, top_k=top_k)
+            evidence.extend(docs)
+            sentence = lm.regenerate_sentence(question, answer, evidence)
         else:
-            s = s_hat  # 置信度足够，直接采纳
+            sentence = draft
 
-        y += s
-    return y
+        answer += sentence
+    return answer
 ```
 
-##### 动机与背景
+FLARE 的动机来自长文本生成的动态信息需求。传统 RAG 往往在用户问题到来时检索一次，这适合答案集中在少数段落的场景；但长答案会逐句展开，模型在后续句子中才暴露新的实体、时间或事件需求。固定每句检索虽然能覆盖这些需求，却会把无关文档频繁塞进上下文，增加成本并放大噪声。
 
-传统 RAG 方法面临两个极端：**单次检索**（single-time retrieval）仅在生成前检索一次，无法应对长文本生成中信息需求的动态演变；**固定间隔检索**（如 RETRO 每 n 个 token 检索、IC-RALM 每句检索）则不区分是否真正需要检索，既浪费计算资源又可能引入无关信息干扰生成质量。FLARE 的核心洞察是：**LM 自身的 token 生成概率是不确定性的天然信号**——当模型对某个 token 的预测概率很低时，说明它缺乏足够的知识支撑，此时检索最有价值；反之，高置信区间无需检索。
+核心机制是把模型自身的 token 概率当作不确定性信号。给定临时下一句 \(\hat{s}_t=[w_1,\dots,w_n]\)，FLARE 用如下条件判断是否检索：
 
-##### 核心机制：置信度驱动的检索触发
+$$
+\operatorname{Retrieve}(\hat{s}_t)=\mathbb{1}\left[\exists i,\ p(w_i\mid x,y_{<t}) < \theta\right].
+$$
 
-FLARE 的检索触发基于 token 级概率监测。在每个生成步骤 \(t\)，模型先生成一个临时句 \(\hat{s}_t = [w_1, w_2, \ldots, w_n]\)，并记录每个 token 的生成概率。检索触发条件为：
+这里的直觉很直接：如果模型对下一句中的某些 token 信心不足，说明它可能正在凭参数记忆猜测事实；此时用外部证据重新约束生成，比等错误写进答案后再补救更有效。
 
-$$\text{Retrieve?}(\hat{s}_t) = \exists\, w_i \in \hat{s}_t,\; p(w_i) < \theta$$
+查询构造体现了“forward-looking”的关键差异。回顾式检索使用已经生成的文本，容易检索到上一段话的主题；FLARE 使用临时下一句表达即将写出的内容，更贴近当前缺口。FLARE_direct 会删除或掩码低置信 token，避免错误 token 污染检索；FLARE_instruct 则让 LM 根据问题和生成历史写出搜索查询，适合复杂推理任务。
 
-其中 \(\theta\) 为置信度阈值（默认 0.5）。当 \(\theta\) 过低（如 0.1）时 FLARE 几乎不检索，退化为无检索生成；过高（如 0.9）时则过度检索，退化为固定间隔方法。实验表明最优 \(\theta\) 在 0.3–0.6 之间。
-
-> 💡 关键：这一机制**无需任何额外训练**，直接利用 LM 的 logits 输出，使 FLARE 可即插即用于任何暴露 token 概率的模型。
-
-##### 查询构造：前瞻 vs 回顾
-
-FLARE 的另一创新在于**前瞻式查询**（forward-looking query）——用临时生成的下一句（而非已生成的上一句）来构造检索查询。直觉是：即将生成的内容更直接反映当前的信息需求，而已生成内容可能已经偏离了需要补充知识的方向。
-
-两种具体实现：
-
-**FLARE\_direct** 将临时句中低置信 token 掩码后作为查询：
-
-$$q_t = \text{Mask}(\hat{s}_t,\, \theta)$$
-
-掩码的理由是低置信 token 很可能是错误的，保留它们会误导检索器。例如，临时句 "The film was directed by [John Smith]" 中如果 "John Smith" 置信度极低，则将其移除，用 "The film was directed by" 作为查询。
-
-**FLARE\_instruct** 则让 LM 显式生成一个搜索查询：
-
-$$q_t = \text{LM}(\text{"Given the context, generate a search query:"} \,\|\, x \,\|\, y_{<t})$$
-
-这种方式更灵活，尤其在需要复杂推理的场景（如多跳问答）中表现更优，因为 LM 能理解"需要什么信息"并生成针对性查询。
-
-##### 与已有方法的对比
-
-| 方法 | 检索时机 | 查询来源 | 是否需要训练 |
-|------|---------|---------|:---:|
-| RETRO | 每 n 个 token | 前 n 个 token | 是 |
-| IC-RALM | 每句 | 上一句 | 否 |
-| IRCoT | 每个 CoT 步骤 | 上一 CoT 句 | 否 |
-| Self-RAG | 学习到的特殊 token | 学习到的查询 | 是 |
-| **FLARE** | 低置信度触发 | 前瞻临时句 | **否** |
-
-FLARE 的独特优势在于：(1) 自适应检索频率，按需触发而非固定间隔；(2) 前瞻式查询比回顾式更精准；(3) 免训练，仅需 token 概率可访问。
-
-> ⚠️ 注意：FLARE 依赖 token 概率的可访问性。对于仅提供文本输出的黑盒 API（如部分 ChatGPT 接口），需要 API 支持 `logprobs` 参数才能使用。
-
-##### 消融验证
-
-消融实验在 2WikiMQA 上验证了三个核心组件的贡献：
-- 去掉置信度触发（始终检索）：F1 从 37.8 降至 34.5（**-3.3**），证明选择性检索的重要性
-- 去掉前瞻查询（改用上一句）：F1 降至 35.2（**-2.6**），证明前瞻式查询的优势
-- 去掉 token 掩码：F1 降至 35.0（**-1.2**），证明掩码净化查询的作用
+推理流程是句级闭环：生成草稿、检查置信度、必要时检索、基于证据重写这一句，然后进入下一句。它与 Self-RAG 的区别是 FLARE 不训练反射 token，而是使用现成模型的 logprob；代价是它依赖可访问 token 概率的模型接口，并且阈值 \(\theta\) 需要按任务调节。
 
 #### 🧪 练习题
 ```yaml
-question: "FLARE 中触发检索的核心依据是什么？"
+question: "FLARE 为什么用临时生成的下一句作为检索查询？"
 options:
-  - "已生成文本的长度达到固定阈值"
-  - "临时生成句中存在 token 生成概率低于阈值 θ"
-  - "检索器返回的文档相关性分数低于阈值"
-  - "用户显式发出检索请求信号"
+  - "因为下一句通常比用户问题更短，能减少检索器参数量"
+  - "因为下一句直接暴露即将生成内容的知识缺口，更能匹配当前检索需求"
+  - "因为下一句可以替代语言模型的最终答案"
+  - "因为下一句一定包含所有证据引用"
 answer: 1
-explain: "FLARE 监测临时生成句中每个 token 的概率，当任一 token 概率低于 θ 时触发检索，这是其区别于固定间隔方法的核心机制。"
+explain: "FLARE 的前瞻式查询利用草稿句预测未来内容，在低置信位置触发检索，从而在错误写入答案前补充证据。"
 ```
 
 ### RECOMP
@@ -1804,16 +1754,64 @@ motivation: 训练专门压缩器将多文档浓缩为极简摘要
 ```
 
 #### 📝 一句话总结
-RECOMP 的核心目标是：训练专门压缩器将多文档浓缩为极简摘要。
+RECOMP 在检索和生成之间插入专门的压缩器，把多篇检索文档压缩成面向任务的短摘要，解决 RAG 上下文过长、无关证据干扰和推理成本过高的问题。
 
 #### 🎯 核心要点
-- 核心动机：训练专门压缩器将多文档浓缩为极简摘要
-- 演化来源：继承或改进自 rag
-- 代表机构：Princeton
+- **实际论文页**：manifest 中 `2310.04444` 指向无关提示控制论文，RECOMP 实际公开论文为 `https://arxiv.org/abs/2310.04408`。
+- **Retrieve-Compress-Prepend**：先检索文档，再压缩成摘要，最后把摘要而非全文拼接给 LM。
+- **抽取式压缩器**：训练双编码器按任务收益选择最有帮助的句子。
+- **生成式压缩器**：蒸馏大模型的 query-focused summarization 能力，生成跨文档摘要。
+- **选择性增强**：如果检索结果无帮助，压缩器可以输出空串，避免错误或无关上下文污染 LM。
+- **端任务信号训练**：压缩目标不是普通摘要质量，而是摘要拼接后能否提升 LM 的语言建模或 QA 表现。
 
 #### 🔬 深入细节
-训练专门压缩器将多文档浓缩为极简摘要
+![RECOMP 流程图](https://ar5iv.labs.arxiv.org/html/2310.04408/assets/x1.png)
 
+*图源：ar5iv 论文图 1，展示 RECOMP 将检索文档压缩为短摘要后再送入语言模型。*
+
+```python
+def recomp_answer(query, retriever, compressor, lm, corpus):
+    docs = retriever.search(query, corpus, top_k=5)
+    summary = compressor.compress(query=query, documents=docs)
+
+    # selective augmentation: 无帮助时允许不增强
+    if summary.strip():
+        prompt = summary + "\n\nQuestion: " + query
+    else:
+        prompt = "Question: " + query
+
+    return lm.generate(prompt)
+
+def train_abstractive_compressor(train_examples, teacher_lm, base_lm):
+    targets = []
+    for query, docs, gold in train_examples:
+        summaries = [teacher_lm.summarize(query, docs, p) for p in prompt_pool]
+        best = max(summaries, key=lambda s: score(base_lm, s, query, gold))
+        if score(base_lm, best, query, gold) < score(base_lm, "", query, gold):
+            best = ""
+        targets.append((query, docs, best))
+    return finetune_encoder_decoder(targets)
+```
+
+RECOMP 的问题设定很现实：RAG 检索到的文档通常有数百到数千 token，直接拼接会让推理成本随检索文档长度线性上涨；更糟的是，模型并不总能从长上下文中找到关键句，甚至会被中间位置或无关文档干扰。RECOMP 因此把检索文档 \(D=[d_1,\dots,d_N]\) 压缩为短摘要 \(s=c_\theta(x,D)\)，再让黑盒 LM 生成 \(p(y\mid x,s)\)。
+
+抽取式压缩器把每个候选句子和查询分别编码，用内积估计“把这个句子放进 prompt 后是否有助于 LM 生成目标答案”。它与普通 reranker 的差异是粒度更细：检索器通常返回段落，RECOMP 的抽取器返回句子；评分依据也不是句子与问题的语义相似度，而是句子对下游 LM 生成正确输出的因果贡献。
+
+生成式压缩器面向多文档综合。论文用强教师模型为每组 \((x,D,y)\) 产生多个 query-focused 摘要，再用端任务分数过滤：如果某个摘要比无检索更差，就把目标摘要设为空串。这个“空串目标”是选择性增强的关键，它让压缩器学会在检索无用时保持沉默，而不是为了形式完整强行写摘要。
+
+与 Long Context LM 或直接 top-k 文档拼接相比，RECOMP 的优势是把信息瓶颈显式放在一个小模型里。它减少 token 成本，也降低 LM 在无关证据上浪费注意力的概率；局限是压缩器可能丢掉后续推理需要的细节，因此更适合答案证据可被短文本表达的 QA、语言建模和事实补全任务。
+
+#### 🧪 练习题
+```yaml
+question: "RECOMP 中选择性增强的含义是什么？"
+options:
+  - "只检索图片，不检索文本"
+  - "当检索文档无帮助时，压缩器可以输出空摘要，避免拼接噪声"
+  - "把所有检索文档完整复制到 prompt"
+  - "只使用最大的语言模型作为检索器"
+answer: 1
+explain: "RECOMP 的压缩器以端任务收益为目标训练；如果摘要会降低 LM 表现，训练目标可以设为空串。"
+```
 
 ### Self-RAG
 
@@ -1832,170 +1830,80 @@ motivation: 反射Token自主决策检索时机并批判结果事实性
 ```
 
 #### 📝 一句话总结
-Self-RAG 训练单一语言模型在生成过程中按需检索外部文档，并通过特殊的反射 token（Retrieve / IsRel / IsSup / IsUse）对检索内容和自身输出进行细粒度自我批判，在不依赖额外 Reward Model 或 RL 的前提下显著提升了事实性和引用准确性。
+Self-RAG 训练语言模型生成特殊反射 token，让模型在推理时自主决定是否检索，并评价检索段落相关性、回答是否被支持以及输出是否有用，从而把检索控制和事实性批判内化到一个生成模型中。
 
 #### 🎯 核心要点
-- **4 类反射 token**：Retrieve（是否需要检索）、IsRel（段落是否相关）、IsSup（输出是否被证据支持）、IsUse（整体效用 1-5 分）
-- **Critic 模型蒸馏**：使用 GPT-4 标注 4k–20k 样本训练 Llama2-7B Critic，与 GPT-4 一致性 > 90%
-- **离线标注 + 标准 LM 训练**：Critic 离线为训练语料插入反射 token，Generator 以标准 next-token prediction 在扩展词表上训练，无需 RL
-- **推理时自适应检索**：通过 Retrieve token 概率阈值 \(\delta\) 控制检索频率，支持按需检索而非每步检索
-- **段级 Beam Search 排序**：对多条检索段落并行生成，用 IsRel / IsSup / IsUse 加权评分选取最优片段
-- **推理时可定制行为**：调整各 critique 权重即可在引用精度与流畅度之间灵活权衡，无需重新训练
-- **6 项任务全面评估**：涵盖事实验证（PubHealth）、推理（ARC-C）、开放域 QA（PopQA / TriviaQA）、传记生成（Bio）、长文 QA（ASQA），Self-RAG 7B/13B 全面超越 ChatGPT 及同规模 RAG 基线
+- **四类反射 token**：Retrieve、IsRel、IsSup、IsUse 分别控制检索、相关性、证据支持和效用评分。
+- **Critic 蒸馏**：先用 GPT-4 标注反射信号，再训练 Critic 为大规模语料自动插入 token。
+- **标准 LM 训练**：Generator 在带反射 token 的语料上做 next-token prediction，无需 RL。
+- **按需检索**：推理时由 Retrieve token 概率决定是否调用检索器，而不是固定检索。
+- **候选证据重排**：对多个检索段落并行生成候选片段，再用 IsRel/IsSup/IsUse 加权选优。
+- **可控解码**：推理阶段可调节不同 critique 权重，在引用精度、事实性和流畅度之间取舍。
 
 #### 🔬 深入细节
-##### 框架总览
+![Self-RAG 框架](https://ar5iv.labs.arxiv.org/html/2310.11511/assets/x1.png)
 
-![Self-RAG 框架示意图](https://arxiv.org/html/2310.11511v4/x1.png)
-*图：Self-RAG 推理流程。模型先判断是否需要检索（Retrieve token），若需要则检索多条段落并并行生成，随后通过 IsRel / IsSup / IsUse 反射 token 对每条候选输出进行细粒度评估，最终选取最优片段拼接为完整回答。*
-
-##### 算法伪代码
+*图源：ar5iv 论文图 1，展示 Self-RAG 通过 Retrieve 和 critique token 控制检索与自我评估。*
 
 ```python
-# Self-RAG 推理流程 (Algorithm 1 简化)
-def self_rag_inference(x, M, R, threshold=0.2, K=5, weights=(1.0, 1.0, 0.5)):
-    """
-    x: 输入 query
-    M: Self-RAG Generator
-    R: Retriever (Contriever-MSMARCO)
-    """
+def self_rag(query, generator, retriever, threshold=0.2, top_k=5):
     output = []
-    while not finished:
-        # Step 1: 预测 Retrieve token
-        p_retrieve = M.predict_token_prob("[Retrieve]", context=(x, output))
-        
-        if p_retrieve("Yes") > threshold:
-            # Step 2: 检索 top-K 段落
-            passages = R.retrieve(x, K=K)
+    while not generator.done(output):
+        p_retrieve = generator.prob("[Retrieve]", query, output)
+
+        if p_retrieve > threshold:
+            passages = retriever.search(query, top_k=top_k)
             candidates = []
-            
-            for d in passages:
-                # Step 3: 条件生成 + 反射 token
-                y_t, is_rel, is_sup, is_use = M.generate_with_critique(x, output, d)
-                
-                # Step 4: 加权评分 (Eq. 3)
-                score = (M.generation_prob(y_t) 
-                         + weights[0] * score(is_rel)    # IsRel
-                         + weights[1] * score(is_sup)    # IsSup  
-                         + weights[2] * score(is_use))   # IsUse
-                candidates.append((y_t, score))
-            
-            # Step 5: 选取最优片段
-            best = max(candidates, key=lambda c: c[1])
-            output.append(best[0])
+            for passage in passages:
+                text, rel, sup, use = generator.generate_with_reflection(
+                    query=query,
+                    prefix=output,
+                    passage=passage,
+                )
+                score = (
+                    generator.logprob(text)
+                    + score_relevance(rel)
+                    + score_support(sup)
+                    + 0.5 * score_utility(use)
+                )
+                candidates.append((score, text))
+            output.append(max(candidates)[1])
         else:
-            # 无需检索，直接生成
-            y_t = M.generate(x, output)
-            output.append(y_t)
-    
+            output.append(generator.generate_without_retrieval(query, output))
+
     return "".join(output)
 ```
 
-##### 动机与背景
+Self-RAG 针对传统 RAG 的两个缺陷：第一，固定检索会让简单常识问题也携带外部文档，降低模型灵活性；第二，检索到文档后，模型通常缺少显式机制判断文档是否相关、答案是否被证据支持。Self-RAG 的做法不是外接多个分类器，而是把这些判断变成模型可生成的离散 token。
 
-传统 RAG 方法存在两个核心缺陷：
+训练流程分为 Critic 和 Generator 两步。Critic 先学习 GPT-4 对检索必要性、段落相关性、证据支持度和输出效用的判断，然后离线标注训练样本。Generator 的词表加入这些反射 token，在标注语料上直接优化：
 
-1. **无差别检索**：无论问题是否需要外部知识，都固定在每一步检索，既浪费计算资源，又可能因引入不相关信息而降低生成质量。例如，"太阳从哪个方向升起？"这类常识问题完全不需要检索。
+$$
+\max_\theta \sum_t \log p_\theta(y_t \mid x, y_{<t}),
+$$
 
-2. **缺乏自我评估**：模型无法判断检索到的文档是否与问题相关，也无法评估自身输出是否被证据充分支持。即使检索到了高质量文档，模型也可能忽略证据或产生幻觉。
+其中 \(y_t\) 既可以是普通文本，也可以是 `[Retrieve]`、`[IsRel]`、`[IsSup]`、`[IsUse]` 等控制 token。
 
-> 💡 关键：Self-RAG 的核心洞察是——将"何时检索"和"如何评估"这两个决策内化为模型自身的生成能力，而非依赖外部模块或启发式规则。
+推理时，Retrieve token 决定是否检索；如果需要检索，模型对每个候选段落生成回答片段及 critique token。最终分数可写成：
 
-##### 核心机制：反射 token 体系
+$$
+S(y,d)=\log p_\theta(y\mid x,d)+w_rR_{\text{rel}}+w_sR_{\text{sup}}+w_uR_{\text{use}}.
+$$
 
-Self-RAG 设计了 4 类反射 token，覆盖检索-生成-评估的完整链路：
+这让 Self-RAG 在解码阶段能偏好“相关、被支持、有用”的片段，而不是只看语言模型概率。
 
-| Token 类型 | 输出值 | 作用时机 | 功能 |
-|:---:|:---:|:---:|:---|
-| **Retrieve** | `yes` / `no` / `continue` | 每个片段生成前 | 决定是否需要检索 |
-| **IsRel** | `relevant` / `irrelevant` | 检索后、生成前 | 判断检索段落与查询的相关性 |
-| **IsSup** | `fully supported` / `partially supported` / `no support` | 生成后 | 评估输出是否被检索证据支持 |
-| **IsUse** | `1` – `5` | 生成后 | 评估输出对回答问题的整体效用 |
-
-这些 token 被加入模型词表，在训练和推理时与普通文本 token 一样通过 next-token prediction 生成，无需额外的分类头或奖励模型。
-
-##### 训练流程：三阶段蒸馏
-
-**阶段一：Critic 模型训练**
-
-使用 GPT-4 为少量样本（每类 token 4k–20k 条）生成反射 token 标注，然后蒸馏到 Llama2-7B 作为 Critic 模型 \(\mathcal{C}\)。具体地，对于每类反射 token，设计特定 prompt 让 GPT-4 判断（如"该段落是否与问题相关？"），收集其输出作为训练标签。训练后的 Critic 与 GPT-4 的一致性超过 90%。
-
-**阶段二：离线语料标注**
-
-使用训练好的 Critic \(\mathcal{C}\) 对整个训练语料进行离线标注：
-- 对每个训练样本，先用 \(\mathcal{C}\) 判断是否需要检索（Retrieve token）
-- 若需要，用检索器获取段落，再用 \(\mathcal{C}\) 标注 IsRel / IsSup / IsUse
-- 将这些反射 token 插入原始文本的对应位置
-
-**阶段三：Generator 训练**
-
-在标注后的增强语料上，以标准 next-token prediction 目标训练 Generator \(\mathcal{M}\)（Llama2-7B 或 13B）。模型的词表扩展以包含反射 token。训练目标为：
-
-$$\max_{\theta} \sum_{t} \log p_{\theta}(y_t \mid y_{<t}, x)$$
-
-其中 \(y_t\) 可以是普通文本 token 或反射 token。
-
-> ⚠️ 注意：整个训练过程不使用强化学习，仅依赖标准的监督学习（next-token prediction），这使得训练过程稳定且高效。
-
-##### 推理流程：自适应检索 + 段级排序
-
-推理时，模型逐片段（segment-by-segment）生成输出：
-
-1. **检索决策**：在每个片段开始时，模型预测 Retrieve token 的概率。若 \(p(\text{Yes}) > \delta\)（默认 \(\delta = 0.2\)），则触发检索。
-
-2. **并行生成与评估**：检索 top-K 段落（默认 K=5），对每条段落并行生成候选片段，同时生成 IsRel / IsSup / IsUse 反射 token。
-
-3. **加权排序**：对每个候选片段计算综合得分：
-
-$$\text{score}(y_t, d) = p_{\theta}(y_t) + \sum_{G \in \{\text{IsRel}, \text{IsSup}, \text{IsUse}\}} w_G \cdot s(r_G)$$
-
-其中 \(w_G\) 为各 critique 类型的权重（默认 IsRel=1.0, IsSup=1.0, IsUse=0.5），\(s(r_G)\) 为对应反射 token 的归一化得分。
-
-4. **推理时定制**：通过调整权重 \(w_G\)，可在不重新训练的情况下控制模型行为。例如，增大 IsSup 权重可提升引用精度但可能降低流畅度（MAUVE 分数）。
-
-##### 与传统方法的关键区别
-
-| 维度 | 传统 RAG | Self-RAG |
-|:---|:---|:---|
-| 检索策略 | 每步固定检索 | 按需自适应检索 |
-| 评估机制 | 无 / 仅依赖检索器相关性分数 | 4 类反射 token 细粒度评估 |
-| 训练方式 | 检索器与生成器独立训练 | 端到端训练统一模型 |
-| 推理灵活性 | 固定行为 | 权重可调，支持运行时定制 |
-| 额外模块 | 需要 NLI 模型做事实验证 | 自包含，无需外部验证器 |
-
-##### 实验结果
-
-Self-RAG 在 6 项任务上的主要结果（Accuracy / FactScore / Citation Precision）：
-
-| 模型 | PopQA | TriviaQA | PubHealth | ARC-C | Bio (FactScore) | ASQA (Citation Prec) |
-|:---|:---:|:---:|:---:|:---:|:---:|:---:|
-| Llama2-7B | 14.7 | 55.6 | 49.1 | 45.0 | — | — |
-| Llama2-13B-chat | 20.0 | 63.3 | 70.0 | 67.3 | 55.9 | 37.1 |
-| Alpaca-13B + RAG | 46.7 | 57.4 | 49.8 | 45.7 | — | — |
-| ChatGPT | 29.3 | 64.8 | 70.0 | 75.3 | 71.3 | 65.1 |
-| **Self-RAG 7B** | **54.9** | **66.4** | **72.4** | 67.3 | **81.2** | **66.9** |
-| **Self-RAG 13B** | **55.8** | **69.3** | **74.5** | **73.1** | 80.2 | **70.3** |
-
-> 💡 关键发现：Self-RAG 7B 即可在 PopQA、PubHealth、Bio、ASQA 上超越 ChatGPT，Self-RAG 13B 在所有任务上均为非专有模型中的最佳。
-
-**消融实验**验证了各组件的必要性：
-- **去除检索器**：所有任务性能显著下降
-- **去除 Critic（反射 token）**：ASQA citation precision 从 32.1 降至 18.1
-- **固定使用 top-1 段落**（传统 RAG 方式）：PopQA 和 ASQA 大幅下降
-- **去除 IsSup**：ASQA 性能明显受损
-
-**人工评估**（50 样本）：PopQA 上 S&P（合理且有支持）得分 92.5%，IsRel 预测与人工一致性 95%，IsSup 一致性 90%。
+与 FLARE 依赖 logprob 阈值不同，Self-RAG 通过训练显式学会何时检索和如何批判证据，因此不需要人工设计低置信规则；代价是需要构造反射 token 标注和训练 Generator。它适合事实性要求高、需要引用或长答案分段生成的场景。
 
 #### 🧪 练习题
 ```yaml
-question: "Self-RAG 在训练阶段使用了什么优化方法来学习反射 token？"
+question: "Self-RAG 的 IsSup token 主要用于判断什么？"
 options:
-  - "基于 PPO 的强化学习，以反射 token 准确率为奖励"
-  - "标准 next-token prediction，将反射 token 作为扩展词表的一部分"
-  - "对比学习，拉近正确反射 token 与上下文的表示距离"
-  - "RLHF，使用人类偏好数据微调反射 token 的生成概率"
+  - "是否需要扩大模型参数量"
+  - "生成内容是否被检索证据支持"
+  - "检索器是否使用 BM25"
+  - "输出文本是否需要翻译"
 answer: 1
-explain: "Self-RAG 将反射 token 加入词表，与普通文本 token 一起通过标准的 next-token prediction 目标训练，不使用任何强化学习，这是其训练简洁高效的关键设计。"
+explain: "IsSup 是证据支持度反射 token，用来批判生成片段是否能从检索段落中得到支撑。"
 ```
 
 ### CRAG
@@ -2188,150 +2096,67 @@ motivation: 知识图谱全局关系推理，解决跨文档总结难题
 ```
 
 #### 📝 一句话总结
-Graph RAG 通过 LLM 从源文档中自动构建实体知识图谱，利用图社区检测生成层级化社区摘要，并在查询时采用 map-reduce 机制对社区摘要进行查询聚焦总结，从而解决了传统 RAG 无法回答需要全语料库推理的全局性问题（如"数据集的主要主题是什么？"）的根本缺陷。
+GraphRAG 用 LLM 从私有语料中抽取实体、关系和声明，构建图索引并预生成社区摘要，再用 map-reduce 式查询聚合回答全局问题，解决向量 RAG 难以回答“整个语料主题是什么”这类跨文档总结问题。
 
 #### 🎯 核心要点
-- **问题定义**：针对"全局性 sensemaking 问题"——需要跨越整个文档集合进行推理的查询，传统向量相似度 RAG 无法胜任
-- **图索引构建**：使用 LLM 从源文本块中提取实体（节点）和关系（边），构建实体知识图谱；支持多轮 gleanings 提升抽取召回率
-- **层级社区检测**：对知识图谱应用 Leiden 算法进行社区检测，生成多层级的社区划分（从根级 C0 到叶级 C3）
-- **社区摘要生成**：对每个社区使用 LLM 生成涵盖其内部实体、关系和关键声明的描述性摘要
-- **Map-Reduce 查询机制**：查询时将用户问题并行发送到所有社区摘要（map），再将中间答案聚合为最终全局回答（reduce）
-- **评估指标**：采用 LLM-as-a-judge 的 head-to-head 比较，衡量 Comprehensiveness、Diversity、Empowerment、Directness 四个维度
-- **核心结论**：Graph RAG 在 comprehensiveness（72-83% 胜率）和 diversity（62-82% 胜率）上显著优于 naïve RAG；根级社区摘要（C0）仅需不到 3% 的 token 即可获得竞争力强的全局回答
+- **图索引构建**：从文本块中抽取 entity、relationship、claim，并汇总为图元素描述。
+- **社区检测**：用 Leiden 等算法把实体图划分为层级社区。
+- **社区摘要**：为每个社区预生成 report-like summary，形成可复用的全局语料记忆。
+- **全局查询流程**：每个社区摘要先独立回答问题，再把相关中间答案汇总成最终回答。
+- **目标场景**：面向 global sensemaking 和 query-focused summarization，而不是单段事实查找。
+- **优势与成本**：提升答案全面性和多样性，但索引阶段需要较多 LLM 抽取与摘要调用。
 
 #### 🔬 深入细节
-![Graph RAG 整体流程图](https://arxiv.org/html/2404.16130v2/x1.png)
-*图：Graph RAG 流程概览——从源文档到文本块、到实体图、到社区层级、到社区摘要，最终通过 map-reduce 生成全局答案*
+![GraphRAG 社区结构示意](https://ar5iv.labs.arxiv.org/html/2404.16130/assets/Level0Multihop.jpg)
 
-##### 算法伪代码
+*图源：ar5iv 论文图 3 的 Level 0 社区可视化，展示 GraphRAG 将实体图划分为可摘要的社区。*
 
 ```python
-# Graph RAG 索引构建与查询流程
-
-# ===== Phase 1: 索引构建 (Indexing) =====
-def build_graph_index(documents):
-    # Step 1: 文本分块
-    chunks = split_into_chunks(documents, chunk_size=600, overlap=100)
-    
-    # Step 2: LLM 实体与关系抽取 (含多轮 gleanings)
-    entities, relations = [], []
+def build_graphrag_index(documents, llm):
+    chunks = split_documents(documents, chunk_size=600)
+    graph = Graph()
     for chunk in chunks:
-        e, r = llm_extract_entities_relations(chunk)  # 首轮抽取
-        for _ in range(num_gleanings):  # 多轮追加抽取遗漏实体
-            missed = llm_gleaning(chunk, already_found=e)
-            e.extend(missed)
-        entities.extend(e); relations.extend(r)
-    
-    # Step 3: 构建知识图谱并做社区检测
-    graph = build_graph(entities, relations)  # 实体=节点, 关系=边
-    communities = leiden_algorithm(graph)      # 多层级社区划分
-    
-    # Step 4: 为每个社区生成摘要
-    for level in communities.levels():         # C0(根) → C3(叶)
-        for community in communities.at(level):
-            summary = llm_summarize(community.entities, 
-                                     community.relations,
-                                     community.claims)
-            community.summary = summary
-    return graph, communities
+        entities, relations, claims = llm.extract_graph_elements(chunk)
+        graph.add_entities(entities)
+        graph.add_relations(relations)
+        graph.add_claims(claims)
 
-# ===== Phase 2: 查询 (Query) =====
-def query_graph_rag(question, communities, level):
-    # Map: 对选定层级的每个社区摘要生成中间回答
-    intermediate_answers = []
-    for community in communities.at(level):
-        answer = llm_answer(question, context=community.summary)
-        score = llm_rate_helpfulness(answer)  # 0-100 评分
-        if score > 0:
-            intermediate_answers.append((answer, score))
-    
-    # Reduce: 按评分排序，贪心填充 context window，生成最终回答
-    intermediate_answers.sort(key=lambda x: x[1], reverse=True)
-    context = greedy_fill(intermediate_answers, max_tokens=8000)
-    final_answer = llm_synthesize(question, context)
-    return final_answer
+    graph.merge_and_summarize_elements(llm)
+    communities = leiden_hierarchy(graph)
+    reports = {}
+    for level, groups in communities.items():
+        for group in groups:
+            reports[(level, group.id)] = llm.summarize_community(group)
+    return graph, reports
+
+def global_search(query, community_reports, llm, token_budget):
+    partials = []
+    for batch in pack_reports(community_reports, token_budget):
+        answer, helpfulness = llm.answer_from_reports(query, batch)
+        if helpfulness > 0:
+            partials.append((helpfulness, answer))
+    context = select_by_score(partials, token_budget)
+    return llm.reduce_answers(query, context)
 ```
 
-##### 动机与背景
+GraphRAG 的核心判断是：普通向量 RAG 擅长找到“局部答案所在段落”，但不擅长回答需要全语料综合的问题。例如“这个数据集中有哪些主要主题？”没有单个 chunk 能代表答案，语义检索很容易只召回几个局部片段。GraphRAG 把任务改写为 query-focused summarization，通过图社区覆盖整个语料。
 
-传统 RAG（Retrieval-Augmented Generation）的核心思路是将用户查询嵌入向量空间，检索语义最相似的文本块作为 LLM 的上下文。这种方法对**局部性问题**（如"X 是谁？""Y 发生在哪里？"）效果良好，但面对**全局性问题**（如"这个数据集的主要主题有哪些？""不同社区之间有什么共同特征？"）时存在根本性缺陷：
+索引阶段先由 LLM 从每个 chunk 抽取实体、关系和声明。与传统知识图谱追求严格三元组不同，GraphRAG 更强调 LLM 可读的丰富描述：节点和边都带自然语言摘要，claim 也可以作为 covariate 附着到实体上。这样即便抽取结果有命名不一致，后续社区摘要仍能把同一主题附近的信息聚合起来。
 
-1. **检索盲区**：向量相似度检索倾向于返回与查询表面相似的片段，无法覆盖分散在整个语料库中的相关信息
-2. **上下文窗口限制**：即使模型支持 128k token 的上下文窗口，直接塞入全部源文本也存在"lost in the middle"问题——中间位置的信息容易被忽略
-3. **缺乏全局视角**：没有机制将分散的局部信息聚合为全局性的结构化理解
+社区检测利用图的模块性。GraphRAG 把实体关系图看成无向加权图，边权通常来自关系实例计数或强度，再用 Leiden 得到层级社区。每个社区覆盖一组强相关实体、关系和声明；社区摘要相当于把局部子图压缩成可检索、可阅读的全局记忆。
 
-Graph RAG 的核心洞察是：**利用知识图谱的天然模块性（modularity）来组织和压缩信息**，通过社区检测将图划分为语义连贯的子结构，再对每个子结构生成摘要，从而实现对全语料库的层级化理解。
-
-##### 核心机制详解
-
-**1. 实体与关系抽取**
-
-Graph RAG 使用 LLM（论文中为 GPT-4 Turbo）从每个文本块中抽取实体和关系。与传统 NER 不同，这里的实体类型由领域需求灵活定义（如人物、组织、事件、地点等），关系同样以自然语言描述形式保留。
-
-关键创新是 **多轮 gleanings 机制**：首轮抽取后，LLM 被反复提示"是否还有遗漏的实体？"，每轮追加新发现的实体。论文发现这显著提升了抽取的召回率，尤其对于信息密度高的长文本块。
-
-**2. 图构建与社区检测**
-
-所有抽取的实体作为节点、关系作为边构建加权无向图。同一实体在不同文本块中的多次出现会被合并，边权重反映关系被提及的频次。
-
-社区检测采用 **Leiden 算法**（Traag et al., 2019），这是 Louvain 算法的改进版本，能保证社区的连通性。Leiden 算法递归地将图划分为层级化的社区结构：
-
-$$Q = \frac{1}{2m} \sum_{ij} \left[ A_{ij} - \frac{k_i k_j}{2m} \right] \delta(c_i, c_j)$$
-
-其中 \(Q\) 是模块度，\(A_{ij}\) 是邻接矩阵，\(k_i\) 是节点度数，\(m\) 是总边数，\(\delta(c_i, c_j)\) 在节点 \(i\) 和 \(j\) 属于同一社区时为 1。Leiden 算法通过最大化模块度来发现紧密连接的社区。
-
-这产生了从粗粒度（根级 C0，少量大社区）到细粒度（叶级 C3，大量小社区）的层级结构。例如，Podcast 数据集产生了 8564 个节点、20691 条边的图，其中 C0 仅有 34 个社区摘要，而 C3 有 1310 个。
-
-**3. 社区摘要生成**
-
-对每个社区，将其包含的实体描述、关系描述和声明（claims）按重要性排序后输入 LLM，生成一段综合性摘要。叶级社区直接从元素描述生成摘要；上层社区则从其子社区的摘要递归生成。
-
-> 💡 关键：社区摘要是一种**预计算的全局索引**——它在索引阶段一次性生成，查询时可直接复用，避免了每次查询都遍历原始文本的高昂成本。
-
-**4. Map-Reduce 查询聚焦总结**
-
-查询时，Graph RAG 采用经典的 map-reduce 模式：
-
-- **Map 阶段**：将用户问题与每个社区摘要配对，LLM 为每对生成一个中间回答，并自评 0-100 的有用性评分。评分为 0 的回答被过滤。
-- **Reduce 阶段**：将中间回答按评分降序排列，贪心地填充到上下文窗口（8k tokens），最后由 LLM 综合所有中间回答生成最终答案。
-
-$$\text{FinalAnswer} = \text{LLM}_{\text{reduce}}\left(q, \text{TopK}\left(\{(a_i, s_i)\}_{i=1}^{N}\right)\right)$$
-
-其中 \(q\) 是用户查询，\(a_i\) 是第 \(i\) 个社区的中间回答，\(s_i\) 是其有用性评分，TopK 按评分选取能填满上下文窗口的回答子集。
-
-##### 与传统方法的关键区别
-
-| 维度 | Naïve RAG (SS) | 全局文本总结 (TS) | Graph RAG |
-|------|---------------|-----------------|-----------|
-| 检索方式 | 向量相似度 top-k | 全文 map-reduce | 社区摘要 map-reduce |
-| 全局覆盖 | ❌ 仅局部片段 | ✅ 遍历全文 | ✅ 遍历所有社区 |
-| Token 效率 | 低（固定 k 块） | 最低（全文） | 高（C0 仅需 ~3% token） |
-| 信息组织 | 无结构 | 无结构 | 图+层级社区结构 |
-| 预计算 | 仅嵌入 | 无 | 图索引+社区摘要 |
-
-##### 实验结果
-
-论文在两个约 100 万 token 的数据集上评估：Podcast 转录文本（1669 条 600-token 块）和新闻文章（3197 条块）。使用 GPT-4 Turbo 作为 LLM evaluator 进行 head-to-head 比较，每组 125 个问题，每个比较重复 5 次取均值。
-
-**核心发现**：
-- **Graph RAG vs. Naïve RAG**：所有 Graph RAG 层级（C0-C3）在 comprehensiveness 上获得 72-83% 胜率，diversity 上获得 62-82% 胜率
-- **Graph RAG vs. 全局文本总结（TS）**：中间层级社区摘要（C1-C2）在 comprehensiveness 和 diversity 上略优于 TS，同时节省 26-33% 的 token
-- **根级摘要（C0）的效率优势**：C0 仅需全文 2.3-2.6% 的 token，却仍保持 72% 的 comprehensiveness 胜率和 62% 的 diversity 胜率（vs. Naïve RAG）
-- **Directness（控制指标）**：Naïve RAG 在 directness 上表现最佳，符合预期——直接检索的片段更具针对性，但缺乏全局视角
-- **上下文窗口**：8k token 的上下文窗口在 comprehensiveness 上优于 16k/32k/64k（平均 58.1% 胜率），验证了"lost in the middle"效应
-
-> ⚠️ 注意：Empowerment 指标上各方法差异不大，分析表明这与具体引用和示例的保留程度有关——Graph RAG 的摘要过程可能丢失了部分原始细节。
+查询阶段是 map-reduce：map 步骤让每个社区摘要独立回答问题并给出有用度分数，reduce 步骤按分数选择中间答案并生成最终回答。这样做的优势是并行、可扩展，并且避免把整个语料塞进单个上下文；不足是索引成本较高，而且社区摘要质量受 LLM 抽取和社区划分影响。
 
 #### 🧪 练习题
 ```yaml
-question: "Graph RAG 在查询阶段使用什么机制来综合多个社区摘要的信息？"
+question: "GraphRAG 相比普通向量 RAG 最适合解决哪类问题？"
 options:
-  - "向量相似度检索最相关的社区摘要"
-  - "将所有社区摘要拼接后直接输入 LLM"
-  - "Map-Reduce：先对每个社区摘要生成中间回答，再聚合为最终答案"
-  - "使用图遍历算法沿关系路径逐步推理"
-answer: 2
-explain: "Graph RAG 在查询时采用 map-reduce 模式：map 阶段对每个社区摘要独立生成中间回答并评分，reduce 阶段将高分中间回答聚合生成最终全局答案。这避免了上下文窗口限制，同时保证了全局覆盖。"
+  - "只需要查找单个精确事实的短问题"
+  - "需要综合整个语料主题和跨文档关系的全局问题"
+  - "只需要图像分类的问题"
+  - "完全不需要外部知识的问题"
+answer: 1
+explain: "GraphRAG 的社区摘要和 map-reduce 查询专门面向全局 sensemaking，弥补单 chunk 语义检索的覆盖不足。"
 ```
 
 ### LLMLingua
@@ -2521,187 +2346,99 @@ motivation: RAG三元组评估法，LLM-as-judge评估忠实度
 ```
 
 #### 📝 一句话总结
-RAGAS 提出了一套无需人工标注参考答案的 RAG 系统自动评估框架，通过 LLM 分别度量忠实度（答案是否基于上下文）、答案相关性（答案是否切题）和上下文相关性（检索内容是否聚焦），在 WikiEval 数据集上与人类判断高度一致（忠实度准确率 95%）。
+RAGAS 提出了一套面向 RAG 三元组 \((q, c(q), a_s(q))\) 的无参考自动评估框架，用 LLM-as-judge 将忠实度、答案相关性、上下文相关性拆成可执行的子判断，解决 RAG 系统缺少人工参考答案时难以持续评估的问题。
 
 #### 🎯 核心要点
-- **三维度无参考评估框架**：Faithfulness（忠实度）、Answer Relevance（答案相关性）、Context Relevance（上下文相关性），完全不依赖 ground truth
-- **Faithfulness 指标**：将答案分解为原子声明（statements），逐条用 LLM 验证是否可从上下文推断，\(F = |V| / |S|\)
-- **Answer Relevance 指标**：从答案反向生成 \(n\) 个问题，计算与原始问题的平均余弦相似度，\(\text{AR} = \frac{1}{n}\sum_{i=1}^{n}\text{sim}(q, q_i)\)
-- **Context Relevance 指标**：用 LLM 从上下文中提取回答问题所需的关键句子，\(\text{CR} = \frac{|\text{extracted sentences}|}{|\text{total sentences in } c(q)|}\)
-- **WikiEval 基准数据集**：50 篇 2022 年后的 Wikipedia 页面，含人工标注的三维度质量判断，标注者一致率 90%–95%
-- **实验使用 gpt-3.5-turbo-16k**，在 WikiEval 上忠实度与人类一致率 95%，答案相关性 78%，上下文相关性 70%
-- **显著优于基线**：对比 GPT Score（直接打分 0–10）和 GPT Ranking（直接排序），RAGAS 在所有维度上大幅领先
+- **RAG 三元组评估**：仅依赖问题 \(q\)、检索上下文 \(c(q)\)、系统答案 \(a_s(q)\)，不要求 ground truth answer。
+- **Faithfulness 忠实度**：先把答案拆成原子事实声明，再逐条判断声明能否由上下文推出，用于检测基于上下文的事实幻觉。
+- **Answer Relevance 答案相关性**：从答案反向生成若干可能问题，再计算这些问题与原始问题的嵌入相似度，惩罚答非所问、信息缺失和冗余回答。
+- **Context Relevance 上下文相关性**：让 LLM 从检索上下文中抽取回答问题所需的关键句，按关键句占全部上下文句子的比例估计检索噪声。
+- **结构化 LLM-as-judge**：避免让 LLM 一次性给整体质量打分，而是把评估拆成声明生成、NLI 判断、问题生成、句子抽取等更稳定的局部任务。
+- **WikiEval 验证集**：论文构造 50 个基于 2022 年后 Wikipedia 页面的样本，并用人工偏好比较验证指标与人类判断的一致性。
+- **实验结论**：在 WikiEval 成对比较中，RAGAS 在 Faithfulness、Answer Relevance、Context Relevance 上分别达到 0.95、0.78、0.70 的人工一致率，优于直接 GPT Score 和 GPT Ranking。
 
 #### 🔬 深入细节
-**RAGAS 评估框架总览**
-
-RAGAS 的核心思想是：RAG 系统的质量可以从三个正交维度进行评估——生成的答案是否忠于检索到的上下文（Faithfulness）、答案是否真正回答了用户的问题（Answer Relevance）、检索到的上下文是否与问题高度相关且不含冗余信息（Context Relevance）。这三个维度共同覆盖了 RAG 系统中检索器和生成器的质量。
-
-> 💡 关键：RAGAS 的最大创新在于**完全无需参考答案**（reference-free），仅利用 \((q, c(q), a_s(q))\) 三元组——即问题、检索上下文和系统答案——就能自动评估 RAG 系统质量。这使得在缺乏标注数据的真实生产环境中也能持续监控 RAG 系统。
-
----
-
-**1. Faithfulness（忠实度）：声明级验证**
-
-忠实度衡量生成答案中的每个事实声明是否都能从检索到的上下文中推断出来。这是检测 RAG 幻觉的核心指标。
-
-评估分两步进行：
-
-**Step 1 — 声明分解**：使用 LLM 将答案 \(a_s(q)\) 分解为一组简短的原子声明 \(S = \{s_1, s_2, \dots, s_k\}\)。
-
-Prompt 示例：
-> *Given a question and answer, create one or more statements from each sentence in the given answer.*
-
-**Step 2 — NLI 验证**：对每个声明 \(s_i\)，使用 LLM 判断该声明是否可以从上下文 \(c(q)\) 中推断出来（verdict: Yes/No）。
-
-Prompt 示例：
-> *Consider the given context and following statements, then determine whether they are supported by the information present in the context. Provide a brief explanation for each before arriving at the verdict (Yes/No).*
-
-最终忠实度得分：
-
-$$F = \frac{|V|}{|S|}$$
-
-其中 \(|V|\) 是被判定为"Yes"的声明数量，\(|S|\) 是声明总数。\(F \in [0, 1]\)，越高表示答案越忠实于上下文。
-
-> ⚠️ 注意：这种声明级分解+逐条验证的方式比直接让 LLM 打分更可靠，因为它将复杂的整体判断拆解为多个简单的二元判断任务，降低了 LLM 的认知负担。
-
----
-
-**2. Answer Relevance（答案相关性）：反向问题生成**
-
-答案相关性衡量生成的答案是否真正回答了用户的问题，同时惩罚不完整或包含冗余信息的答案。
-
-RAGAS 采用了一种巧妙的**反向验证**策略：如果一个答案与问题高度相关，那么从该答案反向生成的问题应该与原始问题语义相近。
-
-**Step 1 — 反向问题生成**：使用 LLM 从答案 \(a_s(q)\) 生成 \(n\) 个问题 \(q_1, q_2, \dots, q_n\)。
-
-Prompt 示例：
-> *Generate a question for the given answer.*
-
-**Step 2 — 余弦相似度计算**：使用文本嵌入模型将原始问题 \(q\) 和每个生成问题 \(q_i\) 编码为向量，计算平均余弦相似度：
-
-$$\text{AR} = \frac{1}{n}\sum_{i=1}^{n}\text{sim}(q, q_i)$$
-
-其中 \(\text{sim}(\cdot, \cdot)\) 为余弦相似度。\(\text{AR} \in [-1, 1]\)，实际中通常为正值，越高表示答案越切题。
-
-> 💡 关键：这种间接评估方式避免了让 LLM 直接判断"答案是否相关"这一主观任务。通过反向生成问题，将语义匹配任务交给嵌入模型，更加客观和稳定。同时，如果答案包含冗余信息，反向生成的问题会偏离原始问题，从而自然地惩罚冗余。
-
----
-
-**3. Context Relevance（上下文相关性）：关键句提取**
-
-上下文相关性衡量检索到的上下文是否聚焦于回答问题所需的信息，惩罚检索结果中的冗余内容。这是对 RAG 系统检索器质量的直接评估。
-
-**单步评估**：使用 LLM 从上下文 \(c(q)\) 中提取对回答问题 \(q\) 至关重要的句子子集 \(S_{ext}\)。
-
-Prompt 示例：
-> *Please extract relevant sentences from the provided context that can potentially help answer the following question. If no relevant sentences are found, or if you believe the question cannot be answered from the given context, return the phrase "Insufficient Information".*
-
-上下文相关性得分：
-
-$$\text{CR} = \frac{|S_{ext}|}{\text{total number of sentences in } c(q)}$$
-
-\(\text{CR} \in [0, 1]\)，越高表示检索到的上下文越聚焦、冗余越少。
-
-> ⚠️ 注意：作者发现上下文相关性是最难评估的维度。ChatGPT 在处理较长上下文时，常常难以准确选择关键句子，导致该指标与人类判断的一致率（70%）低于其他两个维度。
-
----
-
-**4. WikiEval 数据集构建**
-
-WikiEval 是论文提出的评估基准，用于验证 RAGAS 指标与人类判断的一致性：
-
-- **数据来源**：50 篇 2022 年后的 Wikipedia 页面（超出模型训练截止日期），优先选择有近期编辑的页面
-- **问题生成**：使用 ChatGPT 基于页面引言部分生成中等难度的问题
-- **答案生成**：使用 ChatGPT 在给定上下文的条件下回答问题
-- **对比样本构建**：
-  - Faithfulness：额外生成无上下文的答案作为低忠实度对比
-  - Answer Relevance：用 prompt 生成不完整答案作为低相关性对比
-  - Context Relevance：通过抓取反向链接页面添加相关但冗余的句子
-- **人工标注**：两位英语流利的标注者独立标注，Faithfulness 和 Context Relevance 一致率约 95%，Answer Relevance 约 90%，分歧通过讨论解决
-
----
-
-**5. 实验结果与基线对比**
+![RAGAS 评估框架图](https://assets.zilliz.com/large_Mar_18_RAG_Evaluation_using_Ragas_20240318_080304_62e448ec81.png)
+*图：公开 RAGAS 框架示意图，展示 RAG 评估围绕问题、上下文、答案和可选参考答案展开；论文核心关注无需参考答案的 Faithfulness、Answer Relevance、Context Relevance 三项指标。*
 
 ```python
-# RAGAS 评估流程伪代码
-
-def evaluate_ragas(question, context, answer, llm, embedder):
-    """
-    输入: question q, context c(q), answer a_s(q)
-    输出: faithfulness, answer_relevance, context_relevance 三个分数
-    """
-
-    # === 1. Faithfulness ===
-    # Step 1: 声明分解
-    statements = llm.decompose_to_statements(answer)  # a_s(q) → {s_1, ..., s_k}
-    # Step 2: 逐条 NLI 验证
-    verified = 0
-    for s in statements:
-        verdict = llm.verify_against_context(s, context)  # "Yes" or "No"
+# RAGAS 三元组评估伪代码
+def evaluate_ragas(question, context, answer, llm, embedder, n_questions=3):
+    # 1. Faithfulness: answer -> statements -> supported / unsupported
+    statements = llm.extract_atomic_statements(question=question, answer=answer)
+    supported = 0
+    for statement in statements:
+        verdict = llm.verify_statement(context=context, statement=statement)
         if verdict == "Yes":
-            verified += 1
-    faithfulness = verified / len(statements)  # F = |V| / |S|
+            supported += 1
+    faithfulness = supported / max(len(statements), 1)
 
-    # === 2. Answer Relevance ===
-    generated_questions = []
-    for _ in range(n):  # 生成 n 个反向问题
-        q_i = llm.generate_question_from_answer(answer)
-        generated_questions.append(q_i)
-    # 计算嵌入余弦相似度
-    q_emb = embedder.encode(question)
-    similarities = [cosine_sim(q_emb, embedder.encode(q_i))
-                    for q_i in generated_questions]
-    answer_relevance = mean(similarities)  # AR = (1/n) Σ sim(q, q_i)
+    # 2. Answer Relevance: answer -> reverse questions -> embedding similarity
+    generated_questions = [
+        llm.generate_question_from_answer(answer)
+        for _ in range(n_questions)
+    ]
+    q_vec = embedder.encode(question)
+    answer_relevance = mean(
+        cosine_similarity(q_vec, embedder.encode(q_i))
+        for q_i in generated_questions
+    )
 
-    # === 3. Context Relevance ===
-    extracted = llm.extract_relevant_sentences(question, context)
-    total_sentences = count_sentences(context)
-    context_relevance = len(extracted) / total_sentences  # CR
+    # 3. Context Relevance: context -> answer-supporting sentences
+    relevant_sentences = llm.extract_relevant_sentences(
+        question=question,
+        context=context,
+    )
+    total_sentences = sentence_count(context)
+    context_relevance = len(relevant_sentences) / max(total_sentences, 1)
 
-    return faithfulness, answer_relevance, context_relevance
+    return {
+        "faithfulness": faithfulness,
+        "answer_relevance": answer_relevance,
+        "context_relevance": context_relevance,
+    }
 ```
 
-实验在 WikiEval 数据集上进行成对比较（pairwise comparison），每个实例要求模型比较两个答案或两个上下文片段，统计模型偏好与人类偏好的一致率：
+RAGAS 的出发点是生产环境里的 RAG 往往没有标准答案。传统 QA 指标通常假设有人工标注答案或可抽取短答案，但真实 RAG 系统的输出是长文本，质量同时取决于检索器是否取回了聚焦上下文，以及生成器是否正确利用了这些上下文。论文因此把评估对象固定成 \((q, c(q), a_s(q))\)：问题、检索到的上下文、系统生成答案。这样做的价值是可以直接接入线上日志，对每次 RAG 调用做自动诊断，而不是等人工标注集积累完再评估。
 
-| 方法 | Faithfulness | Answer Relevance | Context Relevance |
-|------|:---:|:---:|:---:|
-| **RAGAS** | **0.95** | **0.78** | **0.70** |
-| GPT Score | 0.72 | 0.52 | 0.63 |
-| GPT Ranking | 0.54 | 0.40 | 0.52 |
+Faithfulness 是最核心的幻觉检测指标。RAGAS 不直接问 LLM “这个答案是否忠实”，而是先让 LLM 把答案拆成短而集中的 statements，再逐条用上下文做蕴含判断。若答案声明集合为 \(S\)，被上下文支持的声明集合为 \(V\)，则：
 
-*表：WikiEval 数据集上与人类标注者的成对比较一致率（准确率）*
+$$
+F = \frac{|V|}{|S|}
+$$
 
-- **GPT Score 基线**：直接让 ChatGPT 对三个维度打 0–10 分，相同分数随机打破平局
-- **GPT Ranking 基线**：直接让 ChatGPT 在两个候选中选择更好的一个
+这个设计的关键直觉是把复杂主观判断变成多个二元 NLI 式判断。一个长答案可能大部分正确、局部幻觉；整体打分容易掩盖局部错误，而 statement 级验证能定位具体不被上下文支持的事实，从而给 RAG 调参与失败分析提供更细粒度信号。
 
-> 💡 关键：RAGAS 在忠实度上达到 95% 的人类一致率，远超直接打分（72%）和直接排序（54%）。这证明了**将复杂评估任务分解为结构化子任务**（声明分解 → 逐条验证）的有效性，而非依赖 LLM 的单次整体判断。
+Answer Relevance 只衡量“答得是否切题”，刻意不检查事实正确性。RAGAS 采用反向问题生成：如果答案确实围绕原问题，那么从答案生成的问题 \(q_i\) 应该与原问题 \(q\) 语义接近。论文用文本嵌入计算平均余弦相似度：
 
----
+$$
+AR = \frac{1}{n}\sum_{i=1}^{n} \operatorname{sim}(q, q_i)
+$$
 
-**与传统评估方法的区别**
+这种间接评估避免了让 LLM 凭感觉给“相关性”打分。答案若遗漏问题关键约束，反向生成的问题会变得更宽泛；答案若夹带冗余事实，生成的问题也可能偏离原始意图，最终拉低平均相似度。
 
-| 特性 | 传统指标 (BLEU/ROUGE) | 基于参考的 LLM 评估 | RAGAS |
-|------|:---:|:---:|:---:|
-| 需要参考答案 | ✅ | ✅ | ❌ |
-| 评估语义忠实度 | ❌ | 部分 | ✅ |
-| 评估检索质量 | ❌ | ❌ | ✅ |
-| 可用于生产监控 | 受限 | 受限 | ✅ |
-| 与人类判断一致性 | 低 | 中 | 高 |
+Context Relevance 则面向检索器。它要求 LLM 从 \(c(q)\) 中抽取真正有助于回答 \(q\) 的句子集合 \(S_{ext}\)，再用关键句数占总句数的比例近似上下文聚焦程度：
 
-RAGAS 的核心优势在于：(1) 无需标注数据即可评估，适合快速迭代和生产环境监控；(2) 通过结构化分解将评估任务简化，提高 LLM 评估的可靠性；(3) 三个维度分别覆盖生成器和检索器，提供全面的系统诊断能力。
+$$
+CR = \frac{|S_{ext}|}{\text{number of sentences in } c(q)}
+$$
+
+该指标的方向不是“检索结果越多越好”，而是惩罚噪声上下文。对于长上下文 RAG，冗余段落会增加 token 成本，也可能让模型忽略中间位置的关键信息；因此 Context Relevance 直接反映检索结果是否足够精炼。论文也指出这是三项指标里最难稳定判断的一项，因为长上下文中的关键句抽取对 LLM 本身要求更高。
+
+WikiEval 的构造用于检验这些指标是否真能对齐人类偏好。论文选取 50 个 2022 年以后发生事件相关的 Wikipedia 页面，生成可由页面引言回答的问题，再构造高低质量对比样本：无上下文回答用于制造低忠实度答案，不完整回答用于测试答案相关性，反向链接和补全内容用于制造冗余上下文。两名英语流利标注者独立比较样本，最终 RAGAS 在忠实度上达到 0.95 的人工一致率，显著高于让 ChatGPT 直接 0-10 打分或直接排序。
+
+> 💡 关键：RAGAS 的贡献不只是“用 LLM 当裁判”，而是提出了一套把 RAG 质量拆解为可审计中间步骤的评估流程。它牺牲了一点调用复杂度，换来更高的可解释性和更可靠的线上诊断能力。
 
 #### 🧪 练习题
 ```yaml
-question: "RAGAS 的 Faithfulness 指标为什么要先将答案分解为原子声明再逐条验证，而不是直接让 LLM 判断整个答案是否忠实？"
+question: "RAGAS 的 Faithfulness 指标为什么要把答案拆成 statements 再验证？"
 options:
-  - "为了减少 LLM 的 API 调用次数，降低评估成本"
-  - "将复杂的整体判断拆解为多个简单的二元判断，降低 LLM 的认知负担，提高评估准确性"
-  - "因为 LLM 无法理解完整的答案文本，只能处理短句"
-  - "为了生成更多的训练数据用于微调评估模型"
+  - "为了让答案更短，从而降低生成模型的输出 token 数"
+  - "为了把整体忠实度判断拆成多个声明级支持性判断，定位哪些事实无法由上下文推出"
+  - "为了训练一个新的检索器，让检索结果更接近人工参考答案"
+  - "为了把上下文相关性和答案相关性合并成一个单一分数"
 answer: 1
-explain: "声明级分解将'整个答案是否忠实'这一复杂判断拆解为多个'单条声明是否可从上下文推断'的简单二元任务，实验表明这种结构化方法（95%一致率）远优于直接让 LLM 整体打分（72%）。"
+explain: "Faithfulness 的核心是 statement-level verification。拆分后每条事实声明都能单独与上下文做支持性判断，比直接整体打分更可解释，也更容易发现局部幻觉。"
 ```
 
 ### RGB
@@ -2862,16 +2599,71 @@ motivation: 三图层级结构使索引成本线性增长，避开关系抽取
 ```
 
 #### 📝 一句话总结
-LinearRAG 的核心目标是：三图层级结构使索引成本线性增长，避开关系抽取。
+LinearRAG 提出 relation-free Tri-Graph，用实体、句子和段落三类节点替代昂贵且不稳定的关系抽取，再通过局部语义桥接和全局重要性聚合完成多跳检索，解决 GraphRAG 索引成本高、关系噪声大和可扩展性差的问题。
 
 #### 🎯 核心要点
-- 核心动机：三图层级结构使索引成本线性增长，避开关系抽取
-- 演化来源：继承或改进自 graphrag
-- 代表机构：Tsinghua/Alibaba
+- **实际论文页**：manifest 中 `2412.14833` 指向骨架动作识别论文；LinearRAG 实际公开论文为 `https://arxiv.org/abs/2510.10114`。
+- **Tri-Graph 索引**：构建 entity、sentence、passage 三层节点，仅保留“提及/包含”边。
+- **避开关系抽取**：不用 OpenIE 或 LLM 抽取三元组，减少错误关系和额外 token 成本。
+- **局部语义桥接**：在 entity-sentence 子图上传播查询语义，激活隐含中间实体。
+- **全局重要性聚合**：在 entity-passage 子图上用 Personalized PageRank 聚合 passage 重要性。
+- **线性扩展**：句子切分、NER、稀疏邻接矩阵和 SpMM/PPR 让构建与检索近似随语料规模线性增长。
 
 #### 🔬 深入细节
-三图层级结构使索引成本线性增长，避开关系抽取
+![LinearRAG 框架图](https://ar5iv.labs.arxiv.org/html/2510.10114/assets/x1.png)
 
+*图源：ar5iv 论文图 1，展示 LinearRAG 的 relation-free 图构建与两阶段检索思路。*
+
+```python
+def build_trigraph(passages):
+    graph = TriGraph()
+    for passage in passages:
+        p_node = graph.add_passage(passage)
+        for sentence in split_sentences(passage):
+            s_node = graph.add_sentence(sentence)
+            for ent in ner(sentence):
+                e_node = graph.add_entity(ent)
+                graph.add_edge(e_node, s_node)  # mention matrix M
+                graph.add_edge(e_node, p_node)  # contain matrix C
+    return graph
+
+def linearrag_retrieve(query, graph, embedder, top_k=5, delta=4):
+    seed_entities = match_query_entities(query, graph.entities)
+    activation = initialize(seed_entities)
+
+    # Stage 1: local semantic bridging on entity-sentence graph
+    for _ in range(4):
+        activation = sparse_semantic_propagation(activation, graph.M, embedder)
+        activation = prune_below_threshold(activation, delta)
+        if no_new_entities(activation):
+            break
+
+    # Stage 2: global importance aggregation on entity-passage graph
+    ppr_scores = personalized_pagerank(graph.C, seeds=activation)
+    return top_passages_by_score(ppr_scores, top_k)
+```
+
+LinearRAG 的出发点是对 GraphRAG 做“减法”。许多 GraphRAG 系统会先把文本抽成实体-关系三元组，再在图上做推理；但关系抽取常常把否定、条件、上下文省略或层级关系抽错。一旦错误关系进入图，检索会沿着这些边扩散，把语义相关但事实无关的段落带入上下文。
+
+Tri-Graph 只抽取实体并保留原文段落，不显式抽取关系。图中有三类节点：passage 保存完整上下文，sentence 作为局部语义桥，entity 作为跨段落锚点。两类稀疏矩阵分别表示实体被哪些句子提及、实体出现在哪些段落中。这样关系语义仍留在原文里，由生成模型在读证据时解释，而不是提前压缩成可能错误的三元组。
+
+检索第一阶段是 entity activation。查询中的实体先成为种子，然后在 entity-sentence 子图中传播相似度，找到没有字面出现在查询里、但通过句子语义连接多跳推理链的中间实体。阈值 \(\delta\) 控制扩散边界，避免实体激活指数级膨胀。
+
+第二阶段是 passage retrieval。LinearRAG 把激活实体作为 Personalized PageRank 的种子，在 entity-passage 子图中聚合全局重要性。一个 passage 的分数既来自与查询的直接相似度，也来自它包含多少高激活实体以及这些实体在图中的位置。最终 top-k passage 被送给 LLM 生成答案。
+
+与 GraphRAG 相比，LinearRAG 的核心优势是“结构足够、关系留白”。它仍然利用实体连接跨文档信息，但不让不可靠的关系抽取决定推理路径；因此更适合大规模语料、多跳 QA 和需要频繁增量更新的企业知识库。
+
+#### 🧪 练习题
+```yaml
+question: "LinearRAG 为什么刻意避免显式关系抽取？"
+options:
+  - "因为实体节点完全不能用于检索"
+  - "因为关系抽取昂贵且容易产生错误边，原文段落能保留更完整的关系语义"
+  - "因为 Personalized PageRank 只能处理图片"
+  - "因为它不需要任何索引结构"
+answer: 1
+explain: "LinearRAG 用实体、句子和段落连接保留多跳检索能力，同时避免错误三元组在图中扩散噪声。"
+```
 
 ### TM-RAG
 
@@ -2890,16 +2682,67 @@ motivation: Mamba处理长程依赖，Transformer精细聚合证据
 ```
 
 #### 📝 一句话总结
-TM-RAG 的核心目标是：Mamba处理长程依赖，Transformer精细聚合证据。
+TM-RAG 将 Transformer 的局部精细注意力与 Mamba 的长程状态建模结合，并用 CAGF 动态融合和多层级对比学习增强证据聚合，解决长证据 RAG 中全局语义弱、细粒度事实对齐不足的问题。
 
 #### 🎯 核心要点
-- 核心动机：Mamba处理长程依赖，Transformer精细聚合证据
-- 演化来源：继承或改进自 self_rag
-- 代表机构：King Saud University
+- **Transformer-Mamba 编码**：Transformer 捕捉局部证据交互，Mamba 以线性序列建模处理长程依赖。
+- **CAGF 动态融合**：通过 Cross-Attention Gated Fusion 类模块自适应融合两路特征。
+- **多层级对比学习**：包含句级、槽位级和 token 级 masked-recovery contrastive learning。
+- **长文本证据聚合**：目标是避免检索只偏向主题相似，而忽略事实一致性和关键槽位。
+- **评测覆盖**：在中文左宗棠历史数据集、HotpotQA、MuSiQue、SQuAD 等任务上验证。
+- **公开来源限制**：Springer 页面可访问摘要与元数据，正文图未暴露稳定图片直链；下方使用官方文章页作为公开图源链接。
 
 #### 🔬 深入细节
-Mamba处理长程依赖，Transformer精细聚合证据
+![TM-RAG 官方文章页图源](https://link.springer.com/article/10.1007/s44443-026-00723-5)
 
+*图源：Springer Open Access 文章页；该页说明 TM-RAG 由 Transformer-Mamba 编码、CAGF 融合和多层级对比目标组成。*
+
+```python
+def tm_rag_train(query, positive_evidence, negative_evidence, encoder, generator):
+    evidence = positive_evidence + negative_evidence
+
+    transformer_states = encoder.transformer_branch(query, evidence)
+    mamba_states = encoder.mamba_branch(query, evidence)
+    fused = cagf_gate(transformer_states, mamba_states)
+
+    sent_loss = contrastive_sentence(fused, positive_evidence, negative_evidence)
+    slot_loss = contrastive_slots(fused, extract_slots(positive_evidence))
+    token_loss = masked_recovery_contrastive(fused, mask_entity_time_place_slots(evidence))
+    gen_loss = generator.nll(query, positive_evidence)
+
+    return gen_loss + sent_loss + slot_loss + token_loss
+
+def tm_rag_answer(query, retriever, tm_encoder, generator):
+    docs = retriever.search(query, top_k=20)
+    fused_context = tm_encoder.aggregate_long_evidence(query, docs)
+    return generator.generate(query, fused_context)
+```
+
+TM-RAG 关注的是长证据聚合，而不是单纯检索召回。真实 RAG 场景里，top-k 文档可能跨越很长上下文，普通 dense retrieval 容易根据主题相似召回材料，却没有足够机制判断“这些材料是否共同支持同一个事实”。Transformer 能做细粒度 token 交互，但在长序列上成本高；Mamba 的选择性状态空间模型更适合线性处理长程依赖，却不如注意力直观地建模局部证据对齐。
+
+混合编码器把两者分工：Transformer 分支处理查询和证据之间的局部交互，捕捉实体、时间、地点、动作等关键槽位；Mamba 分支沿长序列传播状态，保留跨段落的全局语义。CAGF 融合模块相当于一个动态门控，按样本决定更信任局部注意力还是长程状态，而不是简单拼接两路特征。
+
+多层级对比学习用于让编码器不只“读过证据”，还要区分事实支持关系。句级对比拉近查询与正证据句，推远负证据句；槽位级对比关注 subject、time、place、action 等结构化事实槽；token 级 masked recovery 则把被遮蔽的关键 token 与原始证据表示对齐，迫使模型保留细粒度事实。
+
+在 RAG 推理中，TM-RAG 的输出可以看作经过长证据聚合的上下文表示：
+
+$$
+h_{\text{fused}} = g_{\text{CAGF}}\left(h_{\text{Transformer}}, h_{\text{Mamba}}\right),
+$$
+
+再由生成器基于 \(h_{\text{fused}}\) 回答。它与 Self-RAG 的关系在于都强调“不要盲信检索结果”，但 Self-RAG 用反射 token 批判检索内容，TM-RAG 则在编码层面强化长程证据一致性。
+
+#### 🧪 练习题
+```yaml
+question: "TM-RAG 中引入 Mamba 分支的主要目的是什么？"
+options:
+  - "替代所有检索器"
+  - "以更适合长序列的方式建模跨段落长程依赖"
+  - "把文本转换成图片"
+  - "只用于生成随机负样本"
+answer: 1
+explain: "Mamba 的状态空间建模适合长序列信息传播，弥补 Transformer 在长证据上下文中的成本和全局依赖问题。"
+```
 
 ### VideoRAG
 
@@ -2918,16 +2761,71 @@ motivation: 极长视频多模态编码器实现小时级上下文检索
 ```
 
 #### 📝 一句话总结
-VideoRAG 的核心目标是：极长视频多模态编码器实现小时级上下文检索。
+VideoRAG 把 RAG 扩展到小时级、多视频语料，通过图式文本知识 grounding 和多模态上下文编码双通道索引视频片段，让 LLM 能从极长视频集合中检索视觉、语音和文本证据后生成回答。
 
 #### 🎯 核心要点
-- 核心动机：极长视频多模态编码器实现小时级上下文检索
-- 演化来源：继承或改进自 rag
-- 代表机构：Zhejiang University
+- **实际论文页**：manifest 中 `2501.09885` 指向无关超导论文；这里依据 `https://arxiv.org/abs/2502.01549` 的 Extreme Long-Context VideoRAG。
+- **双通道架构**：graph-based textual knowledge grounding + multi-modal context encoding。
+- **视频切片处理**：把任意长视频切为片段，抽取 ASR 文本、采样帧和 VLM caption。
+- **跨视频知识图谱**：用 LLM 从 caption/transcript 中抽取实体和关系，支持多视频知识连接。
+- **多模态检索**：同时利用文本语义、图结构和视觉 embedding 找到相关片段。
+- **LongerVideos 基准**：包含 160+ 视频、134+ 小时，覆盖课程、纪录片、娱乐内容。
 
 #### 🔬 深入细节
-极长视频多模态编码器实现小时级上下文检索
+![VideoRAG 框架图](https://ar5iv.labs.arxiv.org/html/2502.01549/assets/x1.png)
 
+*图源：ar5iv 论文图 1，展示 VideoRAG 的视频知识索引、多模态检索和最终生成流程。*
+
+```python
+def index_videos(video_list, asr, vlm, text_encoder, multimodal_encoder):
+    graph = KnowledgeGraph()
+    clip_store = []
+    for video in video_list:
+        for clip in split_video(video, seconds=30):
+            transcript = asr.transcribe(clip.audio)
+            frames = sample_frames(clip, k=10)
+            caption = vlm.caption(frames, transcript)
+            text_chunk = merge(caption, transcript, clip.timestamp)
+
+            entities, relations = llm_extract_graph(text_chunk)
+            graph.update(entities, relations, source=clip.id)
+            clip_store.append({
+                "clip": clip,
+                "text_vec": text_encoder(text_chunk),
+                "video_vec": multimodal_encoder(frames, transcript),
+            })
+    return graph, clip_store
+
+def videorag_query(query, graph, clip_store, generator):
+    graph_hits = graph.retrieve_related_chunks(query)
+    visual_hits = multimodal_search(query, clip_store)
+    evidence = rerank_and_merge(graph_hits, visual_hits)
+    return generator.answer(query, evidence)
+```
+
+VideoRAG 的关键难点是视频不是普通长文档。它同时包含视觉帧、语音、字幕、场景变化和跨片段时间依赖；如果只把视频转写成文本，视觉细节会丢失；如果只把帧塞进长视频模型，小时级视频会遇到上下文和计算瓶颈。因此 VideoRAG 使用双通道索引：文本图谱保留可符号化的知识关系，视觉编码保留难以文本化的场景信息。
+
+索引阶段先把视频切成短片段。每个片段通过 ASR 得到 transcript，通过采样帧和 VLM 得到 caption，再把二者合并为结构化文本。随后 LLM 从文本中抽取实体和关系，增量构建跨视频知识图谱；同时，文本编码器和多模态编码器分别保存文本向量与视觉/音频上下文向量。
+
+检索阶段不只做单一路径相似度搜索。对于查询 \(q\)，VideoRAG 可以在图谱中找到相关实体和关系，也可以在多模态 embedding 空间中匹配视觉片段。最终证据由两路候选合并、重排后提供给生成模型：
+
+$$
+\operatorname{Answer}=\operatorname{LLM}\left(q,\ \psi_{\text{text-graph}}(q,G)\cup\psi_{\text{multi-modal}}(q,E_v)\right).
+$$
+
+这套设计特别适合跨视频问题，例如“某系列课程里某概念第一次在哪一集解释、后续如何展开”。传统 LVLM 可能只能看固定帧窗口，文本 RAG 又看不到画面；VideoRAG 通过知识图谱连接多个视频片段，再用视觉检索补齐具体画面证据。
+
+#### 🧪 练习题
+```yaml
+question: "VideoRAG 为什么需要同时使用图式文本 grounding 和多模态编码？"
+options:
+  - "因为视频信息同时包含可文本化知识关系和难以文本化的视觉细节"
+  - "因为图谱会自动压缩所有模型参数"
+  - "因为 ASR 可以替代视觉帧"
+  - "因为多模态编码只能处理纯文本"
+answer: 0
+explain: "视频证据跨越语音、画面和时间关系，双通道索引能同时保留结构化语义和视觉细节。"
+```
 
 ### BayesRAG
 
@@ -2946,16 +2844,66 @@ motivation: 概率性证据互证机制解决多模态保真度融合
 ```
 
 #### 📝 一句话总结
-BayesRAG 的核心目标是：概率性证据互证机制解决多模态保真度融合。
+BayesRAG 将多模态检索重写为贝叶斯证据融合问题，用查询相关 likelihood、跨模态一致性 prior 和 Dempster-Shafer 证据理论共同计算后验置信度，解决文本、图像和版面证据高相似但互相矛盾的问题。
 
 #### 🎯 核心要点
-- 核心动机：概率性证据互证机制解决多模态保真度融合
-- 演化来源：继承或改进自 videorag
-- 代表机构：KAIST
+- **多模态证据 tuple**：把文本、视觉元素和页面/截图布局组合成候选证据单元。
+- **贝叶斯后验排序**：以 \(P(E\mid Q)\propto P(Q\mid E)P(E)\) 重排检索结果。
+- **Dempster-Shafer likelihood**：融合不同模态的相关性质量函数，处理不确定和冲突证据。
+- **一致性 prior**：用 graph-topology prior 或 layout prior 衡量文本-图像是否天然属于同一证据单元。
+- **冲突惩罚**：对高单模态相似但跨模态语义不一致的候选降权。
+- **适用场景**：面向图文混排、表格图表丰富的长文档 QA，如 DocBench、MMLongBench-Doc。
 
 #### 🔬 深入细节
-概率性证据互证机制解决多模态保真度融合
+![BayesRAG 架构图](https://ar5iv.labs.arxiv.org/html/2601.07329/assets/x1.png)
 
+*图源：ar5iv 论文图 1，展示 BayesRAG 把多模态检索候选通过 likelihood、prior 和 posterior 进行证据融合。*
+
+```python
+def bayesrag_rank(query, text_hits, image_hits, page_hits, graph_or_layout):
+    candidates = make_evidence_tuples(text_hits, image_hits, page_hits)
+    ranked = []
+    for E in candidates:
+        # likelihood: 各模态与 query 的相关性，经 Dempster-Shafer 融合
+        masses = [mass_function(similarity(query, item)) for item in E]
+        likelihood = dempster_shafer_combine(masses).belief("relevant")
+
+        # prior: tuple 内部是否互相支持
+        if graph_or_layout.type == "graph":
+            prior = graph_topology_consistency(E, graph_or_layout)
+        else:
+            prior = layout_proximity(E, graph_or_layout)
+
+        posterior = likelihood * prior
+        ranked.append((posterior, E))
+    return [E for _, E in sorted(ranked, reverse=True)]
+```
+
+BayesRAG 针对视觉丰富文档中的“bag-of-evidence”问题。普通多模态 RAG 往往分别检索文本、图片和页面，再把 top-k 合并；但高相似并不等于互相支持。例如文本候选可能说水果 apple，图像候选却是 Apple 公司 logo，二者都与查询相似，却组合成错误证据。
+
+论文将候选证据表示为 \(E=(e_{\text{text}}, e_{\text{vision}}, e_{\text{screenshot}})\)，目标是估计：
+
+$$
+P(E\mid Q)\propto P(Q\mid E)P(E).
+$$
+
+其中 \(P(Q\mid E)\) 是 evidence tuple 对查询的解释能力，来自各模态 embedding 相似度；\(P(E)\) 是证据内部一致性，即这些文本、图片和页面元素在语义或布局上是否本来就应该关联。
+
+likelihood 部分使用 Dempster-Shafer 证据理论。每个模态根据相似度给出“相关/不相关/不确定”的质量函数，组合规则会显式处理冲突：多个模态一致支持时 belief 上升，彼此矛盾时联合置信度下降。这比简单平均相似度更适合多模态噪声场景。
+
+prior 部分有两种实现。Graph-topology prior 把文档元素构成多模态知识图，优先选择在图中连接强、语义一致的 tuple；layout prior 使用页面坐标和邻近关系，认为同页相邻的图文更可能互相解释。最终 posterior 重排让 BayesRAG 优先选择“既与查询相关，又相互 corroborate”的证据。
+
+#### 🧪 练习题
+```yaml
+question: "BayesRAG 中 prior P(E) 主要表示什么？"
+options:
+  - "语言模型参数的先验分布"
+  - "证据 tuple 内部在语义、图结构或版面上的一致性"
+  - "检索器返回文档的原始顺序"
+  - "答案长度的惩罚项"
+answer: 1
+explain: "BayesRAG 用 prior 衡量文本、图像和页面证据是否天然互相支持，从而惩罚跨模态冲突。"
+```
 
 ### SSRAG
 
@@ -2974,16 +2922,69 @@ motivation: 混合检索与智能路由解决语义漂移问题
 ```
 
 #### 📝 一句话总结
-SSRAG 的核心目标是：混合检索与智能路由解决语义漂移问题。
+SSRAG 提出 query augmentation、agentic routing、vector + graph hybrid retrieval 和 context unification 的混合框架，通过语义检索与结构化实体关系检索互补，解决标准 RAG 容易检索偏移、上下文不完整和事实性不足的问题。
 
 #### 🎯 核心要点
-- 核心动机：混合检索与智能路由解决语义漂移问题
-- 演化来源：继承或改进自 self_rag
-- 代表机构：IBM Research
+- **查询增强**：抽取实体、意图、时间线索，扩展缩写并规范别名。
+- **Agentic Query Routing**：用 LLM 判断 factual/temporal，把查询路由到 Wikipedia、Google API 等合适来源。
+- **混合检索**：并行执行向量检索和图检索，兼顾语义相似与关系推理。
+- **Context Unification**：把图结果线性化成文本向量，与向量候选统一重排、去重、截断。
+- **工程实现**：FAISS 负责 dense retrieval，Neo4j/Cypher 负责实体关系子图检索。
+- **评测数据**：TruthfulQA、SQuAD、WikiQA，覆盖五类 LLM 和 RAGAS/ROUGE/BLEU/事实性指标。
 
 #### 🔬 深入细节
-混合检索与智能路由解决语义漂移问题
+![SSRAG 架构图](https://ar5iv.labs.arxiv.org/html/2601.12658/assets/Learning_to_RAG_Architecture.png)
 
+*图源：ar5iv 论文图 1，展示 SSRAG 的查询增强、路由、混合检索和上下文统一流程。*
+
+```python
+def ssrag_answer(query, llm, vector_index, graph_db, web_api, wiki_db, k=20):
+    augmented = enhance_query(
+        query,
+        entities=extract_entities(query),
+        intent=detect_intent(query),
+        aliases=canonicalize_aliases(query),
+    )
+
+    route = llm.classify_route(augmented, labels=["TEMPORAL", "FACTUAL"])
+    source = web_api if route == "TEMPORAL" else wiki_db
+
+    vector_hits = vector_index.search(augmented, source=source, top_k=k)
+    subgraph = graph_db.retrieve_entities_and_relations(augmented, source=source)
+    graph_texts = llm.linearize_graph(subgraph)
+    graph_vectors = embed(graph_texts)
+
+    candidates = rerank_by_cosine([*vector_hits, *graph_vectors], augmented)
+    unified = deduplicate(candidates, by=["exact_match", "cosine"])
+    context = take_top_k(unified, k)
+    return llm.generate(query, context)
+```
+
+SSRAG 的动机是标准向量 RAG 容易出现 semantic drift：查询和文档 embedding 相似，但证据并不完整，或者缺少关键实体关系。Graph RAG 能表达结构关系，却可能漏掉语义近似但图中未显式连接的材料。SSRAG 把两者做成流水线，而不是二选一。
+
+查询增强是前置的稳定化步骤。系统先识别查询中的实体、意图和时间敏感性，再扩展缩写与别名，例如把 “RL” 改写成 “reinforcement learning”。这一步降低了短查询、歧义查询和别名不一致导致的召回失败。
+
+路由模块把检索源选择显式化。对于“最新突破”“今天”“当前价格”等 temporal 查询，系统路由到实时 Web；对于历史事实或百科知识，则路由到 Wikipedia 或预构建语料。路由可以表示为：
+
+$$
+r=\operatorname{Router}(Q_{\text{aug}})\in\{\text{TEMPORAL},\text{FACTUAL}\}.
+$$
+
+这比所有查询都用同一个索引更稳，因为检索源的新鲜度和可信度需求并不相同。
+
+混合检索阶段并行运行向量检索和图检索。图检索返回实体、关系和子图路径，随后被 LLM 转成文本表示并嵌入到同一向量空间；系统把 graph-to-text 候选和 dense 候选统一重排，选 top-2k 后去重，再截断为最终上下文。这样既能保留结构化关系，也能在最终 prompt 中以 LLM 可读文本呈现。
+
+#### 🧪 练习题
+```yaml
+question: "SSRAG 中 Agentic Query Routing 的核心作用是什么？"
+options:
+  - "把所有查询强制送到同一个向量库"
+  - "根据查询是否时间敏感或事实型选择合适的数据源和检索路径"
+  - "删除查询中的所有实体"
+  - "只负责压缩最终答案"
+answer: 1
+explain: "SSRAG 用路由减少来源不匹配导致的语义漂移，例如实时问题走 Web，稳定事实走 Wikipedia。"
+```
 
 ### ViG-RAG
 
@@ -3002,16 +3003,70 @@ motivation: 概率时间知识图谱实现视频片段语义时间混合推理
 ```
 
 #### 📝 一句话总结
-ViG-RAG 的核心目标是：概率时间知识图谱实现视频片段语义时间混合推理。
+ViG-RAG 为长视频构建带时间戳和置信度的概率时间知识图谱（PTKG），再用语义-时间双层检索、GMM 自适应筛选和 VLM 证据融合生成答案，解决长视频 RAG 中片段割裂、时间关系缺失和静态文本匹配不准的问题。
 
 #### 🎯 核心要点
-- 核心动机：概率时间知识图谱实现视频片段语义时间混合推理
-- 演化来源：继承或改进自 graphrag
-- 代表机构：Seoul National University
+- **实际论文页**：manifest 中 AAAI `30471` 是语音增强学生摘要；ViG-RAG 实际 AAAI 2026 页面为 `https://ojs.aaai.org/index.php/AAAI/article/view/36963`。
+- **PTKG 表示**：事实以 \((h,r,t,\tau,p)\) 表示，额外包含时间标记和置信度。
+- **多模态内容抽取**：视频切片后抽取 ASR、采样帧和 VLM caption，再由 LLM 抽取实体、关系、时间、置信度。
+- **语义-时间双层检索**：Text-F 判断语义相关，Temp-F 判断时间一致和长程依赖。
+- **GMM 动态 Top-K**：根据相似度分布自适应区分高置信候选，避免手工阈值。
+- **插件式增强**：可作为辅助模块接入 Video-LLaVA、LongVA、Qwen2-VL、LLaVA-Video 等 LVLM。
 
 #### 🔬 深入细节
-概率时间知识图谱实现视频片段语义时间混合推理
+![ViG-RAG 官方 PDF 图源](https://ojs.aaai.org/index.php/AAAI/article/download/36963/40925)
 
+*图源：AAAI 2026 官方 PDF，Figure 2 展示 ViG-RAG 将视频转成 PTKG，并通过语义-时间检索和 query-aware generation 生成答案。*
+
+```python
+def build_ptkg(videos, asr, vlm, llm):
+    ptkg = []
+    for video in videos:
+        for segment in split_video(video, seconds=30):
+            transcript = asr(segment.audio)
+            frames = sample_frames(segment, k=10)
+            caption = vlm.describe(frames, transcript)
+            facts = llm.extract_quintuples(caption, transcript)
+            # fact = (head, relation, tail, timestamp, plausibility)
+            ptkg.extend(facts)
+    return merge_cross_video_facts(ptkg)
+
+def vig_rag_query(query, ptkg, visual_index, lvml):
+    textual_candidates = retrieve_by_entities_and_anchors(query, ptkg)
+    scored = []
+    for segment in textual_candidates:
+        sem = text_f(segment, query)
+        temp = temp_f(segment, query, ptkg)
+        scored.append((alpha * sem + (1 - alpha) * temp, segment))
+
+    selected = gmm_select_high_confidence(scored)
+    frames = retrieve_visual_frames(query, selected, visual_index)
+    return lvml.generate(query, semantic_anchors=selected, frames=frames)
+```
+
+ViG-RAG 的核心是把视频片段从孤立 chunk 变成带时间和不确定性的图事实。普通视频 RAG 可能只把 transcript 或 caption 当文本检索，无法表达“某实体在某时间段做了什么，置信度多高”。PTKG 用 \((h,r,t,\tau,p)\) 同时编码关系、时间和 plausibility，更适合视频中事件随时间展开的场景。
+
+索引阶段先把长视频切成固定片段，提取语音转写和视觉描述。LLM 随后从每个片段中抽取实体、关系、时间信息和置信分数，合并成跨视频 PTKG。这个图既是文本检索索引，也是时间推理结构，使模型可以沿实体和时间线找证据，而不是只看静态相似度。
+
+检索阶段包含语义和时间两种过滤。Text-F 判断片段文本是否回答查询；Temp-F 判断片段是否处在正确时间范围、是否与前后事件连贯。两者加权后得到候选分数：
+
+$$
+s(S,q)=\alpha\operatorname{TextF}(S,q)+(1-\alpha)\operatorname{TempF}(S,q).
+$$
+
+由于不同查询的分数分布不同，固定 top-k 或固定阈值会不稳。ViG-RAG 用 Gaussian Mixture Model 拟合候选相似度分布，自动选择高置信簇；随后再由 VLM/LVLM 整合 semantic anchors、上下文字段和选中视频帧生成答案。
+
+#### 🧪 练习题
+```yaml
+question: "ViG-RAG 的 PTKG 相比普通知识图谱多编码了哪些关键信息？"
+options:
+  - "只多编码模型参数量"
+  - "时间标记和事实置信度"
+  - "只多编码图像分辨率"
+  - "只多编码答案长度"
+answer: 1
+explain: "PTKG 将事实表示为带时间 τ 和 plausibility p 的五元组，支持长视频中的时间推理和不确定性处理。"
+```
 
 ### URaG
 
@@ -3030,16 +3085,63 @@ motivation: 多模态长文档统一架构，检索生成端到端优化
 ```
 
 #### 📝 一句话总结
-URaG 的核心目标是：多模态长文档统一架构，检索生成端到端优化。
+URaG 在单一多模态 LLM 内部统一检索与生成：利用早期 Transformer 层的粗粒度证据定位能力选择相关页面，再让深层只处理保留页面，从而在长文档理解中同时提升准确率和效率。
 
 #### 🎯 核心要点
-- 核心动机：多模态长文档统一架构，检索生成端到端优化
-- 演化来源：继承或改进自 videorag
-- 代表机构：Fudan University
+- **统一架构**：不外接独立 retriever，而是在 MLLM 内部加入轻量 cross-modal retrieval module。
+- **粗到细观察**：早层广泛关注整份文档，深层更集中到相关证据页。
+- **早层检索**：把早期 hidden states 映射后与查询计算相似度，选择 top-k 页面/视觉 token。
+- **深层生成**：丢弃不相关视觉 token，让深层 Transformer 专注证据页面。
+- **效率收益**：AAAI 摘要报告计算开销降低 44-56%。
+- **官方图源**：作者 GitHub 提供 URaG framework 和 layer study 图。
 
 #### 🔬 深入细节
-多模态长文档统一架构，检索生成端到端优化
+![URaG 框架图](https://github.com/shi-yx/URaG/raw/main/figures/urag_framework.jpg)
 
+*图源：URaG 官方 GitHub，展示早层特征进入 cross-modal retrieval module，筛选 top-k 页面后送入深层生成。*
+
+```python
+def urag_forward(document_pages, query, mllm, retriever_head, k):
+    visual_tokens = mllm.vision_encoder(document_pages)
+    query_tokens = mllm.text_embed(query)
+
+    early_states = mllm.run_early_layers(visual_tokens, query_tokens)
+    page_vectors = retriever_head.map_visual_pages(early_states.visual)
+    query_vector = retriever_head.map_query(early_states.query)
+
+    sim = cosine_similarity(page_vectors, query_vector)
+    selected_pages = top_k_pages(sim, k)
+    pruned_tokens = keep_tokens(visual_tokens, selected_pages)
+
+    deep_states = mllm.run_deep_layers(pruned_tokens, query_tokens)
+    return mllm.decode_answer(deep_states)
+```
+
+URaG 的出发点是多模态长文档理解中的两个瓶颈：无关页面造成信息干扰，Transformer 对长视觉 token 的计算成本近似二次增长。外接 retriever 能筛页面，但会增加系统复杂度，而且检索目标和生成模型不一定端到端一致。
+
+论文的关键观察是 MLLM 本身呈现 coarse-to-fine 规律：早期层对文档页面的注意力比较广，可以作为粗检索信号；深层注意力逐渐集中到回答所需页面。因此 URaG 把早层隐藏状态拿出来做页面级相似度计算，让模型“边推理边检索”。
+
+Cross-modal retrieval module 是轻量映射头。它把视觉页面 token 和文本查询 token 投到同一相似度空间，计算页面分数：
+
+$$
+s_i=\cos\left(W_v h_i^{\text{page}}, W_q h^{\text{query}}\right),
+$$
+
+然后保留 top-k 页面对应的视觉 token。被丢弃的页面不进入后续深层，从而节省计算并减少干扰。
+
+与 token compression 的区别是，URaG 不是把所有页面压成短摘要，而是显式选择证据页面，保留被选页面的细粒度视觉信息。与外部检索器相比，它共享 MLLM 的视觉编码和查询表示，更容易和生成目标一致；局限是需要在特定 MLLM 结构上插入并训练/适配检索模块。
+
+#### 🧪 练习题
+```yaml
+question: "URaG 为什么使用 MLLM 的早期层做检索？"
+options:
+  - "早期层已经生成最终答案"
+  - "早期层通常保留较广的页面级注意信息，可用于粗粒度证据定位"
+  - "早期层不包含任何视觉信息"
+  - "早期层能完全替代深层 Transformer"
+answer: 1
+explain: "URaG 利用早层的粗到细观察，把早层页面表示转为检索信号，再让深层专注 top-k 证据页。"
+```
 
 ### MG-CRAG
 
@@ -3058,296 +3160,123 @@ motivation: 多粒度检索评估器融合，弱监督微调改进CRAG
 ```
 
 #### 📝 一句话总结
-MG-CRAG 在 CRAG 框架基础上引入双层多粒度检索评估机制——段落级评估器（PLRE）先筛选相关文档，句子级评估器（SLRE）再对文档内部句子进行细粒度过滤——两个评估器均通过"T5-GTR 编码 + Autoencoder 聚类伪标签 + ResNet 残差分类头"的弱监督流水线训练，仅需约 180 条人工标注即可完成，在 ARC-Challenge 和 PopQA 基准上取得了与 CRAG 可比甚至更优的性能。
+MG-CRAG 在 CRAG 的检索纠错思想上引入段落级 PLRE 与句子级 SLRE 两个检索评估器，并用人工少量标注、Autoencoder 聚类伪标签和残差分类头弱监督训练，让 RAG 在更细粒度上过滤噪声上下文并减少不必要的 Web 搜索。
 
 #### 🎯 核心要点
-- **双层多粒度评估**：段落级评估器（PLRE）对整篇检索文档评分，句子级评估器（SLRE）将文档拆分为句子后逐句评分，两级联动实现从粗到细的检索质量过滤
-- **弱监督训练流水线**：仅需约 180 条人工标注样本，通过 T5-GTR 编码 → Autoencoder 降维聚类 → KMeans 伪标签生成 → ResNet 分类头训练的四步流水线，避免了 CRAG 依赖大规模标注数据微调 T5-large 的开销
-- **三分类决策**：评估器将检索结果分为 HIGH（高度相关）、AMBIGUOUS（不确定）、LOW（不相关）三类，对应不同的知识处理策略
-- **三种过滤机制**：strict（仅保留 HIGH 文档中的 HIGH 句子）、moderate（保留非 LOW 句子）、lenient（合并 AMBIGUOUS 文档的句子），适应不同精度-召回权衡需求
-- **ResNet 残差分类头**：9 个残差块（768→2048→…→3），使用 LeakyReLU 和 Dropout，替代 CRAG 中的 T5 全量微调，参数量和训练成本大幅降低
-- **LangGraph 工作流**：基于 LangGraph 构建 retrieve → grade_documents → (web_search | generate) → END 的有向图推理流程
+- **多粒度纠正式 RAG**：先用 passage-level retrieval evaluator (PLRE) 评估整段/文档，再用 sentence-level retrieval evaluator (SLRE) 评估句子级 evidence strip。
+- **弱监督四阶段训练**：Retrieval → Manual Labeling → T5-GTR Embedding + Autoencoder/K-Means Clustering → Classification Head Training。
+- **三类质量标签**：将候选上下文分为 high、medium、low；high 直接保留，medium 作为可补充证据，low 被过滤。
+- **T5-GTR + QNLI Prompt 编码**：把 query-document 或 query-sentence 对组织成 QNLI 风格输入，再映射到 768 维向量。
+- **Autoencoder-guided pseudo-labeling**：Autoencoder 将 768 维向量压到低维表示，K-Means 生成伪标签，再用少量人工标注将簇映射到 high/medium/low。
+- **Residual classification head**：冻结或复用高效文本编码器表示，用带 9 个残差块的全连接分类头学习检索质量分类，降低对大规模标注和全模型微调的依赖。
+- **可调推理模式**：strict、moderate、lenient 三种模式控制 PLRE/SLRE 的通过条件，在准确率、召回率和 Web 搜索调用率之间折中。
+- **实验收益**：论文在 ARC-Challenge、PubHealth、PopQA 上验证，报告 ARC-Challenge 68.85% accuracy、PopQA 59.89% accuracy，并强调在 PubHealth 上以更低 Web 搜索率保持相当结果。
 
 #### 🔬 深入细节
-##### 框架总览
+![MG-CRAG 训练阶段图](https://github.com/omidacoder/mg-crag/raw/main/images/train_phase.png)
+*图：MG-CRAG 官方项目公开的训练阶段图，展示检索、少量人工标注、T5-GTR 嵌入与聚类、分类头训练四阶段。*
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     MG-CRAG 推理流程                             │
-│                                                                 │
-│  Query ──→ Contriever 检索 Top-K 文档                           │
-│              │                                                  │
-│              ▼                                                  │
-│  ┌─────────────────────────┐                                    │
-│  │  PLRE (段落级评估器)      │  对每篇文档: T5-GTR编码 → ResNet  │
-│  │  → HIGH / AMBIGUOUS / LOW │  → 三分类                        │
-│  └─────────┬───────────────┘                                    │
-│            │                                                    │
-│     ┌──────┼──────────┐                                         │
-│     │      │          │                                         │
-│   HIGH   AMBIG      LOW                                         │
-│     │      │          │                                         │
-│     ▼      ▼          ✗ (丢弃)                                  │
-│  ┌─────────────────────────┐                                    │
-│  │  SLRE (句子级评估器)      │  拆分为句子 → 逐句 T5-GTR → ResNet │
-│  │  → HIGH / AMBIGUOUS / LOW │  → 三分类过滤                     │
-│  └─────────┬───────────────┘                                    │
-│            │                                                    │
-│            ▼                                                    │
-│  ┌─────────────────────────┐                                    │
-│  │  Reranking              │  multi-qa-mpnet-base-cos-v1        │
-│  │  → 余弦相似度排序 Top-3   │                                   │
-│  └─────────┬───────────────┘                                    │
-│            │                                                    │
-│     ┌──────┴──────┐                                             │
-│     │             │                                             │
-│  high_strips>0  high_strips=0                                   │
-│     │             │                                             │
-│     ▼             ▼                                             │
-│  生成回答       Web搜索补充                                      │
-│  (≤10条时也     → 生成回答                                       │
-│   补充Web搜索)                                                   │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-##### 弱监督训练流水线
-
-MG-CRAG 的核心创新在于其弱监督训练流水线，仅需极少量人工标注即可训练出有效的检索评估器：
-
-```
-Step 0: 文本编码
-  "qnli question: {q} sentence: {doc}" → T5-GTR-large → 768维嵌入向量
-
-Step 1: 聚类伪标签生成
-  768维嵌入 → Autoencoder(768→2048→1024→256→9) 降维
-           → KMeans(k=3) 聚类
-           → 利用180条标注样本映射聚类标签到 {HIGH, AMBIGUOUS, LOW}
-           → 生成全量伪标签
-
-Step 2: ResNet 分类头训练
-  768维嵌入 → ResNet(9残差块, 768→2048→...→3)
-           → 50 epochs, batch=10, Adam lr=0.001
-           → 在伪标签上训练三分类
-
-Step 3: VLLM 推理
-  LangGraph 工作流 + 训练好的 PLRE/SLRE 评估器 → 端到端问答
-```
-
-##### 算法伪代码
+![MG-CRAG 推理阶段图](https://github.com/omidacoder/mg-crag/raw/main/images/inference_phase.png)
+*图：MG-CRAG 官方项目公开的推理阶段图，展示 PLRE/SLRE 多粒度过滤、模式分支、重排序、Web 搜索补充与最终生成。*
 
 ```python
-# MG-CRAG 核心推理流程
-def mg_crag(query, retriever, plre, slre, reranker, generator, mechanism="moderate"):
-    # Step 1: 检索
-    documents = retriever.retrieve(query, top_k=10)
-    
-    # Step 2: 段落级评估 (PLRE)
-    high_docs, ambig_docs, low_docs = [], [], []
-    for doc in documents:
-        embedding = t5_gtr_encode(f"qnli question: {query} sentence: {doc}")
-        label = plre.classify(embedding)  # ResNet → {HIGH, AMBIGUOUS, LOW}
-        if label == HIGH:
-            high_docs.append(doc)
-        elif label == AMBIGUOUS:
-            ambig_docs.append(doc)
-        # LOW 文档直接丢弃
-    
-    # Step 3: 句子级评估 (SLRE) — 对通过 PLRE 的文档拆句后逐句评估
-    high_strips, medium_strips = [], []
-    relevant_docs = high_docs + ambig_docs
-    for doc in relevant_docs:
-        sentences = split_into_sentences(doc)
-        for sent in sentences:
-            embedding = t5_gtr_encode(f"qnli question: {query} sentence: {sent}")
-            label = slre.classify(embedding)
-            if label == HIGH:
-                high_strips.append(sent)
-            elif label == AMBIGUOUS:
-                medium_strips.append(sent)
-    
-    # Step 4: 根据 mechanism 策略过滤
-    if mechanism == "strict":
-        # 仅保留 HIGH 文档中的 HIGH 句子
-        strips = [s for s in high_strips if s from high_docs]
-    elif mechanism == "moderate":
-        # 保留所有 HIGH + AMBIGUOUS 句子
-        strips = high_strips + medium_strips
-    elif mechanism == "lenient":
-        # 将 AMBIGUOUS 文档的句子也合并到 high_strips
-        strips = high_strips + medium_strips  # 更宽松的合并策略
-    
-    # Step 5: 重排序 — 按与 query 的余弦相似度排序
-    strips = reranker.sort_by_similarity(query, strips)[:3]  # Top-3
-    
-    # Step 6: 决策 — 是否需要 Web 搜索补充
-    if len(strips) > 0:
-        web_search = "Yes" if len(strips) <= 10 else "No"
-        return generator.generate(query, strips, web_search)
-    else:
-        # 无高质量片段，使用 medium 片段 + Web 搜索
-        fallback = reranker.sort_by_similarity(query, medium_strips)[:3]
-        return generator.generate(query, fallback, web_search="Yes")
-```
+# MG-CRAG 训练与推理伪代码
+def train_mg_crag_evaluators(queries, retriever, human_labeler):
+    # Stage 1: retrieval
+    pairs = []
+    for q in queries:
+        docs = retriever.retrieve(q, top_k=N)  # MS Contriever in the paper
+        pairs.extend((q, doc) for doc in docs)
 
-```python
-# 弱监督伪标签生成流程
-def generate_pseudo_labels(labeled_data, unlabeled_data):
-    """
-    labeled_data: (~180条) [(query, doc, label), ...]  label ∈ {0:LOW, 1:AMBIGUOUS, 2:HIGH}
-    unlabeled_data: (大量) [(query, doc), ...]
-    """
-    # Step 0: 编码
-    all_texts = [f"qnli question: {q} sentence: {d}" for q, d, _ in labeled_data]
-    all_texts += [f"qnli question: {q} sentence: {d}" for q, d in unlabeled_data]
-    embeddings = t5_gtr_large.encode(all_texts)  # → [N, 768]
-    
-    # Step 1: Autoencoder 降维
-    autoencoder = Autoencoder(input_dim=768)  # encoder: 768→2048→1024→256→9
-    # 双重损失训练: 重建损失 + 分类损失(仅对标注样本)
-    train_autoencoder(autoencoder, embeddings, labeled_labels)
-    reduced = autoencoder.encoder(embeddings)  # → [N, 9]
-    
-    # Step 2: KMeans 聚类
-    kmeans = KMeans(n_clusters=3, max_iter=2000).fit(reduced)
-    cluster_labels = kmeans.labels_
-    
-    # Step 3: 标签映射 — 利用标注样本将聚类ID映射到语义标签
-    label_mapping = map_clusters_to_labels(
-        cluster_labels[:len(labeled_data)],
-        true_labels=[l for _, _, l in labeled_data]
+    # Stage 2: manual labeling on a small subset
+    labeled_pairs = human_labeler.label_subset(pairs)
+    unlabeled_pairs = [p for p in pairs if p not in labeled_pairs]
+
+    # Stage 3: embedding and clustering
+    all_pairs = labeled_pairs + unlabeled_pairs
+    embeddings = [
+        t5_gtr_encode(f"qnli question: {q} sentence: {text}")
+        for q, text in all_pairs
+    ]  # each vector has dimension 768
+    z = autoencoder.fit_transform(
+        embeddings,
+        supervised_labels=labeled_pairs.labels,
+        losses=["reconstruction", "classification"],
     )
-    pseudo_labels = [label_mapping[c] for c in cluster_labels]
-    return pseudo_labels
+    cluster_ids = kmeans(z, k=3)
+    pseudo_labels = map_clusters_to_quality_labels(
+        cluster_ids,
+        labeled_pairs.labels,
+        labels=["low", "medium", "high"],
+    )
+
+    # Stage 4: train classification heads for passage-level and sentence-level scoring
+    plre = residual_classifier.fit(embeddings, pseudo_labels)
+    slre = residual_classifier.fit(sentence_level_embeddings(all_pairs), pseudo_labels)
+    return plre, slre
+
+
+def infer_mg_crag(query, retriever, plre, slre, reranker, web_search, generator, mode):
+    docs = retriever.retrieve(query, top_k=N)
+
+    high_docs, medium_docs = [], []
+    for doc in docs:
+        label = plre.predict(encode_qnli(query, doc))
+        if label == "high":
+            high_docs.append(doc)
+        elif label == "medium":
+            medium_docs.append(doc)
+
+    candidate_sentences = split_sentences(high_docs + medium_docs)
+    high_sentences, medium_sentences = [], []
+    for sent in candidate_sentences:
+        label = slre.predict(encode_qnli(query, sent))
+        if label == "high":
+            high_sentences.append(sent)
+        elif label == "medium":
+            medium_sentences.append(sent)
+
+    if mode == "strict":
+        evidence = only_sentences_from_high_docs(high_sentences, high_docs)
+    elif mode == "moderate":
+        evidence = high_sentences + medium_sentences
+    elif mode == "lenient":
+        evidence = high_sentences + medium_sentences + sentences_from(medium_docs)
+
+    evidence = reranker.top_m(query, evidence)
+    if not evidence or len(high_sentences) <= WEB_SEARCH_THRESHOLD:
+        web_docs = web_search(query_rewrite(query))
+        web_sentences = slre_filter_and_rerank(query, web_docs, slre, reranker)
+        evidence = reranker.top_m(query, evidence + web_sentences)
+
+    return generator.generate(query=query, evidence=evidence)
 ```
 
-##### 核心组件详解
+MG-CRAG 的问题设定来自 CRAG：检索器会把不相关或弱相关文本送进生成器，导致答案被噪声污染；CRAG 通过检索评估器和外部搜索做纠正，但单一粒度的评估器容易把“段落整体相关但内部有噪声句子”与“段落整体一般但包含关键句子”混为一谈。MG-CRAG 的核心改动是把纠正机制拆成两个粒度：PLRE 先在段落/文档层面做粗筛，SLRE 再在句子层面做精筛，从而让生成器看到的是更聚焦的 evidence。
 
-**1. T5-GTR 编码器（Sentence Encoder）**
+训练阶段的关键是弱监督。论文没有假设存在大规模 high/medium/low 标注，而是先用 MS Contriever 为 ARC-Challenge、PubHealth、PopQA 等短答案任务检索候选文档，人工只标注一小部分 query-document 对；随后 T5-GTR 用 QNLI 风格 prompt 编码每个 pair，Autoencoder 在重建损失下保留语义结构，同时借助少量标注样本的分类损失让瓶颈表示更有判别性。K-Means 在低维表示上聚成 3 类，再由人工标注子集把簇映射为 high、medium、low，形成可扩展的伪标签。
 
-MG-CRAG 使用 `sentence-transformers/gtr-t5-large` 作为文本编码器，将 query-document 对编码为 768 维向量。输入格式采用 QNLI（Question Natural Language Inference）模板：
+分类头采用残差全连接网络，而不是对大型生成模型做端到端微调。论文附录说明输入是 T5-GTR 的 768 维输出，先投影到 2048 维并加 dropout，核心部分是 9 个残差块；每个残差块包含线性变换、LeakyReLU 和 dropout，维度变化时用线性 down-sampling 对齐 shortcut。这个结构的作用是让轻量分类头在伪标签上学习检索质量边界，同时保持梯度稳定和较低训练成本。
 
-```
-"qnli question: {query} sentence: {document}"
-```
+推理时，MG-CRAG 不是简单地把所有 high/medium 文本塞给 LLM。PLRE 先把文档分成 high、medium、low，low 被丢弃；保留下来的文档被拆成句子后再由 SLRE 分类，随后根据 strict、moderate、lenient 三种模式选择 evidence。strict 追求高精度，倾向于只保留高置信文档里的高置信句子；moderate 接受 high 与 medium 证据以平衡召回；lenient 更偏向保留可能有用的 medium 文档内容，适合检索较难或开放域问题。
 
-> 💡 关键设计：使用 QNLI 格式而非简单拼接，是因为 T5-GTR 在预训练时已经学习了问题-文本对的语义关系，QNLI 格式能更好地激活这种能力。
+Web 搜索在 MG-CRAG 中变成一种受控补救动作，而不是默认依赖。推理图中先对高质量句子做 reranking；若没有 high evidence，或 high evidence 数量低于阈值 \(w_s\)，系统才通过 query rewriting 触发 Web 搜索，再把搜索结果交给 SLRE 和 reranker 过滤。这样既保留了 CRAG 的纠错能力，又避免每次查询都付出外部搜索成本。
 
-**2. ResNet 残差分类头**
+实验部分表明，多粒度处理对短答案问答尤其有用。论文报告 MG-CRAG 在 ARC-Challenge 上达到 68.85% accuracy，在 PopQA 上达到 59.89% accuracy；在 PubHealth 上结果与强基线相当，同时 Web 搜索率更低。这个结果说明 MG-CRAG 的收益不只是提升回答准确率，也包括把“何时需要外部搜索”变成可调策略，从而控制成本和延迟。
 
-替代 CRAG 中对 T5-large 全量微调的方案，MG-CRAG 冻结 T5-GTR 编码器，仅训练一个轻量级残差网络分类头：
-
-```
-输入: 768维
-  → Linear(768, 2048) + LeakyReLU(0.01) + Dropout(0.2)
-  → [残差块 × 9]: 2048→1024→512→256→128→64→32→16→8
-      每个残差块: Linear + LeakyReLU + Dropout + 残差连接(通过投影对齐维度)
-  → Linear(8, 3) + Softmax
-输出: 3类概率 [P(LOW), P(AMBIGUOUS), P(HIGH)]
-```
-
-> ⚠️ 注意：每个残差块中维度递减（如 2048→1024），因此残差连接需要通过额外的线性投影层将 shortcut 的维度对齐到输出维度，而非标准 ResNet 中的恒等映射。
-
-**3. Autoencoder 聚类伪标签**
-
-这是 MG-CRAG 弱监督训练的核心创新。Autoencoder 同时承担降维和分类两个任务：
-
-- **编码器**：768 → 2048 → 1024 → 256 → 9（每层 BatchNorm + ReLU）
-- **解码器**：9 → 256 → 1024 → 2048 → 768（对称结构）
-- **分类层**：9 → 3 + Softmax（从瓶颈层直接分类）
-- **双重损失**：重建损失（MSE，全量数据）+ 分类损失（CrossEntropy，仅标注数据）
-
-训练完成后，Autoencoder 的编码器将 768 维嵌入压缩到 9 维，在此低维空间上运行 KMeans(k=3) 聚类，再利用 180 条标注样本将聚类 ID 映射到语义标签 {LOW, AMBIGUOUS, HIGH}。
-
-> 💡 关键洞察：Autoencoder 的双重损失设计使其在降维时同时保留了分类相关的判别信息，使得后续 KMeans 聚类能产生更有意义的伪标签。这比单纯的无监督聚类或单纯的半监督学习都更有效。
-
-**4. 三种过滤机制（Mechanism）**
-
-MG-CRAG 提供三种不同严格程度的过滤策略，适应不同场景需求：
-
-| 机制 | PLRE 通过条件 | SLRE 保留条件 | 特点 |
-|------|-------------|-------------|------|
-| **strict** | 仅 HIGH 文档 | 仅 HIGH 句子 | 高精度、低召回 |
-| **moderate** | HIGH + AMBIGUOUS | HIGH + AMBIGUOUS 句子 | 平衡 |
-| **lenient** | HIGH + AMBIGUOUS | 合并 AMBIGUOUS 文档句子到 high_strips | 高召回、低精度 |
-
-**5. Reranking 与决策**
-
-通过 PLRE + SLRE 双层过滤后的句子片段，使用 `multi-qa-mpnet-base-cos-v1` 模型计算与原始 query 的余弦相似度进行重排序，取 Top-3 作为最终上下文。
-
-决策逻辑：
-- 若存在高质量片段（high_strips > 0）：使用 Top-3 片段生成回答；若片段数 ≤ 10 则额外触发 Web 搜索补充
-- 若无高质量片段：使用 medium 片段的 Top-3 + 强制触发 Web 搜索
-
-##### 与 CRAG 的关键区别
-
-| 特性 | CRAG | MG-CRAG |
-|------|------|---------|
-| 评估粒度 | 单层（文档级） | 双层（段落级 PLRE + 句子级 SLRE） |
-| 评估器架构 | T5-large 全量微调 | T5-GTR 冻结 + ResNet 分类头 |
-| 训练数据需求 | 大规模标注数据 | ~180 条标注 + 弱监督伪标签 |
-| 分类类别 | Correct / Incorrect / Ambiguous | HIGH / AMBIGUOUS / LOW（语义等价） |
-| 知识精炼 | 文档 → strips → 评估器逐条过滤 | 文档 → PLRE 过滤 → 句子 → SLRE 过滤 |
-| 过滤灵活性 | 单一策略 | 三种机制（strict/moderate/lenient） |
-| 重排序 | 无显式重排序 | multi-qa-mpnet 余弦相似度排序 |
-| 推理框架 | 自定义流程 | LangGraph 有向图 |
-
-> 💡 核心优势：MG-CRAG 的弱监督方案将标注成本从数千条降低到约 180 条，同时通过双层评估实现了比 CRAG 更精细的检索质量控制。ResNet 分类头的参数量远小于 T5-large 全量微调，训练效率显著提升。
-
-##### 实验结果
-
-在 CRAG 基准数据集上的主要结果（基于 VLLM 推理）：
-
-| 方法 | ARC-Challenge (Acc) | PopQA (Acc) | PubHealth (Acc) |
-|------|-------------------|------------|-----------------|
-| Standard RAG | — | — | — |
-| CRAG | — | 54.9 | 72.4 |
-| **MG-CRAG** | **68.85** | **59.89** | 可比 |
-
-> ⚠️ 注意：由于论文全文在 Springer 付费墙后，上述部分数值来自代码仓库中的实验配置和 README 描述。MG-CRAG 在 PopQA 上达到 59.89%，在 ARC-Challenge 上达到 68.85%，同时显著降低了对 Web 搜索的依赖频率。
-
-硬件环境：NVIDIA L4 GPU（22GB 显存），使用 VLLM 进行高效推理。
-
-##### LangGraph 工作流
-
-```python
-# MG-CRAG 的 LangGraph 有向图定义
-from langgraph.graph import END, StateGraph
-
-workflow = StateGraph(GraphState)
-
-# 添加节点
-workflow.add_node("retrieve", retrieve)           # Contriever 检索
-workflow.add_node("grade_documents", grade_documents)  # PLRE + SLRE 双层评估
-workflow.add_node("generate", generate)            # VLLM 生成
-workflow.add_node("web_search", web_search_node)   # Web 搜索补充
-
-# 定义边
-workflow.set_entry_point("retrieve")
-workflow.add_edge("retrieve", "grade_documents")
-workflow.add_conditional_edges(
-    "grade_documents",
-    decide_to_generate,  # 根据 high_strips 数量决定
-    {
-        "web_search": "web_search",   # 无高质量片段 → Web 搜索
-        "generate": "generate",        # 有高质量片段 → 直接生成
-    }
-)
-workflow.add_edge("web_search", "generate")
-workflow.add_edge("generate", END)
-```
+> 💡 关键：MG-CRAG 的创新点不是单独的 reranker 或单独的弱监督分类，而是把多粒度质量评估、伪标签训练、模式化 evidence 选择和按需 Web 搜索组合成一条纠正式 RAG 流程。
 
 #### 🧪 练习题
 ```yaml
-question: "MG-CRAG 的弱监督训练流水线中，Autoencoder 的双重损失包含哪两部分？"
+question: "MG-CRAG 为什么同时使用 PLRE 和 SLRE 两个检索评估器？"
 options:
-  - "对比损失 + 分类损失"
-  - "重建损失 + 分类损失"
-  - "三元组损失 + 重建损失"
-  - "KL 散度损失 + 交叉熵损失"
+  - "PLRE 负责生成答案，SLRE 负责把答案翻译成自然语言"
+  - "PLRE 粗筛段落/文档，SLRE 细筛句子级证据，减少段落内部噪声进入生成器"
+  - "PLRE 用于训练检索器，SLRE 只用于计算最终 BLEU 分数"
+  - "PLRE 和 SLRE 是两个互相投票的生成模型，用来提升解码多样性"
 answer: 1
-explain: "Autoencoder 同时优化两个目标：(1) 重建损失（MSE），确保编码器-解码器能还原原始 768 维嵌入，保留信息完整性；(2) 分类损失（CrossEntropy），仅对约 180 条标注样本计算，引导瓶颈层学习判别性表示。这种双重损失设计使降维后的 9 维空间既保留了数据结构，又具备分类判别能力，从而让后续 KMeans 聚类产生更有意义的伪标签。"
+explain: "MG-CRAG 的多粒度核心是先在段落级判断候选文档质量，再在句子级筛出真正支持答案的 evidence strip，从而比单一文档级评估更精细。"
 ```
-###
 
 ### Qwen3-Embedding
 
@@ -3366,16 +3295,61 @@ motivation: 8B参数MTEB 70.6，支持32K上下文多语言检索
 ```
 
 #### 📝 一句话总结
-Qwen3-Embedding 的核心目标是：8B参数MTEB 70.6，支持32K上下文多语言检索。
+Qwen3-Embedding 基于 Qwen3 foundation model 构建文本嵌入和重排模型系列，使用双编码器、交叉编码器、多阶段训练和 instruction-aware 输入，面向多语言、长上下文、检索与 RAG 场景提供高质量向量表示。
 
 #### 🎯 核心要点
-- 核心动机：8B参数MTEB 70.6，支持32K上下文多语言检索
-- 演化来源：继承或改进自 e5
-- 代表机构：Alibaba
+- **模型系列**：Embedding 和 Reranker 均提供 0.6B、4B、8B 三种规模。
+- **32K 上下文**：嵌入与重排模型均支持长上下文输入，适合长文档检索。
+- **双编码器嵌入**：Embedding 模型用最后 `[EOS]` hidden state 表示单段文本。
+- **交叉编码器重排**：Reranker 输入 query-document pair，输出相关性分数。
+- **MRL 支持**：Embedding 支持自定义最终向量维度，便于不同存储/延迟预算部署。
+- **多语言能力**：支持 100+ 语言和代码检索，官方博客报告 8B 在 MTEB multilingual leaderboard 得分约 70.58。
 
 #### 🔬 深入细节
-8B参数MTEB 70.6，支持32K上下文多语言检索
+![Qwen3-Embedding 训练流程](https://ar5iv.labs.arxiv.org/html/2506.05176/assets/figures/q3e-train-pipeline.png)
 
+*图源：Qwen3-Embedding 技术报告的公开 ar5iv 页面，展示 Qwen3-Embedding 与 Qwen3-Reranker 的三阶段训练流程。*
+
+```python
+def embed_text(text, instruction, qwen3_embedding):
+    prompt = format_instruction(instruction, text)
+    states = qwen3_embedding.forward(prompt)
+    return normalize(states["eos_hidden_state"])
+
+def rerank(query, documents, qwen3_reranker):
+    scored = []
+    for doc in documents:
+        pair = format_pair(query, doc)
+        score = qwen3_reranker.cross_encoder_score(pair)
+        scored.append((score, doc))
+    return [doc for score, doc in sorted(scored, reverse=True)]
+
+def rag_with_qwen3(query, corpus):
+    q_vec = embed_text(query, "Represent this query for retrieval", qwen3_embedding)
+    candidates = vector_search(q_vec, corpus, top_k=100)
+    reranked = rerank(query, candidates, qwen3_reranker)
+    return llm_answer(query, reranked[:10])
+```
+
+Qwen3-Embedding 的工程定位是 RAG 检索栈中的 first-stage dense retriever 与 second-stage reranker。Embedding 模型采用双编码器，查询和文档可独立编码并存入向量库，适合大规模 ANN 检索；Reranker 采用 cross-encoder，推理更慢但能逐对建模 query-document 交互，适合重排 top-100 候选。
+
+嵌入模型的表示取最后 `[EOS]` token 的隐藏状态。这与许多 decoder-only embedding 模型一致：把整段文本通过自回归 backbone 编码后，用句末位置聚合语义。模型还支持 instruction-aware 输入，例如为“法律检索”“代码搜索”“跨语言问答”定制不同指令，从而让同一文本在不同任务下产生更合适的向量。
+
+训练分三阶段。第一阶段用大规模弱监督/合成 pair 做 contrastive pre-training，强化通用语义对齐；第二阶段用高质量标注数据做监督训练，提升检索任务表现；第三阶段通过采样 checkpoint merging 融合候选模型，改善泛化。Reranker 则主要使用高质量标注数据做监督训练，以提高 query-document 精细相关性判断。
+
+在 RAG 系统中，Qwen3-Embedding 的价值不只是分数高，还在于 32K 长上下文、多语言、代码检索和可调维度。实际部署中常见组合是：8B/4B embedding 负责高召回，0.6B 或 4B reranker 按延迟预算重排；若向量库成本敏感，可利用 MRL 输出较短维度向量。
+
+#### 🧪 练习题
+```yaml
+question: "Qwen3-Embedding 与 Qwen3-Reranker 在检索栈中的典型分工是什么？"
+options:
+  - "Embedding 负责大规模召回，Reranker 对候选 query-document pair 做精细重排"
+  - "Embedding 只负责图像生成，Reranker 只负责语音识别"
+  - "二者都只能处理 512 token"
+  - "Reranker 用来替代向量数据库存储所有文档"
+answer: 0
+explain: "双编码器 embedding 适合向量库召回；交叉编码器 reranker 更适合对少量候选做高精度相关性判断。"
+```
 
 ### RAGUARD
 
@@ -3394,12 +3368,64 @@ motivation: 首个误导性检索鲁棒性基准，测试冲突信息判断力
 ```
 
 #### 📝 一句话总结
-RAGUARD 的核心目标是：首个误导性检索鲁棒性基准，测试冲突信息判断力。
+RAGUARD 构建面向事实核查的误导性检索基准，把 PolitiFact 声明与 Reddit 讨论证据配对并标注 supporting、misleading、irrelevant，用来评估 RAG 系统在真实冲突证据下是否比零检索更可靠。
 
 #### 🎯 核心要点
-- 核心动机：首个误导性检索鲁棒性基准，测试冲突信息判断力
-- 演化来源：继承或改进自 rgb
-- 代表机构：Stanford/Google
+- **实际论文页**：manifest 中 `2410.20992` 指向无关信道估计论文；RAGuard 实际公开论文为 `https://arxiv.org/abs/2502.16101`。
+- **任务定位**：不是评估干净 gold retrieval，而是评估 RAG 对误导性证据的鲁棒性。
+- **真实噪声来源**：检索语料来自 Reddit 讨论，捕捉自然发生的错误、偏见、片面叙事和冲突信息。
+- **三类证据标签**：supporting、misleading、irrelevant，区分支持、误导和无关上下文。
+- **数据构造**：从 PolitiFact 收集政治声明和真伪标签，用 GPT-4 扩展关键词并检索 Reddit 文档。
+- **核心发现**：多种 LLM-RAG 系统在误导性检索下表现低于 zero-shot/no retrieval 基线。
 
 #### 🔬 深入细节
-首个误导性检索鲁棒性基准，测试冲突信息判断力
+![RAGuard 数据构造流程](https://ar5iv.labs.arxiv.org/html/2502.16101/assets/figures/newconstruct.png)
+
+*图源：ar5iv 论文图 4，展示 RAGuard 从事实核查声明、Reddit 检索和 LLM 辅助标注构造基准。*
+
+```python
+def build_raguard(politifact_claims, google_search, reddit_corpus, gpt4):
+    dataset = []
+    for claim, gold_label in politifact_claims:
+        keywords = gpt4.extract_keywords(claim)
+        docs = google_search(site="reddit.com", query=keywords, top_k=10)
+        for doc in docs:
+            predicted = gpt4.fact_check(claim, context=doc)
+            if predicted == gold_label:
+                tag = "supporting"
+            elif doc_irrelevant_to_claim(doc, claim):
+                tag = "irrelevant"
+            else:
+                tag = "misleading"
+            dataset.append((claim, gold_label, doc, tag))
+    return dataset
+
+def evaluate_rag_guard(model, claim, retriever, mode):
+    if mode == "zero_context":
+        context = []
+    elif mode == "standard_rag":
+        context = retriever.search(claim, top_k=5)
+    elif mode == "misleading_only":
+        context = gold_associated_docs(claim, tag="misleading")
+    return model.fact_check(claim, context)
+```
+
+RAGuard 的基本质疑是：RAG 并不总是提升可靠性。许多基准假设检索文档是 gold 或只有合成噪声，模型只要“利用上下文”就能得分；但真实网络检索常包含片面、过时、政治化或故意误导的信息。RAGuard 因此把检索本身变成压力测试，而不是默认可信环节。
+
+数据集从 PolitiFact 获取政治声明及真伪标签，并把多级真伪压缩为二分类。随后用 GPT-4 提取关键词，通过搜索引擎检索 Reddit 讨论，形成更接近真实网络环境的证据池。Reddit 的价值在于它包含自然出现的支持、反驳、误解、夸张和无关讨论，而不是人为注入的简单噪声。
+
+证据标注采用“模拟 LLM 考试”的方式：给定 claim 和单篇 retrieved document，让 GPT-4 基于该文档判断 claim 的真伪。如果判断与 PolitiFact gold label 一致，则文档是 supporting；如果文档让判断偏离 gold，则是 misleading；如果文档无法提供有效核查信息，则是 irrelevant。这一定义关注文档对 RAG 系统行为的实际影响。
+
+评测设置包括 zero-context、standard RAG、oracle associated documents 和 misleading-only 等模式。核心指标不是召回率越高越好，而是模型能否识别上下文可能错误。论文报告的关键现象是：当提供误导性文档时，多数系统准确率明显低于无检索基线，说明“更多上下文”可能压倒模型原有判断。
+
+#### 🧪 练习题
+```yaml
+question: "RAGuard 与普通干净检索 QA 基准的主要区别是什么？"
+options:
+  - "RAGuard 只测试图片分类"
+  - "RAGuard 显式加入真实来源的 misleading 证据，测试模型能否抵抗错误检索"
+  - "RAGuard 禁止使用任何事实标签"
+  - "RAGuard 只比较答案长度"
+answer: 1
+explain: "RAGuard 的重点是误导性检索鲁棒性，检索文档可能支持、误导或无关，模型必须判断证据可信度。"
+```

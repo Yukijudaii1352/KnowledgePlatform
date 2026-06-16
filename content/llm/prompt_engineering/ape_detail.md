@@ -12,55 +12,72 @@ motivation: 利用LLM自动生成筛选最优指令
 ```
 
 #### 📝 一句话总结
-APE 把提示词视为待搜索的自然语言程序，先让大模型批量生成候选指令，再用验证集打分筛选，从而自动找到比人工 prompt 更稳定的任务说明。
+APE 将自然语言指令视为可搜索的“程序”，让 LLM 根据少量输入输出示例生成候选 prompt，再用目标模型执行结果打分筛选最优指令。
 
 #### 🎯 核心要点
-- 将 prompt engineering 形式化为黑盒指令搜索问题
-- 使用 LLM 根据输入输出示例反推候选 instruction
-- 通过执行准确率、似然或任务指标对候选指令排序
-- 可在零样本、少样本和带约束的生成任务中使用
-- 发现 LLM 既能生成 prompt，也能作为 prompt 的评估器或改写器
-- 局限在于搜索质量强依赖验证集覆盖面和候选池多样性
+- 将 prompt engineering 形式化为 natural language program synthesis 和黑盒优化问题。
+- 使用 LLM 作为 proposal model，根据 demonstrations 生成一批候选 instruction。
+- 支持 forward generation、reverse generation 和针对任务的 customized prompt proposal。
+- 使用 execution accuracy、目标答案 log probability 或任务指标作为 score function。
+- 通过多阶段子集评估和 top-\(k\) 过滤降低候选 prompt 评估成本。
+- 可选 iterative Monte Carlo search：保留高分候选，再让 LLM 生成语义相近变体。
+- 在 Instruction Induction、BIG-Bench Instruction Induction、Zero-shot CoT 与 TruthfulQA 等设置中验证自动指令搜索的有效性。
 
 #### 🔬 深入细节
-[APE 官方项目页与示意图源](https://sites.google.com/view/automatic-prompt-engineer)；[OpenReview 论文页](https://openreview.net/forum?id=92gvk82DE-)。
+![APE 自动提示工程师工作流](https://ar5iv.labs.arxiv.org/html/2211.01910/assets/x1.png)
+*图：APE 工作流。LLM 生成候选指令，目标模型执行并打分，保留高分候选，必要时继续重采样相似指令。*
 
 ```python
-# APE 自动指令搜索伪代码
-def automatic_prompt_engineer(demos, proposer_llm, target_llm, score_fn, k=20):
-    candidates = []
-    for _ in range(k):
-        instruction = proposer_llm.generate(
-            "Infer an instruction that maps these inputs to outputs:",
-            examples=demos,
-        )
-        candidates.append(instruction)
+# Automatic Prompt Engineer (APE) 伪代码
+def ape(demos, proposer_llm, target_llm, score_fn, rounds=1, keep_ratio=0.2):
+    # demos: 少量 (input, output) 示例
+    candidates = proposer_llm.sample_instructions(demos)
 
-    scored = []
-    for instruction in candidates:
-        predictions = [target_llm.generate(instruction, x) for x, y in demos]
-        scored.append((score_fn(predictions, [y for x, y in demos]), instruction))
+    for _ in range(rounds):
+        scored = []
+        for instruction in candidates:
+            # 先用小子集快速估计，候选足够好时再扩大评估集
+            subset = sample_eval_subset(demos)
+            predictions = [
+                target_llm.generate(prompt=instruction, input=x)
+                for x, y in subset
+            ]
+            score = score_fn(predictions, [y for x, y in subset])
+            scored.append((score, instruction))
 
-    best = max(scored, key=lambda item: item[0])[1]
-    return best
+        scored.sort(reverse=True)
+        survivors = [inst for score, inst in scored[:max(1, int(len(scored) * keep_ratio))]]
+
+        # iterative APE: 围绕高分指令生成语义相近候选；默认可只做一轮
+        candidates = survivors + proposer_llm.resample_similar_instructions(survivors)
+
+    return best_by_full_validation(candidates, demos, target_llm, score_fn)
 ```
 
-APE 的关键抽象是“instruction as program”。对于一组输入输出样例，候选 prompt 就是描述任务变换的程序文本；优化目标不是代码可执行性，而是在目标模型上得到更高任务分数。这个视角让提示词优化可以使用经典的 generate-and-rank 框架：生成多个候选，再通过验证集选择最优。
+APE 的核心抽象是 \(instruction\ as\ program\)：一个 prompt 不只是自然语言提示，而是控制目标模型 \(M\) 执行任务的程序。给定样本 \((x,y)\)，目标是搜索指令 \(i\)，使模型在 \(i+x\) 条件下输出 \(y\) 的期望分数最大：
+$$
+i^*=\arg\max_i\mathbb{E}_{(x,y)\sim D}\left[s\left(M(i,x),y\right)\right].
+$$
+由于 \(i\) 是离散自然语言文本，且多数 API 模型无法提供梯度，APE 采用 generate-and-rank 的黑盒优化路线。
 
-论文中的候选生成通常由 LLM 完成。给定若干示例，模型被要求推断“什么指令能解释这些输入输出关系”。这一步类似归纳程序合成，只是程序语言变成自然语言。候选指令可能语义相近但措辞不同，APE 依赖大规模候选池覆盖这些表达差异。
+候选生成阶段让 LLM 扮演 inference model。forward mode 会把若干输入输出示例放在 prompt 中，让模型补全“这些样例遵循什么指令”；reverse mode 则使用 infilling 模型，把缺失的 instruction 作为空槽反推出来。两者的共同点是利用大模型的归纳能力，把无限大的自然语言搜索空间压缩成一个较小但质量较高的候选池。
 
-评估阶段决定了 APE 的可靠性。直接准确率适合分类或问答；似然评分适合答案空间明确、希望减少采样噪声的任务；也可以用另一个 LLM 或任务特定指标评分。验证集如果太窄，APE 容易选出过拟合措辞；验证集如果足够代表真实分布，自动搜索往往能发现人类没有尝试过的高效表达。
+评估阶段是 APE 与“只让模型猜一个 prompt”的分界线。论文讨论了两类典型 score：execution accuracy 直接比较预测与目标输出，适合分类、转换、简短问答；log probability 计算目标答案在候选指令下的条件似然，能给低质量候选提供更细粒度信号。对 TruthfulQA 等任务，score 也可以替换为任务自带的自动评估器。
 
-APE 对后续方法的影响很大：PromptBreeder 将候选生成改成进化；OPRO 将历史分数放回 prompt 让 LLM 直接做优化器；多模态 APO 则把“候选 prompt + 黑盒评价”的思想搬到视觉语言模型中。它的贡献不只是一个提示模板，而是把 prompt 变成可系统优化的对象。
+为了控制成本，APE 不要求每个候选都在完整训练集上执行。它先用小子集快速淘汰低分候选，再把更多预算分配给高分候选，最后只对少量候选做完整验证。这一设计很实际：prompt 搜索的主要成本不是生成文本，而是反复调用目标模型执行候选指令。
+
+iterative APE 进一步把搜索做成局部 Monte Carlo 过程：过滤出高分候选后，让 LLM 生成语义相近但措辞不同的变体，再继续评估。论文发现迭代能改善候选池整体质量，但最高分指令往往在初始生成中已经出现，因此默认 APE 可以保持简单的一轮生成加筛选。
+
+与 soft prompt tuning 或 AutoPrompt 相比，APE 不优化连续向量或离散 token 模板，而是直接搜索人类可读的自然语言指令。这让它适合黑盒 LLM、API 模型和需要可解释 prompt 的场景；代价是它容易受验证集覆盖面、候选池多样性和 score function 偏差影响。如果验证集太窄，APE 可能学到只对少数示例有效的“投机式”指令。
 
 #### 🧪 练习题
 ```yaml
-question: "APE 中候选指令通常如何产生？"
+question: "APE 中 score function 的主要作用是什么？"
 options:
-  - "由 LLM 根据输入输出示例自动归纳生成"
-  - "由优化器直接更新模型权重得到"
-  - "由人工逐条标注所有测试样例"
-  - "由检索系统从网页随机抽取"
+  - "衡量候选指令在目标模型上的实际任务表现并排序"
+  - "直接修改目标模型参数"
+  - "替代输入输出示例，生成训练数据标签"
+  - "把自然语言 prompt 转换成连续 soft prompt"
 answer: 0
-explain: "APE 先让 LLM 生成多个自然语言指令，再在验证样例上评估并选择最优指令。"
+explain: "APE 的核心是生成候选后执行并打分，score function 决定哪些指令被保留、重采样或最终选中。"
 ```

@@ -561,16 +561,145 @@ motivation: 将CLIP迁移至视频-文本检索
 ```
 
 #### 📝 一句话总结
-CLIP4Clip 的核心目标是：将CLIP迁移至视频-文本检索。
+CLIP4Clip 将图文预训练模型 CLIP 直接迁移到视频-文本检索，通过“逐帧 CLIP 编码 + 视频级相似度计算 + 双向对比检索损失”解决视频片段和自然语言描述的匹配问题。
 
 #### 🎯 核心要点
-- 核心动机：将CLIP迁移至视频-文本检索
-- 演化来源：继承或改进自 videobert
-- 代表机构：Microsoft
+- 以 CLIP ViT-B/32 和 CLIP text encoder 作为视频帧编码器与文本编码器，实现从像素输入到检索损失的端到端微调
+- 将视频表示为均匀采样的有序帧序列，而不是依赖离线提取的冻结视频特征
+- 系统比较三类 similarity calculator：parameter-free mean pooling、sequential LSTM/Transformer、tight Transformer 跨模态交互
+- 采用对称 video-to-text 与 text-to-video cross-entropy，在一个 batch 内构造 \(B \times B\) 相似度矩阵
+- 研究 2D patch projection 与 3D patch projection，发现 CLIP 的 2D 初始化在当时更稳，3D temporal projection 需要更充分的视频预训练
+- 在 MSR-VTT、MSVD、LSMDC、ActivityNet、DiDeMo 等视频-文本检索数据集上取得当时 SOTA
+- 经验结论清晰：小数据集上少加新参数的 mean pooling 更稳，大数据集上 sequential Transformer 更容易学到时间依赖
 
 #### 🔬 深入细节
-将CLIP迁移至视频-文本检索
+![CLIP4Clip 总体框架](https://ar5iv.labs.arxiv.org/html/2104.08860/assets/x1.png)
+*图：CLIP4Clip 的主框架，视频被采样为帧序列，经 CLIP 图像编码器得到帧特征，再与 CLIP 文本特征计算视频-文本相似度*
 
+![CLIP4Clip 相似度计算器](https://ar5iv.labs.arxiv.org/html/2104.08860/assets/x2.png)
+*图：论文比较的三类 similarity calculator：无参数聚合、时序建模、紧耦合跨模态交互*
+
+CLIP4Clip 的问题设定是标准双向检索：给定视频集合 \(\mathcal{V}\) 与文本集合 \(\mathcal{T}\)，学习相似度函数 \(s(v_i,t_j)\)，让正确视频-文本对的相似度高于 batch 内其他负样本。视频 \(v_i\) 被表示成均匀采样的帧序列：
+
+$$
+v_i = \{v_i^1, v_i^2, \dots, v_i^{|v_i|}\}
+$$
+
+每一帧都被当成图像送入 CLIP visual encoder，取 ViT 的 `[class]` token 得到帧特征序列 \(\mathbf{Z}_i=\{\mathbf{z}_i^1,\dots,\mathbf{z}_i^{|v_i|}\}\)。文本侧直接沿用 CLIP text encoder，取 `[EOS]` 位置表示作为 caption embedding \(\mathbf{w}_j\)。这使 CLIP4Clip 的关键问题从“如何训练一个新的视频编码器”转化为“如何把多个 CLIP 图像特征合成一个可检索的视频表示”。
+
+最保守的 parameter-free 方案是 mean pooling：把所有帧特征平均成“平均帧” \(\hat{\mathbf{z}}_i\)，再与文本向量做余弦相似度：
+
+$$
+\hat{\mathbf{z}}_i = \operatorname{mean}(\mathbf{z}_i^1,\mathbf{z}_i^2,\dots,\mathbf{z}_i^{|v_i|})
+$$
+
+$$
+s(v_i,t_j)=
+\frac{\mathbf{w}_j^\top \hat{\mathbf{z}}_i}
+{\|\mathbf{w}_j\| \|\hat{\mathbf{z}}_i\|}
+$$
+
+这个设计的直觉是：CLIP 已经把单帧图像和文本投到强对齐的共同空间，小数据集上额外引入随机初始化模块反而容易破坏 CLIP 表示。mean pooling 不显式建模时间顺序，但它把多个关键帧的语义证据汇聚起来，在 MSR-VTT Training-7K、MSVD、ActivityNet、DiDeMo 等场景中非常稳。
+
+sequential 类型在 mean pooling 前增加时序编码器，用 LSTM 或 Transformer encoder 对帧序列建模：
+
+$$
+\tilde{\mathbf{Z}}_i = \operatorname{LSTM}(\mathbf{Z}_i)
+\quad \text{or} \quad
+\tilde{\mathbf{Z}}_i = \operatorname{TransformerEnc}(\mathbf{Z}_i+\mathbf{P})
+$$
+
+随后仍然执行 mean pooling 和余弦相似度。它的优势是能利用帧顺序、动作变化和事件进展；代价是新增参数需要足够数据。论文的经验结果显示，在更大的 MSR-VTT Training-9K split 和 LSMDC 上，sequential Transformer/LSTM 更有竞争力。
+
+tight 类型则进一步把文本表示和所有帧表示拼成一个序列，让 Transformer 同时看文本和视频帧：
+
+$$
+\mathbf{U}_{ij}=[\mathbf{w}_j,\mathbf{z}_i^1,\mathbf{z}_i^2,\dots,\mathbf{z}_i^{|v_i|}]
+$$
+
+$$
+\tilde{\mathbf{U}}_{ij}=\operatorname{TransformerEnc}(\mathbf{U}_{ij}+\mathbf{P}+\mathbf{T})
+$$
+
+$$
+s(v_i,t_j)=\operatorname{FC}(\operatorname{ReLU}(\operatorname{FC}(\tilde{\mathbf{U}}_{ij}[0,:])))
+$$
+
+这个结构表达力最强，因为它允许文本 token 级语义和视频帧特征直接交互。但 CLIP4Clip 的实验反而显示 tightTransf 往往不如 meanP/seqTransf，核心原因是新增跨模态 Transformer 和线性层缺少对应预训练初始化，在检索数据规模有限时难以学稳。
+
+```python
+# CLIP4Clip 训练流程伪代码
+for batch in dataloader:
+    videos, texts = batch                         # B 个配对样本
+
+    frame_features = []
+    for video in videos:
+        frames = uniform_sample(video, fps=1, max_frames=L)
+        z = clip_image_encoder(frames)            # [L, D]
+        frame_features.append(z)
+
+    text_features = clip_text_encoder(texts)      # [B, D]
+
+    # 构造 B x B 相似度矩阵：每个视频都和每条文本比较
+    sim = zeros(B, B)
+    for i in range(B):
+        for j in range(B):
+            if calculator == "mean_pooling":
+                video_emb = mean(frame_features[i], dim="time")
+                sim[i, j] = cosine(video_emb, text_features[j])
+            elif calculator == "sequential":
+                temporal_emb = temporal_encoder(frame_features[i])
+                video_emb = mean(temporal_emb, dim="time")
+                sim[i, j] = cosine(video_emb, text_features[j])
+            elif calculator == "tight":
+                fused = cross_modal_transformer(text_features[j], frame_features[i])
+                sim[i, j] = mlp(fused[0])
+
+    labels = arange(B)
+    loss_v2t = cross_entropy(sim, labels)          # 每个视频找正确文本
+    loss_t2v = cross_entropy(sim.T, labels)        # 每个文本找正确视频
+    loss = loss_v2t + loss_t2v
+    loss.backward()
+    optimizer.step()
+```
+
+检索损失本质上复用 CLIP 的 batch 内对比学习思想。给定 batch size \(B\)，模型计算所有正负组合的相似度：
+
+$$
+\mathcal{L}_{v2t}
+=-\frac{1}{B}\sum_{i=1}^{B}
+\log\frac{\exp(s(v_i,t_i))}
+{\sum_{j=1}^{B}\exp(s(v_i,t_j))}
+$$
+
+$$
+\mathcal{L}_{t2v}
+=-\frac{1}{B}\sum_{i=1}^{B}
+\log\frac{\exp(s(v_i,t_i))}
+{\sum_{j=1}^{B}\exp(s(v_j,t_i))}
+$$
+
+$$
+\mathcal{L}=\mathcal{L}_{v2t}+\mathcal{L}_{t2v}
+$$
+
+这个目标函数同时优化“给视频找文本”和“给文本找视频”。相比只做单向排序，双向损失能让视频空间和文本空间互相拉紧；相比离线特征检索，它还允许梯度回传到 CLIP visual encoder，从而微调帧级视觉表示。
+
+论文还探索了 3D linear projection：把 ViT 的 2D patch embedding 扩展为跨时间的 3D kernel \([t \times h \times w]\)，希望在最底层捕获短时运动。但实验中 3D linear 表现不如 2D linear，原因并不是时间建模无用，而是 CLIP 的强初始化来自 2D 图文预训练；把底层 patch 投影改成 3D 后，初始化分布和预训练任务不匹配，需要更大规模视频-文本预训练才能释放潜力。
+
+CLIP4Clip 的定位不是提出复杂的新视频骨干，而是用实验回答“CLIP 到底能否直接做视频检索”。它的结论影响很大：视频-文本检索不一定必须从沉重的视频预训练开始，强图文模型加上简单帧聚合就能显著超过许多 feature-level 视频模型；当数据规模扩大时，再逐步引入时序模块更符合优化稳定性。
+
+#### 🧪 练习题
+```yaml
+question: "CLIP4Clip 中 parameter-free mean pooling 相似度计算器的主要优势是什么？"
+options:
+  - "通过跨模态 Transformer 显式建模每个文本 token 和每帧视频的交互"
+  - "不引入随机初始化的新参数，最大限度保留 CLIP 已学到的图文对齐空间"
+  - "用 3D 卷积替代 ViT patch embedding，从底层学习运动特征"
+  - "只训练文本编码器，从而避免视频编码器过拟合"
+answer: 1
+explain: "mean pooling 直接聚合 CLIP 帧特征并做余弦相似度，没有新增时序或跨模态模块；在小数据检索集上，这种做法更稳定。"
+```
 
 ### CinePile
 
@@ -589,140 +718,102 @@ motivation: 真实长视频音频对齐基准
 ```
 
 #### 📝 一句话总结
-CinePile 提出了一种基于音频描述（Audio Descriptions）和 LLM 自动化问答生成的可扩展流水线，构建了包含约 30 万训练样本和 5000 测试样本的长视频多模态理解基准，揭示了当前最优视频 LLM（~60%）与人类表现（~73%）之间仍存在显著差距。
+CinePile 构建了一个面向真实长视频理解的多选问答基准，用电影音频描述（Audio Descriptions）作为高质量视觉代理标注，再通过 LLM 模板生成、质量过滤和人工审查得到大规模长视频 QA 数据。
 
 #### 🎯 核心要点
-- **大规模数据集**：训练集 298,888 个 MCQ，测试集 4,940 个 MCQ，来自 9,396 个电影片段（平均时长约 160 秒）
-- **音频描述（AD）作为视觉代理标注**：利用为视障人群制作的专业旁白描述替代昂贵的人工视觉标注，天然包含场景、动作、表情等视觉信息
-- **自动化问答生成流水线**：从人工问答数据集中提取 86 个问题模板，再由 GPT-3.5/GPT-4 基于 AD+字幕+元数据自动生成 MCQ
-- **多维度质量过滤**：包括退化问题检测（仅凭选项即可作答）、视觉依赖性评估（去除字幕后能否回答）、难度分级（Gemini Pro 能否答对）
-- **5 大问题类别**：角色与关系动态（CRD）、叙事与情节分析（NPA）、场景与技术分析（STA）、时间推理（TEMP）、主题探索（TH）
-- **全面模型评估**：涵盖 GPT-4o、GPT-4V、Gemini 1.5 Pro、Claude 3 Opus 等商业模型及 mPLUG-Owl、Video-ChatGPT、MovieChat 等开源模型
-- **人类基线**：普通人类 73.21%，论文作者 86.00%；最优模型 GPT-4o 仅 59.65%
+- 数据来自英文电影片段，最终保留 9,396 个视频片段，平均长度约 160 秒
+- 规模为 303,828 个 MCQ，其中训练集 298,887 条、测试集 4,941 条，每个视频约 32 个问题
+- 利用 Audio Descriptions 对齐 YouTube MovieClips 片段，把专为视障人群编写的场景旁白转化为视觉描述代理
+- 用 WhisperX 转录音频，用 WhereIsAI/UAE-Large-V1 句向量和 rolling window 将电影级 AD 定位到片段级 AD
+- 从 MovieQA、TVQA、Perception Test 的约 30,000 个人工问题中抽取模板，最终人工合并为 86 个问题模板
+- 问题类别覆盖 CRD、NPA、STA、TEMP、TH，强调角色关系、叙事、场景技术、时间推理和主题理解
+- 引入退化问题检测、educated guessing 检测、adversarial refinement、vision reliance、hardness 等质量控制指标
+- 模型评测显示 Gemini 1.5 Pro 约 60.12%，普通人类 73.21%，作者 86.00%，长视频多模态理解仍有明显差距
 
 #### 🔬 深入细节
-##### 核心框架总览
+![CinePile 自动 QA 生成与过滤流程](https://ar5iv.labs.arxiv.org/html/2405.08813/assets/x3.png)
+*图：CinePile 从场景文本标注和问题模板出发，生成 MCQ 并通过多阶段过滤/修复得到最终数据*
 
-![CinePile 示例与问答展示](https://ar5iv.labs.arxiv.org/html/2405.08813/assets/x1.png)
-*图 1：CinePile 数据集的样例电影片段及对应的多选问答示例，涵盖不同问题类别*
+CinePile 的核心洞察是：很多电影已经存在由专业人员编写的 Audio Descriptions（AD），这些旁白会在对话间隙描述角色动作、表情、空间位置、关键物体和场景变化。传统视频 caption 往往过度描述表面视觉内容，而 AD 更接近“为了理解剧情必须知道的视觉信息”。因此，CinePile 不直接让人工逐帧标注，而是把 AD 当作视觉代理标注，用它生成需要看视频才能回答的问题。
 
-CinePile 的核心贡献在于提出了一套**可扩展的长视频问答数据集构建流水线**，整个流程分为四个阶段：数据收集、问题模板生成、自动化 QA 生成、质量过滤。
+数据对齐分两层。第一层是音频转录：论文用 WhisperX 转录 YouTube 电影片段音频和整部电影的 AD 音轨，以获得更准确的词级时间戳。第二层是片段定位：取 YouTube 片段转录的开头 3 行和结尾 3 行，用 WhereIsAI/UAE-Large-V1 编码，再在整部电影 AD 转录中用 rolling window 搜索最匹配的开始和结束位置。对齐后得到的片段级文本同时包含 visual description 和 dialogue，论文称为 scene-text-annotation。
 
-##### 数据收集与预处理
+由于 AD 转录混合了视觉旁白和角色台词，CinePile 还训练了一个句子分类器来拆分二者。具体做法是在 MAD 数据集标注上 fine-tune BERT-Base，加二分类头区分 visual description 与 dialogue，80/20 划分训练和验证，验证准确率约 96%。这个步骤很关键，因为后续的 vision reliance 与纯视觉/对话依赖分析都需要知道问题是否真的依赖视觉描述。
 
-数据来源于 YouTube 上的电影片段，每个片段平均时长约 160 秒。对于每个视频，系统提取以下多模态信息：
+模板生成不是手写几个固定问题类型，而是从现有人工视频 QA 数据集中抽象出来。CinePile 从 MovieQA、TVQA、Perception Test 收集约 30,000 个问题，先用 GPT-3.5 把人名和实体替换成代词，避免句向量聚类被专名主导；去重后得到 17,575 个唯一问题。随后用 WhereIsAI/UAE-Large-V1 嵌入并 k-means 聚类，MovieQA/TVQA 侧实验 \(k=10,50,100\) 后选 \(k=50\)，Perception Test 因主题较少选 \(k=20\)。每个 cluster 随机抽 10 个问题给 GPT-4 归纳模板，生成约 300 个候选模板，再人工删并合并为 86 个。
 
-1. **音频描述（Audio Descriptions, AD）**：通过 WhisperX 从视频的描述性音轨中转录获得。AD 是专为视障人群制作的旁白，在对话间隙描述场景中的视觉元素（角色外貌、动作、环境等），是天然的高质量视觉标注
-2. **对话字幕**：从主音轨中转录的角色对话
-3. **元数据**：电影名称、年份、类型等信息
-
-> 💡 关键：音频描述（AD）是本文的核心创新点之一。相比传统的人工视觉标注，AD 由专业人员为视障人群制作，天然包含丰富的视觉语义信息，且已大量存在于电影资源中，无需额外标注成本。
-
-##### 问题模板生成流水线
-
-![问题模板生成流水线](https://ar5iv.labs.arxiv.org/html/2405.08813/assets/x2.png)
-*图 2：问题模板生成流水线——从现有人工问答数据集中提取、泛化并聚类生成 86 个可复用模板*
-
-模板生成分三步：
-
-1. **收集种子问题**：从 MovieQA、TVQA、Perception Test 等现有人工标注数据集中收集约 30,000 个问题
-2. **泛化为模板**：使用 GPT-3.5 将具体问题中的实体替换为占位符（如将"Harry 为什么离开？"泛化为"{character} 为什么离开？"），生成通用问题模板
-3. **聚类去重**：使用 Sentence-BERT 对模板进行嵌入，通过余弦相似度聚类（阈值 0.7），最终得到 86 个独特的问题模板
-
-这些模板覆盖 5 大类别：
-- **角色与关系动态（CRD）**：占比最大，关注角色互动与情感变化
-- **叙事与情节分析（NPA）**：围绕核心故事线和情节发展
-- **场景与技术分析（STA）**：需要视觉解读的环境和拍摄技术问题
-- **时间推理（TEMP）**：涉及事件顺序和时间关系
-- **主题探索（TH）**：关于影片深层主题和象征意义
-
-##### 自动化 QA 生成与过滤
-
-![自动化 QA 生成与过滤流程](https://ar5iv.labs.arxiv.org/html/2405.08813/assets/x3.png)
-*图 4：自动化 QA 生成与过滤流程——从多模态输入到最终高质量 MCQ 的完整管线*
+QA 生成阶段先让 Gemini 从 86 个模板中为每个场景选出 20 个相关模板，再随机取 5-6 个模板交给 GPT-4/Gemini 生成多选题。输入包括 scene-text-annotation、模板名、prototype question 和系统提示。论文特别强调两个 prompt 细节：给 prototype question 能减少幻觉并提升干扰项质量；要求模型给 rationale 能提升问题可验证性。最终每个视频大约生成 32 个 MCQ，每个问题包含 1 个正确答案和 4 个干扰项。
 
 ```python
-# CinePile QA 生成伪代码
-for video in movie_clips:
-    # 1. 提取多模态信息
-    ad = whisperx_transcribe(video.ad_track)        # 音频描述
-    dialogue = whisperx_transcribe(video.main_track)  # 对话字幕
-    metadata = get_movie_metadata(video)               # 元数据
-    
-    # 2. 构建上下文
-    context = f"AD: {ad}\nDialogue: {dialogue}\nMetadata: {metadata}"
-    
-    # 3. 从86个模板中采样，生成MCQ
-    for template in sample_templates(k=32):
-        prompt = f"{context}\n\nBased on the above, generate a MCQ following: {template}"
-        mcq = gpt4_generate(prompt)  # 含1个正确答案 + 4个干扰项
-        
-    # 4. 质量过滤
-    for mcq in generated_mcqs:
-        # 退化检测：仅给选项，不给上下文，看LLM能否答对
-        if llm_can_answer_without_context(mcq):
-            mcq.mark_degenerate()
-        # 视觉依赖性：去除AD仅保留对话，看能否答对
-        if llm_can_answer_without_ad(mcq):
-            mcq.vision_reliant = False
-        # 难度分级：Gemini Pro能否答对
-        if gemini_pro_correct(mcq):
-            mcq.hard = False
+# CinePile 数据构建流程伪代码
+for clip in youtube_movie_clips:
+    clip_transcript = whisperx_transcribe(clip.audio)
+    movie_ad_transcript = whisperx_transcribe(full_movie_audio_description(clip.movie))
+
+    start_query = embed(first_3_lines(clip_transcript))
+    end_query = embed(last_3_lines(clip_transcript))
+    start, end = rolling_window_match(movie_ad_transcript, start_query, end_query)
+
+    scene_text = movie_ad_transcript[start:end]
+    visual_desc, dialogue = bert_sentence_classifier(scene_text)
+    scene_annotation = merge_with_timestamps(visual_desc, dialogue)
+
+    relevant_templates = gemini_select_top20(scene_annotation, template_bank)
+    sampled_templates = random_sample(relevant_templates, k=5_or_6)
+
+    mcqs = []
+    for template in sampled_templates:
+        mcqs.extend(gpt_or_gemini_generate_mcq(scene_annotation, template))
+
+    for q in mcqs:
+        q.degenerate = lm_answers_without_context(q.question, q.choices)
+        q.vision_reliant = not gemini_answers_with_dialogue_only(q, dialogue)
+        q.hard = not gemini_answers_with_full_scene_text(q, scene_annotation)
+        if q.degenerate:
+            q = adversarial_refine_until_unanswerable(q, max_rounds=5)
+
+    save_valid_questions(mcqs)
 ```
 
-**退化问题过滤**是关键的质量控制步骤。具体做法是将问题和选项（不含任何上下文）提供给 Gemini Pro，如果模型仅凭选项就能选出正确答案，说明该问题存在设计缺陷（如正确答案明显更长、更具体），需要被标记为退化问题。测试集中约 4.5% 的问题被过滤。
+质量控制比普通自动合成数据更重。退化问题指答案已经隐含在问题中，例如“粉色房子是什么颜色”；educated guessing 指不用看视频也能靠常识猜中。论文用 Gemini、GPT-3.5 Turbo、Phi-1.5 在“只给问题和选项、不提供上下文”的条件下检测弱问题。如果多个模型都能答对，就说明题目可能泄漏答案。随后使用 LLaMA 3.1 70B 做 adversarial refinement：让模型解释为什么能猜中，再把这个 rationale 反馈给生成模型改写问题或选项，最多迭代 5 轮。最终约 90.94% 的训练弱问答、90.24% 的测试弱问答被修复，无法修复的约 80 条测试问题被移除。
 
-**视觉依赖性评估**通过去除音频描述（AD），仅保留对话字幕来测试。如果模型在缺少视觉信息的情况下仍能正确回答，则该问题不依赖视觉。测试集中 33.21% 的问题被标记为视觉依赖型。
+Vision reliance 与 hardness 是 CinePile 的两个诊断指标。可以把视觉依赖写成：
 
-##### 模型评估与结果分析
+$$
+\operatorname{VR}(q)=
+\mathbb{1}[\hat{a}_{\text{Gemini}}(q,\text{dialogue only}) \ne a^\star]
+$$
 
-评估采用两阶段响应解析：首先归一化模型输出，提取选项字母（A-E）和对应文本；然后与答案键进行匹配比较。
+如果只给 dialogue 时 Gemini 答错，则该问题被标记为依赖视觉。Hardness 则更严格：给模型用于生成问题的完整 scene-text-annotation（包含 visual descriptions 和 subtitles）仍答错的问题，会被认为对模型困难，并由作者进一步审查。
 
-核心实验结果：
+退化检测也可以抽象为：
 
-| 模型 | 平均 | CRD | NPA | STA | TEMP | TH |
-|------|------|-----|-----|-----|------|-----|
-| 人类 | 73.21 | 82.92 | 75.00 | 73.00 | 75.52 | 64.93 |
-| 作者 | 86.00 | 92.00 | 87.50 | 71.20 | 100.0 | 75.00 |
-| GPT-4o | 59.65 | 66.54 | 77.22 | 52.76 | 42.39 | 62.33 |
-| GPT-4V | 58.04 | 65.37 | 80.97 | 47.42 | 42.01 | 70.37 |
-| Gemini 1.5 Pro | 59.08 | 63.44 | 63.88 | 59.52 | 37.50 | 68.42 |
-| Claude 3 Opus | 44.72 | 49.64 | 61.11 | 38.86 | 32.60 | 44.87 |
-| Video-ChatGPT | 15.44 | 17.31 | 15.05 | 15.79 | 7.14 | 23.38 |
-| MovieChat | 4.61 | 4.95 | 4.29 | 5.23 | 2.48 | 4.21 |
+$$
+\operatorname{Weak}(q)=
+\mathbb{1}\left[
+\frac{1}{|\mathcal{M}|}
+\sum_{m\in\mathcal{M}}
+\mathbb{1}[\hat{a}_m(q,\text{choices only})=a^\star]
+\ge \tau
+\right]
+$$
 
-![模型在全部问题与困难问题上的表现对比](https://ar5iv.labs.arxiv.org/html/2405.08813/assets/x9.png)
-*图 8：各模型在 CinePile 测试集上全部问题 vs 困难问题的表现对比*
+其中 \(\mathcal{M}\) 是用于检测的语言模型集合。这个指标不直接评价视频理解，而是保护 benchmark：如果只靠问题和选项就能答对，那么它不应进入评测集。
 
-**关键发现**：
+CinePile 的评测协议是多选准确率，但模型输出并不总是规整的 A-E 选项。因此论文使用两阶段解析：先规范化模型回答，抽取选项字母和可能出现的选项文本；再与答案 key 比较，允许在只有字母或只有文本出现时按对应部分匹配。这个细节对开源模型尤其重要，因为许多模型会复述字幕、生成长段解释或输出未列出的选项。
 
-1. **商业模型 vs 人类**：最优商业模型（GPT-4o, ~60%）与人类（~73%）之间存在约 13% 的差距，表明长视频多模态理解仍是重大挑战
-2. **Gemini 1.5 Pro 的视觉优势**：在视觉依赖性最高的"场景与技术分析"类别中，Gemini 1.5 Pro（59.52%）显著优于 GPT-4V（47.42%），得益于其原生长上下文多模态处理能力
-3. **GPT-4 的叙事优势**：在"叙事与情节分析"类别中，GPT-4V（80.97%）大幅领先 Gemini 1.5 Pro（63.88%）
-4. **开源模型严重落后**：OSS 模型表现极差（<16%），主要原因并非能力不足，而是**无法遵循指令格式**——频繁输出无关文本、复述字幕、重述选项等
-5. **困难子集**：所有模型在困难子集上下降 15-20%，但相对排名基本不变，Gemini 1.5 Pro 在困难子集上超越 GPT-4 模型
-
-> ⚠️ 注意：开源模型的低分数部分源于评估管线的局限性——这些模型经常不按要求输出选项字母，而是生成冗长的自由文本，导致答案提取失败。论文通过子串匹配和 BertScore/CIDEr 等传统指标进行了补充评估，但相对排名未变。
-
-##### 与现有数据集的对比
-
-CinePile 相比现有数据集的核心优势：
-- **规模**：~305k 问题，远超 MovieQA（14.9k）、TVQA（152.5k）等
-- **视频长度**：平均 ~160 秒，远超 EgoSchema（180s 但仅限自我中心视频）、TVQA（76s）
-- **真正多模态**：需要同时理解视觉和对话才能回答，而非仅依赖对话（如 MovieQA）
-- **问题多样性**：86 个自动化模板覆盖 5 大类别，远超固定模板的数据集
-- **可扩展性**：基于 AD 的自动化流水线可低成本扩展到更多电影
+实验结果显示，CinePile 不是只靠单帧或字幕就能解决的简单 benchmark。普通人类约 73.21%，作者在仔细观看和回看条件下约 86.00%；商业模型中 Gemini 1.5 Pro--001 约 60.12%，GPT-4o 约 56.06%；开源模型中 LLaVA-OV 7B 约 49.34%。同时，使用 CinePile 训练集对 Video-LLaVA 进行 LoRA 微调后，准确率从 25.72% 提升到 44.16%，说明这个数据集不仅能评测长视频理解，也能作为 instruction tuning 数据改善开源视频模型。
 
 #### 🧪 练习题
 ```yaml
-question: "CinePile 使用什么作为视觉信息的代理标注来避免昂贵的人工视觉标注？"
+question: "CinePile 为什么使用 Audio Descriptions 作为视觉代理标注？"
 options:
-  - "自动生成的视频描述（Video Captioning 模型输出）"
-  - "音频描述（Audio Descriptions，为视障人群制作的专业旁白）"
-  - "从电影剧本中提取的场景描述"
-  - "通过目标检测模型生成的物体标签序列"
+  - "AD 是自动目标检测器输出，包含更精确的边界框"
+  - "AD 是为视障人群编写的人工场景旁白，通常覆盖理解剧情所需的关键视觉信息"
+  - "AD 只包含角色对话，适合训练纯文本问答模型"
+  - "AD 可以替代所有模型评测，不需要原始视频输入"
 answer: 1
-explain: "CinePile 的核心创新之一是利用音频描述（AD）——专为视障人群在对话间隙描述视觉场景的专业旁白——作为视觉信息的代理标注，既保证了高质量的视觉语义覆盖，又避免了昂贵的人工标注成本。"
+explain: "CinePile 利用 AD 中的人写视觉描述来低成本构造长视频 QA；评测时模型仍需要从原始视频和对话中回答，不会看到 AD。"
 ```
 
 ### S-CNN
@@ -742,15 +833,114 @@ motivation: 首个深度时序动作定位框架
 ```
 
 #### 📝 一句话总结
-S-CNN 的核心目标是：首个深度时序动作定位框架。
+S-CNN 将 R-CNN 式“候选区域-分类-后处理”思想迁移到视频时间轴，提出 proposal、classification、localization 三阶段 3D ConvNet 框架，用 overlap-aware loss 提升未剪辑视频中的动作起止边界定位精度。
 
 #### 🎯 核心要点
-- 核心动机：首个深度时序动作定位框架
-- 代表机构：Columbia
+- 首个系统性使用 segment-based 3D ConvNets 处理未剪辑长视频时序动作定位的深度框架之一
+- 用多尺度 temporal sliding window 生成候选片段，窗口长度为 16、32、64、128、256、512 帧，并使用 75% overlap
+- 每个候选片段统一采样 16 帧，输入 C3D 风格 3D ConvNet，捕获外观与运动信息
+- Proposal network 做 action/background 二分类，先过滤大量背景窗口以提升效率和精度
+- Classification network 学习 \(K+1\) 类动作分类器，主要用于给 localization network 提供可靠初始化
+- Localization network 引入 overlap loss，让预测分数和片段-真值 IoU 对齐，避免 NMS 保留“分类强但边界差”的片段
+- 推理阶段只使用 proposal network 与 localization network，最后通过类别先验和 NMS 输出最终动作区间
+- 在 IoU 0.5 下，MEXaction2 mAP 从 1.7% 提升到 7.4%，THUMOS 2014 mAP 从 15.0% 提升到 19.0%
 
 #### 🔬 深入细节
-首个深度时序动作定位框架
+![S-CNN 总体框架](https://ar5iv.labs.arxiv.org/html/1601.02129/assets/x1.png)
+*图：S-CNN 的三阶段流程，包括多尺度候选片段生成、Segment-CNN 三个网络阶段和 NMS 后处理*
 
+S-CNN 面向的任务是 temporal action localization：给定一个未剪辑长视频，不只判断视频里有什么动作，还要输出每个动作实例的开始和结束时间。论文将视频记为：
+
+$$
+X=\{x_t\}_{t=1}^{T}
+$$
+
+每个视频有一组动作标注：
+
+$$
+\Psi=\{(\psi_m,\psi'_m,k_m)\}_{m=1}^{M}
+$$
+
+其中 \(\psi_m,\psi'_m\) 是第 \(m\) 个动作实例的起止帧，\(k_m\in\{1,\dots,K\}\) 是动作类别。相比 trimmed action recognition，难点在于背景片段大量存在、动作持续时间差异很大、一个视频可能包含多个动作实例，而且分类分数高并不等价于边界准确。
+
+候选片段生成直接在时间轴上做多尺度滑窗。S-CNN 对未剪辑视频使用 16、32、64、128、256、512 帧长度的窗口，每个尺度内部有 75% overlap；每个窗口再均匀采样 16 帧，缩放到 \(171 \times 128\)，输入 3D ConvNet。两个 temporal segments 的 IoU 可写为：
+
+$$
+\operatorname{IoU}([a,b],[c,d])=
+\frac{\max(0,\min(b,d)-\max(a,c))}
+{\max(b,d)-\min(a,c)}
+$$
+
+Proposal network 的作用类似 objectness detector，但对象从图像框变成时间片段。训练时，候选片段与所有 ground truth 的最大 IoU 大于 0.7 就标为 positive，小于 0.3 就标为 background；如果某个 ground truth 没有 IoU 大于 0.7 的窗口，则选择和它 IoU 最大且大于 0.5 的片段作为 positive。这个阶段不关心具体动作类别，只学习“这里是否可能包含目标动作”，因此能在推理时大量减少后续分类/定位计算。
+
+Classification network 是普通 \(K+1\) 类分类器，其中第 0 类为 background。它使用 proposal 过滤后的片段训练动作类别判别能力，但论文明确指出它不是最终定位器：分类网络容易抓住片段内部的局部判别证据，即使候选窗口只覆盖了动作的一小段，也可能给出很高分类分数。这样的分数进入 NMS 后，会把 IoU 更高但分类分数略低的片段压掉，造成边界错误。
+
+Localization network 复用 classification network 的结构和初始化，但加入 overlap-aware loss。对第 \(n\) 个训练片段，记真实类别为 \(k_n\)，softmax 后真实类别概率为 \(P_n^{(k_n)}\)，与关联 ground truth 的 IoU 为 \(v_n\)。总损失为：
+
+$$
+\mathcal{L}=\mathcal{L}_{\text{softmax}}+\lambda\mathcal{L}_{\text{overlap}}
+$$
+
+$$
+\mathcal{L}_{\text{softmax}}
+=\frac{1}{N}\sum_n -\log P_n^{(k_n)}
+$$
+
+$$
+\mathcal{L}_{\text{overlap}}
+=\frac{1}{N}\sum_n
+\frac{1}{2}
+\left(
+\frac{(P_n^{(k_n)})^2}{(v_n)^\alpha}-1
+\right)
+\mathbb{1}[k_n>0]
+$$
+
+其中 \(\mathbb{1}[k_n>0]\) 表示 overlap loss 只作用于非背景片段。这个损失的直觉是：如果片段和真值高度重叠，模型应该给它更高置信度；如果片段只覆盖动作的一部分，即使分类正确，也不应该得到过高分数。论文指出正样本上的最优趋势是让 \(P_n^{(k_n)}\) 接近 \(\sqrt{(v_n)^\alpha}\)，也就是把分类置信度校准到时序重叠质量。
+
+```python
+# S-CNN 推理流程伪代码
+def scnn_localize(video):
+    candidates = []
+    for length in [16, 32, 64, 128, 256, 512]:
+        for window in sliding_windows(video, length=length, overlap=0.75):
+            segment = uniform_sample(window, num_frames=16)
+            candidates.append((window.start, window.end, segment))
+
+    proposals = []
+    for start, end, segment in candidates:
+        p_action = proposal_network(segment)["action"]
+        if p_action >= 0.7:
+            proposals.append((start, end, segment))
+
+    detections = []
+    for start, end, segment in proposals:
+        probs = localization_network(segment)      # K+1 类，0 是 background
+        cls = argmax(probs)
+        if cls != 0:
+            score = probs[cls] * length_prior(cls, end - start)
+            detections.append((start, end, cls, score))
+
+    return temporal_nms(detections, threshold=eval_iou_threshold - 0.1)
+```
+
+与 R-CNN 的类比很清楚：多尺度滑窗对应 region proposals，3D ConvNet 对应候选特征提取，NMS 对应冗余去除。但 S-CNN 没有像 Faster R-CNN 那样回归边界偏移。论文尝试后认为动作持续时间和边界变化太多样，直接回归 start/end 不稳定；因此采用 overlap loss 重新校准候选片段分数，让 NMS 更倾向保留高 IoU 的候选。
+
+S-CNN 的三个阶段分工也解释了为什么 classification network 虽然推理不用，但训练中不能省。Localization network 既要保持类别判别能力，又要学习 IoU-aware scoring；如果没有先训练好的分类网络初始化，定位网络直接从较难目标开始优化会更差。论文消融显示，去掉 proposal network 时 THUMOS 2014 mAP 为 17.1%，完整 S-CNN 为 19.0%；去掉 localization network 则会失去对边界质量的分数校准。
+
+从历史位置看，S-CNN 的意义不在于今天的精度仍最高，而在于它把视频动作定位从“手工特征 + 滑窗 SVM/FV”推进到深度多阶段检测范式。后续 TAL 方法中的 proposal generation、boundary quality scoring、classification/localization 分离、NMS 后处理，都能在 S-CNN 中看到早期雏形。
+
+#### 🧪 练习题
+```yaml
+question: "S-CNN 的 localization network 为什么要加入 overlap loss？"
+options:
+  - "为了减少 3D ConvNet 的参数量"
+  - "为了让分类置信度反映候选片段与真实动作边界的 IoU，从而帮助 NMS 保留更准的片段"
+  - "为了把所有背景片段都强制标为正样本"
+  - "为了在推理阶段替代 proposal network"
+answer: 1
+explain: "普通分类分数可能偏爱只包含局部判别证据的片段；overlap loss 会压低低 IoU 正片段的分数，提高高 IoU 片段在 NMS 中被保留的机会。"
+```
 
 ### CDC
 
@@ -769,16 +959,84 @@ motivation: 反卷积实现精确边界定位
 ```
 
 #### 📝 一句话总结
-CDC 的核心目标是：反卷积实现精确边界定位。
+CDC 提出 Convolutional-De-Convolutional filter，在 3D ConvNets 之后同时做时间维反卷积上采样和空间维卷积下采样，解决 S-CNN 等 proposal 级方法边界只能停留在候选段上的问题。它把视频动作定位从“给 proposal 打分”推进到“逐帧输出类别置信度，再回修 proposal 边界”。
 
 #### 🎯 核心要点
-- 核心动机：反卷积实现精确边界定位
-- 演化来源：继承或改进自 scnn
-- 代表机构：Columbia
+- 在 C3D 主干之后堆叠 CDC6、CDC7、CDC8，使时间分辨率从 \(L/8\) 恢复到 \(L\)，空间尺寸从 \(4\times4\) 压到 \(1\times1\)。
+- CDC filter 将一组空间卷积核按时间维耦合，等价于“空间卷积 + 时间反卷积”的联合操作，而不是串联两个独立层。
+- 利用 C3D 预训练 FC 层初始化 CDC 层，缓解联合卷积-反卷积参数更多、直接训练困难的问题。
+- 训练时使用 frame-wise softmax loss，让每一帧都参与监督并输出 \(K+1\) 类置信度。
+- 推理时先扩展 proposal，再用逐帧分数估计类别和收缩边界，提升高 tIoU 阈值下的定位精度。
+- 主要验证在 THUMOS14 与 ActivityNet Challenge 2016；论文报告 CDC 网络本身可达到约 500 FPS。
 
 #### 🔬 深入细节
-反卷积实现精确边界定位
+![CDC temporal localization framework](https://ar5iv.labs.arxiv.org/html/1703.01515/assets/x1.png)
+*图：CDC 将原始视频送入 3D ConvNets 和 CDC 层得到逐帧分数，再结合 proposal 进行精确边界定位。*
 
+```python
+# CDC temporal boundary refinement
+for proposal in proposals:
+    ts, te = proposal.start, proposal.end
+    length = te - ts + 1
+
+    # 1. 扩展 proposal，给边界回修留出搜索范围
+    ext_start = max(video_start, ts - alpha * length)
+    ext_end = min(video_end, te + alpha * length)
+
+    # 2. CDC 输出每一帧对每个类别的置信度
+    scores = CDC(video_frames[ext_start:ext_end + 1])  # shape: T x K
+    cls = argmax(mean(scores, axis="time"))
+
+    # 3. 用该类别的逐帧分数估计阈值，并从两端向中间收缩
+    class_scores = scores[:, cls]
+    mu, sigma = gaussian_kde_stats(class_scores)
+    threshold = mu - sigma
+
+    left = ext_start
+    while left < ext_end and scores[left - ext_start, cls] < threshold:
+        left += 1
+
+    right = ext_end
+    while right > left and scores[right - ext_start, cls] < threshold:
+        right -= 1
+
+    refined_score = mean(scores[left - ext_start:right - ext_start + 1, cls])
+    emit(start=left, end=right, category=cls, score=refined_score)
+```
+
+CDC 的直接动机是 S-CNN 这类两阶段方法的边界瓶颈：proposal 可以被分类器打出更高或更低的分数，但最终边界仍然继承候选段本身。如果候选段开始/结束时间偏粗，定位结果在高 tIoU 阈值下会明显吃亏。CDC 因此不再只预测 segment-level score，而是在 proposal 覆盖的扩展片段中产生 frame-level score sequence，让边界可以根据每帧置信度重新收缩。
+
+核心算子是 CDC filter。C3D 的前几层适合建模动作语义，但池化会把时间长度从 \(L\) 降到 \(L/8\)；动作定位又需要回到帧级时间分辨率。CDC filter 用一个三维核 \(F\in\mathbb{R}^{k_l\times k_h\times k_w}\) 同时完成两件事：在空间上像卷积一样汇聚 \(k_h\times k_w\) 感受野，在时间上像反卷积一样产生 \(k_l\) 个连续输出：
+
+$$
+Y[c]=\sum_{a=1}^{k_h}\sum_{b=1}^{k_w}F[c,a,b]\cdot X[a,b],\quad c=1,\dots,k_l
+$$
+
+这个设计比“先 conv6 再 deconv6”的串联方案更强，因为每个时间输出 \(Y[c]\) 有独立的空间卷积核；串联方案中多个上采样时间点共享同一个高层语义响应。论文也意识到 CDC filter 参数更多，所以将 C3D 的 FC6/FC7 转换成卷积核后复制初始化到 CDC6/CDC7 中，使网络可以从已有动作识别模型平滑迁移。
+
+网络结构上，C3D 的 conv1a 到 conv5b 先把输入变成 \(L/8\) 个 \(4\times4\) 特征图；CDC6 把时间从 \(L/8\) 上采样到 \(L/4\)，同时把空间压到 \(1\times1\)；CDC7 和 CDC8 继续各做 2 倍时间上采样，最终得到 \((K+1)\times L\times1\times1\) 的逐帧类别 logits。训练目标是逐帧 softmax：
+
+$$
+\mathcal{L}=\frac{1}{N}\sum_{n=1}^{N}\sum_{t=1}^{L}-\log\left(P_n^{(z_n)}[t]\right)
+$$
+
+其中 \(P_n^{(z_n)}[t]\) 是第 \(n\) 个训练片段在第 \(t\) 帧对真实类别的概率。这个损失让 CDC 层不仅学会“动作是什么”，还学会“动作在时间上何时出现/消失”。
+
+推理阶段 CDC 仍依赖外部 proposal，但它改变了 proposal 的用法：proposal 只是粗搜索区域，最终类别由该区域逐帧平均分数决定，边界则用类别分数曲线回修。论文采用高斯核密度估计得到分数分布的 \(\mu\) 和 \(\sigma\)，并以 \(\mu-\sigma\) 作为保守阈值，从扩展段两端向中间移动，直到遇到足够高的动作置信度。这样可以把原本偏长的候选段裁到更贴近真实动作的时间范围。
+
+> 💡 关键：CDC 的贡献不只是“用了反卷积”，而是把反卷积限制在时间维、把卷积保留在空间维，从而正好匹配“时间要恢复分辨率、空间要聚合语义”的动作定位需求。
+
+#### 🧪 练习题
+```yaml
+question: "CDC filter 相比单独串联 conv 和 deconv 的核心优势是什么？"
+options:
+  - "减少所有层的参数量"
+  - "同时进行空间下采样和时间上采样，并为不同时间输出学习独立空间语义"
+  - "完全不需要 proposal"
+  - "只使用光流特征即可完成定位"
+answer: 1
+explain: "CDC filter 将多个空间卷积核按时间维耦合，既恢复帧级时间分辨率，又避免多个上采样时间点共享同一个高层响应。"
+```
 
 ### BSN
 
@@ -797,16 +1055,116 @@ motivation: 边界敏感机制生成高质量提案
 ```
 
 #### 📝 一句话总结
-BSN 的核心目标是：边界敏感机制生成高质量提案。
+BSN 提出“local to global”的 temporal action proposal generation 框架，先在局部预测每个时间位置的 start/end/actionness 概率，再在全局用 Boundary-Sensitive Proposal feature 评估 proposal 质量。它解决了滑窗 proposal 边界不灵活、置信度不可靠的问题，成为后续 BMN 等边界匹配方法的重要前置工作。
 
 #### 🎯 核心要点
-- 核心动机：边界敏感机制生成高质量提案
-- 演化来源：继承或改进自 cdc
-- 代表机构：CUHK
+- 使用 two-stream 网络提取 snippet-level 视频特征，作为 BSN 的输入序列。
+- Temporal Evaluation Module (TEM) 同时预测 start probability、end probability 和 actionness probability。
+- Proposal Generation Module (PGM) 直接组合高 start/end 概率位置，生成灵活长度、边界更精细的候选 proposal。
+- Boundary-Sensitive Proposal (BSP) feature 从 proposal 的起点区间、中心区间和终点区间采样 actionness 序列。
+- Proposal Evaluation Module (PEM) 用一层隐藏层 MLP 根据 BSP feature 回归 proposal 与真实动作的 IoU 置信度。
+- 最终分数融合 \(p_{conf}\)、起点概率和终点概率，并用 Soft-NMS 抑制冗余 proposal。
+- 在 ActivityNet-1.3 和 THUMOS14 上验证 proposal 质量，同时与分类器结合提升完整 temporal action detection。
 
 #### 🔬 深入细节
-边界敏感机制生成高质量提案
+![BSN framework](https://ar5iv.labs.arxiv.org/html/1806.02964/assets/eccv_framework.jpg)
+*图：BSN 框架包含特征编码、TEM、PGM、PEM 和 Soft-NMS 后处理。*
 
+```python
+# BSN proposal generation and scoring
+features = two_stream_encoder(video)
+
+# 1. TEM 输出每个 temporal location 的局部概率
+P_start, P_end, P_action = TEM(features)
+
+# 2. 选取高概率或局部峰值位置作为候选边界
+start_candidates = select_peaks(P_start)
+end_candidates = select_peaks(P_end)
+
+proposals = []
+for ts in start_candidates:
+    for te in end_candidates:
+        duration = te - ts
+        if d_min <= duration <= d_max and ts < te:
+            # 3. 在起点、中心、终点区域采样 actionness，构造 BSP
+            f_s = interpolate(P_action, ts - duration / 5, ts + duration / 5, num=8)
+            f_c = interpolate(P_action, ts, te, num=16)
+            f_e = interpolate(P_action, te - duration / 5, te + duration / 5, num=8)
+            f_bsp = concat(f_s, f_c, f_e)
+
+            # 4. PEM 预测 proposal 质量，并融合边界概率
+            p_conf = PEM(f_bsp)
+            p_final = p_conf * P_start[ts] * P_end[te]
+            proposals.append((ts, te, p_final))
+
+final_proposals = soft_nms(proposals)
+```
+
+BSN 的核心问题意识是：高质量 temporal proposal 需要同时满足“覆盖率高”和“边界精确”。传统滑窗或预定义 duration 的方法虽然容易枚举，但时间间隔固定，动作长度变化大时会产生大量边界偏粗的候选段；而只给这些候选段打分，并不能从根本上修正边界。BSN 因此先预测边界本身，再组合边界形成 proposal。
+
+TEM 把每个 temporal location 看成一个候选事件点，输出三条概率序列：
+
+$$
+P_S=\{p^s_{t_n}\}_{n=1}^{l_s},\quad
+P_E=\{p^e_{t_n}\}_{n=1}^{l_s},\quad
+P_A=\{p^a_{t_n}\}_{n=1}^{l_s}
+$$
+
+其中 \(P_S\) 和 \(P_E\) 分别表示该位置作为动作开始/结束的概率，\(P_A\) 表示该位置位于动作内部的概率。TEM 的训练目标是三任务二分类损失：
+
+$$
+L_{TEM}=\lambda L_{bl}^{action}+L_{bl}^{start}+L_{bl}^{end}
+$$
+
+$$
+L_{bl}=\frac{1}{l_s}\sum_{n=1}^{l_s}\left[-g_{t_n}\log p_{t_n}-(1-g_{t_n})\log(1-p_{t_n})\right]
+$$
+
+这里 \(\lambda=2\)，用来提高 actionness 分支的重要性。由于 start/end/actionness 都是序列预测，TEM 能一次性扫描视频并给出所有候选边界，而不是对每个滑窗重复计算。
+
+PGM 的关键是 BSP feature。给定候选 proposal \(\varphi=[t_s,t_e]\)，设 \(d=t_e-t_s\)，BSN 定义中心区间 \(r_C=[t_s,t_e]\)，起点区间 \(r_S=[t_s-d/5,t_s+d/5]\)，终点区间 \(r_E=[t_e-d/5,t_e+d/5]\)。它分别在三段上从 \(P_A\) 采样：
+
+$$
+f_{BSP}=(f_s^A,f_c^A,f_e^A)
+$$
+
+直觉上，中心区间回答“proposal 内部是否像一个动作”，起点/终点区间回答“边界附近的 actionness 是否发生合理变化”。这比只用 proposal 内部平均特征更边界敏感，也解释了为什么 PEM 的输入不直接是视觉特征，而是围绕边界组织过的 actionness 序列。
+
+PEM 将 BSP feature 输入 MLP，预测 \(p_{conf}\)，训练目标是回归该候选 proposal 与所有真实动作的最大 IoU：
+
+$$
+L_{PEM}=\frac{1}{N_{train}}\sum_{i=1}^{N_{train}}(p_{conf,i}-g_{iou,i})^2
+$$
+
+训练时论文把 \(g_{iou}>0.7\) 的 proposal 作为正样本，\(g_{iou}<0.3\) 的 proposal 作为负样本，并采样到约 \(1:2\) 的正负比例。推理时，最终 proposal 分数融合 PEM 置信度和两个边界概率：
+
+$$
+p_f=p_{conf}\cdot p^s_{t_s}\cdot p^e_{t_e}
+$$
+
+这个乘法设计很直接：一个 proposal 只有在“内部质量高、起点可信、终点可信”三者同时成立时才会得到高分。随后 Soft-NMS 对重叠 proposal 衰减分数：
+
+$$
+p_{f,i}'=
+\begin{cases}
+p_{f,i}, & \operatorname{IoU}(\varphi_m,\varphi_i)<\theta \\
+p_{f,i}\cdot e^{-\operatorname{IoU}(\varphi_m,\varphi_i)^2/\varepsilon}, & \operatorname{IoU}(\varphi_m,\varphi_i)\ge\theta
+\end{cases}
+$$
+
+> 💡 关键：BSN 不是简单“边界分类器 + 排序器”，而是把边界概率、动作内部概率和 proposal-level IoU 评估串成一个闭环；局部边界负责生成，BSP/PEM 负责全局质量校准。
+
+#### 🧪 练习题
+```yaml
+question: "BSN 中 BSP feature 的主要作用是什么？"
+options:
+  - "直接替代 two-stream 特征提取器"
+  - "把 proposal 起点、中心和终点区域的 actionness 序列编码成 proposal-level 质量特征"
+  - "只用于 Soft-NMS 的 IoU 计算"
+  - "生成视频级动作类别标签"
+answer: 1
+explain: "BSP feature 围绕 proposal 的边界和内部采样 actionness，使 PEM 能判断该候选段是否边界合理且包含完整动作。"
+```
 
 ### BMN
 
@@ -1010,16 +1368,142 @@ motivation: 图卷积建模提案间关系
 ```
 
 #### 📝 一句话总结
-G-TAD 的核心目标是：图卷积建模提案间关系。
+该条目的论文实际提出的是 P-GCN：把 temporal proposals 建成图节点，用 contextual edges 和 surrounding edges 显式建模 proposal-proposal 关系，再用 GCN 同时改进动作分类、完整性判断和边界回归。它解决了传统两阶段定位方法逐 proposal 独立处理、无法利用相邻/重叠候选段上下文的问题。
 
 #### 🎯 核心要点
-- 核心动机：图卷积建模提案间关系
-- 演化来源：继承或改进自 bmn
-- 代表机构：PKU
+- 将每个 action proposal 表示为图节点 \(v_i\)，proposal 之间的时间关系表示为边 \(e_{ij}\)。
+- 构造两类边：contextual edges 连接高 tIoU 重叠 proposal，surrounding edges 连接不重叠但时间距离近的 proposal。
+- 在 proposal graph 上执行 GCN 消息传递，使每个 proposal 聚合邻域 proposal 的上下文和相关动作线索。
+- 使用两个 GCN 分支：原始 proposal feature 用于动作类别预测，扩展 proposal feature 用于边界回归与 completeness 预测。
+- 邻接矩阵边权可由 proposal 特征余弦相似度计算，并可映射到 embedding 空间后再计算相似度。
+- 训练时采用 GraphSAGE 风格的邻域采样降低上千 proposal 带来的计算和显存开销。
+- 实验在 THUMOS14 和 ActivityNet v1.3 上验证，论文报告 THUMOS14 tIoU=0.5 的 mAP 达到 49.1%。
 
 #### 🔬 深入细节
-图卷积建模提案间关系
+![P-GCN framework for temporal action localization](https://ar5iv.labs.arxiv.org/html/1909.03252/assets/x2.png)
+*图：P-GCN 将 proposal 实例化为图节点，建立 proposal 间边，并用两个 GCN 分支输出类别、完整性和边界回归结果。*
 
+```python
+# P-GCN training flow
+for video in dataset:
+    proposals = proposal_generator(video)  # e.g. BSN/TAG proposals
+    x = extract_i3d_features(proposals)
+    x_ext = extract_i3d_features(extend_each_proposal(proposals, ratio=0.5))
+
+    # 1. 建图：节点是 proposals，边来自重叠关系和近邻关系
+    graph = Graph()
+    for pi in proposals:
+        graph.add_node(pi)
+    for pi, pj in all_pairs(proposals):
+        if tIoU(pi, pj) > theta_ctx:
+            graph.add_edge(pi, pj, type="contextual")
+        elif tIoU(pi, pj) == 0 and temporal_distance(pi, pj) < theta_sur:
+            graph.add_edge(pi, pj, type="surrounding")
+
+    A = cosine_adjacency(graph, features=x)
+
+    # 2. 训练时采样邻居，测试时使用完整邻接
+    for layer in range(K):
+        for pi in proposals:
+            neigh = sample_neighbors(graph.neighbors(pi), Ns)
+            x[pi] = aggregate_with_self(x[pi], x[neigh], A[pi, neigh])
+            x_ext[pi] = aggregate_with_self(x_ext[pi], x_ext[neigh], A[pi, neigh])
+
+    # 3. 两个 GCN 分支分别服务分类与定位
+    cls_logits = FC1(GCN1(x, graph))
+    boundary_offsets = FC2(GCN2(x_ext, graph))
+    completeness = FC3(GCN2(x_ext, graph))
+
+    loss = cross_entropy(cls_logits, labels) \
+         + smooth_l1(boundary_offsets, target_offsets) \
+         + hinge_loss(completeness, complete_labels)
+    optimize(loss)
+```
+
+传统两阶段 temporal action localization 通常先生成 proposal，再对每个 proposal 独立提取特征并预测类别/边界。这种做法忽略了一个事实：同一个动作实例往往对应多个高度重叠的 proposal，它们分别覆盖动作的开始、中段或结束；附近的不同 proposal 也可能提供场景和动作上下文。P-GCN 的核心判断是：proposal 不是孤立样本，而是一组有结构关系的候选片段。
+
+论文将一个视频内的 proposal 集合写成：
+
+$$
+\mathcal{P}=\{\mathbf{p}_i\mid \mathbf{p}_i=(\mathbf{x}_i,(t_{i,s},t_{i,e}))\}_{i=1}^{N}
+$$
+
+其中 \(\mathbf{x}_i\) 是 proposal 特征，\((t_{i,s},t_{i,e})\) 是时间边界。图 \(\mathcal{G}(\mathcal{P},\mathcal{E})\) 的节点就是 proposal，边分成两类。第一类 contextual edge 用 tIoU 衡量重叠关系：
+
+$$
+r(\mathbf{p}_i,\mathbf{p}_j)=tIoU(\mathbf{p}_i,\mathbf{p}_j)=\frac{I(\mathbf{p}_i,\mathbf{p}_j)}{U(\mathbf{p}_i,\mathbf{p}_j)}
+$$
+
+若 \(r(\mathbf{p}_i,\mathbf{p}_j)>\theta_{ctx}\)，则两者连接。这样，高度重叠的 proposal 可以共享对同一动作实例不同部分的观察，帮助分类和边界修正。
+
+第二类 surrounding edge 针对不重叠但时间相近的 proposal。论文先要求 \(r(\mathbf{p}_i,\mathbf{p}_j)=0\)，再计算归一化时间距离：
+
+$$
+d(\mathbf{p}_i,\mathbf{p}_j)=\frac{|c_i-c_j|}{U(\mathbf{p}_i,\mathbf{p}_j)}
+$$
+
+其中 \(c_i\) 和 \(c_j\) 是两个 proposal 的中心坐标；若 \(d(\mathbf{p}_i,\mathbf{p}_j)<\theta_{sur}\)，则建立 surrounding edge。这类边允许背景片段或相邻动作片段向当前 proposal 传递场景线索，避免模型只盯着局部片段本身。
+
+在图构造完成后，P-GCN 使用标准图卷积更新所有 proposal 表示：
+
+$$
+\mathbf{X}^{(k)}=\mathbf{A}\mathbf{X}^{(k-1)}\mathbf{W}^{(k)}
+$$
+
+其中 \(\mathbf{A}\) 是邻接矩阵，\(\mathbf{X}^{(0)}\in\mathbb{R}^{N\times d}\) 是输入 proposal 特征。边权可以用 proposal 特征的余弦相似度给出：
+
+$$
+A_{ij}=\frac{\mathbf{x}_i^T\mathbf{x}_j}{\|\mathbf{x}_i\|_2\cdot\|\mathbf{x}_j\|_2}
+$$
+
+最后一层还会把隐藏特征与原始输入拼接：
+
+$$
+\mathbf{X}^{(K)} := \mathbf{X}^{(K)} \| \mathbf{X}^{(0)}
+$$
+
+这相当于在图消息传递后的上下文表示中保留 proposal 自身的局部证据，降低过度平滑的风险。
+
+模型输出拆成两个 GCN 分支。第一个分支使用原始 proposal 特征预测动作类别：
+
+$$
+\{\hat{y}_i\}_{i=1}^{N}=\operatorname{softmax}(FC_1(GCN_1(\{\mathbf{x}_i\}_{i=1}^{N},\mathcal{G})))
+$$
+
+第二个分支使用扩展 proposal feature \(\mathbf{x}'_i\)：每个 proposal 左右各扩展半个自身长度后提取特征，用来预测边界回归和 completeness：
+
+$$
+\{(\hat{t}_{i,s},\hat{t}_{i,e})\}_{i=1}^{N}=FC_2(GCN_2(\{\mathbf{x}'_i\}_{i=1}^{N},\mathcal{G}))
+$$
+
+$$
+\{\hat{c}_i\}_{i=1}^{N}=FC_3(GCN_2(\{\mathbf{x}'_i\}_{i=1}^{N},\mathcal{G}))
+$$
+
+completeness 的作用是识别“分类分数很高但只覆盖动作一部分”的 proposal，避免 mAP 排序时把不完整片段排在完整片段前面。
+
+计算效率上，一个视频可能有上千个 proposal，直接完整图卷积会带来 \(N^2\) 级别的边处理负担。论文采用 GraphSAGE 式邻域采样训练，每层只采样 \(N_s\) 个邻居：
+
+$$
+\mathbf{x}_i^{(k)}=
+\left(\frac{1}{N_s}\sum_{j=1}^{N_s}A_{ij}\mathbf{x}_j^{(k-1)}+\mathbf{x}_i^{(k-1)}\right)\mathbf{W}^{(k)}
+$$
+
+测试时则不采样，使用完整邻接图。训练损失由类别交叉熵、completeness hinge loss 和边界回归 smooth \(L_1\) loss 组成；测试时 RGB/Flow 两路结果融合，最终分数由分类分数和 completeness 分数相乘，再经 NMS 得到每类动作检测结果。
+
+> 💡 关键：P-GCN 的“图”不是把视频帧连起来，而是把 proposal 连起来；它建模的是候选片段之间的重叠、邻近和上下文关系，因此特别适合作为 BSN/BMN 这类 proposal generator 之后的关系推理模块。
+
+#### 🧪 练习题
+```yaml
+question: "P-GCN 中 contextual edges 与 surrounding edges 的区别是什么？"
+options:
+  - "前者连接高度重叠 proposal，后者连接不重叠但时间距离近的 proposal"
+  - "前者只用于 RGB 流，后者只用于 Flow 流"
+  - "前者负责边界回归，后者负责 Soft-NMS"
+  - "前者连接视频帧，后者连接动作类别"
+answer: 0
+explain: "contextual edges 基于 tIoU 连接重叠 proposal，用于共享同一动作实例的上下文；surrounding edges 连接相邻但不重叠 proposal，用于传递附近动作或背景线索。"
+```
 
 ### AFSD
 
@@ -1038,16 +1522,183 @@ motivation: 首个纯Anchor-free时序定位
 ```
 
 #### 📝 一句话总结
-AFSD 的核心目标是：首个纯Anchor-free时序定位。
+AFSD 提出首个纯 anchor-free 的单阶段时序动作定位框架，用“每个时序位置直接回归左右边界距离”的方式替代动作性枚举和预设 anchor，并通过显著边界特征与一致性学习提升边界精度。
 
 #### 🎯 核心要点
-- 核心动机：首个纯Anchor-free时序定位
-- 演化来源：继承或改进自 gtad
-- 代表机构：SJTU
+- **纯 anchor-free TAL**：每个 FPN 时序位置只预测一个动作片段的起止距离与类别分数，不再枚举 \(\mathcal{O}(T^2)\) 起止组合或调参预设 anchor
+- **端到端单阶段检测器**：I3D backbone + 1D temporal FPN + coarse prediction head + saliency-based refinement head 共同训练
+- **显著边界池化**：在粗边界附近构造 start/end 区域，用 channel-wise max pooling 选择最强激活的 moment-level 边界特征
+- **边界一致性学习 BCL**：用 Activation Guided Learning 约束边界敏感特征，并用 Boundary Contrastive Learning 拉近真实动作两段边界、拉远背景边界
+- **质量置信度替代 centerness**：用预测片段与真实片段的 tIoU 作为质量监督，避免直接套用目标检测中的 centerness
+- **推理融合**：粗分类、精分类与质量分数联合得到最终类别置信度，再用 Soft-NMS 去除冗余片段
 
 #### 🔬 深入细节
-首个纯Anchor-free时序定位
+##### 核心架构图
 
+![AFSD 整体框架图](https://ar5iv.labs.arxiv.org/html/2103.13137/assets/x3.png)
+*图：AFSD 从视频特征构建 1D temporal FPN，各层先输出粗边界，再用显著边界特征细化起止位置、类别和质量分数。*
+
+![AFSD 显著边界池化图](https://ar5iv.labs.arxiv.org/html/2103.13137/assets/x4.png)
+*图：Saliency-based Refinement Module 根据粗边界定位 start/end 区域，并在区域内寻找最显著的 moment-level 边界特征。*
+
+##### 算法伪代码
+
+```python
+# AFSD 训练与推理核心流程伪代码
+def AFSD(video):
+    # 1. Backbone 与时序金字塔
+    F = I3D(video)                              # [T', C', H', W']
+    seq = flatten_spatial(F)                    # [T', C]
+    pyramid = temporal_fpn(seq)                 # 多尺度 1D FPN 特征
+
+    all_predictions = []
+    for level, f_l in enumerate(pyramid):
+        # 2. Anchor-free 粗预测：每个时序位置直接回归到左右边界的距离
+        f_loc, f_cls = conv_branch(f_l, "loc"), conv_branch(f_l, "cls")
+        d_start, d_end = regressor(f_loc)
+        cls_coarse = classifier(f_cls)
+
+        coarse = []
+        for i in range(len(f_l)):
+            stride = 2 ** level
+            start = i * stride - d_start[i]
+            end = i * stride + d_end[i]
+            coarse.append((start, end, cls_coarse[i]))
+
+        # 3. 显著边界池化：围绕粗边界提取 start/end 敏感特征
+        f_start = relu(group_norm(conv_start(f_loc)))
+        f_end = relu(group_norm(conv_end(f_loc)))
+        boundary_feats = []
+        for start, end, _ in coarse:
+            width = end - start
+            start_region = (start - width / delta_a, start + width / delta_b)
+            end_region = (end - width / delta_b, end + width / delta_a)
+            s_feat = max_pool_over_time(f_start, start_region)
+            e_feat = max_pool_over_time(f_end, end_region)
+            boundary_feats.append(concat(f_l, s_feat, e_feat, frame_level_feats))
+
+        # 4. 细化预测
+        refined_feat = conv_reduce(boundary_feats)
+        delta_start, delta_end = refinement_regressor(refined_feat)
+        cls_refined = refinement_classifier(refined_feat)
+        quality = quality_head(refined_feat)
+
+        all_predictions.extend(fuse(coarse, delta_start, delta_end, cls_refined, quality))
+
+    return soft_nms(all_predictions)
+```
+
+##### 方法详解
+
+**动机与背景**
+
+AFSD 针对的是 Temporal Action Localization：输入未裁剪长视频，输出每个动作实例的类别、开始时间和结束时间。它之前的主流路线有两类：actionness-guided 方法先预测每个时刻的 start/end/actionness，再组合出大量候选；anchor-based 方法预设多个尺度的 anchor，再做边界回归。前者近似枚举所有起止组合，复杂度可到 \(\mathcal{O}(T^2)\)；后者输出数量与 anchor 数 \(C\) 绑定，约为 \(C \cdot T\)，并且对 anchor 尺度和位置超参敏感。
+
+AFSD 的核心选择是把时序定位改写成类似 FCOS 的 anchor-free 回归：给定 FPN 第 \(l\) 层的时序位置 \(i\)，网络直接预测该位置到动作开始和结束的距离 \((\hat d_i^s,\hat d_i^e)\)，从而得到粗边界：
+
+$$
+\hat{\psi}_i = i \cdot 2^l - \hat d_i^s,\qquad
+\hat{\xi}_i = i \cdot 2^l + \hat d_i^e
+$$
+
+这种形式让每个位置只产生一个候选片段，省掉了 anchor 设计和 proposal 组合。更重要的是，分类与定位在同一个端到端网络中完成，不再需要额外的片段分类器来给 proposal 重新打类别分。
+
+**显著边界池化**
+
+仅靠局部时序卷积回归边界会遇到一个问题：不同动作长度差异很大，固定感受野很难稳定看到真正的起止时刻。AFSD 因此增加 Saliency-based Refinement Module。它先把定位特征投影成 start-sensitive 和 end-sensitive 两个空间：
+
+$$
+f^s=\sigma(\mathrm{GN}(\mathrm{Conv}_s(f_{loc}))),\qquad
+f^e=\sigma(\mathrm{GN}(\mathrm{Conv}_e(f_{loc})))
+$$
+
+对第 \(k\) 个粗预测片段 \((\hat\psi_k,\hat\xi_k)\)，设片段长度 \(\hat w_k=\hat\xi_k-\hat\psi_k\)，AFSD 在开始点和结束点附近构造非对称边界区域：
+
+$$
+T_s^k=\left[\hat\psi_k-\frac{\hat w_k}{\delta_a},\hat\psi_k+\frac{\hat w_k}{\delta_b}\right],\qquad
+T_e^k=\left[\hat\xi_k-\frac{\hat w_k}{\delta_b},\hat\xi_k+\frac{\hat w_k}{\delta_a}\right]
+$$
+
+然后对每个通道在该区域内取最大激活：
+
+$$
+\hat f^s(k,c)=\max_{j\in T_s^k} f^s(j,c),\qquad
+\hat f^e(k,c)=\max_{j\in T_e^k} f^e(j,c)
+$$
+
+这一步的直觉很明确：边界判断依赖的是“某一瞬间是否发生从背景到动作、或从动作到背景的变化”，而不是整段区域的平均特征。mean pooling 或卷积会混入大量非边界帧，max pooling 则更像是在边界候选区域里寻找最有判别力的瞬时证据。
+
+**边界一致性学习**
+
+显著边界池化本身只保证“取最大值”，不保证最大值对应真正边界。AFSD 为此设计 Boundary Consistency Learning。第一部分是 Activation Guided Learning：把 start/end 敏感特征经过 \(\tanh\) 后按通道平均，得到边界激活图 \(\tilde g^s,\tilde g^e\)，再用真实起止点邻域标签 \(g^s,g^e\) 做 BCE：
+
+$$
+\ell_{act}=\mathrm{BCE}(g^s,\tilde g^s)+\mathrm{BCE}(g^e,\tilde g^e)
+$$
+
+第二部分是 Boundary Contrastive Learning。论文把一个动作片段切成前后两段 \(A_1,A_2\)，中间插入背景 \(Bg\)。合理的边界特征应满足：\(A_1\) 的结束边界和 \(A_2\) 的开始边界相似，但应远离背景边界。于是使用 triplet 形式：
+
+$$
+\ell_{trip}=\max\left(\|f^e_{A_1}-f^s_{A_2}\|^2-\|f^e_{A_1}-f_{Bg}\|^2+1,0\right)
+$$
+
+最终一致性损失为：
+
+$$
+\ell_{con}=\ell_{act}+\ell_{trip}
+$$
+
+这使边界池化不只是局部最大激活选择器，而是被训练成“应当在真实动作开始/结束处产生高响应”的特征提取器。
+
+**训练目标与质量分数**
+
+AFSD 同时监督粗预测和细化预测。粗定位使用 tIoU loss，细化边界使用 L1 offset loss，粗分类和精分类都用 focal loss。总体检测损失为：
+
+$$
+\mathcal{L}=\ell^C_{cls}+\lambda\ell^C_{loc}+\ell^R_{cls}+\lambda\ell^R_{loc}+\gamma\ell_q
+$$
+
+其中粗定位损失可写成：
+
+$$
+\ell^C_{loc}=\frac{1}{N_C}\sum_i \mathbb{I}(y_i\ge 1)\left(1-\frac{|\hat\phi_i\cap\phi_i|}{|\hat\phi_i\cup\phi_i|}\right)
+$$
+
+质量分数 \(\eta_i\) 的监督目标不是 FCOS centerness，而是细化边界 \(\tilde\phi_i\) 与真实片段 \(\phi_i\) 的 tIoU：
+
+$$
+\ell_q=\frac{1}{N_R}\sum_i \mathbb{I}(y_i\ge 1)\,
+\mathrm{BCE}\left(\eta_i,\frac{|\tilde\phi_i\cap\phi_i|}{|\tilde\phi_i\cup\phi_i|}\right)
+$$
+
+这是时序定位里的关键取舍：动作边界不像目标框中心那样有清晰几何中心，直接套 centerness 不稳定；用 tIoU 作为质量目标更贴近最终 NMS 和 mAP 评价。
+
+**推理与传统方法差异**
+
+推理时，AFSD 把细化 offset 加到粗边界上，并将粗分类、精分类和质量置信度融合：
+
+$$
+\tilde\psi_{l,i}=\hat\psi_{l,i}+\frac{1}{2}\hat w_{l,i}\Delta\hat\psi_{l,i},\qquad
+\tilde\xi_{l,i}=\hat\xi_{l,i}+\frac{1}{2}\hat w_{l,i}\Delta\hat\xi_{l,i}
+$$
+
+$$
+\hat y_{l,i}=\frac{1}{2}(\hat y^C_{l,i}+\hat y^R_{l,i})\eta_{l,i}
+$$
+
+相比 BMN/G-TAD 这类 proposal-centric 方法，AFSD 不再显式构建二维 proposal 图或图关系，而是在 dense temporal location 上直接回归片段；相比 anchor-based 方法，它也不依赖预设持续时间集合。它的性能提升主要来自两个补丁：用边界池化弥补 anchor-free 粗回归的边界不准，用 BCL 确保边界池化学到真实边界而不是背景峰值。
+
+#### 🧪 练习题
+```yaml
+question: "AFSD 中显著边界池化的主要作用是什么？"
+options:
+  - "枚举所有可能的起止时刻组合"
+  - "在粗边界附近选择最有判别力的 moment-level start/end 特征来细化边界"
+  - "把视频级类别标签转换成帧级标签"
+  - "用预设 anchor 生成多尺度候选片段"
+answer: 1
+explain: "AFSD 已经由 anchor-free head 给出粗边界，边界池化在该边界附近寻找最强 start/end 激活，提供用于边界修正和质量估计的显著瞬时特征。"
+```
 
 ### TallFormer
 
@@ -1066,16 +1717,156 @@ motivation: 长程记忆处理超长视频
 ```
 
 #### 📝 一句话总结
-TallFormer 的核心目标是：长程记忆处理超长视频。
+TallFormer 提出带长时记忆的端到端时序动作定位 Transformer，只在线处理少量采样 clip，并从 per-video long memory 中读取其余 clip 特征，从而在有限显存下同时保留强短时视频 Transformer 与长程边界定位能力。
 
 #### 🎯 核心要点
-- 核心动机：长程记忆处理超长视频
-- 演化来源：继承或改进自 afsd
-- 代表机构：UNC
+- **Long Memory Module (LMM)**：为每个训练视频缓存所有短 clip 的特征，当前迭代只重算采样 clip，其余 clip 直接从 memory 读取
+- **端到端高分辨率训练**：避免冻结 backbone 或降低空间分辨率，使 VideoSwin 等强视频 Transformer 能用于长视频 TAL
+- **Uniform random clip sampling**：每轮训练随机选择 \(N_s\) 个 clip 经过 short-term encoder，未选 clip 用历史特征近似
+- **Temporal Consistency Module (TCM)**：用多层 Transformer 让在线新特征和 memory 旧特征交互，缓解两者分布不一致
+- **一阶段边界定位模块**：在 THUMOS14 上结合 DaoTAD 风格检测头，在 ActivityNet-1.3 上结合 AFSD 风格检测头，并减少对外部分类器的依赖
+- **训练与推理分离**：训练阶段用 memory 节省显存和计算；推理阶段可直接用 short-term encoder 抽取全部 clip 特征
 
 #### 🔬 深入细节
-长程记忆处理超长视频
+##### 核心架构图
 
+![TallFormer 长记忆框架图](https://ar5iv.labs.arxiv.org/html/2204.01680/assets/x2.png)
+*图：TallFormer 只把随机采样 clip 送入短时 Transformer，其余位置读取 long memory；融合后的全视频特征进入 TCM 和边界定位模块。*
+
+##### 算法伪代码
+
+```python
+# TallFormer 长记忆训练流程伪代码
+def tallformer_train_step(video_id, clips, long_memory, encoder, tcm, tblm, r):
+    # clips: [N_c, L_c, H, W, 3]
+    # long_memory[video_id]: [N_c, L_f, C_f]
+    N_c = len(clips)
+    sampled_idx = uniform_sample(N_c, ratio=r)          # N_s 个 clip 在线编码
+    remaining_idx = [i for i in range(N_c) if i not in sampled_idx]
+
+    # 1. Short-term Transformer Encoder
+    sampled_features = encoder(clips[sampled_idx])      # 有梯度
+
+    # 2. Long Memory Module
+    memory_features = long_memory[video_id][remaining_idx]  # 无需重算、无梯度
+    long_memory[video_id][sampled_idx] = stop_gradient(sampled_features)
+
+    # 3. 按原始时间顺序拼回全视频特征
+    features = zeros_like_full_video_feature(N_c)
+    features[sampled_idx] = sampled_features
+    features[remaining_idx] = memory_features
+    features = features.reshape(N_c * L_f, C_f)
+
+    # 4. Temporal Consistency Module
+    for _ in range(L):
+        features = TransformerLayer(features)
+
+    # 5. Temporal Boundary Localization Module
+    detections = tblm(features)
+    loss = detection_loss(detections)
+    loss.backward()
+    return detections
+```
+
+##### 方法详解
+
+**动机与背景**
+
+时序动作定位需要同时解决两个尺度的问题：短时 clip 内要有强视觉表示，长视频全局上要准确定位动作边界。早期 TAL 方法常把这两步拆开：先离线提取 I3D/TSN 等 action recognition 特征，再训练边界定位模型。这样显存低、速度快，但 feature extractor 不是为定位任务端到端优化的。AFSD、DaoTAD 等端到端方法推进了这一点，但为了装进显存，通常要降低输入分辨率、缩短 temporal support 或冻结部分 backbone。
+
+TallFormer 的核心观察是：长视频相邻 clip 高度冗余，训练时没有必要每轮都重算全部 clip 的 Transformer 特征。设一个视频被切成 \(N_c\) 个不重叠 clip，当前迭代只采样 \(N_s\) 个 clip 送入 VideoSwin 等 short-term Transformer，采样比例为：
+
+$$
+r=\frac{N_s}{N_c}
+$$
+
+理想情况下，短时 encoder 的主要显存和计算开销也近似按 \(r\) 缩减。剩余 \(N_c-N_s\) 个 clip 的特征从 long memory 中读取，这使模型仍然能把完整视频的时序上下文交给边界定位模块。
+
+**Long Memory Module**
+
+LMM 是 TallFormer 的关键。它为每个训练视频维护一个特征缓存：
+
+$$
+M_V \in \mathbb{R}^{N_c \times L_f \times C_f}
+$$
+
+其中 \(N_c\) 是 clip 数，\(L_f\) 是每个 clip 输出的短时 token/feature 长度，\(C_f\) 是特征维度。当前迭代采样索引集合 \(I\)，未采样集合 \(I'\)。在线 encoder 只计算：
+
+$$
+f_I^{(s)} = E_\theta(c_I)
+$$
+
+未采样特征直接读取：
+
+$$
+f_{I'}^{(l)} = M_V[I']
+$$
+
+随后把新计算的 sampled features 写回 memory：
+
+$$
+M_V[I] \leftarrow \mathrm{stopgrad}(f_I^{(s)})
+$$
+
+这里 `stopgrad` 很重要：memory 里的旧特征不参与反向传播，所以不会把梯度图扩展到所有历史 clip。由于 encoder 通常从 Kinetics 等大规模动作识别预训练开始，并且学习率小于后续定位模块，特征随训练变化相对缓慢，缓存近似在实践中可行。
+
+**Temporal Consistency Module**
+
+LMM 带来一个副作用：同一个视频的特征来自两个时间点，在线采样 clip 是当前 encoder 输出，memory clip 可能是若干迭代之前的 encoder 输出。直接拼接会产生 temporal inconsistency。TallFormer 用 Temporal Consistency Module 处理这个问题。
+
+先按原时间顺序构造全视频特征 \(g\)：
+
+$$
+g[i]=
+\begin{cases}
+f_i^{(s)}, & i\in I \\
+f_i^{(l)}, & i\in I'
+\end{cases}
+$$
+
+然后用 \(L\) 层 TransformerLayer 让所有 clip 特征全局交互：
+
+$$
+h^{(0)}=g,\qquad h^{(\ell)}=\mathrm{TransformerLayer}(h^{(\ell-1)}),\quad \ell=1,\ldots,L
+$$
+
+TCM 的作用不是再做短时视频编码，而是把新旧来源的 clip-level 表示拉到同一分布，同时用 self-attention 建模完整视频范围内的长程依赖。论文默认使用 3 层 TCM，并采用相对位置编码、GELU 和 DropPath。
+
+**Temporal Boundary Localization Module**
+
+TCM 输出的 refined features 会送入 TBLM 预测动作边界与类别。TallFormer 不是重新发明检测头，而是把强 backbone 和 long memory 接到成熟 TAL head 上：THUMOS14 使用 DaoTAD 风格的 FPN + detection head，分类分支用 focal loss，回归分支用 DIoU loss；ActivityNet-1.3 使用 AFSD 风格的 basic prediction + saliency refinement，并额外加入视频级分类器。
+
+可以把总体训练目标概括为：
+
+$$
+\mathcal{L}_{TallFormer}
+=\mathcal{L}_{TBLM}(h^{(L)}, \Phi)
++\lambda_{video}\mathcal{L}_{video\_cls}
+$$
+
+其中 \(\Phi\) 表示动作边界和类别标注。对 ActivityNet-1.3，\(\mathcal{L}_{TBLM}\) 包含 AFSD 中的 focal classification、basic prediction tIoU regression、saliency refinement L1 regression 等损失；\(\mathcal{L}_{video\_cls}\) 来自 TCM 特征的 global average pooling、dropout 和线性分类器。对 THUMOS14，则主要是 DaoTAD head 的分类与边界回归损失。
+
+**训练、推理与设计取舍**
+
+训练阶段，TallFormer 的 memory 是“encoder 近似器”：未采样 clip 的 feature 不再在线计算，从而允许模型使用更强的 VideoSwin-B、更高空间分辨率和更长 temporal support。相比传统 memory bank 只作为辅助信息，TallFormer 直接把 memory feature 当作检测输入的一部分，这是它能保持长程定位能力的原因。
+
+推理阶段，论文不再需要 LMM：因为没有反向传播，显存压力大幅降低，可以用 short-term Transformer encoder 抽取所有 clip 的特征，再经过 TCM/TBLM 输出检测结果。也就是说，LMM 主要是训练时的显存和时间优化，而不是推理时的模型结构依赖。
+
+**与 AFSD 的关系**
+
+AFSD 解决的是“如何让单阶段 anchor-free detector 精确定位边界”；TallFormer 解决的是“如何把强视频 Transformer 端到端训练到长视频定位里”。在 ActivityNet-1.3 上，TallFormer 直接继承 AFSD detection head，但用 LMM + TCM 替换了传统的密集特征提取流程。它的贡献不在于新的边界回归公式，而在于把原本显存不可承受的强短时编码器带回 TAL 训练闭环。
+
+#### 🧪 练习题
+```yaml
+question: "TallFormer 中 Long Memory Module 的核心目的是什么？"
+options:
+  - "在推理阶段替代所有视频特征提取"
+  - "训练时缓存未采样 clip 的历史特征，使模型只需重算一小部分 clip 仍能看到完整视频"
+  - "把语言查询缓存为文本 memory"
+  - "用动态规划枚举所有动作边界"
+answer: 1
+explain: "TallFormer 每轮只把采样 clip 送入 short-term Transformer，未采样 clip 从 per-video long memory 读取，从而显著降低端到端训练长视频 Transformer 的显存和计算开销。"
+```
 
 ### TALL
 
@@ -1094,15 +1885,158 @@ motivation: 首创语言驱动视频定位
 ```
 
 #### 📝 一句话总结
-TALL 的核心目标是：首创语言驱动视频定位。
+TALL 首次系统提出用自然语言查询在未裁剪视频中定位活动片段，并用 CTRL 同时学习跨模态对齐分数和时序边界回归，突破了只能检测预定义动作类别的传统时序定位范式。
 
 #### 🎯 核心要点
-- 核心动机：首创语言驱动视频定位
-- 代表机构：UCLA
+- **新任务定义**：Temporal Activity Localization via Language，输入是未裁剪视频和自然语言 query，输出匹配 query 的起止时间
+- **CTRL 框架**：Cross-modal Temporal Regression Localizer 包含视觉编码器、句子编码器、多模态融合模块、对齐与回归双头
+- **上下文视觉特征**：候选 clip 不只看自身，还显式拼接 pre-context、central clip、post-context 特征
+- **多模态融合**：同时使用逐元素乘法、逐元素加法和 FC(concat)，构建跨模态表示 \(f_{sv}\)
+- **双目标训练**：alignment loss 区分匹配/不匹配 clip-sentence 对，regression loss 将滑动窗口边界修正到更准确位置
+- **数据集贡献**：使用 TACoS，并在 Charades 上构建 Charades-STA，为后续视频时刻检索/语言时序定位奠定基准
 
 #### 🔬 深入细节
-首创语言驱动视频定位
+##### 核心架构图
 
+![TALL CTRL 框架图](https://ar5iv.labs.arxiv.org/html/1705.02101/assets/x2.png)
+*图：CTRL 将候选视频片段及其上下文、自然语言查询分别编码，再通过跨模态融合输出匹配分数和边界回归偏移。*
+
+![TALL 任务示意图](https://ar5iv.labs.arxiv.org/html/1705.02101/assets/x1.png)
+*图：给定自然语言 query，模型需要在未裁剪视频中定位对应的时间片段，而不是只输出预定义动作类别。*
+
+##### 算法伪代码
+
+```python
+# TALL / CTRL 训练与推理核心流程伪代码
+def CTRL(video, query):
+    # 1. 多尺度滑动窗口生成候选 clip
+    clips = sliding_windows(video, lengths=[64, 128, 256, 512], overlap=0.8)
+
+    # 2. 句子编码
+    sent_raw = sentence_encoder(query)          # LSTM 或 Skip-thought
+    f_s = linear(sent_raw)                      # [d_s]
+
+    predictions = []
+    for clip in clips:
+        # 3. 视觉编码：显式建模前后上下文
+        f_pre = mean_pool(CNN(context_before(clip)))
+        f_ctl = CNN(clip)
+        f_post = mean_pool(CNN(context_after(clip)))
+        f_v = linear(concat(f_pre, f_ctl, f_post))
+
+        # 4. 多模态融合
+        f_mul = f_s * f_v
+        f_add = f_s + f_v
+        f_fc = fc(concat(f_s, f_v))
+        f_sv = concat(f_mul, f_add, f_fc)
+
+        # 5. 双头输出：对齐分数 + 边界回归
+        score = alignment_head(f_sv)
+        delta_start, delta_end = regression_head(f_sv)
+        refined_start = clip.start + delta_start
+        refined_end = clip.end + delta_end
+        predictions.append((refined_start, refined_end, score))
+
+    return rank_by_score(predictions)
+```
+
+##### 方法详解
+
+**动机与任务定义**
+
+传统时序动作定位通常假设动作类别集合已知，例如只检测 “jumping” 或 “diving” 等固定标签。但真实用户往往会提出更自由的语言需求，例如“person opens the refrigerator and takes out food”。这种查询组合了动作、物体、人物和上下文，无法用一个预定义类别表覆盖。TALL 因此把问题改成：给定视频 \(V\) 和自然语言句子 \(s\)，在视频中找出与句子语义最匹配的时间区间 \((t_s,t_e)\)。
+
+论文提出的 CTRL 仍然使用滑动窗口生成候选 clip，但不满足于“选择最高分窗口”。它认为候选窗口粒度有限，可能过长、过短或偏移，因此需要额外的 temporal regression head 对起止边界做连续修正。这一点把语言时刻定位从检索式 matching 推向了“匹配 + 边界回归”的检测式框架。
+
+**视觉编码与上下文建模**
+
+对于候选 clip \(c_i=(t_i^s,t_i^e)\)，CTRL 不只提取中心 clip 特征 \(f_v^{ctl}\)，还提取它之前和之后的上下文片段：
+
+$$
+f_v^{pre}=\frac{1}{n}\sum_{q=-n}^{-1}E_v(c_{i,q}),\qquad
+f_v^{post}=\frac{1}{n}\sum_{q=1}^{n}E_v(c_{i,q})
+$$
+
+然后拼接三部分并线性映射：
+
+$$
+f_v=\mathrm{LT}(f_v^{pre}\Vert f_v^{ctl}\Vert f_v^{post})
+$$
+
+这个设计服务于边界定位：动作开始前和结束后的内容往往是判断边界的重要线索。例如“倒水”之前可能是拿杯子，之后可能是放下水壶；只看窗口内部会难以判断窗口是否过紧或过松。
+
+**句子编码与跨模态融合**
+
+句子编码器 \(F_{se}\) 把 query 映射到与视觉特征同维度的空间。论文实验了 LSTM 和 Skip-thought 两类句子表示。视觉特征和句子特征同为 \(d_s\) 维后，CTRL 用三种互补操作融合：
+
+$$
+f_{sv}=(f_s\times f_v)\Vert(f_s+f_v)\Vert\mathrm{FC}(f_s\Vert f_v)
+$$
+
+逐元素乘法像维度级门控，突出语言和视觉同时响应的语义；逐元素加法保留两模态的线性叠加；FC(concat) 允许跨维度交互。三者拼接后进入 temporal localization regression network。
+
+**对齐分数与边界回归**
+
+CTRL 的输出有两个 sibling heads。第一个输出 alignment score \(cs_{i,j}\)，表示候选 clip \(c_i\) 与句子 \(s_j\) 的匹配程度。第二个输出边界回归偏移。论文比较了 parameterized 与 non-parameterized 两种形式。
+
+Parameterized offset 类似目标检测框回归，用中心和长度归一化：
+
+$$
+t_c=\frac{p-p_c}{l_c},\qquad t_l=\log\frac{l}{l_c}
+$$
+
+其中 \(p,l\) 是预测片段的中心和长度，\(p_c,l_c\) 是候选 clip 的中心和长度。Non-parameterized offset 直接回归起止点偏移：
+
+$$
+t_s=s-s_c,\qquad t_e=e-e_c
+$$
+
+实验发现 non-parameterized 形式更适合时序动作边界。论文给出的直觉是：图像目标框会因相机投影产生尺度变化，所以归一化框回归很自然；但视频中的时间本身就是统一尺度，动作持续时间不应像图像目标大小那样被任意重缩放。
+
+**训练目标**
+
+CTRL 使用多任务损失：
+
+$$
+L=L_{aln}+\alpha L_{reg}
+$$
+
+Alignment loss 在 mini-batch 内把第 \(i\) 个 clip 与第 \(i\) 个句子视为正样本，其他组合视为负样本：
+
+$$
+L_{aln}=\frac{1}{N}\sum_i\left[
+\alpha_c\log(1+\exp(-cs_{i,i}))
++\sum_{j\ne i}\alpha_w\log(1+\exp(cs_{i,j}))
+\right]
+$$
+
+正样本的分数越高，\(\log(1+\exp(-cs))\) 越小；负样本的分数越低，\(\log(1+\exp(cs))\) 越小。这使模型学习跨模态检索排序。
+
+Regression loss 只对对齐的 clip-sentence pair 计算，使用 smooth \(L_1\)：
+
+$$
+L_{reg}=\frac{1}{N}\sum_i\left[R(t_{x,i}^*-t_{x,i})+R(t_{y,i}^*-t_{y,i})\right]
+$$
+
+其中 \((x,y)\) 对应 parameterized 的 \((c,l)\) 或 non-parameterized 的 \((s,e)\)。训练样本的匹配条件也很关键：候选窗口与句子标注片段需要 IoU > 0.5，同时 nIoL < 0.2。nIoL 用来限制候选窗口中不属于目标句子的比例，避免一个窗口虽然与目标有较高 IoU，但内部包含另一个动作而干扰语言对齐。
+
+**推理流程与影响**
+
+推理时，CTRL 对测试视频生成滑动窗口，分别计算 query 与所有候选的 \(cs\)，并用回归头修正每个候选的起止时间，最后按 alignment score 排序返回 top-\(n\)。这种方法仍有滑动窗口密集枚举的成本，但它奠定了后续 temporal grounding 的基本范式：候选片段、跨模态匹配、边界细化、Recall@\(n\)/IoU 评价。
+
+TALL 的历史意义很大。它把时序定位从封闭类别检测扩展到开放语言查询，并构建 Charades-STA 让该任务可复现实验。后续 MCN、2D-TAN、VSLNet、Moment-DETR、UniVTG 等方法都可以看作围绕三个问题继续推进：如何更好地生成/表示候选时刻，如何更强地对齐语言与视频，如何更准确地直接预测边界。
+
+#### 🧪 练习题
+```yaml
+question: "TALL/CTRL 中边界回归头的主要作用是什么？"
+options:
+  - "把自然语言句子翻译成动作类别标签"
+  - "将粗粒度滑动窗口的起止时间修正到更贴近语言描述的真实片段"
+  - "生成视频的全局摘要"
+  - "替代视觉编码器提取 C3D 特征"
+answer: 1
+explain: "CTRL 先用滑动窗口得到候选片段，再通过 temporal regression 输出起止偏移，弥补固定窗口粒度导致的边界不准问题。"
+```
 
 ### MCN
 
@@ -1121,180 +2055,126 @@ motivation: 局部-全局上下文建模
 ```
 
 #### 📝 一句话总结
-提出MLLC（Moment Localization with Latent Context）统一框架，将MCN和TALL纳入同一公式体系，通过引入**隐式上下文变量**（latent context）使模型能够推理时序语言（before/after/then/while），并构建TEMPO数据集验证时序推理能力。
+MCN 提出用共享视频-语言嵌入来检索自然语言描述对应的视频时刻，并把候选片段的局部视觉特征、整段视频的全局上下文和归一化时间端点联合编码，解决传统整段视频检索无法回答“发生在什么时候”的问题。
 
 #### 🎯 核心要点
-- 核心动机：局部-全局上下文建模
-- 代表机构：Adobe
+- **Moment Context Network**：将句子和候选视频时刻映射到同一嵌入空间，用距离度量完成时刻检索。
+- **局部-全局上下文特征**：候选时刻内部的 local feature 表示“片段里发生什么”，整段视频的 global feature 表示“这个片段处在什么视频语境里”。
+- **Temporal Endpoint Feature (TEF)**：用归一化起止位置编码时刻出现的相对时间，缓解“开头/结尾/再次发生”等时序线索缺失。
+- **双模态视觉输入**：分别训练 RGB/appearance 与 optical flow/motion 分支，推理时可做 late fusion。
+- **inter-intra ranking loss**：同时使用同视频内错误时刻和其他视频错误样本作为负例，使正确时刻与查询更近。
+- **DiDeMo 基准**：原始 MCN 论文同时提出 Distinct Describable Moments 数据集，为自然语言视频时刻定位提供 4 万余条 localized descriptions。
+- **与输入 paper_url 的关系**：给定 ACL 链接是 2018 年对 MCN/TALL 的统一扩展论文；其中 MCN 可视作只使用全局上下文的特例，本文主体仍按 2017 MCN 本体解读。
 
 #### 🔬 深入细节
-##### 问题形式化与统一框架
+##### 核心框架图
 
-给定视频 $v$ 和自然语言查询 $q$，目标是输出时刻 $\tau = (\tau^{(s)}, \tau^{(e)})$。核心评分函数：
+![MCN 模型架构图](https://ar5iv.labs.arxiv.org/html/1708.01641/assets/x1.png)
+*图：MCN 将候选时刻的局部特征、整段视频的全局特征和时间端点特征组成 video temporal context features，再与 LSTM 语言特征投影到共享嵌入空间。*
 
-$$s_\phi(v, q, \tau) = \max_{\tau' \in T_\tau} f_S\big(f_V(v, \tau, \tau'), f_L(q)\big)$$
-
-其中：
-- $\tau$ 为**基础时刻**（base moment），$\tau'$ 为**上下文时刻**（context moment）
-- $T_\tau$ 为候选上下文时刻集合
-- $f_V$ 为视觉特征函数，$f_L$ 为语言特征函数，$f_S$ 为相似度函数
-
-**统一性**：当 $T_\tau$ 取不同值时退化为已有方法：
-- $T_\tau = \{$整个视频$\}$ → **MCN**（全局上下文）
-- $T_\tau = \{$前一段, 后一段$\}$ → **TALL**（前后上下文）
-- $T_\tau = \{$所有可能时刻$\}$ → **MLLC**（隐式上下文）
-
-##### 模型架构图
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    MLLC 模型架构                          │
-│                                                          │
-│  输入查询 q ──→ [GloVe] ──→ [LSTM] ──→ [FC] ──→ f_L    │
-│                                              ↓           │
-│  输入视频 v:                              [相似度 f_S]    │
-│    ┌──────────────────────────┐              ↑           │
-│    │ 基础时刻 τ (绿色)        │              │           │
-│    │  RGB+Flow → 池化 → [FC]  │──┐           │           │
-│    └──────────────────────────┘  │           │           │
-│    ┌──────────────────────────┐  ├→ concat   │           │
-│    │ 上下文时刻 τ' (蓝色)     │  │  + TEF  ──→ f_V      │
-│    │  RGB+Flow → 池化 → [FC]  │──┘  + conTEF            │
-│    └──────────────────────────┘                          │
-│                                                          │
-│  推理: score(τ) = max_{τ'∈T_τ} f_S(f_V(v,τ,τ'), f_L(q))│
-│  选择: τ* = argmax_τ score(τ)                            │
-└─────────────────────────────────────────────────────────┘
-```
-
-##### 各组件详解
-
-**视觉特征 $f_V$**：
-- 基础时刻特征：对时刻内的帧提取 **RGB特征**（VGG16 fc7）和 **光流特征**（Flow网络），均值池化后拼接
-- **TEF（Temporal Endpoint Feature）**：$f_T = (\tau^{(s)}, \tau^{(e)})$，编码时刻在视频中的位置
-- **conTEF（Context TEF）**：$f_T = (\tau^{(s)}, \tau^{(e)}, \tau'^{(s)}, \tau'^{(e)})$，同时编码基础和上下文时刻的位置
-- 最终：$f_V = [f_{RGB}(\tau); f_{Flow}(\tau); f_{RGB}(\tau'); f_{Flow}(\tau'); f_T]$，经FC投影到共享嵌入空间
-
-**语言特征 $f_L$**：
-- 词嵌入：GloVe → LSTM → 取最后隐状态 → FC投影到共享嵌入空间
-
-**相似度函数 $f_S$**（消融比较）：
-
-| 方法 | 公式 | DiDeMo R@1 |
-|------|------|-----------|
-| Distance-based (MCN) | $-\|f_V - f_L\|^2$ | 26.63 |
-| TALL similarity | MLP($[f_V; f_L; f_V \odot f_L; f_V + f_L]$) | 27.52 |
-| Mult | MLP($f_V \odot f_L$) | 28.19 |
-| **Normalized Mult** (最优) | MLP($\hat{f}_V \odot \hat{f}_L$)，$\hat{f}$为L2归一化 | **28.37** |
-
-**训练损失**：
-- **Ranking Loss（MCN式）**：鼓励正样本对距离小于负样本对，使用视频内+视频间负样本
-- **TALL Loss**：正负样本对上的log-logistic函数之和
-- 实验表明 Ranking Loss 在DiDeMo上更优
-
-##### 伪代码
+##### 算法伪代码
 
 ```python
-# MLLC 推理过程
-def mllc_inference(video, query, all_moments):
-    """
-    video: 输入视频（预分割为5秒片段）
-    query: 自然语言查询
-    all_moments: 所有候选时刻（连续片段组合，30秒视频有21个）
-    """
-    # 1. 提取语言特征
-    word_embs = glove_embed(query)          # [seq_len, 300]
-    lang_feat = fc(lstm(word_embs))          # [D]
-    
-    best_moment, best_score = None, -inf
-    
-    for tau in all_moments:  # 遍历每个候选基础时刻
-        # 2. 对每个基础时刻，遍历所有上下文时刻取max
-        max_context_score = -inf
-        
-        for tau_prime in get_context_set(tau, all_moments):
-            # 3. 提取视觉特征（基础+上下文+TEF）
-            vis_base = mean_pool(rgb_feat(tau) + flow_feat(tau))
-            vis_ctx  = mean_pool(rgb_feat(tau_prime) + flow_feat(tau_prime))
-            tef = [tau.start, tau.end, tau_prime.start, tau_prime.end]  # conTEF
-            vis_feat = fc(concat(vis_base, vis_ctx, tef))  # [D]
-            
-            # 4. 计算相似度（normalized mult）
-            vis_norm = l2_normalize(vis_feat)
-            lang_norm = l2_normalize(lang_feat)
-            score = mlp(vis_norm * lang_norm)  # Hadamard积 → MLP
-            
-            max_context_score = max(max_context_score, score)
-        
-        if max_context_score > best_score:
-            best_score = max_context_score
-            best_moment = tau
-    
-    return best_moment  # 返回得分最高的时刻
+# MCN 训练/推理核心流程
+def build_video_context(video, candidate):
+    local = mean_pool(cnn_features(video.frames[candidate.start:candidate.end]))
+    global_ctx = mean_pool(cnn_features(video.frames))
+    tef = [candidate.start / video.duration, candidate.end / video.duration]
+    return mlp(concat(local, global_ctx, tef))
+
+def encode_query(sentence):
+    words = glove(sentence)
+    return mlp(lstm(words).last_state)
+
+def train_mcn(batch, margin=0.1, lam=0.5):
+    loss = 0
+    for item in batch:
+        q = encode_query(item.sentence)
+        pos = build_video_context(item.video, item.gt_moment)
+        d_pos = squared_l2(q, pos)
+
+        for neg_moment in sample_wrong_moments(item.video, item.gt_moment):
+            d_neg = squared_l2(q, build_video_context(item.video, neg_moment))
+            loss += lam * max(0, margin + d_pos - d_neg)
+
+        for neg_video in sample_other_videos(batch, item.video):
+            d_neg = squared_l2(q, build_video_context(neg_video, item.gt_moment))
+            loss += (1 - lam) * max(0, margin + d_pos - d_neg)
+
+    return optimizer.step(loss)
+
+def infer_mcn(video, sentence, candidates):
+    q = encode_query(sentence)
+    scored = [(squared_l2(q, build_video_context(video, c)), c) for c in candidates]
+    return min(scored, key=lambda x: x[0])[1]
 ```
 
-##### 关键实验结果
+##### 方法解读
 
-**Table 3 - 基础模型消融（DiDeMo验证集）**：
+MCN 的基本问题是：给定未裁剪视频 \(v=\{v_t\}_{t=0}^{T-1}\) 和自然语言描述 \(s\)，从一组候选时间段 \(\tau\) 中找出最匹配的片段。它不直接回归连续边界，而是把定位写成候选检索：
 
-| 模型 | 相似度 | 损失 | R@1 | R@5 | mIoU |
-|------|--------|------|-----|-----|------|
-| MCN | Distance | Ranking | 26.63 | 73.38 | 41.14 |
-| TALL | TALL-sim | TALL | 8.04 | 36.32 | 22.68 |
-| TALL+TEF | TALL-sim | TALL | 23.56 | 72.74 | 35.58 |
-| **MLLC-Base** | **Norm.Mult** | **Ranking** | **28.37** | **78.64** | **43.65** |
+$$
+\hat{\tau}=\operatorname*{arg\,min}_{\tau}D_{\theta}(s,v,\tau)
+$$
 
-**Table 4 - TEMPO-TL 时序推理结果（测试集）**：
+其中 \(D_{\theta}\) 是句子嵌入和候选时刻嵌入之间的距离。这个设计在早期非常务实：只要候选集合覆盖目标片段，就可以把复杂的视频定位问题转成跨模态排序问题，训练目标也能直接围绕“正确时刻比错误时刻更近”展开。
 
-| 模型 | Before R@1 | After R@1 | Then R@1 | DiDeMo R@1 | DiDeMo mIoU |
-|------|-----------|----------|---------|-----------|-------------|
-| MCN | 24.85 | 32.28 | 26.08 | 27.07 | 41.49 |
-| TALL | 20.95 | 27.13 | 26.30 | 19.80 | 33.88 |
-| MLLC-Global | 26.32 | 31.92 | 25.37 | 27.78 | 42.82 |
-| MLLC B/A | 26.04 | 34.04 | **28.50** | 28.54 | 43.15 |
-| **MLLC(SS+conTEF)** | **27.46** | **35.31** | 29.38 | **29.74** | **44.22** |
+MCN 的关键不是简单地池化候选片段，而是构造 **visual temporal context features**。候选片段的局部特征 \(g(v,\tau)\) 捕捉片段内的动作、物体和场景；全局特征 \(g(v)\) 提供整段视频的背景；TEF 则记录候选片段在视频中的相对起止点：
 
-**关键发现**：
-1. **Normalized Mult + Ranking Loss** 是最优的基础配置，优于MCN的距离度量和TALL的复杂相似度
-2. **TEF至关重要**：TALL无TEF时R@1仅8.04，加TEF后升至23.56
-3. **Latent Context + 强监督 + conTEF** 组合效果最佳，尤其在before/after类时序查询上
-4. **弱监督 vs 强监督**：强监督（SS）显著优于弱监督（WS），说明上下文时刻的准确定位很重要
-5. **TEMPO-HL比TEMPO-TL更难**：人类语言包含共指、改写等复杂现象
+$$
+\phi_V(v,\tau)=\operatorname{MLP}\left([g(v,\tau);g(v);\tau^{(s)}/T;\tau^{(e)}/T]\right)
+$$
 
-##### TEMPO数据集
+这个局部-全局组合解决了一个常见歧义：同一个动作可能在视频中多次出现，仅看局部片段很难判断“第一次”“最后”“开始时”等查询；加入全局上下文和端点后，模型能把相同视觉内容放回完整视频顺序中理解。
 
-| 数据集 | Before | After | Then | While | 特点 |
-|--------|--------|-------|------|-------|------|
-| TEMPO-TL | 23,842 | 23,842 | 11,921 | - | 模板生成，从DiDeMo句子拼接 |
-| TEMPO-HL | 6,610 | 5,495 | 5,478 | 5,425 | 人工标注，含共指/改写等复杂语言现象 |
+语言侧使用词向量和 LSTM 编码查询，再投影到与视频同维度的空间：
 
-基于DiDeMo数据集（Flickr视频，25-30秒，分割为6个5秒片段），聚焦四个最常见时序词。
+$$
+\phi_L(s)=\operatorname{MLP}(\operatorname{LSTM}(\operatorname{GloVe}(s)))
+$$
+
+视频和语言之间通常使用平方欧氏距离：
+
+$$
+D_{\theta}(s,v,\tau)=\|\phi_L(s)-\phi_V(v,\tau)\|_2^2
+$$
+
+直觉上，MCN 学到的是一个“可比较空间”：描述“一只猫从盒子里走出来”的文本向量，应该靠近包含该动作的候选时刻，远离同视频其他片段以及其他视频中的片段。
+
+训练采用排序损失，而不是对每个候选做独立二分类。给定正样本距离 \(D^+\) 和负样本距离 \(D^-\)，基础 hinge ranking loss 为：
+
+$$
+\mathcal{L}^R(D^+,D^-)=\max(0,\Delta + D^+ - D^-)
+$$
+
+MCN 同时构造 intra-video negative 和 inter-video negative。前者来自同一视频的错误时刻，迫使模型学会精细区分同一视频内部的不同片段；后者来自其他视频，帮助模型学习粗粒度语义差异。整体损失可写为：
+
+$$
+\mathcal{L}(\theta)=\lambda\sum_i\mathcal{L}^{intra}_i(\theta)+(1-\lambda)\sum_i\mathcal{L}^{inter}_i(\theta)
+$$
+
+这种负样本设计是 MCN 的工程价值所在：只用跨视频负例会让模型学会“视频级检索”，但仍可能在同一视频内定位失败；只用同视频负例又可能削弱泛化。二者结合，才贴合 moment localization 的真实目标。
+
+输入给出的 ACL 2018 论文把 MCN 与 TALL 统一到 latent context 框架中：
+
+$$
+s_{\phi}(v,q,\tau)=\max_{\tau'\in T_{\tau}}f_{\mathcal{S}}\left(f_{\mathcal{V}}(v,\tau,\tau'),f_{\mathcal{L}}(q)\right)
+$$
+
+在这个统一视角里，MCN 相当于固定使用全局视频作为上下文；后续 MLLC 则把上下文时刻 \(\tau'\) 作为隐变量搜索。这说明 MCN 的“全局上下文”思想是后续 temporal language grounding 的出发点，但 MCN 自身仍是候选检索式、非端到端边界预测模型。
+
+> 💡 关键：MCN 的贡献不是复杂网络结构，而是把 moment grounding 早期最缺的三件事放到一起：可训练的数据集、局部-全局上下文表示、面向定位的排序学习目标。
 
 #### 🧪 练习题
 ```yaml
-**Q1**：MLLC的统一评分函数 $s_\phi(v,q,\tau) = \max_{\tau' \in T_\tau} f_S(f_V(v,\tau,\tau'), f_L(q))$ 如何退化为MCN？
-
-<details><summary>答案</summary>
-
-当 $T_\tau = \{v_{global}\}$（即上下文时刻集合只包含整个视频的全局特征）时，max操作退化为恒等（只有一个选项），此时 $f_V$ 拼接基础时刻特征和全局视频特征，$f_S$ 使用距离度量 $-\|f_V - f_L\|^2$，训练使用ranking loss——这正是MCN的原始设计。
-
-</details>
-
-**Q2**：为什么TEF（Temporal Endpoint Feature）对模型性能如此关键？（TALL无TEF时R@1从23.56降至8.04）
-
-<details><summary>答案</summary>
-
-TEF编码了候选时刻在视频中的**绝对时间位置**信息 $(\tau^{(s)}, \tau^{(e)})$。没有TEF时，模型只能依赖视觉内容来区分不同时刻，但视频中可能存在视觉相似的片段（如重复动作）。TEF提供了时间锚点，使模型能够区分"视频开头的跑步"和"视频结尾的跑步"，这对时序推理尤为关键。conTEF进一步编码上下文时刻的位置，帮助模型理解"before/after"等时序关系。
-
-</details>
-
-**Q3**：论文发现强监督（SS）显著优于弱监督（WS）的latent context。这对实际应用有什么启示？
-
-<details><summary>答案</summary>
-
-强监督需要标注上下文时刻的ground truth（即"before X"中X对应的视频片段），这在实际中标注成本很高。弱监督通过在训练时对所有候选上下文取max来学习，但效果较差。这说明：① 准确的上下文定位是时序推理的瓶颈；② 未来工作可以探索半监督或自监督方法来提升上下文定位质量；③ 在实际部署中，可以考虑两阶段方法——先定位参考事件，再基于时序关系定位目标时刻。
-
-</details>
+question: "MCN 中 Temporal Endpoint Feature 的主要作用是什么？"
+options:
+  - "替代 RGB 和光流特征，直接表示视频内容"
+  - "编码候选时刻在视频中的归一化起止位置，帮助理解时序位置线索"
+  - "生成更多候选片段以提升召回率"
+  - "把自然语言查询翻译成动作类别标签"
+answer: 1
+explain: "TEF 记录候选片段的相对开始和结束位置，使模型能利用开头、结尾、先后顺序等语言线索，而不是只依赖局部视觉内容。"
 ```
 
 ### 2D-TAN
@@ -1473,16 +2353,148 @@ motivation: 跨度预测与查询高亮机制
 ```
 
 #### 📝 一句话总结
-VSLNet 的核心目标是：跨度预测与查询高亮机制。
+VSLNet 将自然语言视频定位重写为类似机器阅读理解的 span prediction 问题，直接预测查询对应片段的开始和结束位置，并用 Query-Guided Highlighting 先突出与查询相关的视频帧来缓解视频背景噪声。
 
 #### 🎯 核心要点
-- 核心动机：跨度预测与查询高亮机制
-- 演化来源：继承或改进自 tall
-- 代表机构：NTU
+- **Span-based QA 形式化**：把未裁剪视频看作 passage，把自然语言查询看作 question，把目标时刻看作 answer span。
+- **VSLBase 主干**：由特征编码器、Context-Query Attention 和 conditioned span predictor 构成，避免显式滑窗提案。
+- **共享 Feature Encoder**：视频片段特征和词嵌入分别投影到同维度后，使用由卷积、多头自注意力和前馈层组成的 QANet 风格编码器。
+- **跨模态注意力**：用 context-to-query 与 query-to-context attention 建模每个视频位置和查询词之间的匹配关系。
+- **Conditioned Span Predictor**：先预测 start 分布，再用第二个单向 LSTM 在 start 隐状态条件下预测 end 分布。
+- **Query-Guided Highlighting (QGH)**：把目标时刻及其前后扩展区域标为 foreground，学习 clip-wise 高亮分数并重加权视频特征。
+- **训练目标**：总损失为边界交叉熵 \(L_{span}\) 与高亮二分类损失 \(L_{QGH}\) 之和。
 
 #### 🔬 深入细节
-跨度预测与查询高亮机制
+##### 核心框架图
 
+![VSLNet 框架总览](https://raw.githubusercontent.com/26hzhang/VSLNet/master/figures/overview.jpg)
+*图：VSLNet 在 VSLBase 的 span prediction 主干上增加 Query-Guided Highlighting，使模型先突出与查询相关的视频区域，再预测答案跨度边界。*
+
+##### 算法伪代码
+
+```python
+# VSLNet 核心流程伪代码
+def vslnet(video_features, query_tokens, gt_start=None, gt_end=None):
+    V0 = linear_video(video_features)       # [n, d]
+    Q0 = linear_text(glove(query_tokens))   # [m, d]
+
+    Ve = feature_encoder(V0)                # conv + multi-head attention + FFN
+    Qe = feature_encoder(Q0)                # 与视频侧共享编码器参数
+
+    S = trilinear_similarity(Ve, Qe)        # [n, m]
+    A = softmax(S, dim="query") @ Qe        # context-to-query
+    B = softmax(S, dim="query") @ softmax(S, dim="video").T @ Ve
+    Vq = ffn(concat(Ve, A, Ve * A, Ve * B))
+
+    hQ = self_attention_pool(Qe)
+    V_bar = concat_each_timestep(Vq, hQ)
+    Sh = sigmoid(conv1d(V_bar))             # query-guided highlighting score
+    V_tilde = Sh[:, None] * V_bar
+
+    Hs = unilstm_start(V_tilde)
+    He = unilstm_end(Hs)
+    Ps = softmax(ffn_start(concat(Hs, V_tilde)))
+    Pe = softmax(ffn_end(concat(He, V_tilde)))
+
+    if gt_start is not None:
+        loss_span = 0.5 * (cross_entropy(Ps, gt_start) + cross_entropy(Pe, gt_end))
+        loss_qgh = binary_cross_entropy(Sh, build_highlight_labels(gt_start, gt_end))
+        return loss_span + loss_qgh
+
+    best = None
+    for i in range(len(Ps)):
+        for j in range(i, len(Pe)):
+            score = Ps[i] * Pe[j]
+            best = max(best, (score, i, j), key=lambda x: x[0]) if best else (score, i, j)
+    return best[1], best[2]
+```
+
+##### 方法解读
+
+VSLNet 的出发点是对滑窗/提案式方法的反思。早期 TALL/MCN 系列通常先枚举候选片段，再对每个候选做文本匹配，这会带来大量冗余候选，并且边界精度受候选生成策略限制。VSLNet 把问题改写为：
+
+$$
+V=\{f_t\}_{t=1}^{n},\quad Q=\{q_j\}_{j=1}^{m},\quad \text{output }(\tau^s,\tau^e)
+$$
+
+也就是在视频片段序列上直接找一个答案跨度。这个视角借鉴了 SQuAD 式抽取问答：文本 passage 中答案是连续 token span，视频中答案则是连续 clip span。区别在于，视频的背景片段多、语义变化慢、噪声高，因此需要专门的高亮机制辅助。
+
+在特征编码阶段，视频特征和查询词向量先投影到同一维度，再通过共享 Feature Encoder：
+
+$$
+V_e=\operatorname{FeatureEncoder}(V_0),\quad Q_e=\operatorname{FeatureEncoder}(Q_0)
+$$
+
+该编码器是简化版 QANet embedding encoder，包含卷积层、多头自注意力、前馈层、残差连接和 LayerNorm。卷积负责局部上下文，自注意力负责长程依赖；视频和语言共享参数则让二者在后续注意力计算前进入更可比较的表示空间。
+
+跨模态交互使用 Context-Query Attention。先计算视频位置 \(i\) 与查询词 \(j\) 的相似度矩阵 \(S\in\mathbb{R}^{n\times m}\)，再得到 context-to-query 注意力 \(A\) 和 query-to-context 注意力 \(B\)：
+
+$$
+A=S_r Q_e,\quad B=S_r S_c^\top V_e
+$$
+
+最终每个视频位置的 query-aware 表示为：
+
+$$
+V_q=\operatorname{FFN}\left([V_e;A;V_e\odot A;V_e\odot B]\right)
+$$
+
+这里的拼接不仅保留原始视频上下文，还显式加入查询聚合表示与乘性交互项，使模型能判断某个 clip 是否与查询词中的动作、对象和关系匹配。
+
+Conditioned Span Predictor 是 VSLBase 的边界预测头。它先用单向 LSTM 读取 \(V_q\) 得到 start 隐状态，再把 start 隐状态送入 end LSTM，让 end 预测条件化于 start：
+
+$$
+h_t^s=\operatorname{UniLSTM}_{start}(v_t^q,h_{t-1}^s),\quad
+h_t^e=\operatorname{UniLSTM}_{end}(h_t^s,h_{t-1}^e)
+$$
+
+对应边界分布为：
+
+$$
+P_s=\operatorname{SoftMax}(S^s),\quad P_e=\operatorname{SoftMax}(S^e)
+$$
+
+训练时使用交叉熵：
+
+$$
+L_{span}=\frac{1}{2}\left[f_{CE}(P_s,Y_s)+f_{CE}(P_e,Y_e)\right]
+$$
+
+推理时枚举所有合法 \(0\leq \hat{a}^s\leq \hat{a}^e\leq n\) 的跨度，最大化联合概率：
+
+$$
+(\hat{a}^s,\hat{a}^e)=\operatorname*{arg\,max}_{\hat{a}^s,\hat{a}^e}P_s(\hat{a}^s)P_e(\hat{a}^e)
+$$
+
+VSLNet 在 VSLBase 上加入 QGH。QGH 把目标时刻视作 foreground，并按超参数 \(\alpha\) 向前后扩展，覆盖 antecedent/consequent context。它先把查询编码为句子向量 \(h_Q\)，与每个 \(v_i^q\) 拼接成 \(\bar{v}_i^q=[v_i^q;h_Q]\)，再通过一维卷积和 Sigmoid 得到高亮分数：
+
+$$
+S_h=\sigma(\operatorname{Conv1D}(\bar{V}^{q})),\quad \widetilde{V}^{q}=S_h\cdot\bar{V}^{q}
+$$
+
+这个分数不是最终答案，而是一个软门控：背景 clip 的特征被压低，查询相关片段及其附近上下文被放大。随后 span predictor 使用 \(\widetilde{V}^{q}\) 替代 \(V_q\)，因此边界预测建立在更干净的视频序列上。
+
+总损失为：
+
+$$
+L=L_{span}+L_{QGH},\quad L_{QGH}=f_{CE}(S_h,Y_h)
+$$
+
+VSLNet 的优势是把“候选评分”变成“边界抽取”，减少候选设计带来的工程偏差；QGH 则补上了视频任务相对文本 QA 的关键差异，即视频中大部分片段是背景且相邻片段高度相似。它仍是单跨度预测模型，因此面对一个查询对应多个不连续时刻的场景时表达力有限，这也是后来 Moment-DETR 这类集合预测模型继续推进的原因。
+
+> 💡 关键：VSLNet 的跨度预测提升了端到端程度，QGH 则让模型先学会“哪里值得看”，再判断“从哪里开始、到哪里结束”。
+
+#### 🧪 练习题
+```yaml
+question: "VSLNet 中 Query-Guided Highlighting 的直接作用是什么？"
+options:
+  - "生成固定长度滑动窗口候选"
+  - "预测每个视频位置属于查询相关前景的概率，并用该分数重加权视频特征"
+  - "把自然语言查询压缩成单个类别标签"
+  - "用非极大值抑制过滤重叠候选"
+answer: 1
+explain: "QGH 通过 Conv1D+Sigmoid 得到 clip-wise 高亮分数，将查询相关的前景片段放大、背景片段压低，再交给 span predictor 预测起止边界。"
+```
 
 ### Moment-DETR
 
@@ -1501,16 +2513,131 @@ motivation: 端到端Transformer定位
 ```
 
 #### 📝 一句话总结
-Moment-DETR 的核心目标是：端到端Transformer定位。
+Moment-DETR 将自然语言视频时刻定位建模为 DETR 式集合预测问题，用 Transformer encoder-decoder 直接输出一个或多个时刻坐标及逐 clip saliency 分数，从而去掉提案生成和 NMS 等手工流程。
 
 #### 🎯 核心要点
-- 核心动机：端到端Transformer定位
-- 演化来源：继承或改进自 vslnet
-- 代表机构：UNC
+- **端到端集合预测**：使用固定数量的 learnable moment queries，一次性预测多个候选时刻和前景/背景类别。
+- **视频-文本联合 Transformer 编码**：把 SlowFast/CLIP 视频特征与 CLIP 文本 token 特征投影到同一维度后拼接输入 encoder。
+- **DETR 风格 decoder**：moment queries 通过自注意力和 cross-attention 从编码后的多模态序列中抽取定位信息。
+- **三类预测头**：encoder 输出预测 clip-wise saliency；decoder 输出 foreground/background 分类与归一化中心点/宽度坐标。
+- **Hungarian matching**：训练时用二分图匹配将预测集合和真实时刻集合对齐，避免人为指定第几个 query 对应哪个 GT。
+- **复合定位损失**：moment 坐标同时使用 L1 loss 和 1D generalized IoU loss。
+- **QVHighlights 数据集**：支持一个查询对应多个不连续时刻，并提供查询相关 highlight 标注。
+- **ASR 弱监督预训练**：使用 YouTube ASR caption-timestamp pairs 预训练，缓解端到端 Transformer 对数据量的需求。
 
 #### 🔬 深入细节
-端到端Transformer定位
+##### 核心框架图
 
+![Moment-DETR 模型总览](https://raw.githubusercontent.com/jayleicn/moment_detr/main/res/model_overview.png)
+*图：Moment-DETR 使用 Transformer encoder-decoder、learnable moment queries，以及 saliency、foreground/background、moment coordinates 三个预测头。*
+
+##### 算法伪代码
+
+```python
+# Moment-DETR 核心训练流程
+def moment_detr_forward(video_clips, text_query):
+    Ev = concat(normalize(slowfast(video_clips)), normalize(clip_video(video_clips)))
+    Eq = clip_text_tokens(text_query)
+
+    Pv = mlp_project_video(Ev)       # [Lv, d]
+    Pq = mlp_project_text(Eq)        # [Lq, d]
+    E_input = concat_along_time(Pv, Pq)
+
+    E_enc = transformer_encoder(E_input + positional_encoding(E_input))
+    video_enc = E_enc[:len(video_clips)]
+    saliency = linear_saliency(video_enc)        # [Lv]
+
+    moment_queries = learned_embeddings(N)       # [N, d]
+    E_dec = transformer_decoder(moment_queries, E_enc)
+    cls_logits = linear_fg_bg(E_dec)             # [N, 2]
+    moments = sigmoid(ffn_moment(E_dec))         # [N, 2], center + width
+    return cls_logits, moments, saliency
+
+def train_step(video, query, gt_moments, gt_saliency):
+    cls_logits, pred_moments, saliency = moment_detr_forward(video, query)
+
+    # Hungarian matching: each GT is assigned to one prediction slot.
+    cost = classification_cost(cls_logits, gt_moments) + moment_cost(pred_moments, gt_moments)
+    assignment = hungarian_match(cost)
+
+    loss_cls = cross_entropy_for_matched_and_background(cls_logits, assignment)
+    loss_loc = l1_loss(pred_moments, gt_moments, assignment)
+    loss_iou = generalized_temporal_iou_loss(pred_moments, gt_moments, assignment)
+    loss_sal = pairwise_saliency_hinge(saliency, gt_saliency, gt_moments)
+    return loss_cls + lambda_l1 * loss_loc + lambda_iou * loss_iou + lambda_sal * loss_sal
+```
+
+##### 方法解读
+
+Moment-DETR 解决的是 VSLNet 之后仍然存在的两个问题：一是很多真实查询可能对应多个分离的相关片段，单一 span 不够；二是提案生成、NMS、窗口长度等手工组件会把定位性能绑定到启发式设计。Moment-DETR 借鉴 DETR，把时刻定位写成集合预测：
+
+$$
+\hat{Y}=\{(\hat{c}_i,\hat{m}_i)\}_{i=1}^{N},\quad \hat{m}_i=(\hat{c}^{time}_i,\hat{w}_i)\in[0,1]^2
+$$
+
+这里 \(N\) 是固定数量的 moment queries，每个 query 输出一个 foreground/background 标签和一个归一化时刻坐标。背景类表示这个 query 没有匹配到真实时刻，因此模型可以自然处理“真实时刻数量小于 query 数量”的情况。
+
+输入表示上，视频用 SlowFast 与 CLIP video encoder 提取每 2 秒一个 clip 的特征，文本用 CLIP text encoder 提取 token-level 特征。二者分别经 MLP 投影到共同维度 \(d\)，再沿长度维拼接：
+
+$$
+E_{input}=[P_v(E_v);P_q(E_q)]\in\mathbb{R}^{(L_v+L_q)\times d}
+$$
+
+Transformer encoder 对这个联合序列做自注意力，因而视频 clip 可以直接关注查询 token，查询 token 也能回看视频上下文。相比先独立编码再匹配的两塔式方法，这种单流编码更适合捕捉“某个动作在某个对象出现之后”的跨模态关系。
+
+Decoder 的输入不是文本查询，而是一组可学习的 **moment queries**。每个 query 经过 decoder self-attention 与 encoder cross-attention 后，学习成为一个“时刻槽位”。这些槽位没有人为语义标签，但训练后会分化：有的偏向短片段，有的偏向视频开头或结尾，有的偏向长跨度。这种槽位分化来自 Hungarian matching 和集合损失，而不是预设 anchors。
+
+匹配阶段定义预测集合 \(\hat{y}\) 和带背景 padding 的真实集合 \(y\)，用 Hungarian algorithm 找最小成本排列：
+
+$$
+\hat{\sigma}=\operatorname*{arg\,min}_{\sigma\in\mathfrak{S}_N}\sum_i^N \mathcal{C}_{match}(y_i,\hat{y}_{\sigma(i)})
+$$
+
+匹配成本包含前景分类概率和时刻坐标误差：
+
+$$
+\mathcal{C}_{match}(y_i,\hat{y}_{\sigma(i)})=-\mathbb{1}_{\{c_i\neq\varnothing\}}\hat{p}_{\sigma(i)}(c_i)+\mathbb{1}_{\{c_i\neq\varnothing\}}\mathcal{L}_{moment}(m_i,\hat{m}_{\sigma(i)})
+$$
+
+背景 padding 不参与坐标匹配，避免模型被不存在的时刻约束。匹配完成后，每个真实时刻只监督一个预测槽位，其余槽位学习为 background，这就是去掉 NMS 的关键。
+
+定位损失由 L1 和 1D generalized IoU 组成：
+
+$$
+\mathcal{L}_{moment}(m_i,\hat{m}_{\hat{\sigma}(i)})=\lambda_{L1}\|m_i-\hat{m}_{\hat{\sigma}(i)}\|_1+\lambda_{iou}\mathcal{L}_{iou}(m_i,\hat{m}_{\hat{\sigma}(i)})
+$$
+
+L1 提供坐标回归的直接梯度，IoU 项关注时间段重叠质量。由于时刻是 1D 区间，IoU 损失使用 temporal IoU 的形式，而不是 2D box IoU。
+
+Moment-DETR 还把 highlight detection 合入同一模型。encoder 的视频 clip 输出通过线性层得到 saliency score \(S\in\mathbb{R}^{L_v}\)。saliency loss 使用成对 hinge 约束：相关片段内部高分 clip 应高于低分 clip，真实时刻内部 clip 应高于外部 clip：
+
+$$
+\mathcal{L}_{saliency}(S)=\max(0,\Delta+S(t_{low})-S(t_{high}))+\max(0,\Delta+S(t_{out})-S(t_{in}))
+$$
+
+最终目标为：
+
+$$
+\mathcal{L}=\lambda_{saliency}\mathcal{L}_{saliency}(S)+\sum_{i=1}^{N}\left[-\lambda_{cls}\log\hat{p}_{\hat{\sigma}(i)}(c_i)+\mathbb{1}_{\{c_i\neq\varnothing\}}\mathcal{L}_{moment}(m_i,\hat{m}_{\hat{\sigma}(i)})\right]
+$$
+
+这个联合目标让模型同时学“哪里是相关时刻”和“相关时刻内部哪些 clip 更适合当 highlight”。论文消融显示去掉 saliency loss 不仅影响 highlight，也会影响 moment retrieval，说明 clip-level 查询相关性监督会反过来改善时刻定位。
+
+Moment-DETR 的代价是数据需求更高。论文因此引入 ASR 弱监督预训练：从 YouTube ASR caption 中取 caption 作为查询、timestamp 作为弱标签，使用同一架构预训练。由于 ASR 没有人工 saliency 标注，预训练时移除 saliency loss 中依赖高低 saliency 标注的部分。这个策略体现了端到端 Transformer 的典型取舍：架构更少先验、更统一，但需要更多弱监督或大规模数据来学到可靠定位偏好。
+
+> 💡 关键：Moment-DETR 的本质转变是从“给候选片段打分”转到“直接预测一组时刻”，用 Hungarian matching 解决多个预测和多个真实片段之间的对齐问题。
+
+#### 🧪 练习题
+```yaml
+question: "Moment-DETR 为什么需要 Hungarian matching？"
+options:
+  - "因为视频帧必须按时间重新排序"
+  - "因为模型输出的是无序预测集合，需要把预测槽位和真实时刻一一匹配后才能计算损失"
+  - "因为 CLIP 文本 token 需要和视频帧逐词对齐"
+  - "因为 NMS 只能在匹配之后运行"
+answer: 1
+explain: "Moment queries 输出的是无序集合，无法预先指定第几个 query 对应哪个真实时刻；Hungarian matching 用最小成本分配建立监督关系，也让模型不依赖 NMS。"
+```
 
 ### UniVTG
 
@@ -1529,16 +2656,141 @@ motivation: 统一时刻检索与高亮检测
 ```
 
 #### 📝 一句话总结
-UniVTG 的核心目标是：统一时刻检索与高亮检测。
+UniVTG 提出统一的视频-语言时序定位框架，将时刻检索、高亮检测和查询式视频摘要都转写为 clip 级前景、边界和显著性预测，解决了 VTG 方法长期依赖任务专用标签和任务专用模型的问题。
 
 #### 🎯 核心要点
-- 核心动机：统一时刻检索与高亮检测
-- 演化来源：继承或改进自 moment_detr
-- 代表机构：Tsinghua
+- **统一标签三元组**：每个 clip 被表示为 \((f_i, d_i, s_i)\)，分别对应前景指示、边界偏移和语言相关显著性分数
+- **三类 VTG 标签互转**：interval-wise 时刻检索标签、curve-wise 高亮曲线标签、point-wise 摘要/叙事点标签都可转换到统一形式
+- **可扩展伪监督**：使用 VideoCC 构造伪区间标签，使用 CLIP teacher 和开放概念库构造伪显著性曲线，并利用 Ego4D/QFVS 等点标签扩展预训练语料
+- **统一 grounding 模型**：沿用 Moment-DETR 风格的视频/文本编码器，加入多模态 Transformer 编码器，并用 foreground、boundary、saliency 三个预测头对应统一三元组
+- **多目标训练**：前景头用 BCE，边界头用 Smooth L1 + generalized IoU，显著性头用 intra-video 与 inter-video 对比学习
+- **多任务推理**：moment retrieval 用 \(\tilde f_i\) 排序边界并做 1D NMS，高亮检测用 \(\tilde f_i+\tilde s_i\) 排序 clip，视频摘要用 KTS 分段后聚合 clip 分数
+- **评估范围**：覆盖 QVHighlights、Charades-STA、TACoS、Ego4D、YouTube Highlights、TVSum、QFVS，并通过约 4.2M 样本的 grounding 预训练增强迁移和零样本能力
 
 #### 🔬 深入细节
-统一时刻检索与高亮检测
+##### 核心框架图
 
+![UniVTG 统一标签与训练管线](https://ar5iv.labs.arxiv.org/html/2307.16715/assets/x3.png)
+*图：UniVTG 先把不同来源的 interval、curve、point 标签统一成 clip 级 \((f_i,d_i,s_i)\)，再用同一个 grounding 模型预训练并迁移到不同 VTG 下游任务。*
+
+![UniVTG 统一模型结构](https://ar5iv.labs.arxiv.org/html/2307.16715/assets/x5.png)
+*图：UniVTG 模型由冻结视频编码器、冻结文本编码器、多模态编码器和三个输出头组成，分别预测前景、边界偏移和显著性。*
+
+##### 算法流程
+
+```python
+# UniVTG 训练与推理流程伪代码
+def train_univtg(video, query, raw_label):
+    clips = split_into_fixed_length_clips(video)
+
+    # 1. 将不同任务标签转成统一监督
+    if raw_label.type == "interval":
+        f, d, s = interval_to_foreground_boundary_saliency(clips, raw_label)
+    elif raw_label.type == "curve":
+        s = raw_label.saliency_curve
+        f = (s > adaptive_threshold(s))
+        d = nearest_background_offsets(f)
+    elif raw_label.type == "point":
+        f = point_labels_to_foreground(clips, raw_label)
+        s = f.astype(float)
+        d = estimate_interval_from_neighboring_points(raw_label)
+
+    # 2. 编码与跨模态交互
+    V = video_encoder(clips)                  # CLIP + SlowFast, frozen
+    Q = text_encoder(query)                   # CLIP text encoder, frozen
+    V, Q = project_to_same_dim(V), project_to_same_dim(Q)
+    S = attentive_pool(Q)                     # sentence representation
+    Z = multimodal_transformer(concat(V, Q))
+    V_joint = take_video_tokens(Z)
+
+    # 3. 三头预测
+    f_hat = foreground_head(V_joint)
+    d_hat = boundary_head(V_joint)
+    s_hat = cosine_similarity(V, S)
+
+    # 4. 联合优化
+    loss_f = binary_cross_entropy(f_hat, f)
+    loss_b = smooth_l1_and_giou(d_hat, d, mask=(f == 1))
+    loss_s = intra_inter_video_contrastive(s_hat, s)
+    return loss_f + loss_b + loss_s
+
+def infer_univtg(video, query, task):
+    f_hat, b_hat, s_hat = forward(video, query)
+    if task == "moment_retrieval":
+        return nms_1d(rank_by_score(b_hat, f_hat), threshold=0.7)
+    if task == "highlight_detection":
+        return topk_clips(score=f_hat + s_hat)
+    if task == "video_summarization":
+        shots = kernel_temporal_segmentation(video)
+        return select_summary_by_aggregated_clip_scores(shots, f_hat + s_hat)
+```
+
+##### 方法解读
+
+**动机：从任务专用 VTG 走向统一 VTG。** 早期 moment retrieval 通常输出一个连续时间区间，highlight detection 输出每个片段的 worthiness 曲线，video summarization 输出若干离散关键片段。它们看起来监督形式不同，导致模型、标签和评估流程都被任务切开。UniVTG 的核心判断是：这些任务本质上都在回答“给定视频 \(V\) 和查询 \(Q\)，哪些 clip 是目标 clip”。因此与其为每种任务设计专门 head，不如把 clip 当作统一原子，并让不同标签都落到同一组 clip 级变量上。
+
+**统一三元组是整篇论文的中心抽象。** 给定视频 clip \(v_i\) 及其中心时间 \(t_i\)，UniVTG 定义：
+
+$$
+v_i = (f_i, d_i, s_i), \quad d_i=[d_i^s,d_i^e], \quad b_i=[t_i-d_i^s, t_i+d_i^e].
+$$
+
+其中 \(f_i\in\{0,1\}\) 判断该 clip 是否属于查询相关前景，\(d_i\) 只在前景 clip 上有效，用来把 clip 中心回归到完整区间边界；\(s_i\in[0,1]\) 则表示 clip 与语言查询的相关显著性。这个设计把“区间定位”“曲线打分”“离散摘要点”压到同一个监督空间：区间标签提供 \(f_i,d_i\)，高亮曲线直接提供 \(s_i\)，点标签提供稀疏 \(f_i\)，缺失项再通过阈值、邻近背景或平均叙事间隔补全。
+
+**伪标签机制解决了时序 grounding 预训练语料少的问题。** 对 interval-wise 标签，论文利用 VideoCC 中裁剪视频与文本标题/描述的对应关系构造伪时间区间；对 curve-wise 标签，先用开放概念库生成候选概念，再用 CLIP 计算每个 clip 与概念的相似度，取 top-5 概念作为视频 gist，并把相似度作为伪显著性曲线；对 point-wise 标签，利用 Ego4D 叙事时间戳或 QFVS 概念点标注，把点扩展成局部时间监督。这样做的关键不是让伪标签完全准确，而是让三类标签可以在同一目标下共同训练，给模型大量“语言-时间”对齐信号。
+
+**模型结构继承 Moment-DETR，但输出被改造成三头统一预测。** UniVTG 使用冻结视频编码器和文本编码器：视频侧采用 CLIP ViT-B/32 与 SlowFast R-50 特征拼接，文本侧采用 CLIP text encoder。视频 token 与文本 token 加入位置和模态嵌入后拼接，送入多层 Transformer 做跨模态交互：
+
+$$
+\tilde V=V+E_V^{pos}+E_V^{type}, \quad
+\tilde Q=Q+E_T^{pos}+E_T^{type}, \quad
+Z_0=[\tilde V;\tilde Q],
+$$
+
+$$
+Z_d=\operatorname{MLP}(\operatorname{MSA}(Z_{d-1})), \quad d=1,\ldots,k.
+$$
+
+输出的视频 token 接三个 head：foreground head 预测 \(\tilde f_i\)，boundary head 预测 \(\tilde d_i\)，saliency head 则通过视频 clip 表示与句子表示的余弦相似度预测 \(\tilde s_i\)。
+
+**训练目标把匹配、定位和显著性显式拆开。** 前景匹配使用二元交叉熵：
+
+$$
+L_f=-\lambda_f\left(f_i\log\tilde f_i+(1-f_i)\log(1-\tilde f_i)\right).
+$$
+
+边界回归只在前景 clip 上生效，组合 Smooth L1 和 generalized IoU：
+
+$$
+L_b=\mathbf{1}_{f_i=1}\left[\lambda_{L1}L_{\text{SmoothL1}}(\tilde d_i,d_i)+\lambda_{\text{iou}}L_{\text{iou}}(\tilde b_i,b_i)\right].
+$$
+
+显著性头先用 attentive pooling 得到句子表示 \(S\)，再计算：
+
+$$
+\tilde s_i=\cos(v_i,S)=\frac{v_i^\top S}{\|v_i\|_2\|S\|_2}.
+$$
+
+论文进一步用 intra-video 对比学习区分同一视频内高低显著性 clip，用 inter-video 对比学习把当前正 clip 与 batch 中其他句子拉开。总损失为：
+
+$$
+L=\frac{1}{N}\sum_{i=1}^{N}(L_f+L_b+L_s), \quad
+L_s=\lambda_{\text{inter}}L_s^{\text{inter}}+\lambda_{\text{intra}}L_s^{\text{intra}}.
+$$
+
+**推理时按任务选择不同读出方式。** Moment retrieval 使用 foreground 概率排序所有预测边界，并用 1D NMS 去重；highlight detection 同时利用“是否前景”和“是否显著”，以 \(\tilde f_i+\tilde s_i\) 排序 clip；video summarization 则先用 KTS 切成 shot，再聚合 clip 分数生成摘要。与 Moment-DETR 相比，UniVTG 的创新不只是换一个 head，而是把标签空间、预训练语料和推理读出统一起来，使一个模型可以吸收不同粒度的时序监督。
+
+#### 🧪 练习题
+```yaml
+question: "UniVTG 中统一三元组 (f_i, d_i, s_i) 的主要作用是什么？"
+options:
+  - "把视频帧压缩成固定长度视觉 token，降低显存占用"
+  - "将时刻检索、高亮检测和视频摘要的不同标签统一到 clip 级监督空间"
+  - "替代 CLIP 文本编码器，直接生成查询句向量"
+  - "只用于 moment retrieval 的边界框后处理"
+answer: 1
+explain: "UniVTG 的核心是用前景、边界偏移和显著性三类 clip 级变量表示不同 VTG 标签，使多任务预训练和统一模型成为可能。"
+```
 
 ### MQVTG
 
@@ -1557,16 +2809,113 @@ motivation: 量化机制提升定位精度
 ```
 
 #### 📝 一句话总结
-MQVTG 的核心目标是：量化机制提升定位精度。
+MQVTG 将向量量化引入视频时序定位，在时序建模后的 moment 表示上学习可训练 codebook，通过“软量化”增强前景与背景的可分性，同时避免硬替换离散码字造成的视觉细节损失。
 
 #### 🎯 核心要点
-- 核心动机：量化机制提升定位精度
-- 演化来源：继承或改进自 univtg
-- 代表机构：CAS
+- **首个 moment-level VTG 量化框架**：把视频时刻看作可由离散 codeword 辅助聚类的对象，用离散语义增强相关/不相关片段区分度
+- **clip quantization 到 moment quantization**：clip quantization 在时序建模前量化单 clip，moment quantization 在 temporal encoder 后量化跨 clip 语义特征
+- **软量化策略**：不用离散码字 \(\hat z_t\) 替换连续特征，而是继续把连续特征 \(z_t\) 送入定位模块，让 codebook loss 和 commitment loss 间接塑造特征空间
+- **moment codebook**：用 CLIP clip-level 特征做 k-means 聚类初始化 codebook，并通过线性投影 \(C'=P(C)\) 建模 codeword 间相关性
+- **两种架构兼容**：既能接 encoder-only 架构，也能作为 plug-and-play 模块接入 DETR 式 encoder-decoder VTG 模型
+- **训练目标组合**：定位损失 \(L_{mr}\)、高亮损失 \(L_{hd}\)、moment quantization 损失 \(L_{mq}\)、视频-文本对齐损失 \(L_{align}\) 联合优化
+- **六个基准验证**：在 QVHighlights、Charades-STA、TACoS、Ego4D-NLQ、YouTube Highlights、TVSum 上验证泛化性
 
 #### 🔬 深入细节
-量化机制提升定位精度
+##### 核心框架图
 
+![MQVTG 三种量化方式对比](https://arxiv.org/html/2504.02286v1/x2.png)
+*图：MQVTG 对比 image quantization、clip quantization 和 moment quantization，并展示 moment codebook 的 prior initialization 与 joint projection 设计。*
+
+![MQVTG 架构示意](https://arxiv.org/html/2504.02286v1/x3.png)
+*图：MQVTG 支持 encoder-only 与 encoder-decoder 两类 VTG 架构，moment codebook 位于时序建模之后，用量化监督增强视频特征判别性。*
+
+##### 算法流程
+
+```python
+# MQVTG moment quantization 训练流程伪代码
+def train_mqvtg(video, text, gt_moments, gt_saliency):
+    # 1. 空间与文本编码
+    clip_features = clip_visual_encoder(video)      # frozen CLIP visual features
+    z_s = spatial_pool_and_project(clip_features)   # [T, d]
+    text_features = clip_text_encoder(text)
+
+    # 2. 时序/跨模态建模，形成 moment-aware 连续特征
+    z_t = temporal_encoder(z_s, text_features)      # quantization after temporal modeling
+
+    # 3. moment codebook 量化监督
+    C = moment_codebook                            # initialized by k-means centers
+    C_projected = linear_projector(C)              # C' = P(C)
+    nearest_idx = argmin_l2(z_t, C_projected)
+    z_hat = C_projected[nearest_idx]
+
+    # 4. 软量化：定位模块继续使用连续 z_t，而不是 z_hat
+    pred_moments = boundary_head(z_t)
+    pred_saliency = saliency_head(z_t)
+    pred_confidence = classification_head(z_t)
+
+    # 5. 损失
+    L_cb = l2(z_hat, stop_gradient(z_t))
+    L_cmt = l2(stop_gradient(z_hat), z_t)
+    L_mq = L_cb + lambda_cmt * L_cmt
+    L_mr = moment_retrieval_loss(pred_moments, pred_confidence, gt_moments)
+    L_hd = highlight_detection_loss(pred_saliency, gt_saliency)
+    L_align = infonce_alignment_loss(z_t, text_features)
+
+    return L_mr + lambda_hd * L_hd + lambda_mq * L_mq + lambda_align * L_align
+```
+
+##### 方法解读
+
+**动机：连续特征容易混淆前景和相似背景。** VTG 的目标是根据语言描述定位相关时刻，但视频中有大量冗余片段，且背景片段可能与前景在视觉上非常接近。此前 UniVTG、DETR 式 VTG 或 R2-Tuning 等方法主要学习连续表征，前景 feature 往往分散，背景 feature 又可能靠得很近。MQVTG 的出发点是：语言描述天然带有离散语义，比如“spoon stirring curry”，那么能否用离散 codeword 帮助连续 video moment 特征形成更清晰的聚类结构？
+
+**从图像量化迁移到视频时刻量化，关键在于量化位置。** 标准 VQ-VAE 风格图像量化会在 latent feature \(z\) 中找最近的 codeword：
+
+$$
+\hat z=C(z)=c_k,\quad k=\arg\min_i\|z-c_i\|_2^2,\quad C\in\mathbb{R}^{K\times d}.
+$$
+
+如果直接套到视频上，最朴素做法是 clip quantization：在冻结视觉编码器和 projector 后得到 \(z_s\in\mathbb{R}^{T\times d}\)，逐 clip 量化，再交给 temporal encoder。但这忽略了“moment 跨越多个 clip”的事实。MQVTG 因此把量化移到 temporal encoder 之后：先得到语义感知的连续特征 \(z_t=E_t(z_s)\)，再用 moment codebook 对 \(z_t\) 做量化监督。这样 codeword 对齐的是事件/时刻级语义，而不是孤立帧或孤立 clip。
+
+**软量化是 MQVTG 最重要的取舍。** 传统硬量化会把连续特征直接替换成最近码字 \(\hat z_t\)，但视频表达比图像 patch 更复杂，同一语言时刻可能有多种视觉形态。有限 codebook 如果直接替换特征，容易丢掉定位所需细粒度差异。MQVTG 保留连续特征 \(z_t\) 给下游定位头，只用量化损失约束特征-codeword 聚类：
+
+$$
+L_{cb}=\|\hat z_t-\operatorname{sg}(z_t)\|_2^2
+=\|C(z_t)-\operatorname{sg}(E_t(z_s))\|_2^2,
+$$
+
+$$
+L_{cmt}=\|\operatorname{sg}(\hat z_t)-z_t\|_2^2
+=\|\operatorname{sg}(C(z_t))-E_t(z_s)\|_2^2.
+$$
+
+其中 \(\operatorname{sg}(\cdot)\) 是 stop-gradient。\(L_{cb}\) 更新 codebook，使 codeword 靠近时序特征分布；\(L_{cmt}\) 更新 temporal encoder，使 \(z_t\) 靠近 codebook embedding space。定位头仍看连续 \(z_t\)，因此既得到离散聚类带来的前景/背景分离，又尽量保留视觉多样性。
+
+**moment codebook 解决随机初始化和 codeword 独立性问题。** 图像量化常随机初始化 codebook，但 VTG 中 batch 内只有少数 codeword 会被更新，随机初始化容易导致 codebook 利用率低。MQVTG 先用预训练 CLIP 提取训练集 clip-level 特征，再做 k-means，把聚类中心作为 codebook 初值，使码本一开始就落在有效视觉语义空间。随后用一个线性 projector 学习 \(C'=P(C)\)，让 codeword 之间也可以建立类似时序语义的相关性，而不是完全独立地被优化。
+
+**架构上是可插拔的训练正则，而不是重型新检测器。** 在 encoder-only 版本中，MQVTG 使用 CLIP 视觉/文本编码器，temporal encoder 融合多层 CLIP 特征后输出 \(z_t\)，再接三个简单 head：分类置信度、边界位移、显著性分数。对于 DETR 式 encoder-decoder VTG，moment codebook 可以插在 Transformer encoder 和 decoder 之间。论文强调该模块主要增加训练期 codebook 参数，推理期没有额外复杂代价，因为下游仍使用连续特征路径。
+
+**整体训练目标把量化作为辅助判别约束。** 论文把 moment retrieval、高亮检测、moment quantization 和视频-文本对齐联合起来：
+
+$$
+L_{\text{overall}}=
+L_{mr}+\lambda_{hd}L_{hd}+\lambda_{mq}L_{mq}+\lambda_{align}L_{align},
+\quad
+L_{mq}=L_{cb}+\lambda_{cmt}L_{cmt}.
+$$
+
+这里 \(L_{mr}\) 包含定位相关的 L1/focal 目标，\(L_{hd}\) 采用类似 UniVTG 的 intra-video contrastive saliency 监督，\(L_{align}\) 用 InfoNCE 做视频级和层级约束。与 UniVTG 相比，MQVTG 的核心不是重新统一任务形式，而是在统一 VTG 表征上加入“离散聚类压力”，让前景聚合、背景分离更明确。
+
+#### 🧪 练习题
+```yaml
+question: "MQVTG 为什么采用软量化而不是直接用离散码字替换连续视频特征？"
+options:
+  - "因为软量化可以完全跳过 temporal encoder"
+  - "因为直接硬替换可能丢失同一时刻的视觉多样性和定位细节"
+  - "因为 codebook 只用于文本 token，不能处理视频 token"
+  - "因为软量化会把所有背景片段设为同一个固定向量"
+answer: 1
+explain: "MQVTG 用 codebook loss 和 commitment loss 塑造连续特征空间，但定位头仍使用 z_t，从而兼顾离散聚类判别性和视频视觉细节。"
+```
 
 ### DSNet
 
@@ -1585,15 +2934,144 @@ motivation: 时序提案机制做视频摘要
 ```
 
 #### 📝 一句话总结
-DSNet 的核心目标是：时序提案机制做视频摘要。
+DSNet 将监督式视频摘要改写为时序兴趣检测问题，用 anchor-based 或 anchor-free 方式同时预测片段重要性和时间边界，再通过 KTS 分镜与 0/1 背包选择生成受长度约束的摘要。
 
 #### 🎯 核心要点
-- 核心动机：时序提案机制做视频摘要
-- 代表机构：—
+- **Detect-to-Summarize 范式**：不只预测每帧重要性，而是检测“值得进入摘要的时间片段”，同时考虑片段完整性和重要性
+- **长程特征建模**：GoogLeNet 提取帧特征，默认用 self-attention 建模长程依赖，并将长程表示与原始视觉特征相加
+- **Anchor-based DSNet**：在每个时间位置生成多尺度 temporal interest proposals，对 proposal 做重要性分类和中心/长度偏移回归
+- **Anchor-free DSNet**：去掉预定义 proposal，逐时间位置直接预测重要性分数、左右边界距离和 center-ness 分数
+- **检测式训练损失**：anchor-based 使用交叉熵 + Smooth L1 回归；anchor-free 使用 focal loss + tIoU loss + center-ness BCE
+- **摘要生成后处理**：NMS 去除高重叠低质量片段，KTS 切分 shot，片段分数转换为 shot 分数，最后用 15% 视频长度预算下的 0/1 背包选择关键 shot
+- **主要数据集**：在 SumMe 和 TVSum 上验证两种 DSNet 形式，并与 LSTM、attention、强化学习等摘要方法对比
 
 #### 🔬 深入细节
-时序提案机制做视频摘要
+##### 核心框架图
 
+![DSNet Detect-to-Summarize 框架](https://raw.githubusercontent.com/li-plus/DSNet/master/docs/framework.jpg)
+*图：DSNet 同时提供 anchor-based 与 anchor-free 两条路径，前者生成 temporal interest proposals，后者逐位置直接预测 segment；二者最终都通过 NMS、KTS 和背包选择生成视频摘要。*
+
+##### 算法流程
+
+```python
+# DSNet 推理流程伪代码：anchor-based 与 anchor-free 共享后处理
+def dsnet_summarize(video, mode="anchor_free"):
+    frame_feats = googlenet_without_last_layers(video)
+    long_range = self_attention(frame_feats)
+    x = frame_feats + long_range
+
+    if mode == "anchor_based":
+        segments = []
+        for t in range(len(x)):
+            for length in [4, 8, 16, 32]:
+                proposal = [t - length / 2, t + length / 2]
+                pooled = temporal_average_pool(x, proposal)
+                score, delta_c, delta_l = cls_reg_head(pooled)
+                refined = refine_center_length(proposal, delta_c, delta_l)
+                segments.append((refined, score))
+    else:
+        segments = []
+        for j in range(len(x)):
+            score, delta_l, delta_r, center = anchor_free_head(x[j])
+            start = j - exp(delta_l)
+            end = j + exp(delta_r)
+            confidence = score * center
+            segments.append(([start, end], confidence))
+
+    segments = nms_1d(segments)
+    frame_scores = assign_max_segment_score_to_frames(segments, len(video))
+    shots = kernel_temporal_segmentation(video)
+    shot_scores = average_frame_scores_in_each_shot(frame_scores, shots)
+    summary = zero_one_knapsack(shots, shot_scores, budget=0.15 * len(video))
+    return summary
+```
+
+##### 方法解读
+
+**动机：帧级重要性预测容易破坏片段完整性。** 传统监督式视频摘要通常分三步：预测帧级重要性、把视频切成 shot、在长度预算内选择关键 shot。问题是，帧级分数不能显式表达“一个完整事件片段从哪里开始、到哪里结束”，同一语义片段内部也可能出现不一致的重要性分数，导致摘要片段不完整或边界不合理。DSNet 借鉴目标检测和时序动作定位，把摘要目标改写为“检测 temporal interest segment”：不仅判断重要，还要回归位置。
+
+**Anchor-based DSNet 使用多尺度时序提案覆盖不同长度兴趣片段。** 给定 \(T\) 帧视频，在每个时间位置 \(t\)，模型生成 \(K\) 个固定长度 proposal：
+
+$$
+[t-l_k/2,\;t+l_k/2), \quad k=1,\ldots,K.
+$$
+
+论文根据 SumMe/TVSum 中 ground-truth segment 长度范围和正样本 tIoU 阈值 \(\zeta=0.6\) 推导多尺度 proposal 应满足：
+
+$$
+l_k/l_{k+1}\geq \zeta^2,\quad l_K\geq \zeta \ell_2,\quad l_1\leq \ell_1/\zeta.
+$$
+
+实践中选用长度 \(4,8,16,32\)，平衡召回和效率。训练时 proposal 与任一真实片段 tIoU \(>0.6\) 标为正样本；tIoU \(=0\) 的无关片段和 \(0<tIoU<0.3\) 的不完整片段标为负样本。这一点很关键：DSNet 明确把“不完整但有重叠”的片段当作负例，让分类头学习片段完整性。
+
+**Anchor-based 分类回归头同时预测重要性和边界修正。** 对任意长度 proposal 先做 temporal average pooling 得到固定长度特征，再经过共享全连接层和两个 sibling branches：分类分支输出 proposal 重要性，回归分支输出中心偏移和长度偏移。多任务损失为：
+
+$$
+L(p,p^\*,t,t^\*)=
+\frac{1}{N}\sum_i L_{\text{cls}}(p_i,p_i^\*)+
+\frac{\lambda}{N_{pos}}\sum_i p_i^\* L_{\text{reg}}(t_i,t_i^\*).
+$$
+
+其中 \(L_{\text{cls}}\) 是交叉熵，\(L_{\text{reg}}\) 是 Smooth L1；回归目标为：
+
+$$
+\delta c_i^\*=\frac{c_i^\*-c_i}{l_i},\quad
+\delta l_i^\*=\log\frac{l_i^\*}{l_i}.
+$$
+
+这与目标检测中的 bbox regression 很接近，只是空间框变成了一维时间段。
+
+**Anchor-free DSNet 去掉 proposal，减少超参数和类别不平衡。** Anchor-based 需要密集 proposal、正负采样比例、proposal 尺度和 NMS 阈值等超参数，而且大多数 proposal 是负样本。Anchor-free 版本直接在每个时间位置 \(j\) 预测该帧是否属于摘要片段，以及到左右边界的距离：
+
+$$
+\delta_l^\*=j-t_o^s,\quad \delta_r^\*=t_o^e-j.
+$$
+
+模型用 \(\exp(\cdot)\) 保证预测距离为正，并增加 center-ness 约束，降低靠近边界位置生成低质量片段的影响：
+
+$$
+v_e^\*=\frac{\min(\delta_l^\*,\delta_r^\*)}{\max(\delta_l^\*,\delta_r^\*)}.
+$$
+
+训练损失为：
+
+$$
+L=\frac{1}{N_{pos}}\sum_j L_{\text{cls}}(s_j,s_j^\*)+
+\frac{\lambda}{N_{pos}}\sum_e L_{\text{reg}}(\delta t_e,\delta t_e^\*),
+$$
+
+$$
+L^\*=L+\frac{\mu}{N_{pos}}\sum_e L_{\text{center}}(v_e,v_e^\*).
+$$
+
+其中分类采用 focal loss 处理正负不平衡，位置回归采用 tIoU loss，更适合不同长度的时序片段。
+
+**后处理把检测结果变成可评估的视频摘要。** 无论 anchor-based 还是 anchor-free，推理都会得到大量重叠候选片段。DSNet 先用 NMS 过滤冗余片段，再把每一帧的分数设为覆盖该帧的候选片段最大分数。之后使用 KTS 将视频切成 shots，并计算第 \(h\) 个 shot 的平均重要性：
+
+$$
+y_h=\frac{1}{n_h}\sum_{r=1}^{n_h}s_{h,r}.
+$$
+
+最后按照视频摘要评测惯例，摘要长度不能超过原视频的 15%，因此选择 shot 被写成 0/1 背包：
+
+$$
+\max \sum_{h=1}^{c}u_h y_h,\quad
+\text{s.t.}\ \sum_{h=1}^{c}u_h n_h\leq 0.15T,\quad u_h\in\{0,1\}.
+$$
+
+**与普通摘要网络的区别在于显式建模“边界”。** LSTM/attention 摘要方法通常只学习重要性曲线，边界依赖 KTS 或后处理间接决定；DSNet 把摘要片段当作检测目标，训练时就要求模型判断完整 proposal 或直接预测 segment boundaries。Anchor-free 进一步把“预定义 anchor”放宽为每个时间位置动态生成的柔性片段，因此工程上更简单、推理也更快。
+
+#### 🧪 练习题
+```yaml
+question: "DSNet 相比传统帧级重要性预测方法的关键改动是什么？"
+options:
+  - "只使用视频标题作为监督信号"
+  - "将视频摘要建模为时序兴趣片段检测，同时预测重要性和时间边界"
+  - "完全取消 KTS 和背包选择，直接输出整段视频"
+  - "把所有帧平均采样为固定数量的图像分类样本"
+answer: 1
+explain: "DSNet 的 Detect-to-Summarize 思路把摘要片段当作检测目标，显式学习 proposal/segment 的重要性和边界，从而缓解帧级分数导致的片段不完整问题。"
+```
 
 ### Video-ChatGPT
 
@@ -1612,16 +3090,95 @@ motivation: 开启视频对话微调范式
 ```
 
 #### 📝 一句话总结
-Video-ChatGPT 的核心目标是：开启视频对话微调范式。
+Video-ChatGPT 将 LLaVA 式图像对话模型扩展到视频输入，通过 CLIP 帧级编码、时空平均池化和视频指令微调，解决早期 Video-LMM 无法进行开放式视频对话的问题。
 
 #### 🎯 核心要点
-- 核心动机：开启视频对话微调范式
-- 演化来源：继承或改进自 clip4clip
-- 代表机构：MBZUAI
+- 架构以 CLIP ViT-L/14 视觉编码器和 Vicuna-v1.1 7B 语言解码器为基础，并从 LLaVA 权重初始化
+- 视频表示不训练重型视频 backbone，而是把帧独立编码后分别做空间池化和时间池化，得到 temporal tokens 与 spatial tokens
+- 使用一个可学习线性层 \(g(\cdot)\) 将视频 token 投影到 LLM 词嵌入空间，形成可拼接的 video soft prompt
+- 指令微调阶段冻结视觉编码器与 LLM，只优化视频到语言空间的投影层，降低训练成本和灾难性遗忘风险
+- 构建 100,000 个 video-instruction pairs，结合人工增强标注与半自动 dense caption/tagging/GPT 后处理流程
+- 提出视频对话量化评估维度：correctness、detail orientation、contextual understanding、temporal understanding、consistency
 
 #### 🔬 深入细节
-开启视频对话微调范式
+![Video-ChatGPT 架构图](https://arxiv.org/html/2306.05424v2/extracted/5655180/images/video-chatgpt.png)
+*图：Video-ChatGPT 使用 CLIP-L/14 提取帧级视觉 token，经时空池化和线性投影后，与用户指令一起输入 Vicuna。*
 
+Video-ChatGPT 的核心判断是：早期图像 LMM 已经具备较好的视觉-语言对齐能力，视频对话不必从零训练一个视频编码器。给定视频 \(V_i \in \mathbb{R}^{T \times H \times W \times C}\)，模型把 \(T\) 帧当作一批图像送入 CLIP ViT-L/14，得到帧级 patch 表示：
+
+$$
+x_i \in \mathbb{R}^{T \times h \times w \times D}, \quad
+h = H / p,\; w = W / p,\; N = h \times w
+$$
+
+这里 \(N\) 是每帧 patch token 数，\(D\) 是视觉特征维度。论文没有引入显式 3D 卷积或时序 Transformer，而是用两个互补的平均池化方向保留视频信息：沿空间维平均得到逐帧时间表示，沿时间维平均得到跨帧空间表示。
+
+$$
+t_i(\tau)=\frac{1}{N}\sum_{n=1}^{N}x_i[\tau,n,:]\in\mathbb{R}^{D}
+$$
+
+$$
+z_i(n)=\frac{1}{T}\sum_{\tau=1}^{T}x_i[\tau,n,:]\in\mathbb{R}^{D}
+$$
+
+$$
+v_i=[t_i \; z_i]\in\mathbb{R}^{(T+N)\times D}, \qquad
+Q_v=g(v_i)\in\mathbb{R}^{(T+N)\times K}
+$$
+
+这个设计的关键在于把“视频”拆成两类软提示：\(t_i\) 关注事件随时间发生了什么，\(z_i\) 保留跨时间稳定的空间布局、对象和场景。二者拼接后由线性层 \(g\) 投到 Vicuna 的 embedding 维度 \(K\)，因此 LLM 接收到的是一段和文本 token 同维度的视频 token 序列，而不是外部 caption 或离散标签。
+
+```python
+# Video-ChatGPT 训练流程伪代码
+for video, instruction, answer in dataloader:
+    frames = uniform_sample(video, T)
+
+    # 1. 冻结 CLIP，把视频按帧编码为 patch token
+    x = clip_vit_l14(frames)                      # [T, N, D]
+
+    # 2. 两个方向的平均池化构造时空视频表示
+    temporal_tokens = mean(x, dim="patch")        # [T, D]
+    spatial_tokens = mean(x, dim="time")          # [N, D]
+    video_features = concat(temporal_tokens, spatial_tokens, dim="token")
+
+    # 3. 仅训练投影层，把视频 token 对齐到 LLM embedding 空间
+    video_tokens = linear_projector(video_features)  # [T + N, K]
+    text_tokens = tokenizer_embed(instruction)       # [L, K]
+
+    # 4. 冻结 Vicuna，用自回归目标预测答案 token
+    prompt = concat(text_tokens, video_tokens, assistant_prefix)
+    logits = vicuna(prompt, labels=answer)
+    loss = cross_entropy(logits, answer)
+    loss.backward()
+    optimizer.step()
+```
+
+训练目标仍是标准语言模型负对数似然，只是条件上下文多了 \(Q_v\)。若答案 token 为 \(a_1,\dots,a_M\)，训练优化：
+
+$$
+\mathcal{L}
+=-\sum_{m=1}^{M}\log p_\theta(a_m \mid a_{<m}, Q_t, Q_v)
+$$
+
+其中 \(Q_t\) 是用户指令 token，\(Q_v\) 是投影后的视频 token。因为视觉编码器和 LLM 都冻结，梯度主要更新 \(g(\cdot)\)。直觉上，Video-ChatGPT 并不是重新学习“语言如何生成”，而是学习“怎样把时空视觉证据摆到 Vicuna 已能理解的位置”。
+
+数据侧同样是贡献重点。论文把原始视频 caption 扩展成更适合对话训练的 instruction-answer：人工标注负责补充外观、空间关系、事件顺序和推理线索；半自动流程则用 BLIP-2、GRIT、Tag2Text 等模型产出帧级 caption、dense caption 和标签，再通过 GPT 后处理生成多样化视频问答。这样得到的 100K 样本覆盖描述、摘要、问答、创意生成和多轮对话，比单句 caption 更能训练 LMM 对时间顺序和上下文一致性的敏感度。
+
+与 CLIP4Clip 这类检索模型相比，Video-ChatGPT 的变化不只是把输出头从相似度换成文本生成。检索模型学习的是视频和文本的全局匹配分数，而 Video-ChatGPT 需要在开放式问题下选择性读取视觉证据并生成细粒度回答。因此它强调 instruction tuning 和 conversation evaluation，尤其关注 temporal understanding 与 consistency，这也为后续 VideoLLaMA、LLaVA-Video 等视频指令模型奠定了范式。
+
+> 💡 关键：Video-ChatGPT 的方法简洁但影响很大。它证明了“冻结图像 LMM + 视频 token 适配 + 视频指令数据”足以形成可用的视频对话模型，后续工作主要沿着更强数据、更强视频表示和更多模态继续扩展。
+
+#### 🧪 练习题
+```yaml
+question: "Video-ChatGPT 为什么同时使用 temporal tokens 和 spatial tokens？"
+options:
+  - "为了让 CLIP 视觉编码器可以端到端训练"
+  - "为了分别保留跨帧事件变化和跨时间稳定的空间/对象信息"
+  - "为了把视频转成自然语言 caption 后再输入 LLM"
+  - "为了用 3D 卷积替代 ViT patch embedding"
+answer: 1
+explain: "temporal tokens 来自空间池化，保留每帧随时间变化的语义；spatial tokens 来自时间池化，保留稳定空间结构。二者拼接后作为视频软提示输入 LLM。"
+```
 
 ### VideoLLaMA
 
@@ -1640,16 +3197,115 @@ motivation: 视觉-音频联合理解
 ```
 
 #### 📝 一句话总结
-VideoLLaMA 的核心目标是：视觉-音频联合理解。
+VideoLLaMA 提出视觉-语言分支与音频-语言分支并行的 Video-LLM 框架，用 Video Q-Former 和 Audio Q-Former 将视频帧与声音片段对齐到冻结 LLM 的 embedding 空间，解决视频对话只看画面、不理解声音的问题。
 
 #### 🎯 核心要点
-- 核心动机：视觉-音频联合理解
-- 演化来源：继承或改进自 video_chatgpt
-- 代表机构：Alibaba
+- 架构包含 Vision-Language Branch 与 Audio-Language Branch，两条分支分别把视频帧和音频片段变成 LLM 可读的 soft prompt
+- 视觉分支使用冻结图像编码器提取帧表示，加入时间位置嵌入后交给 Video Q-Former 聚合成固定长度视频 token
+- 音频分支使用 ImageBind 作为冻结音频编码器，将 2 秒音频片段转为 mel-spectrogram 后编码，再由 Audio Q-Former 汇聚
+- 通过线性层把视觉/音频 query token 投影到 LLM 词嵌入维度，并与文本指令拼接输入冻结语言模型
+- 采用多分支跨模态训练：视觉分支先用 WebVid-2M 与 CC595K 做 caption 预训练，再用高质量指令数据微调
+- 由于音频-文本数据稀缺，音频分支利用 ImageBind 的共享嵌入空间，用视觉-文本数据进行替代式对齐训练
 
 #### 🔬 深入细节
-视觉-音频联合理解
+![VideoLLaMA 总体架构](https://ar5iv.labs.arxiv.org/html/2306.02858/assets/x1.png)
+*图：VideoLLaMA 的总体架构，左侧视觉分支处理视频帧，右侧音频分支处理声音片段，二者都通过 Q-Former 和线性层对齐到 LLM。*
 
+VideoLLaMA 继承了 BLIP-2 的思想：不直接微调整个大语言模型，而是在冻结编码器与冻结 LLM 之间训练一个轻量连接器。视觉分支中，一个视频包含 \(N\) 帧，每帧经冻结图像编码器得到 \(K_f\) 个图像 token：
+
+$$
+\mathbf{V}=[\mathbf{v}_1,\mathbf{v}_2,\dots,\mathbf{v}_N], \qquad
+\mathbf{v}_i\in\mathbb{R}^{K_f\times d_f}
+$$
+
+这些帧表示最初没有显式时间信息，所以 VideoLLaMA 在帧维度加入可学习位置嵌入，再送入 Video Q-Former。Q-Former 用一组可学习 query 从所有帧 token 中抽取固定长度的视频表示：
+
+$$
+\hat{\mathbf{v}}
+=\operatorname{QFormer}_V(\mathbf{V}+\mathbf{P}_V,\mathbf{Q}_V)
+\in\mathbb{R}^{k_V\times d_V}
+$$
+
+随后线性层把 \(\hat{\mathbf{v}}\) 映射到 LLM embedding 维度，作为 video soft prompt。相比 Video-ChatGPT 的简单时空平均池化，VideoLLaMA 的视觉分支更强调“用 query 压缩多帧信息”：模型可以学习哪些帧、哪些 patch 对当前语言生成更有用，而不是固定地平均所有位置。
+
+音频分支是 VideoLLaMA 区别于早期纯视觉 Video-LMM 的关键。模型从视频中均匀采样 \(M\) 个 2 秒音频片段，转换成 128-bin mel-spectrogram 后送入 ImageBind 音频编码器，得到：
+
+$$
+\mathbf{A}=[\mathbf{a}_1,\mathbf{a}_2,\dots,\mathbf{a}_M]
+$$
+
+Audio Q-Former 与视觉分支结构对称，同样加入时间位置嵌入并输出固定长度音频表示：
+
+$$
+\hat{\mathbf{A}}
+=\operatorname{QFormer}_A(\mathbf{A}+\mathbf{P}_A,\mathbf{Q}_A)
+\in\mathbb{R}^{K_a\times d_a}
+$$
+
+投影后的视觉 token、音频 token 和文本指令 token 被拼接为同一个上下文，送入冻结 LLM 自回归生成回答。若两种模态同时可用，条件生成可以写作：
+
+$$
+p(y\mid x,V,A)
+=\prod_{m=1}^{M_y}p(y_m\mid y_{<m}, E_x, W_V\hat{\mathbf{v}}, W_A\hat{\mathbf{A}})
+$$
+
+训练目标仍是生成目标文本的负对数似然：
+
+$$
+\mathcal{L}_{\text{gen}}
+=-\sum_m \log p(y_m\mid y_{<m}, E_x, E_V, E_A)
+$$
+
+```python
+# VideoLLaMA 多分支训练/推理流程伪代码
+for sample in dataloader:
+    text_prompt, target_text = sample.instruction, sample.answer
+
+    if sample.has_video_frames:
+        frames = sample_video_frames(sample.video)
+        frame_tokens = frozen_image_encoder(frames)          # [N, Kf, df]
+        frame_tokens = frame_tokens + temporal_pos_embed(N)
+        video_queries = video_qformer(frame_tokens)          # [kV, dV]
+        video_prompt = video_linear(video_queries)           # [kV, K]
+    else:
+        video_prompt = empty()
+
+    if sample.has_audio:
+        clips = sample_audio_segments(sample.audio, seconds=2)
+        specs = mel_spectrogram(clips, bins=128)
+        audio_tokens = frozen_imagebind_audio(specs)         # [M, d]
+        audio_tokens = audio_tokens + audio_pos_embed(M)
+        audio_queries = audio_qformer(audio_tokens)          # [Ka, da]
+        audio_prompt = audio_linear(audio_queries)           # [Ka, K]
+    else:
+        audio_prompt = empty()
+
+    text_prompt_tokens = llm_embed(text_prompt)
+    llm_input = concat(video_prompt, audio_prompt, text_prompt_tokens)
+    loss = autoregressive_nll(frozen_llm(llm_input), target_text)
+    loss.backward()                                          # 更新 Q-Former/线性层/位置嵌入
+    optimizer.step()
+```
+
+训练流程分为两条主线。视觉分支先在 WebVid-2M 视频 caption 和 CC595K 图像 caption 上做 video/image-to-text generation，让连接器学会把视觉编码器输出转成 LLM 可利用的语义提示；之后再用 MiniGPT-4、LLaVA 和 Video-Chat 等高质量指令数据做视觉指令微调，恢复并增强 instruction following 能力。图像被视为单帧视频，因此图像理解和视频理解共享同一条视觉连接器。
+
+音频分支面临更现实的数据问题：高质量音频-文本对远少于图像/视频-文本对。VideoLLaMA 的做法是利用 ImageBind 已把图像、音频等模态对齐到共同空间这一性质，让音频连接器也用视觉-文本数据训练。这个策略不是让模型“听到”图像，而是学习把 ImageBind 公共空间中的向量搬到 LLM 词嵌入空间；推理时真实音频通过 ImageBind 落入相近空间，Audio Q-Former 因而可以零样本地提供声音线索。
+
+与 Video-ChatGPT 相比，VideoLLaMA 的主要扩展有两点：一是从固定平均池化升级为 Q-Former 查询聚合，增强多帧信息筛选能力；二是显式引入音频分支，让模型能回答“画面中发生了什么”和“声音中出现了什么”两类问题。代价是训练和模块复杂度更高，而且论文也指出它仍受数据规模、长视频上下文和 LLM 幻觉问题限制。
+
+> 💡 关键：VideoLLaMA 的价值在于把 Video-LLM 从“看视频”推进到“看并听视频”，并给出了一套冻结基础模型、训练轻量跨模态连接器的工程路线。
+
+#### 🧪 练习题
+```yaml
+question: "VideoLLaMA 为什么可以在音频-文本数据稀缺时仍训练音频分支？"
+options:
+  - "因为 Audio Q-Former 不需要任何训练"
+  - "因为 ImageBind 已将音频和视觉等模态对齐到公共嵌入空间，可用视觉-文本数据间接训练对齐到 LLM 的连接器"
+  - "因为模型把音频先转写成字幕，再输入文本编码器"
+  - "因为音频分支和视觉分支完全共享同一组参数"
+answer: 1
+explain: "VideoLLaMA 利用 ImageBind 的跨模态公共空间，用视觉-文本数据学习从该空间到 LLM embedding 空间的映射，推理时音频特征也能通过同一空间被利用。"
+```
 
 ### LLaVA-Video
 
@@ -1668,16 +3324,119 @@ motivation: 大规模合成数据提升性能
 ```
 
 #### 📝 一句话总结
-LLaVA-Video 的核心目标是：大规模合成数据提升性能。
+LLaVA-Video 通过构建 LLaVA-Video-178K 合成视频指令数据集，并配合 SlowFast 式视频 token 分配策略，解决高质量视频指令数据稀缺和长视频帧数受上下文窗口限制的问题。
 
 #### 🎯 核心要点
-- 核心动机：大规模合成数据提升性能
-- 演化来源：继承或改进自 videollama
-- 代表机构：ByteDance
+- 提出 LLaVA-Video-178K：178,510 个视频、约 2K 小时内容、1.3M instruction samples
+- 数据覆盖三类任务：178K detailed captions、960K open-ended QA、196K multiple-choice QA
+- 从十类主流视频源构建视频池，优先选择动态、未裁剪、情节完整的视频，而不是大量静态短片
+- 用 GPT-4o 进行合成标注，采用 1 FPS 密集采样和三层递归 caption 生成流程支持任意长度视频
+- 基于 detailed caption 生成 16 类视频问答，并通过去重与拒答模式过滤提升 QA 可用性
+- 在 LLaVA-OneVision 基础上混合视频指令数据与图像指令数据微调，形成 LLaVA-Video 模型族
+- 引入 \(\text{LLaVA-Video}_{\mathtt{SlowFast}}\) 表示，用更多帧加更少单帧 token 的方式提升时序覆盖
 
 #### 🔬 深入细节
-大规模合成数据提升性能
+![LLaVA-Video 三层数据生成流程](https://llava-vl.github.io/blog/2024-09-30-llava-video/static/images/llava_video_data_creation_pages-to-jpg-0001.jpg)
+*图：LLaVA-Video-178K 的三层递归 caption 生成流程，短片段描述、中段摘要和全局描述互相提供历史上下文。*
 
+![LLaVA-Video 视频表示](https://llava-vl.github.io/blog/2024-09-30-llava-video/static/images/llava_video_arch_page-0001.jpg)
+*图：LLaVA-Video 的视频表示设计，不同帧使用不同数量的视觉 token，以在上下文预算内覆盖更多时间点。*
+
+LLaVA-Video 的核心贡献首先是数据工程。论文认为 Web 级原始视频很难直接变成高质量 instruction data：字幕常常不描述画面，人工标注又太贵，已有合成数据的帧采样过稀会遗漏细节。因此它构建 LLaVA-Video-178K，形式上可以看作：
+
+$$
+\mathcal{D}_{178K}
+=\{(v_i, c_i, Q_i^{\text{open}}, Q_i^{\text{mc}})\}_{i=1}^{178510}
+$$
+
+其中 \(c_i\) 是详细视频描述，\(Q_i^{\text{open}}\) 是开放问答集合，\(Q_i^{\text{mc}}\) 是多选问答集合。数据总量约为：
+
+$$
+|\mathcal{C}|=178K,\qquad
+|\mathcal{Q}^{\text{open}}|=960K,\qquad
+|\mathcal{Q}^{\text{mc}}|=196K
+$$
+
+数据生成流程采用密集时间覆盖。模型以 1 FPS 抽帧，但不是把所有帧一次性塞给 GPT-4o，而是递归维护三层描述：Level-1 每 10 秒描述当前片段，Level-2 每 30 秒总结近期情节，Level-3 在视频末尾综合全局内容。这样做的直觉是，长视频标注需要“滚动记忆”：局部描述保证细节，周期性摘要控制上下文长度，最终描述整合完整剧情。
+
+```python
+# LLaVA-Video-178K 合成标注流程伪代码
+for video in selected_dynamic_untrimmed_videos:
+    frames = sample_frames(video, fps=1)
+    level1_buffer = []
+    level2_summary = ""
+
+    for clip in split(frames, seconds=10):
+        level1 = gpt4o_describe(
+            current_frames=clip,
+            recent_level1=level1_buffer,
+            latest_level2=level2_summary,
+        )
+        level1_buffer.append(level1)
+
+        if elapsed_seconds(clip) % 30 == 0:
+            level2_summary = gpt4o_summarize(
+                recent_level1=last_k(level1_buffer, k=3),
+                previous_level2=level2_summary,
+            )
+            level1_buffer = keep_unsummarized(level1_buffer)
+
+    detailed_caption = gpt4o_global_caption(
+        remaining_level1=level1_buffer,
+        latest_level2=level2_summary,
+    )
+
+    qa_pairs = []
+    for question_type in sixteen_video_qa_types:
+        qa = gpt4o_generate_qa(detailed_caption, question_type, in_context_examples=3)
+        if qa is not None and not is_duplicate(qa) and not starts_with_refusal(qa.answer):
+            qa_pairs.append(qa)
+
+    save(video, detailed_caption, qa_pairs)
+```
+
+问答生成建立在 detailed caption 之上，而不是直接从稀疏帧中硬生成问题。每个 question type 最多生成一个 QA，并使用三条同类型 in-context examples 约束输出风格；过滤阶段删除语义重复问题，也丢弃以“未提及”“未显示”等拒答模板开头的答案。这个设计把 GPT-4o 的能力用于生成“可训练的监督信号”，同时尽量避免无信息或不忠实样本进入指令微调。
+
+模型训练侧，LLaVA-Video 在 LLaVA-OneVision 的基础上加入视频数据，并混合已有图像指令数据。官方项目页给出的联合训练集约包含 1.6M video-language samples 和 1.1M image-language pairs，其中视频侧包括 LLaVA-Video-178K 以及 ActivityNet-QA、NExT-QA、PerceptionTest、LLaVA-Hound-255K 等数据。其重点不在于发明一个全新 LLM 架构，而是验证：高质量、细粒度、动态视频的合成 instruction data 可以显著提升开源 video LMM。
+
+第二个方法点是 SlowFast 式视频表示。简单表示会给每一帧相同数量的 token，但 LLM 上下文和 GPU 显存固定，增加帧数就会线性增加 token。LLaVA-Video 将视频表示写作：
+
+$$
+\mathcal{V}=(T,M,s,p)
+$$
+
+其中 \(T\) 是帧数，\(M\) 是每帧原始视觉 token 数，\(s\) 是 slow frame 的抽样步长，\(p\) 是池化率。每隔 \(s\) 帧选为 slow group，其余帧是 fast group：
+
+$$
+\mathcal{S}=\{f_t\mid t\bmod s=0\}, \qquad
+\mathcal{F}=\{f_t\mid t\bmod s\neq 0\}
+$$
+
+slow frames 使用 \(p\times p\) pooling，fast frames 使用 \(2p\times 2p\) pooling，因此总 token 近似为：
+
+$$
+N_{\text{tokens}}
+=|\mathcal{S}|\frac{M}{p^2}
++|\mathcal{F}|\frac{M}{(2p)^2}
+$$
+
+这个公式表达了 LLaVA-Video 的取舍：关键帧保留更细视觉分辨率，非关键帧保留较粗时间证据。相比只用少量高分辨率帧，SlowFast 表示更适合动态视频，因为许多问题依赖“什么时候发生”“动作如何变化”，需要覆盖更多时间点；相比盲目增加帧数，它又通过降低 fast frames 的 token 密度控制总上下文成本。
+
+LLaVA-Video 与 VideoLLaMA 的差异也很清楚。VideoLLaMA 强调音频-视觉双分支架构，LLaVA-Video 则把主要火力放在数据质量、时间覆盖和视频 token 预算上。它说明在 2024 年的 Video-LMM 竞争中，性能提升不只来自更复杂的连接器，也来自更贴近视频本质的训练监督：动态、未裁剪、密集帧、长程描述、多任务问答。
+
+> 💡 关键：LLaVA-Video 把“合成数据”从简单 caption 扩展为层级描述和多类型视频 QA，并用 SlowFast token 分配让模型在有限上下文里看见更多时间过程。
+
+#### 🧪 练习题
+```yaml
+question: "LLaVA-Video 的 SlowFast 视频表示主要解决什么问题？"
+options:
+  - "让音频和视频在同一个 ImageBind 空间中对齐"
+  - "在固定上下文和显存预算下，用更多帧覆盖时间变化，同时减少非关键帧的单帧 token 数"
+  - "把视频全部转写成字幕，避免视觉编码"
+  - "只保留第一帧和最后一帧，减少数据标注成本"
+answer: 1
+explain: "SlowFast 表示将帧分为 slow 和 fast 两组，对 fast frames 使用更强池化，从而在 token 预算近似固定时纳入更多时间点。"
+```
 
 ### InternVideo2
 
@@ -1696,16 +3455,117 @@ motivation: 大规模缩放增强多模态对齐
 ```
 
 #### 📝 一句话总结
-InternVideo2 的核心目标是：大规模缩放增强多模态对齐。
+InternVideo2 提出三阶段渐进式视频基础模型训练方案，把掩码视频 token 重建、视频-音频-语音-文本对齐和视频中心 next-token prediction 串联起来，解决大规模视频模型既要时空感知、又要跨模态语义对齐和开放式对话能力的问题。
 
 #### 🎯 核心要点
-- 核心动机：大规模缩放增强多模态对齐
-- 演化来源：继承或改进自 llava_video
-- 代表机构：Shanghai AI Lab
+- 构建最大到 6B 参数的视频 ViT 编码器，输入稀疏采样视频帧并使用 3D 位置编码与 attention pooling 建模时空 token
+- Stage 1 使用 InternVL-6B 与 VideoMAEv2-g 作为语义/运动教师，通过未掩码 token 的 MSE 蒸馏学习基础时空表示
+- Stage 2 扩展到视频、图像、音频、语音、文本多模态，用跨模态对比、匹配和 masked language modeling 进行统一对齐
+- Stage 3 通过 Q-Former/Video BLIP 连接 LLM，用视频中心指令数据和 next-token prediction 强化视频问答、描述、长视频推理
+- 数据侧强调时空一致性，构建包含 2M 视频、50M 视频-文本、50M 视频-音频-语音-文本、300M 图文样本的 402M 级训练集合
+- InternVid2 对视频先做语义切分，再分别生成视频、音频、语音 caption 并融合，减少 clip 描述与真实事件错位
+- 高分辨率后训练把输入切分为多个局部子视频加一个全局子视频，并从 8 帧过渡到 16 帧以增强细粒度与长时序能力
 
 #### 🔬 深入细节
-大规模缩放增强多模态对齐
+![InternVideo2 三阶段训练框架](https://ar5iv.labs.arxiv.org/html/2403.15377/assets/x2.png)
+*图：InternVideo2 的整体框架，由未掩码视频 token 重建、多模态对齐、连接 LLM 的 next-token prediction 三个阶段组成。*
 
+InternVideo2 的核心不是单独换一个视频编码器，而是把视频基础模型需要的三种能力按训练阶段拆开：第一阶段学低层和中层时空结构，第二阶段把这些结构对齐到文本、音频、语音等语义空间，第三阶段再把视频表示接入大语言模型。这个顺序很关键，因为直接用视频问答数据训练 LLM 接口，容易得到会“说”的模型，却不一定有稳定的视频时空表征；只做 masked video modeling 或 video-text contrastive，又难以支撑开放式对话。
+
+第一阶段采用“教师蒸馏式”的 masked token reconstruction。学生视频编码器随机初始化，视频 token 中约 80% 被按帧掩码；InternVL-6B 提供多模态语义教师，VideoMAEv2-g 提供运动敏感教师。与传统 MAE 重建像素不同，InternVideo2 对未掩码 token 做特征级对齐，让学生同时靠近图文语义空间和视频运动空间。一个简化目标可以写成：
+
+$$
+\mathcal{L}_{\text{stage1}}
+= \sum_{i \in \Omega}
+\left(
+\lambda_v \left\| P_v h_i - t_i^{\text{InternVL}} \right\|_2^2
++ \lambda_m \left\| P_m h_i - t_i^{\text{VideoMAE}} \right\|_2^2
+\right)
+$$
+
+其中 \(\Omega\) 表示未被掩码的 token 集合，\(h_i\) 是 InternVideo2 编码得到的 token，\(P_v,P_m\) 是训练时使用的投影层。训练结束后这些投影层会被丢弃，只保留基础视频编码器。这种做法的直觉是：用强教师告诉模型“这个可见局部应该是什么语义、属于什么运动模式”，比让 6B 级编码器从像素重建信号中慢慢摸索更高效。
+
+第二阶段把视频编码器放入更大的多模态对齐系统。视频、图像、音频、语音等输入被映射到与文本可比较的表示空间；音频编码器来自 BEATs，文本/语音侧使用 BERT-Large 结构的编码器和带 cross-attention 的多模态解码器。训练目标由跨模态对比、匹配分类和 masked language modeling 组成：
+
+$$
+\mathcal{L}_{\text{stage2}}
+= \mathcal{L}_{\text{contrastive}}
++ \mathcal{L}_{\text{matching}}
++ \mathcal{L}_{\text{mlm}}
+$$
+
+对比损失负责把配对的视频/音频/图像与文本拉近，把 batch 内负样本推远：
+
+$$
+\mathcal{L}_{\text{contrastive}}
+= -\frac{1}{B}\sum_i
+\log
+\frac{\exp(\operatorname{sim}(z_i^m,z_i^t)/\tau)}
+{\sum_j \exp(\operatorname{sim}(z_i^m,z_j^t)/\tau)}
+$$
+
+匹配损失进一步判断输入对是否真实配对，MLM 则要求模型在跨模态上下文中恢复被 mask 的 caption token。论文还把 Stage 2 拆成“masked visual-language-audio alignment”和“unmasked post-pretraining”：前者提高训练效率，后者在较小但更接近推理形态的数据上校准完整 token 表示。
+
+第三阶段把 InternVideo2 接入 LLM。视频编码器输出先经 Q-Former/Video BLIP 类型连接器压缩和重排，再作为视觉前缀送入语言模型做自回归生成：
+
+$$
+\mathcal{L}_{\text{ntp}}
+= -\sum_{t=1}^{T}
+\log p_\theta(y_t \mid y_{<t}, q(V))
+$$
+
+这里 \(q(V)\) 是 Q-Former 从视频 token 中抽取出的少量查询表示。高分辨率后训练进一步把一个视频拆成最多 6 个局部 224x224 子视频和 1 个全局子视频，第一轮用 8 帧、第二轮用 16 帧；视频编码器与 Q-Former 继续更新，LLM 通过 LoRA 更新。这样既保留局部细节，又避免把所有高分辨率帧直接塞进 LLM 上下文。
+
+```python
+# InternVideo2 渐进式训练流程伪代码
+video_encoder = VideoViT(scale="up_to_6B")
+
+# Stage 1: semantic/motion teacher distillation on unmasked video tokens
+for video in kmash_videos:
+    frames = sparse_sample(video, num_frames=8)
+    visible_tokens, mask = mask_video_tokens(frames, ratio=0.80)
+    student_tokens = video_encoder(visible_tokens)
+    semantic_targets = internvl_teacher(frames)       # multimodal-friendly semantics
+    motion_targets = videomae_teacher(frames)         # motion-aware representation
+    loss = mse(project_sem(student_tokens), semantic_targets, where=~mask)
+    loss += mse(project_motion(student_tokens), motion_targets, where=~mask)
+    update(video_encoder, loss)
+
+# Stage 2: align video/image/audio/speech to text
+for batch in multimodal_pairs:
+    z_modality = encode_modality(batch.signal)        # video, image, audio, speech
+    z_text = text_encoder(batch.caption)
+    loss = contrastive_loss(z_modality, z_text)
+    loss += matching_loss(z_modality, z_text, batch.is_pair)
+    loss += masked_lm_loss(multimodal_decoder, batch.caption)
+    update(alignment_modules, loss)
+
+# Stage 3: video-centric instruction tuning with next-token prediction
+for sample in video_dialogue_data:
+    video_tokens = video_encoder(sample.video)
+    query_tokens = q_former(video_tokens)
+    logits = llm(prefix=query_tokens, text=sample.prompt_and_answer)
+    loss = autoregressive_ce(logits, sample.answer_tokens)
+    update(video_encoder, q_former, lora(llm), loss)
+```
+
+InternVideo2 的数据设计服务于同一个目标：让视频 token 和文字描述在时间上对齐。普通 web video caption 常常只描述整个视频的大意，和具体 clip 的动作并不精确；InternVid2 先按语义边界切分视频片段，再分别根据视觉、音频、语音生成描述，最后融合成更完整的 caption。这样 Stage 2 的对比学习看到的是更干净的“片段-语义”对应关系，减少了长视频中事件错位带来的噪声。
+
+相对 LLaVA-Video 一类主要把现成视觉编码器接到 LLM 的方法，InternVideo2 更强调“先把视频编码器做成基础模型”。它在 Stage 1/2 中学习可迁移的视频表征，再在 Stage 3 中获得对话能力；因此同一个编码器既能用于动作识别、时序定位、视频检索、音频相关任务，也能作为视频对话模型的感知底座。代价是训练系统更重、数据工程更复杂，但好处是能力不局限在单一指令微调任务上。
+
+> 💡 关键：InternVideo2 的“scale”不只是参数规模扩大，而是模型、数据和目标函数同时扩展；三阶段分别解决感知、对齐和生成三个瓶颈。
+
+#### 🧪 练习题
+```yaml
+question: "InternVideo2 在 Stage 1 同时使用 InternVL-6B 和 VideoMAEv2-g 作为教师，主要目的是什么？"
+options:
+  - "让学生模型只学习静态图像分类能力"
+  - "同时注入多模态语义知识和运动敏感的视频表示"
+  - "避免 Stage 2 使用任何文本数据"
+  - "把 LLM 参数完全冻结，从而不需要指令微调"
+answer: 1
+explain: "InternVL-6B 更偏语义和图文对齐，VideoMAEv2-g 更偏视频运动结构；二者共同蒸馏能让视频编码器同时具备语义友好性和时序敏感性。"
+```
 
 ### VideoLLaMA 3
 
@@ -1724,16 +3584,100 @@ motivation: 动态分辨率视觉编码
 ```
 
 #### 📝 一句话总结
-VideoLLaMA 3 的核心目标是：动态分辨率视觉编码。
+VideoLLaMA 3 提出视觉中心的图像/视频 MLLM 框架，用任意分辨率视觉 token 化和差分帧剪枝解决固定分辨率编码、视频 token 冗余和图像能力向视频迁移不足的问题。
 
 #### 🎯 核心要点
-- 核心动机：动态分辨率视觉编码
-- 演化来源：继承或改进自 videollama
-- 代表机构：Alibaba
+- 采用 SigLIP 视觉编码器、两层 MLP projector、DiffFP 视频压缩器和 Qwen2.5 系列 LLM 构成统一图像/视频理解模型
+- 提出 Any-resolution Vision Tokenization (AVT)，用 2D-RoPE 替换 ViT 绝对位置编码，使视觉编码器处理动态分辨率与非常规长宽比
+- 提出 Differential Frame Pruner (DiffFP)，在像素 patch 空间比较相邻帧 1-norm 差异，剪除低变化区域的视觉 token
+- 采用四阶段视觉中心训练：Vision Encoder Adaptation、Vision-Language Alignment、Multi-task Fine-tuning、Video-centric Fine-tuning
+- 构建 VL3-Syn7M，从 COYO-700M 经宽高比过滤、美学过滤、图文相似度过滤、KNN 多样性选择和 InternVL2 重标注得到 7M 高质量图文对
+- 把高质量图像-文本数据作为视频理解基础，先强化 OCR、文档、图表、数学等图像能力，再用视频数据补齐时序理解
+- 在图像和视频基准上同时保持强性能，避免许多视频 LLM 只提升视频任务但牺牲高分辨率图像理解的问题
 
 #### 🔬 深入细节
-动态分辨率视觉编码
+![VideoLLaMA 3 总体流水线](https://ar5iv.labs.arxiv.org/html/2501.13106v2/assets/x3.png)
+*图：VideoLLaMA 3 的整体框架，核心包含 AVT、DiffFP、高质量图像重标注数据和四阶段训练。*
 
+VideoLLaMA 3 的“视觉中心”有两层含义。训练上，它认为视频本质上是时间相关的图像序列，因此应先把图像理解底座做强，再迁移到视频；架构上，它把视觉编码器改造成可接收任意分辨率输入的 tokenizer，并为视频增加 token 压缩器。这个取向与只在视频指令数据上继续微调的做法不同：模型先获得文档、图表、场景文字和细粒度视觉定位能力，再学习跨帧动态关系。
+
+AVT 解决的是固定分辨率 ViT 的信息损失问题。传统 SigLIP/CLIP 类 ViT 通常绑定预训练分辨率和绝对位置编码，输入高分辨率文档或极端长宽比图像时，要么缩放导致文字模糊，要么切块后失去原图空间关系。VideoLLaMA 3 将绝对位置编码替换为二维 RoPE，让 patch token 的位置由其二维坐标决定：
+
+$$
+N(H,W)=\left\lceil \frac{H}{P} \right\rceil
+\left\lceil \frac{W}{P} \right\rceil
+$$
+
+$$
+\operatorname{AVT}(I)
+= \left\{ \operatorname{ViT}_{\text{2D-RoPE}}(x_{u,v}, u, v)
+\mid 1 \le u \le H/P,\ 1 \le v \le W/P \right\}
+$$
+
+其中 \(P\) 是 patch 大小，\((u,v)\) 是 patch 在原图网格中的二维位置。这样，视觉 token 数量会随图像大小自然变化，而不是被压到固定长度；LLM 接收到的是更接近原始图像结构的 token 序列。Stage 1 专门训练视觉编码器和 projector，让 SigLIP 从固定分辨率编码器适配为动态分辨率处理器。
+
+![VideoLLaMA 3 DiffFP 流程](https://ar5iv.labs.arxiv.org/html/2501.13106v2/assets/x4.png)
+*图：DiffFP 在像素空间比较相邻帧 patch 差异，剪除变化很小的后续 patch token。*
+
+视频输入的瓶颈不只是分辨率，还有 token 冗余。若把每帧都按 AVT 展开，长视频会产生大量静态背景 token。DiffFP 的策略很直接：先在像素空间比较相邻帧同位置 patch 的 1-norm 距离，若小于阈值 \(\tau=0.1\)，说明该 patch 相对上一帧变化很小，后续帧对应 token 可以剪除：
+
+$$
+d_{t,p}=\left\| \operatorname{patch}(F_t,p)-\operatorname{patch}(F_{t-1},p) \right\|_1
+$$
+
+$$
+m_{t,p}=\mathbb{1}[d_{t,p}\ge \tau]
+$$
+
+论文还在视觉编码后对视频 token 做每帧 \(2 \times 2\) 空间下采样，以控制上下文长度。DiffFP 的好处是决策发生在便宜的像素 patch 差分上，不需要额外训练一个复杂剪枝网络；同时它保留运动和画面变化显著的区域，让 LLM 更关注动态信息。
+
+```python
+# VideoLLaMA 3 AVT + DiffFP 视觉编码流程伪代码
+def encode_image_or_video(input):
+    if input.type == "image":
+        patches = patchify_with_original_grid(input.image)
+        # 2D-RoPE uses patch coordinates instead of fixed absolute embeddings
+        visual_tokens = siglip_vit_2d_rope(patches, coords=patches.coords)
+        return projector(visual_tokens)
+
+    kept_tokens = []
+    previous_frame = None
+    for frame in sample_frames(input.video, fps=1, max_frames=MAX_FRAMES):
+        patches = patchify_with_original_grid(frame)
+        frame_tokens = siglip_vit_2d_rope(patches, coords=patches.coords)
+        frame_tokens = bilinear_downsample_tokens(frame_tokens, scale=2)
+
+        if previous_frame is None:
+            keep_mask = ones_like_patch_grid(frame)
+        else:
+            diff = l1_patch_distance(frame, previous_frame)
+            keep_mask = diff >= 0.1
+
+        kept_tokens.append(frame_tokens[keep_mask])
+        previous_frame = frame
+
+    return projector(concat(kept_tokens))
+```
+
+四阶段训练把这些模块逐步接起来。第一阶段 Vision Encoder Adaptation 只训练视觉编码器和 projector，冻结语言模型，使动态分辨率视觉 token 能对齐到 LLM 表示空间；第二阶段 Vision-Language Alignment 解冻全部参数，用大规模图文、文档、图表、文字识别和少量 text-only 数据注入多模态知识；第三阶段 Multi-task Fine-tuning 加入图像问答和视频 caption/QA 数据，并开始使用视频压缩器；第四阶段 Video-centric Fine-tuning 聚焦通用视频、流式视频和 temporal grounding 等视频任务，同时保留图像和文本数据避免能力遗忘。
+
+VL3-Syn7M 是这套训练策略的关键数据资产。它不是简单从 COYO-700M 抽样，而是先去掉极端比例和低审美图像，再用 BLIP2 粗 caption 与 CLIP 相似度过滤图文不匹配样本，接着用 CLIP 视觉特征做 KNN 聚类以保证语义多样性，最后用 InternVL2-8B/26B 生成短描述和详细描述。短 caption 更适合早期视觉适配，详细 caption 更适合视觉-语言对齐。数据量从 700M 压到 7M，目的不是覆盖所有噪声，而是让每个样本的视觉细节和文本监督更可靠。
+
+相对 VideoLLaMA/VideoLLaMA 2，VideoLLaMA 3 的变化在于把“视频模型”重新定义成“强图像模型 + 视频高效压缩 + 视频专项微调”。这解释了它为什么同时重视 DocVQA、ChartQA、MathVista 等图像基准和 VideoMME、MLVU、LongVideoBench 等视频基准：如果视觉编码器不能保留高分辨率细节，视频问答中的文字、图表、远处物体和细粒度动作也会丢失。
+
+> 💡 关键：AVT 解决“看清楚不同尺寸画面”，DiffFP 解决“不要把静止背景反复塞给 LLM”；两者共同把视觉 token 预算花在更有信息量的位置上。
+
+#### 🧪 练习题
+```yaml
+question: "VideoLLaMA 3 中 DiffFP 剪除视频 token 的依据是什么？"
+options:
+  - "LLM 对每个 token 的注意力权重是否小于均值"
+  - "相邻帧同位置 patch 在像素空间的 1-norm 差异是否低于阈值"
+  - "文本问题中是否出现动作相关动词"
+  - "视觉编码器最后一层 token 的通道数是否过大"
+answer: 1
+explain: "DiffFP 在像素空间比较相邻帧 patch 差异，低于默认阈值 0.1 的后续 patch 被视为冗余并剪除。"
+```
 
 ### HMT
 
@@ -1752,16 +3696,120 @@ motivation: 层次化融合视觉与音频
 ```
 
 #### 📝 一句话总结
-HMT 的核心目标是：层次化融合视觉与音频。
+HMT 提出用于关键镜头视频摘要的层次多模态 Transformer，把视频的 frame-shot-video 结构和视觉/音频双模态融合进两层注意力网络，解决 RNN 摘要模型难以建模全局依赖、多跳关系和音画互补信息的问题。
 
 #### 🎯 核心要点
-- 核心动机：层次化融合视觉与音频
-- 演化来源：继承或改进自 dsnet
-- 代表机构：—
+- 面向 key-shot based video summarization，输出每个 shot 被选入摘要的概率，再用长度约束选择关键镜头
+- 用 KTS 将长视频切成 shot，并按照相同边界切分音频，使输入符合 frame-shot-video 的天然层次结构
+- 第一层为 frame-level Transformer：视觉分支独立编码每个 shot 内帧序列，音频分支在视觉 query 指导下编码音频特征
+- 第二层为 shot-level multimodal Transformer：把每个 shot 的视觉向量和视觉引导音频向量拼接后建模全局 shot 依赖
+- 采用多头注意力捕获全局依赖和多跳关系，相比 LSTM 更适合并行处理长序列
+- 使用 MSE 拟合人工标注的重要性分数，预测 shot 概率后扩展到 frame-level 评价
+- 在 SumMe 和 TVsum 上验证层次结构、视觉引导音频融合和完整 HMT 均带来增益
 
 #### 🔬 深入细节
-层次化融合视觉与音频
+![HMT 层次多模态 Transformer 架构](https://ar5iv.labs.arxiv.org/html/2109.10559/assets/x1.png)
+*图：HMT 第一层由视觉 Transformer 与视觉引导的音频 Transformer 组成，第二层用多模态 Transformer 建模 shot 间关系并预测摘要概率。*
 
+HMT 的任务是从一段长视频中选择能代表主要内容的关键镜头。早期视频摘要常把帧序列当作一条平坦时间序列，用 LSTM 或注意力直接预测 frame score；问题是视频通常由多个 shot 构成，同一个 shot 内帧变化平滑，不同 shot 之间才体现事件结构。HMT 因此先用 Kernel-based Temporal Segmentation (KTS) 切分 shot，再分别建模 shot 内 frame 依赖和 shot 间全局依赖。
+
+第一层 frame-level Transformer 对每个 shot 单独运行。视觉分支接收 GoogLeNet pool-5 提取的帧特征，得到 shot 内帧的上下文表示，再通过 mean pooling 得到视觉 shot 表示。标准自注意力写作：
+
+$$
+Q=XW_Q,\quad K=XW_K,\quad V=XW_V
+$$
+
+$$
+\operatorname{Attn}(Q,K,V)
+=\operatorname{softmax}\left(\frac{QK^\top}{\sqrt{d}}\right)V
+$$
+
+多头版本在不同子空间并行计算注意力，再拼接并线性映射。它比 LSTM 更适合摘要任务，因为任意两帧或两个 shot 可直接建立联系，不必依赖递归状态逐步传递。
+
+音频分支不是简单把 VGGish 音频特征和视觉特征拼接，而是用视觉特征作为 query、音频特征作为 key/value 做视觉引导的跨模态注意力：
+
+$$
+H_i^a
+=\operatorname{softmax}
+\left(\frac{Q_i^v (K_i^a)^\top}{\sqrt{d}}\right)V_i^a
+$$
+
+这样设计的原因是音频和画面并不总是严格同步：画面中可能没有发声物体，背景音乐也可能与视觉事件弱相关。视觉 query 相当于询问“当前 shot 的视觉内容需要哪些音频证据”，让模型更关注与画面一致或互补的音频片段，降低直接拼接带来的模态干扰。
+
+第一层完成后，每个 shot 得到视觉向量 \(s_i^v\) 和音频向量 \(s_i^a\)，二者拼接为多模态 shot 表示：
+
+$$
+z_i=[s_i^v; s_i^a]
+$$
+
+第二层 shot-level Transformer 接收 \(\{z_1,\dots,z_N\}\)，建模整个视频中的 shot 间关系，最后用一个预测头输出每个 shot 的选择概率：
+
+$$
+H^s=\operatorname{Transformer}_{\text{shot}}(z_1,\dots,z_N)
+$$
+
+$$
+p_i=\sigma(Wh_i^s+b)
+$$
+
+训练时将 shot 概率扩展回帧级概率，与人工重要性分数做均方误差：
+
+$$
+\mathcal{L}_{\text{MSE}}
+=\frac{1}{T}\sum_{t=1}^{T}
+\left(\hat{p}_t-y_t\right)^2
+$$
+
+推理时，模型先得到每个 shot 的重要性，再在摘要长度不超过原视频 15% 的约束下，用动态规划把选择问题转成 knapsack，选出得分最高的一组关键 shot。这一点很实用：模型不需要逐帧生成摘要，而是输出可排序、可约束优化的概率曲线。
+
+```python
+# HMT 视频摘要流程伪代码
+def hmt_summarize(video):
+    frames = sample_frames(video, fps=2)
+    visual_feats = googlenet_pool5(frames)          # [T, 1024]
+    audio_feats = vggish(segment_audio(video))      # [T_audio, 128]
+
+    shot_boundaries = kts(frames)
+    visual_shots = split_by_boundaries(visual_feats, shot_boundaries)
+    audio_shots = split_by_boundaries(audio_feats, shot_boundaries)
+
+    shot_tokens = []
+    for v_seq, a_seq in zip(visual_shots, audio_shots):
+        v_context = visual_transformer(v_seq)
+        v_shot = mean_pool(v_context)
+
+        # audio is encoded under visual guidance
+        q = linear_q(v_context)
+        k = linear_k(a_seq)
+        value = linear_v(a_seq)
+        a_context = softmax(q @ k.T / sqrt(dim)) @ value
+        a_shot = mean_pool(a_context)
+
+        shot_tokens.append(concat(v_shot, a_shot))
+
+    global_context = shot_transformer(shot_tokens)
+    shot_scores = sigmoid(linear(global_context))
+    summary = knapsack_select(shot_scores, max_duration=0.15 * video.duration)
+    return summary
+```
+
+HMT 的消融结果说明了三个组件的作用：单模态 Transformer 已经优于对应 LSTM，说明全局注意力对视频摘要有效；直接两流拼接的 Two-stream Transformer 反而可能不如视觉 Transformer，说明音画模态差异会引入噪声；加入视觉引导的 Multimodal Transformer 后性能提升，说明跨模态融合需要显式对齐。完整 HMT 再叠加层次结构，在 SumMe 和 TVsum 的 F-measure 上分别达到 0.441 和 0.601。
+
+与 DSNet 这类 detect-to-summarize 思路相比，HMT 更强调输入结构与模态结构：它没有把摘要看成独立 proposal 检测问题，而是先尊重 shot 边界，再在 shot 内和 shot 间分别建模。它的优势是结构清晰、可解释性较强，能展示每个 shot 的概率曲线；局限是依赖预提取视觉/音频特征和 KTS 边界，且论文也指出音画异步和局部 object-aware 特征仍未充分解决。
+
+> 💡 关键：HMT 的多模态融合不是“视觉 + 音频直接拼接”，而是先用视觉引导音频注意力，再把 shot 级音画表示送入第二层全局 Transformer。
+
+#### 🧪 练习题
+```yaml
+question: "HMT 为什么要采用两层层次结构，而不是把所有帧直接输入一个 Transformer？"
+options:
+  - "因为视频摘要只需要音频，不需要视觉帧信息"
+  - "因为视频天然具有 frame-shot-video 结构，先建模 shot 内帧关系再建模 shot 间关系更符合任务"
+  - "因为 Transformer 只能处理固定长度为 1 的序列"
+  - "因为 KTS 会直接给出最终摘要，不需要模型预测"
+answer: 1
+explain: "HMT 先用 frame-level Transformer 得到每个 shot 的表示，再用 shot-level Transformer 捕获全局 shot 依赖，既符合视频层次结构，也降低长序列建模负担。"
+```
 
 ### LVSum
 
@@ -1780,16 +3828,95 @@ motivation: 时间戳感知长视频摘要
 ```
 
 #### 📝 一句话总结
-LVSum 的核心目标是：时间戳感知长视频摘要。
+LVSum 提出了一个带时间戳、区间级重要性分数和多人工参考的长视频摘要基准，用来评估 MLLM 是否既能选中重要片段，又能生成与视频/音频内容一致的摘要描述。
 
 #### 🎯 核心要点
-- 核心动机：时间戳感知长视频摘要
-- 演化来源：继承或改进自 hmt
-- 代表机构：—
+- 构建 72 个长视频样本，覆盖 13 个类别，视频时长 10-55 分钟，平均约 16 分钟。
+- 每个视频最多包含 10 份独立人工摘要，标注内容包括开始/结束时间戳、片段描述和 1-3 的重要性分数。
+- 标注流程要求总摘要区间长度控制在视频时长约 15% 以内，强调压缩能力而不是简单覆盖。
+- 评测在秒级时间轴上计算 Kendall's \(\tau\) 与 Spearman's \(\rho\)，比帧级 F1 更适合长视频摘要排序。
+- 引入 Content Relevance (CR) 与 Modality Coherence (MC) 两个 MLLM-as-Judge 指标，分别衡量语义覆盖与跨模态一致性。
+- 对 Opus-4.5、Gemini-2.5-Pro、Qwen3-VL-235B 等代表性 MLLM 进行系统评测，暴露过度覆盖、时间错位和跨模态幻觉三类失败模式。
 
 #### 🔬 深入细节
-时间戳感知长视频摘要
+![LVSum CR/MC 失败模式示意](https://arxiv.org/html/2604.10024v1/figs/failure_modes_metrics_3.png)
+*图：LVSum 论文中的失败模式示例，展示低 Content Relevance 与低 Modality Coherence 对传统排序指标的补充价值。*
 
+LVSum 的核心不是提出新的摘要模型，而是把“长视频摘要”重新定义为带时间戳的 V2VT 评测问题：输入是视频及其转录文本，输出是若干个时间区间及对应描述。一个预测摘要可以写成
+
+$$
+\hat{S}=\{(\hat{s}_i,\hat{e}_i,\hat{d}_i,\hat{r}_i)\}_{i=1}^{M},\qquad
+\sum_i(\hat{e}_i-\hat{s}_i)\le 0.15\,T
+$$
+
+其中 \(\hat{s}_i,\hat{e}_i\) 是秒级边界，\(\hat{d}_i\) 是片段描述，\(\hat{r}_i\) 是模型给出的重要性或排序信号，\(T\) 是视频总时长。这个约束很关键：如果没有 15% 左右的长度预算，模型可以把大量片段都放进摘要，从而在语义覆盖上看似更好，但失去“摘要”的压缩意义。
+
+```python
+# LVSum 数据构建与评测流程伪代码
+videos = crawl_web_videos(min_duration_minutes=10)
+category_labels = gemini_label_open_categories(videos)
+taxonomy = gemini_cluster_to_13_categories(category_labels)
+sampled = weighted_sample(videos, taxonomy, target_count=100)
+
+lvsum = []
+for video in sampled:
+    if contains_sensitive_content(video) or violates_usage_restriction(video):
+        continue
+    annotations = []
+    for annotator in independent_annotators(max_count=10):
+        segments = annotator.watch_and_mark_segments(
+            video,
+            fields=["start", "end", "description", "importance_1_to_3"],
+            length_budget_ratio=0.15,
+        )
+        if passes_manual_review(segments):
+            annotations.append(segments)
+    lvsum.append((video, annotations))
+
+for model in evaluated_mllms:
+    pred = model.summarize(video_frames_96, timestamped_transcript)
+    saliency_pred = convert_segments_to_second_level_scores(pred)
+    saliency_ref = aggregate_human_second_level_scores(annotations)
+    tau = kendall_tau(saliency_pred, saliency_ref)
+    rho = spearman_rho(saliency_pred, saliency_ref)
+    cr = mllm_judge_content_relevance(pred, annotations)
+    mc = mllm_judge_modality_coherence(pred, video_audio_intervals=pred)
+```
+
+数据集构建先从约 4000 个至少 10 分钟的视频开始，用 Gemini-2.5-Pro 给视频打开放式语义标签，再聚类成 13 个高层类别，并按类别分布进行加权采样。这个设计保留了真实长视频内容的长尾分布，同时避免只用均匀采样导致热门类别被过度代表。最终 100 个候选里，11 个因敏感或可识别内容被过滤，17 个因来源站点使用限制变化被移除，保留 72 个视频。
+
+人工标注协议强调“先理解完整叙事，再选择关键区间”。标注者需要看完整视频，重看片段，记录开始/结束时间、简短描述和 1-3 重要性分数，并反复调整到总长度预算内。这与传统关键帧摘要不同：LVSum 监督的是连续时间区间，模型必须判断事件范围，而不是只挑单帧或生成无边界文本。
+
+评测上，LVSum 将人工标注与模型预测都映射成秒级 saliency 序列，再计算 Kendall's \(\tau\) 和 Spearman's \(\rho\)。两者关注排序一致性：
+
+$$
+\rho = \operatorname{corr}(\operatorname{rank}(y), \operatorname{rank}(\hat{y}))
+$$
+
+其中 \(y\) 是人工重要性序列，\(\hat{y}\) 是模型预测重要性序列。论文采用秒级粒度而非短视频基准常见的帧级粒度，是因为 MLLM 的输出边界通常以秒为单位，过细的帧级评价会放大无意义的微小偏差。
+
+CR 与 MC 解决的是排序指标看不到的问题。CR 评估生成摘要是否覆盖了参考摘要中的关键事件、对象和结果；MC 则检查模型在某个预测时间区间内写出的描述是否真的被该区间的视频帧、语音或声音支持。两者都按 1-5 分打分，直觉上可以写成：
+
+$$
+\operatorname{MC}(\hat{S})=\frac{1}{M}\sum_{i=1}^{M}
+\operatorname{Judge}(\hat{d}_i,\;V_{\hat{s}_i:\hat{e}_i},\;A_{\hat{s}_i:\hat{e}_i})
+$$
+
+这能惩罚一种常见 MLLM 失败：模型选中了看似合理的时间段，文字也通顺，但文字说的人物、动作或声音并不在对应视频区间里。论文的实验证明，当前强 MLLM 往往已有较强语义理解，但仍会出现过度覆盖、时间压缩不足、描述与真实片段不一致等问题。
+
+> 💡 关键：LVSum 的价值在于把“摘要质量”拆成时间排序、内容相关性、跨模态一致性和长度约束四个维度；这比只看 F1 或 rank correlation 更接近真实长视频摘要需求。
+
+#### 🧪 练习题
+```yaml
+question: "LVSum 引入 Modality Coherence (MC) 的主要目的是什么？"
+options:
+  - "衡量预测摘要区间的文字描述是否被对应视频/音频内容支持"
+  - "计算模型摘要与人工摘要之间的词面 BLEU 分数"
+  - "增加模型输入帧数以提升视觉分辨率"
+  - "用随机区间替代人工时间戳以降低标注成本"
+answer: 0
+explain: "MC 专门评估生成描述与预测时间区间内视觉/音频证据的一致性，用来发现跨模态幻觉和时间-描述错配。"
+```
 
 ### HiTeA
 
@@ -1808,16 +3935,108 @@ motivation: 无需训练的层次化定位框架
 ```
 
 #### 📝 一句话总结
-HiTeA 的核心目标是：无需训练的层次化定位框架。
+HiTeA 提出一个完全 training-free 的长视频时序定位框架，通过事件、场景、动作三层时间分解生成候选片段，再用冻结 VLM 打分和候选精炼完成自然语言查询到时间区间的定位。
 
 #### 🎯 核心要点
-- 核心动机：无需训练的层次化定位框架
-- 演化来源：继承或改进自 univtg
-- 代表机构：ICLR
+- 无需任务标注、无需微调，直接组合冻结的特征提取器、VideoCLIP 与 VLM 完成 zero-shot temporal grounding。
+- Hierarchical Temporal Decomposition (HTD) 将视频拆成 event、scene、action 三种粒度，显式建模长视频层次结构。
+- Temporal Signal Construction 使用 ViT 表示语义事件、DINO 表示场景/镜头变化、RAFT 光流表示动作边界。
+- 边界检测采用事件级局部极小值阈值与场景/动作级 PELT change point detection。
+- 长视频启用 hierarchical merging，保证 event ⊃ scene ⊃ action 的包含关系；短视频可绕过该约束以保留候选多样性。
+- 两阶段候选打分：先用 VideoCLIP 粗过滤与相邻段合并，再用冻结 VLM 做 query-conditioned 细粒度相似度评分。
+- Candidate Refinement 通过分数融合、跨层 progressive merging 和排名输出最终时间段。
 
 #### 🔬 深入细节
-无需训练的层次化定位框架
+![HiTeA ICLR 2026 官方海报](https://iclr.cc/media/PosterPDFs/ICLR%202026/10006820.png?t=1775547230.391188)
+*图：ICLR 2026 官方 poster，展示 HiTeA 的层次分解、候选评分与候选精炼流程。*
 
+HiTeA 针对的是训练无关的长视频 temporal grounding：给定未裁剪视频 \(V=\{f_1,\ldots,f_T\}\) 和查询 \(Q\)，输出与查询语义最匹配的时间区间 \((\hat{t}_s,\hat{t}_e)\)。它的核心判断是：VLM 很擅长判断“发生了什么”，但不天然擅长“什么时候发生”；因此先用显式时间结构生成高质量候选，再把 VLM 用在候选排序上。
+
+```python
+# HiTeA training-free temporal grounding 伪代码
+def hitea_ground(video, query, is_long_video=True):
+    vit_feat = frozen_vit(video.frames)          # event-aware semantic context
+    dino_feat = frozen_dino(video.frames)        # scene/shot transitions
+    flow_feat = frozen_raft(video.frame_pairs)   # action/motion dynamics
+
+    event_curve = cosine_to_current_segment_mean(vit_feat)
+    scene_curve = cosine_consecutive(dino_feat)
+    action_curve = -l2_norm(flow_feat)
+
+    event_points = local_minima(event_curve, threshold="tau_k")
+    scene_points = pelt_change_points(scene_curve)
+    action_points = pelt_change_points(action_curve)
+
+    if is_long_video:
+        scene_points = hierarchical_merge(event_points, scene_points, tolerance="alpha")
+        action_points = hierarchical_merge(scene_points, action_points, tolerance="alpha")
+
+    candidates = build_segments([event_points, scene_points, action_points])
+    clip_scores = videoclip_similarity(candidates, query)
+    candidates = merge_adjacent_if_score_close(candidates, clip_scores, beta="beta")
+    candidates = top_k_per_level(candidates, clip_scores)
+
+    vlm_scores = frozen_vlm_score(candidates, query)
+    final_scores = lambda_ * vlm_scores + (1 - lambda_) * normalize(clip_scores)
+    refined = progressive_merge_across_levels(candidates, final_scores)
+    return argmax(refined, key="final_score")
+```
+
+第一步是构造三类互补的时间信号。对每一帧 \(f_t\)，HiTeA 用冻结编码器抽取特征：
+
+$$
+v_t^{\text{vit}}=\phi_{\text{ViT}}(f_t),\quad
+v_t^{\text{dino}}=\phi_{\text{DINO}}(f_t),\quad
+v_t^{\text{flow}}=\phi_{\text{RAFT}}(f_t,f_{t+1})
+$$
+
+然后分别构造事件、场景、动作级相似度曲线：
+
+$$
+s_t^{\text{event}}=
+\frac{v_t^{\text{vit}}\cdot \bar{v}_{t-1}^{\text{vit}}}
+{\|v_t^{\text{vit}}\|\|\bar{v}_{t-1}^{\text{vit}}\|},\quad
+s_t^{\text{scene}}=
+\frac{v_t^{\text{dino}}\cdot v_{t-1}^{\text{dino}}}
+{\|v_t^{\text{dino}}\|\|v_{t-1}^{\text{dino}}\|},\quad
+s_t^{\text{action}}=-\|v_t^{\text{flow}}\|_2
+$$
+
+其中 \(\bar{v}_{t-1}^{\text{vit}}\) 是当前事件段内历史 ViT 特征均值。事件级信号关注长程语义转折，场景级信号关注镜头/结构变化，动作级信号则通过光流强度捕捉短时动作边界。论文还对这些曲线做 Gaussian smoothing，以降低噪声。
+
+HTD 的关键是“先粗后细”的候选边界组织。事件级边界来自相似度曲线低于阈值的局部极小值，场景级和动作级边界用 PELT 检测非线性分布变化。长视频中，HiTeA 用合并函数 \(M(\cdot)\) 把高层边界注入低层边界：如果高层边界附近 \(\alpha\) 容差内已有低层边界，就用高层边界替换最近点；否则插入高层边界。这样能让 action segment 不脱离 scene/event 的上位结构。
+
+候选评分分成粗过滤和细评分。VideoCLIP 先计算候选片段与查询的粗相似度 \(s_{\text{clip}}\)，并把相邻且分数接近的候选合并：
+
+$$
+|s_{\text{clip}}^i-s_{\text{clip}}^j|<\beta
+$$
+
+这样可以减少碎片化并降低 VLM 调用成本。随后冻结 VLM 对保留候选打分得到 \(s_{\text{vlm}}\)。最终分数融合为：
+
+$$
+s_{\text{final}}=\lambda s_{\text{vlm}}+(1-\lambda)s_{\text{clip}}
+$$
+
+这里 \(s_{\text{vlm}}\) 负责语义对齐，归一化后的 \(s_{\text{clip}}\) 提供连续分值来打破 VLM 离散打分导致的并列。最后 Candidate Refinement 会跨 action、scene、event 候选做 progressive merging，把时间上接近且语义分数一致的候选整合成更稳定的预测，并输出：
+
+$$
+(\hat{t}_s,\hat{t}_e)=\arg\max_{c_i\in S_{\text{final}}} s_{\text{final}}^{(i)}
+$$
+
+> 💡 关键：HiTeA 的创新不在于训练更大的定位器，而在于把长视频的时间结构显式暴露给冻结 VLM，使其只需要判断候选片段和查询的语义匹配。
+
+#### 🧪 练习题
+```yaml
+question: "HiTeA 中 HTD 模块的核心作用是什么？"
+options:
+  - "用事件、场景、动作三层边界生成结构化候选片段"
+  - "用监督标注训练一个新的 DETR 定位网络"
+  - "将所有视频统一裁成固定长度并随机采样"
+  - "只依赖语言模型生成时间戳，不使用视觉特征"
+answer: 0
+explain: "HTD 通过多层时间信号和层次合并构造 event/scene/action 候选，为后续 VideoCLIP 与 VLM 打分提供显式时间结构。"
+```
 
 ### UniTime
 
@@ -1836,16 +4055,116 @@ motivation: 时间戳token实现零样本泛化
 ```
 
 #### 📝 一句话总结
-UniTime 的核心目标是：时间戳token实现零样本泛化。
+UniTime 将时间戳作为文本 token 插入视频 token 序列，让生成式 MLLM 直接读出查询对应的时间边界，并通过自适应帧缩放与粗到细推理实现跨短视频、长视频和复杂查询的通用时序定位。
 
 #### 🎯 核心要点
-- 核心动机：时间戳token实现零样本泛化
-- 演化来源：继承或改进自 moment_detr
-- 代表机构：NeurIPS
+- 把 temporal grounding 表述为生成式 MLLM 输出时间边界的问题，而不是固定检测头回归边界。
+- Timestamp-interleaved sequence 在每帧或每段视频 token 前插入可读时间戳文本，使模型通过语言空间引用时间。
+- Adaptive Frame Scaling 根据视频帧数动态分配每帧 token 预算，短视频保留高空间分辨率，长视频压缩 token 或切分处理。
+- 支持 multi-scale prediction：长视频先做粗粒度片段检索，再在候选区域内做细粒度边界细化。
+- 用 autoregressive loss 训练模型只生成目标答案 token，格式类似 “From \(s\) seconds to \(e\) seconds”。
+- Video-centric training 将同一视频的多个 query-answer 对合并到一次输入中，减少长视频重复编码和 I/O 开销。
+- 在 Ego4D-NLQ、TACoS、Charades-STA、QVHighlights、ANet-Captions 等时序定位基准以及长视频 VideoQA 中验证泛化能力。
 
 #### 🔬 深入细节
-时间戳token实现零样本泛化
+![UniTime 框架图](https://arxiv.org/html/2506.18883v1/x2.png)
+*图：UniTime 的自适应帧缩放、粗到细时序定位和 timestamp-interleaved sequence 架构。*
 
+UniTime 的问题定义是：给定未裁剪视频 \(\mathcal{V}=\{f_1,\ldots,f_{N_f}\}\)、采样时间戳集合 \(\mathcal{T}=\{t_1,\ldots,t_{N_f}\}\) 和自由文本查询 \(\mathcal{Q}\)，输出一个或多个匹配查询的时间段：
+
+$$
+\mathcal{Y}=\{(s_1,e_1),\ldots,(s_K,e_K)\}
+=\Phi_{\text{UniTime}}(\mathcal{V},\mathcal{T},\mathcal{Q})
+$$
+
+与传统 DETR/dual-encoder 类方法不同，UniTime 不让模型预测连续坐标，而是让 MLLM 从插入的 timestamp token 中“读出”边界。这降低了时序编码与语言模型对齐的难度，也让时间信息以普通文本形式进入 LLM。
+
+```python
+# UniTime 训练与粗到细推理伪代码
+def build_unitime_sequence(video, timestamps, query, segment_level=False):
+    visual_tokens = adaptive_frame_scaling(video)
+    seq = []
+    if not segment_level:
+        for t_i, v_i in zip(timestamps, visual_tokens):
+            seq += [tokenize(f"timestamp: {t_i} seconds"), v_i]
+    else:
+        for segment in group_frames(visual_tokens, length="L_s"):
+            seq += [tokenize(f"timestamp: {segment.start_time} seconds"), segment.tokens]
+    seq += [tokenize(query)]
+    return seq
+
+def train_step(video, timestamps, queries, answers):
+    # video-centric: one video, many query-answer pairs
+    seq = build_video_centric_batch(video, timestamps, queries, answers)
+    mask = block_attention_between_different_query_answer_pairs(seq)
+    loss = autoregressive_nll(target_tokens=answers, context=seq, attention_mask=mask)
+    update_model(loss)
+
+def infer_long_video(video, query):
+    clips = split_if_long(video, max_frames="N_f_long")
+    coarse_segments = []
+    for clip in clips:
+        seq = build_unitime_sequence(clip, clip.coarse_timestamps, query, segment_level=True)
+        coarse_segments.append(generate_time_interval(seq))
+    candidate = aggregate_and_select(coarse_segments)
+    fine_seq = build_unitime_sequence(candidate.video_crop, candidate.fine_timestamps, query)
+    return generate_time_interval(fine_seq)
+```
+
+自适应帧缩放解决的是 MLLM 上下文窗口和显存约束。若视频帧数为 \(N_f\)，总 token 预算为 \(N_{\text{total}}\)，每帧分到的 token 数为：
+
+$$
+N_{\text{res}}=\left\lfloor\frac{N_{\text{total}}}{N_f}\right\rfloor
+$$
+
+短视频帧数少，UniTime 可以通过 resize 给每帧更高空间分辨率；中长视频则用 token compression 通过双线性插值压缩视觉 token；超过 \(N_f^{\text{long}}\) 的视频会切成多个 clip 分治处理。论文给出的形式是：
+
+$$
+V_i=
+\begin{cases}
+\phi_{\text{project}}(\phi_{\text{vision}}(\psi_{\text{resize}}(f_i)))\in\mathbb{R}^{N_{\text{res}}\times d},
+& N_f<N_f^{\text{short}}\\
+\psi_{\text{compress}}(\phi_{\text{project}}(\phi_{\text{vision}}(f_i)))\in\mathbb{R}^{N_{\text{res}}\times d},
+& N_f^{\text{short}}\le N_f<N_f^{\text{long}}
+\end{cases}
+$$
+
+Timestamp-interleaved sequence 是 UniTime 的核心机制。细粒度定位时，模型在每帧视觉 token 前插入文本时间戳：
+
+$$
+S=[T_1;V_1;T_2;V_2;\ldots;T_{N_f};V_{N_f};Q],
+\qquad T_i=\phi_{\text{tokenizer}}(\tau_i)
+$$
+
+其中 \(\tau_i\) 是类似 “timestamp: 15.0 seconds” 的文本。粗粒度定位时，时间戳不再插在每帧前，而是插在固定长度 segment 前：
+
+$$
+S=[T_1;S_1;T_2;S_2;\ldots;T_{N_s};S_{N_s};Q]
+$$
+
+这个设计让同一个模型能根据输入粒度输出不同尺度的边界：长视频先读出粗段位置，再对候选段重采样并细化边界。它比固定位置编码更容易迁移，因为时间是语言 token，不需要额外学习一套连续时间嵌入与 LLM 语义空间对齐。
+
+训练目标仍然是标准自回归负对数似然，只在答案 token 上计算损失：
+
+$$
+\mathcal{L}(S,Y)=-\sum_{i=1}^{N_y}\log P(y_i\mid S,y_{<i};\theta)
+$$
+
+训练数据构造同时包含完整视频的粗粒度样本和包含 ground-truth moment 的短片段细粒度样本，并对长视频样本做重复采样以平衡分布。Video-centric training 进一步把同一视频下的多个 query-answer 对拼到同一个输入序列中，用 attention mask 阻止不同问答对互相看见，同时共享已编码的视频 token，从而避免长视频被重复加载和重复前向。
+
+> 💡 关键：UniTime 的“零样本泛化”主要来自两个选择：时间戳以文本 token 进入 LLM，视频长度差异由 adaptive scaling 和 coarse-to-fine inference 处理。
+
+#### 🧪 练习题
+```yaml
+question: "UniTime 为什么要把 timestamp 作为文本 token 插入视频 token 序列？"
+options:
+  - "让 MLLM 在语言空间中直接引用时间边界，减少额外时序嵌入对齐需求"
+  - "让模型完全忽略视觉 token，只根据字幕回答"
+  - "替代所有视频帧采样，从而不再需要视觉编码器"
+  - "把 temporal grounding 退化为普通文本分类任务"
+answer: 0
+explain: "时间戳文本 token 与 LLM 原生语言空间兼容，模型可以生成或读出这些时间边界，同时支持不同粒度的粗到细定位。"
+```
 
 ### MarkIt
 
@@ -1864,16 +4183,109 @@ motivation: 帧内嵌入语义标记增强定位
 ```
 
 #### 📝 一句话总结
-MarkIt 的核心目标是：帧内嵌入语义标记增强定位。
+MarkIt 提出一种 training-free 的视频重写框架，把查询相关主体的分割掩码、语义标签和帧编号直接渲染进视频帧，解决 Vid-LLM 在长视频时序定位中缺少显式时间参照和稳定实体对应的问题。
 
 #### 🎯 核心要点
-- 核心动机：帧内嵌入语义标记增强定位
-- 演化来源：继承或改进自 llava_video
-- 代表机构：CVPR
+- 提出 MarkIt：只改写输入视频，不修改 Vid-LLM 参数，可直接接入 Qwen2-VL、LLaVA-OV、InternVL2、LongVA 等模型
+- 核心模块 Q2M-Bridge：从自然语言查询抽取 canonical subject tags，再用开放词表分割模型生成 query-conditioned instance masks
+- 双重显式线索：每帧同时叠加语义实例标记和持久帧编号，把“找事件边界”转化为读取可见标记
+- 采用 recall-first mask 保留策略：宁可保留冗余实例，也尽量避免漏掉查询主体
+- 渲染顺序为 mask/contour 先行、文字后置，避免语义标签和帧编号被遮挡
+- 覆盖 Moment Retrieval 和 Highlight Detection，实验使用 Charades-STA、ActivityNet、QVHighlights 等基准
+- 支持纯推理增强，也兼容监督微调；在多种 Vid-LLM backbone 上持续提升时序定位精度
 
 #### 🔬 深入细节
-帧内嵌入语义标记增强定位
+![MarkIt 框架图](https://arxiv.org/html/2604.25886v1/x1.png)
+*图：MarkIt 先从查询中抽取主体，再把主体 mask 和帧编号写入视频帧，最后交给已有 Vid-LLM 输出时间区间。公开 arXiv 版本为 https://arxiv.org/html/2604.25886v1。*
 
+MarkIt 的动机很直接：很多 Vid-LLM 能识别视频里发生了什么，却不擅长稳定地说出“从第几帧到第几帧”。原因不是单纯的语言能力不足，而是视频输入本身缺少两类可读线索：一是绝对或相对时间位置，二是查询主体在帧间的连续对应。MarkIt 的做法不是重新训练一个定位模型，而是构造一个 markerization operator \(\Phi\)，把原始视频 \(V\) 和查询 \(q\) 改写为带标记视频：
+
+$$
+\tilde{V}=\Phi(V,q)=R\left(V,\mathcal{B}(q,V),\mathcal{I}\right), \qquad
+\hat{y}=M_\theta(\tilde{V}, p(q))
+$$
+
+其中 \(R\) 是渲染器，\(\mathcal{B}(q,V)\) 是查询相关的语义实例标记集合，\(\mathcal{I}\) 是每帧固定位置的编号标记，\(M_\theta\) 是被冻结的任意 Vid-LLM。对 Moment Retrieval，\(\hat{y}=(\hat{s},\hat{e})\)；对 Highlight Detection，\(\hat{y}\) 可以是帧或 clip 的相关性分数。
+
+Q2M-Bridge 负责把语言查询变成可画在帧上的区域证据。它先用语言解析和归一化提取主体标签，例如把 “the man along the chair” 这类描述压缩成 `person`、`chair` 等更容易被开放词表分割模型识别的视觉类别；随后对每一帧、每个主体标签调用 text-conditioned open-vocabulary segmentation，得到实例掩码：
+
+$$
+\mathcal{Z}(q)=\{z_1,\ldots,z_K\},\qquad
+\mathcal{P}_{t,j}=G(f_t,z_j)=\{m_{t,j}^{(1)},\ldots,m_{t,j}^{(n)}\}
+$$
+
+这里 \(G\) 可以由 YOLOE-Large 这类开放词表分割器实例化。MarkIt 不做激进的 top-k 筛选，而是保留所有候选 mask；这体现了它的定位偏好：多画几个无关实例最多增加一点视觉噪声，但漏掉真正的主体会直接破坏时间边界判断。
+
+```python
+# MarkIt 推理流程伪代码
+def markit_temporal_grounding(video, query, vid_llm, instruction):
+    # 1. 语言查询 -> 主体标签
+    tags = extract_subject_tags(
+        query,
+        rules=["main grammatical subjects", "singular nouns", "person normalization"],
+        max_tags=K,
+    )
+
+    marked_video = []
+    for frame_id, frame in enumerate(video):
+        semantic_markers = []
+
+        # 2. 主体标签 -> 每帧开放词表实例 mask
+        for tag in tags:
+            masks = open_vocab_segment(frame, text=tag)
+            for mask in masks:  # recall-first: 不按置信度强剪枝
+                semantic_markers.append({"mask": mask, "label": tag})
+
+        # 3. 叠加主体 mask、轮廓、语义文字和帧编号
+        frame_index = {"anchor": "bottom_right", "label": str(frame_id)}
+        marked_frame = render_markers(
+            frame,
+            region_markers=semantic_markers,
+            index_marker=frame_index,
+            fill_alpha=0.3,
+            contour=True,
+        )
+        marked_video.append(marked_frame)
+
+    # 4. 冻结 Vid-LLM 直接读取标记视频并生成时间边界
+    prompt = instruction.format(query=query)
+    answer = vid_llm.generate(video=marked_video, text=prompt)
+    return parse_temporal_span_or_highlight_scores(answer)
+```
+
+渲染阶段把每一帧的标记集合写成：
+
+$$
+\mathcal{M}_t
+=\{(m_{t,j}^{(r)}, z_j)\mid z_j\in\mathcal{Z}(q), m_{t,j}^{(r)}\in\mathcal{P}_{t,j}\}
+\cup \{(a_{\text{idx}}, \mathrm{text}(t))\}
+$$
+
+被标记帧为：
+
+$$
+\tilde{f}_t=R(f_t,\mathcal{M}_t;\omega)
+$$
+
+其中 \(\omega\) 控制颜色、透明度、轮廓宽度、字体大小和帧编号位置。论文消融显示，中等透明度和适度轮廓通常优于过重遮挡；帧编号放在固定角落比放在画面中心更稳定。直觉上，标记要足够显眼，让 LLM 能读到；但不能遮住动作本身，否则定位证据反而被破坏。
+
+与传统 VTG 模型相比，MarkIt 的关键差异在于它不学习一个新的时间边界回归头，也不要求额外时间戳监督。Moment-DETR、UniVTG 这类模型通常把视频和文本编码后在隐空间做匹配；MarkIt 则把“时间”和“主体对应”外显到像素空间，让已有 Vid-LLM 通过 OCR/视觉读取能力完成定位。它特别适合那些已经有强通用理解能力、但对帧号和实体跟踪不敏感的视频大模型。
+
+MarkIt 和 LLaVA-Video 的关系也很清楚。LLaVA-Video 通过大规模合成视频指令数据提升视频问答和理解能力；MarkIt 则更像一个推理时插件，把帧内语义线索注入输入表示。前者主要改进模型训练数据，后者主要改进输入可解释性。因此 MarkIt 可以作为 LLaVA-Video 类模型的上层增强：不用重新训练，也能让模型更容易输出稳定的 \([\hat{s},\hat{e}]\)。
+
+> 💡 关键：MarkIt 的核心不是“让模型学会定位”，而是把定位所需的主体和时间参照画出来，让冻结 Vid-LLM 少做隐式跟踪、多读显式线索。
+
+#### 🧪 练习题
+```yaml
+question: "MarkIt 中 Q2M-Bridge 的主要作用是什么？"
+options:
+  - "把视频帧压缩成更少的视觉 token"
+  - "把自然语言查询转换为主体标签，并进一步生成每帧的查询相关实例 mask"
+  - "训练一个新的 DETR 边界回归头"
+  - "用音频字幕替代视觉帧输入"
+answer: 1
+explain: "Q2M-Bridge 先抽取 canonical subject tags，再用开放词表分割模型得到实例 mask，供 MarkIt 渲染成显式视觉标记。"
+```
 
 ### Universal VTG MLLM
 
@@ -1892,16 +4304,107 @@ motivation: 生成式大模型实现通用定位
 ```
 
 #### 📝 一句话总结
-Universal VTG MLLM 的核心目标是：生成式大模型实现通用定位。
+Universal VTG MLLM 对应 UniTime，提出用生成式多模态大模型直接输出视频时间区间，并通过时间戳 token、adaptive frame scaling 和 coarse-to-fine 推理解决不同领域、不同视角、不同长度视频的通用时序定位问题。
 
 #### 🎯 核心要点
-- 核心动机：生成式大模型实现通用定位
-- 演化来源：继承或改进自 internvideo2
-- 代表机构：NeurIPS
+- 提出 UniTime：面向 universal video temporal grounding 的生成式 MLLM，而不是只服务单一数据集的判别式检索器
+- 用 timestamp-interleaved sequence 把时间戳文本 token 插入视频 token 序列，让 LLM 直接生成可解析的时间边界
+- 采用 adaptive frame scaling：根据视频帧数动态调整每帧 token 预算，短视频保留高空间分辨率，长视频降低空间粒度
+- 对超长视频使用多阶段 coarse-to-fine inference：先粗粒度找候选片段，再在候选范围内细粒度重采样
+- 训练目标是标准自回归负对数似然，只监督目标时间文本，不需要额外边界回归头
+- 使用 video-centric training：同一视频的多个查询和对应时间段尽量合并进一次前向，减少重复视频编码开销
+- 在 Ego4D-NLQ、TACoS、Charades-STA、ActivityNet Captions、QVHighlights 等公开时序定位基准上评估，并作为长视频 QA 的前置检索器
 
 #### 🔬 深入细节
-生成式大模型实现通用定位
+![UniTime 架构图](https://lzq5.github.io/UniTime/resources/arch.png)
+*图：UniTime 通过 adaptive frame scaling 构造多尺度视频输入，并在视觉 token 间插入时间戳 token，使生成式 MLLM 能从粗到细输出时间区间。项目页为 https://lzq5.github.io/UniTime/。*
 
+传统视频时序定位通常是判别式框架：先编码视频和文本，再对候选窗口打分，或用 DETR 类查询回归边界。这类方法在单一数据集内很有效，但面对第一人称/第三人称、电影/烹饪/日常活动、几十秒到数小时的视频时，泛化会变差。UniTime 的目标是把时序定位改造成 MLLM 可处理的生成问题：
+
+$$
+Y=\Phi_{\text{UniTime}}(V,T,Q),\qquad
+Y=\{(s_1,e_1),\ldots,(s_K,e_K)\}
+$$
+
+其中 \(V=\{f_1,\ldots,f_{N_f}\}\) 是视频帧，\(T=\{t_1,\ldots,t_{N_f}\}\) 是对应时间戳，\(Q\) 是自由形式查询。模型输出不再是隐空间分数，而是类似 `From 15.0s to 18.0s` 的文本答案，之后可直接解析为时间边界。
+
+第一个核心机制是 adaptive frame scaling。对于固定总视觉 token 预算 \(N_{\text{total}}\)，如果视频帧数为 \(N_f\)，每帧可分配的 token 近似为：
+
+$$
+N_{\text{res}}=\left\lfloor\frac{N_{\text{total}}}{N_f}\right\rfloor
+$$
+
+当 \(N_f\) 较小，模型可以通过 resize 保留更高空间分辨率；当 \(N_f\) 较大，则在特征层做 token compression，以牺牲部分空间细节换取更长时间覆盖；当 \(N_f\) 超过长视频阈值，则把视频分成多个 clip 做分治处理。这个设计比固定抽帧更稳，因为固定抽帧会在长视频里丢失大量动作细节，在短视频里又浪费可用分辨率。
+
+第二个机制是 timestamp-interleaved sequence。对细粒度定位，可以在每个帧特征前插入时间戳；对粗粒度定位，可以在每个 segment 前插入一个代表该 segment 起点的时间戳：
+
+$$
+S=[T_1;S_1;T_2;S_2;\cdots;T_{N_s};S_{N_s};Q],
+\qquad
+T_i=\phi_{\text{tokenizer}}(\tau_{s_i})
+$$
+
+这里 \(S_i\) 是第 \(i\) 个视频 segment 的视觉 token 序列，\(T_i\) 是文本时间戳 token。时间戳作为普通文本 token 进入语言空间，不需要学习额外的时间 embedding 对齐；LLM 在生成答案时可以“指向”它已经读过的时间文本。这也是 UniTime 相比纯视觉位置编码更容易外推到不同视频长度的原因。
+
+```python
+# UniTime / Universal VTG MLLM 推理流程伪代码
+def unitime_ground(video, query, model, token_budget, long_threshold):
+    if num_frames(video) <= long_threshold:
+        frames = sample_frames(video)
+        visual_tokens = adaptive_frame_scaling(frames, token_budget)
+        seq = interleave_timestamps(visual_tokens, timestamps(frames), query)
+        return parse_span(model.generate(seq))
+
+    # 超长视频：先粗后细
+    clips = split_video(video, max_frames=long_threshold)
+    coarse_candidates = []
+    for clip in clips:
+        coarse_frames = sparse_sample(clip)
+        coarse_tokens = adaptive_frame_scaling(coarse_frames, token_budget)
+        coarse_seq = interleave_segment_timestamps(
+            coarse_tokens,
+            segment_start_times(coarse_frames),
+            query,
+        )
+        coarse_candidates.append(parse_span(model.generate(coarse_seq)))
+
+    merged = aggregate_candidates(coarse_candidates)
+    while needs_refinement(merged):
+        local_video = crop(video, merged)
+        fine_frames = dense_sample(local_video)
+        fine_tokens = adaptive_frame_scaling(fine_frames, token_budget)
+        fine_seq = interleave_timestamps(fine_tokens, timestamps(fine_frames), query)
+        merged = parse_span(model.generate(fine_seq))
+
+    return merged
+```
+
+训练上，UniTime 没有引入专门的边界回归损失，而是沿用生成式 MLLM 的自回归目标。给定构造好的输入序列 \(S\) 和目标答案 token \(Y=(y_1,\ldots,y_{N_y})\)，只在答案部分计算负对数似然：
+
+$$
+\mathcal{L}(S,Y)
+=-\sum_{i=1}^{N_y}\log P(y_i\mid S,y_{<i};\theta)
+$$
+
+这让模型的定位能力和语言生成能力共享同一个训练接口：同样可以处理描述式查询、问题式查询，也可以在下游 VideoQA 中先检索相关片段，再交给 QA 模型回答。相比为每种数据集设计不同 head，生成式接口更适合统一多任务、多领域、多时长的 VTG 数据。
+
+为了提高训练效率，UniTime 使用 video-centric training。很多 VTG 数据集里，一个视频对应多个查询；传统 query-centric 采样会反复加载和编码同一个视频。UniTime 尽量把同一视频的多个 \((Q^{(k)},Y^{(k)})\) 拼到一次训练样本中，使视觉 token 只编码一次，随后让 LLM 对多个查询生成多个时间答案。这对长视频尤其重要，因为视频 token 是主要计算瓶颈。
+
+UniTime 与 InternVideo2 类视频基础模型的差异在于任务接口。InternVideo2 更强调大规模视频表示学习和多模态对齐，可作为强视频特征或预训练 backbone；UniTime 则把时间戳文本化，并用 MLLM 的生成能力直接输出时间范围。它牺牲了一部分判别式模型的轻量推理优势，但换来更强的查询表达能力、跨数据集泛化能力和与长视频 QA 流水线的自然衔接。
+
+> 💡 关键：UniTime 的“通用”来自三件事叠加：输入粒度随视频长度自适应，时间戳以文本 token 暴露给 LLM，超长视频通过 coarse-to-fine 推理逐步缩小搜索范围。
+
+#### 🧪 练习题
+```yaml
+question: "UniTime 为什么要把时间戳 token 与视频 token 交错插入？"
+options:
+  - "让 LLM 在语言空间中直接读取并生成时间边界，减少额外时间 embedding 对齐需求"
+  - "替代视觉编码器，使模型只处理字幕"
+  - "把所有视频都压缩成一个固定长度向量"
+  - "强制模型只输出单帧分类结果"
+answer: 0
+explain: "时间戳作为文本 token 与视觉证据相邻出现，LLM 生成答案时可直接引用这些时间线索，从而更稳定地输出 start/end。"
+```
 
 ### Qwen3.5
 
@@ -1920,16 +4423,126 @@ motivation: 原生多模态支持2小时视频
 ```
 
 #### 📝 一句话总结
-Qwen3.5 的核心目标是：原生多模态支持2小时视频。
+Qwen3.5-122B-A10B 是 Qwen 系列的原生多模态 MoE 模型，通过视觉编码器、早期多模态 token 融合、Gated DeltaNet/Attention 混合序列建模和稀疏专家路由，在 10B active 参数成本下支持长上下文图像/视频理解，并在 MLVU 长视频榜单上取得领先结果。
 
 #### 🎯 核心要点
-- 核心动机：原生多模态支持2小时视频
-- 演化来源：继承或改进自 videollama3
-- 代表机构：Alibaba
+- 模型类型为 Causal Language Model with Vision Encoder，支持图像和视频 token 进入同一个聊天序列
+- 参数规模为 122B total、10B active，采用 sparse MoE 降低每 token 前向成本
+- 语言主干 48 层，布局为 \(12\times(3\times(\text{Gated DeltaNet}\rightarrow\text{MoE})+1\times(\text{Gated Attention}\rightarrow\text{MoE}))\)
+- MoE 包含 256 个专家，每 token 激活 8 个 routed experts 加 1 个 shared expert
+- 视觉编码器使用 16×16 patch、temporal patch size 2、spatial merge size 2，并输出到 3072 维语言隐藏空间
+- 原生上下文长度 262,144 tokens，可通过 YaRN 扩展到约 1,010,000 tokens
+- 阿里云 Model Studio 文档标注 Qwen3.5 系列视频输入时长为 2 秒到 2 小时，单文件公网 URL 可到 2GB，视频帧列表最多 8,000 张
+- LLM Stats 的 MLVU 页面显示 Qwen3.5-122B-A10B 以 0.873/87.3% 领先该长视频理解榜单
 
 #### 🔬 深入细节
-原生多模态支持2小时视频
+![Qwen3.5 官方模型卡图](https://qianwen-res.oss-accelerate.aliyuncs.com/logo_qwen3.5.png)
+*图：Qwen3.5 官方模型卡使用的标识。该条目没有标准论文页，方法解读基于 Qwen 官方 Hugging Face 模型卡、阿里云视觉理解文档和 MLVU 榜单。*
 
+![Qwen3.5 官方模型卡 benchmark 图](https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen3.5/Figures/qwen3.5_middle_size_score.png)
+*图：Qwen3.5 模型卡中的中等规模模型 benchmark 对比图，包含多模态和视频理解结果。*
+
+Qwen3.5 的关键不是在 VideoLLaMA3 这种专门 video LMM 框架上继续加一个视频压缩器，而是把多模态能力做进通用基础模型。模型卡中的 chat template 明确把图像和视频都表示为特殊视觉片段：
+
+$$
+\texttt{<|vision\_start|><|image\_pad|><|vision\_end|>},\qquad
+\texttt{<|vision\_start|><|video\_pad|><|vision\_end|>}
+$$
+
+这些占位符对应的视觉特征会被视觉编码器转换成与语言主干同维度的 token，再和文本 token 一起进入自回归模型。因此它不是“先做视频分类再把结果交给 LLM”的级联方案，而是早期融合的 vision-language foundation：视觉 token、视频 token 和文本指令共同参与后续推理。
+
+视觉侧可以概括为 patch 化和合并。根据公开 config，vision encoder 的 patch size 为 16，temporal patch size 为 2，spatial merge size 为 2，输出 hidden size 为 3072。对一个抽帧后的视频片段，粗略的视觉 token 数可写成：
+
+$$
+N_{\text{video}}
+\approx
+\left\lceil\frac{T}{2}\right\rceil
+\cdot
+\left\lceil\frac{H}{16}\right\rceil
+\cdot
+\left\lceil\frac{W}{16}\right\rceil
+\cdot \frac{1}{2^2}
+$$
+
+这里 \(T,H,W\) 分别是帧数、高度和宽度，最后的 \(1/2^2\) 来自 2×2 spatial merge 的近似压缩。这个公式解释了为什么长视频理解高度依赖抽帧率、分辨率和上下文预算：即使单帧 token 被合并，2 小时视频仍需要强长上下文主干才能承载足够时间覆盖。
+
+```python
+# Qwen3.5-122B-A10B 视频理解流程伪代码
+def qwen35_video_chat(video_url, user_prompt, model):
+    # 1. 解码和采样视频；实际服务可按 fps、max_pixels、max_frames 控制成本
+    frames = decode_and_sample_video(video_url, fps=2.0, max_frames=8000)
+
+    # 2. 视觉编码：时间 patch、空间 patch、空间合并后投影到语言维度
+    video_patches = make_video_patches(
+        frames,
+        patch_size=16,
+        temporal_patch_size=2,
+        spatial_merge_size=2,
+    )
+    visual_tokens = vision_encoder(video_patches)  # hidden dim -> 3072
+
+    # 3. 聊天模板把视频 token 和文本 token 放进同一个序列
+    sequence = [
+        "<|im_start|>user",
+        "<|vision_start|>", visual_tokens, "<|vision_end|>",
+        user_prompt,
+        "<|im_end|>",
+        "<|im_start|>assistant",
+    ]
+
+    # 4. 48 层混合主干：三层线性注意力后接一层全注意力，层层接 MoE
+    h = embed(sequence)
+    for layer_id in range(48):
+        if layer_id % 4 in (0, 1, 2):
+            h = gated_deltanet(h)      # 线性注意力路径，适合长上下文
+        else:
+            h = gated_attention(h)     # 周期性全注意力，补全全局交互
+        h = sparse_moe(h, routed_experts=8, shared_experts=1)
+
+    return autoregressive_decode(h, max_new_tokens=81920)
+```
+
+语言主干的效率来自两层设计叠加。第一层是 Gated DeltaNet 与 Gated Attention 的 3:1 混合：多数层使用线性注意力路径处理长序列，周期性插入全注意力层保持全局 token 交互。粗略地说，如果序列长度为 \(L\)，纯全注意力的代价随 \(L^2\) 增长，而线性注意力路径更接近随 \(L\) 增长；混合后可写成：
+
+$$
+C_{\text{mix}}
+\approx
+\frac{3}{4}C_{\text{linear}}(L)
++\frac{1}{4}C_{\text{full}}(L)
+$$
+
+这不是严格实现代价公式，但能说明设计直觉：长视频需要大量视觉 token，不能每层都做完整二次复杂度注意力；同时完全去掉全注意力又可能损失远距离细粒度依赖。
+
+第二层是 sparse MoE。对每个 token 的隐藏状态 \(h\)，router 从 256 个 experts 中选择 8 个 routed experts，并叠加 1 个 shared expert：
+
+$$
+\operatorname{MoE}(h)
+=E_{\text{shared}}(h)
++\sum_{e\in \operatorname{TopK}(g(h),8)}
+\alpha_e E_e(h)
+$$
+
+其中 \(g(h)\) 是 router 打分，\(\alpha_e\) 是归一化路由权重。这样模型拥有 122B 总容量，但单 token 只激活约 10B 参数，兼顾能力和推理成本。这对视频理解很重要，因为视频输入通常比文本问答消耗更多上下文和 KV/cache 资源。
+
+长视频能力还依赖服务侧输入策略。阿里云视觉理解文档把 Qwen3.5 系列定位为最新一代视觉理解模型，适合多模态推理、图像/视频理解和多模态 agent；在视频限制中，Qwen3.5 系列单视频文件时长范围为 2 秒到 2 小时，公网 URL 文件大小可到 2GB，作为图片列表输入时最多 8,000 张。文档同时说明视频文件的音频不会被视觉理解模型处理，因此“2 小时视频”在这里主要指视觉帧序列的长时程理解，而不是完整音视频联合理解。
+
+MLVU 榜单的意义在于验证长视频综合能力，而不是单一动作定位。MLVU 覆盖 3 分钟到 2 小时的视频，任务包括推理、captioning、识别和摘要等 9 类；LLM Stats 页面显示 Qwen3.5-122B-A10B 得分 0.873，领先同页列出的 Qwen3.6 Plus、Qwen3.6-27B、Qwen3-VL-235B 等模型。结合模型结构看，这个结果来自三方面：视觉 token 能进入原生语言主干，长上下文机制能承载足够帧证据，MoE 让大容量模型在视频场景下仍可部署。
+
+与 VideoLLaMA3 相比，Qwen3.5 更像“通用多模态基础设施”。VideoLLaMA3 的优势是围绕视频 token 压缩和图像中心训练做专项设计；Qwen3.5 的优势是统一模型规模、长上下文、agent 能力和视觉理解能力。对 KnowledgePipeline 中的演进关系而言，它代表从专门 Video-LLM 走向原生多模态基础模型：视频不再是附加模块，而是和文本、图像一起进入主干推理。
+
+> ⚠️ 注意：给定 `paper_url` 是 MLVU 榜单而非 Qwen3.5 技术论文；因此这里的“方法”来自公开模型卡、config 和阿里云文档的结构信息，部分训练细节没有论文级展开。
+
+#### 🧪 练习题
+```yaml
+question: "Qwen3.5-122B-A10B 为什么能在 122B 总参数规模下保持较低的单 token 前向成本？"
+options:
+  - "每次只使用第一帧视频，不处理完整上下文"
+  - "使用 sparse MoE，每 token 只激活 8 个 routed experts 加 1 个 shared expert，约 10B active 参数"
+  - "完全删除语言模型，只保留视觉编码器"
+  - "把所有视频离线转成固定标签，不进行生成式推理"
+answer: 1
+explain: "模型总容量来自 256 个专家，但 router 每 token 只选择少量专家，并叠加共享专家，因此 active 参数远小于总参数。"
+```
 
 ### Gemini 3 Pro
 
@@ -1948,12 +4561,125 @@ motivation: 百万token超长上下文窗口
 ```
 
 #### 📝 一句话总结
-Gemini 3 Pro 的核心目标是：百万token超长上下文窗口。
+Gemini 3 Pro 是 Google 发布的原生多模态稀疏 MoE Transformer，把文本、图像、音频、视频和代码放入最高 1M token 上下文中进行统一推理，解决长视频、长文档和大代码库任务中“信息放不进模型、跨模态证据难以同时对齐”的问题。
 
 #### 🎯 核心要点
-- 核心动机：百万token超长上下文窗口
-- 演化来源：继承或改进自 internvideo2
-- 代表机构：Google
+- 架构上采用 sparse mixture-of-experts Transformer，按 token 动态路由到部分专家，解耦总参数容量与每 token 推理成本
+- 原生支持文本、图像、音频、视频输入，输出文本，官方 Model Card 标注最高 1M token 输入上下文与 64K token 输出
+- 训练数据覆盖公开网页文档、文本、代码、图像、音频、语音和视频；后训练包含指令微调、强化学习数据和人类偏好数据
+- 面向复杂推理引入 Deep Think 模式，在推理时增强复杂问题求解能力，但官方未公开其内部搜索、验证或采样细节
+- 长上下文能力使长视频问答可以把视频帧、音频/字幕、镜头级描述、检索到的网页和用户问题放在同一上下文中联合推理
+- 评测覆盖 reasoning、multimodal、agentic tool use、multilingual 与 long-context，官方发布页强调 MMMU-Pro、Video-MMMU、Terminal-Bench、SWE-bench 等能力
+- 与 InternVideo2 这类显式视频编码器路线相比，Gemini 3 Pro 的关键在于把视频理解并入通用原生多模态大模型和长上下文推理栈
 
 #### 🔬 深入细节
-百万token超长上下文窗口
+![Gemini 3 Pro 官方评测总览](https://storage.googleapis.com/gweb-uniblog-publish-prod/original_images/gemini_3_table_final_HLE_Tools_on.gif)
+*图：Google 官方 Gemini 3 发布页给出的评测总览。Google 未公开 Gemini 3 Pro 的完整内部架构图，因此这里用官方发布图作为模型能力总览，并在下文基于 Model Card 解读公开可确认的架构与流程。*
+
+Gemini 3 Pro 的公开 Model Card 把它定义为“natively multimodal, reasoning models”，而不是在纯文本 LLM 外面外挂一个视觉编码器的单任务 Video-LLM。对视频理解来说，这意味着视频帧、音频、字幕、用户问题、工具返回结果和代码片段最终都进入同一个推理上下文，由同一个模型栈完成跨模态证据聚合。官方没有披露视频 tokenizer、帧采样策略、位置编码或专家数量；因此更稳妥的理解是：Gemini 3 Pro 公开层面的算法贡献在于把 MoE Transformer、原生多模态预训练、后训练推理能力和 1M context 组合成一个可产品化的统一模型。
+
+稀疏 MoE 是 Model Card 明确披露的核心架构。普通 Transformer 的每个 token 都经过同一组 FFN 参数，计算量随模型宽度直接增长；MoE 层则用路由器为每个 token 选择少数专家，只激活一部分参数。可以抽象为：
+
+$$
+p(e \mid h_t)=\operatorname{softmax}(W_r h_t)_e,\quad
+\mathcal{E}_t=\operatorname{TopK}_e\,p(e \mid h_t)
+$$
+
+$$
+\operatorname{MoE}(h_t)=
+\sum_{e\in\mathcal{E}_t}
+p(e \mid h_t)\operatorname{FFN}_e(h_t)
+$$
+
+其中 \(h_t\) 是第 \(t\) 个 token 的隐藏状态，\(\mathcal{E}_t\) 是被激活的专家集合。这个设计对多模态尤其重要：语言、代码、图像 patch、音频片段和视频帧 token 的统计结构不同，动态路由允许不同 token 走向更合适的专家，同时不要求每个 token 都跑完整模型容量。
+
+百万 token 上下文是它在长视频任务里的直接动机。传统长视频问答常见做法是先切片、摘要或检索，再把少量片段喂给模型；这会把“哪些片段重要”的判断提前交给外部系统，容易丢掉远距离线索。Gemini 3 Pro 的 1M context 让工程流程可以更接近“把完整材料交给模型”：采样帧序列、ASR 字幕、镜头边界、OCR、音频事件、用户问题、检索结果都作为同一个上下文 \(X\) 输入：
+
+$$
+X=[x_{\text{text}},x_{\text{video}},x_{\text{audio}},x_{\text{image}},x_{\text{code}},x_{\text{tool}}],\quad |X|\le 10^6
+$$
+
+$$
+p_\theta(y\mid X)=\prod_{i=1}^{T}p_\theta(y_i\mid y_{<i},X),\quad T\le 64K
+$$
+
+这种能力不等于“所有 1M token 都会被完美使用”。更准确的说法是，它把瓶颈从上下文容量转移到长距离证据选择和多跳推理质量：模型需要在海量上下文中找到相关帧、对齐语音和画面，再把多个时刻的证据组合成答案。因此官方评测方法把 long-context、multimodal 和 agentic tool use 分开报告，是在区分“能装下材料”“能读懂多模态材料”和“能持续执行任务”三种能力。
+
+训练流程方面，Model Card 只公开了高层数据和后训练类型：预训练覆盖网页、文本、代码、图像、音频和视频；后训练包含 instruction tuning、reinforcement learning data 和 human-preference data，并强调可利用多步推理、问题求解和定理证明数据。可以把公开流程抽象成三段：先做大规模多模态自监督/自回归预训练，学会跨模态表征和 next-token prediction；再用指令数据把模型对齐到问答、代码、工具调用和视频理解等交互任务；最后用偏好或奖励信号约束回答质量、安全性与推理风格。
+
+$$
+\mathcal{L}_{\text{pretrain}}
+=-\sum_{(X,Y)\in\mathcal{D}_{mm}}
+\sum_{t=1}^{|Y|}
+\log p_\theta(y_t\mid y_{<t},X)
+$$
+
+$$
+\max_\theta\ 
+\mathbb{E}_{\tau\sim \pi_\theta}[R(\tau)]
+-\beta\,D_{\mathrm{KL}}(\pi_\theta\|\pi_{\mathrm{ref}})
+$$
+
+第二个式子是对偏好/强化学习后训练的通用抽象，不代表 Google 公开了 Gemini 3 Pro 的具体 RL 算法。它表达的直觉是：在保持模型不偏离参考策略太远的同时，让回答在有用性、指令遵循、安全性、事实性和多步推理上获得更高奖励。
+
+```python
+# Gemini 3 Pro 公开资料可支持的长视频推理流程抽象
+def gemini3pro_long_video_qa(video, question, tools=None, deep_think=False):
+    # 1. 多模态上下文构造：具体采样器/tokenizer 未公开
+    visual_tokens = encode_video_frames(video.frames)       # frames, OCR, spatial cues
+    audio_tokens = encode_audio(video.audio)                # speech and non-speech events
+    text_tokens = tokenize([video.subtitles, question])
+    context = pack_context(
+        text=text_tokens,
+        video=visual_tokens,
+        audio=audio_tokens,
+        max_tokens=1_000_000,
+    )
+
+    # 2. 原生多模态 MoE Transformer：每个 token 动态选择少量专家
+    hidden = context
+    for layer in transformer_layers:
+        hidden = self_attention(hidden)                     # long-context evidence mixing
+        hidden = sparse_moe_ffn(hidden, route="top_k")       # expert routing per token
+
+    # 3. 可选推理增强：Deep Think 的内部算法未公开，只能抽象为更高推理预算
+    if deep_think:
+        hidden = allocate_more_inference_budget(hidden)
+
+    # 4. 生成答案，必要时通过工具补充外部证据
+    answer = autoregressive_decode(hidden, max_output_tokens=64_000)
+    if tools and answer.requests_tool_call:
+        observation = tools.call(answer.tool_name, answer.tool_args)
+        return gemini3pro_long_video_qa(
+            video=video,
+            question=question + format_observation(observation),
+            tools=tools,
+            deep_think=deep_think,
+        )
+    return answer
+```
+
+从视频理解谱系看，InternVideo2 的路线是“先训练强视频编码器，再接入 LLM”，优势是视频表征、检索和时序定位能力更透明；Gemini 3 Pro 的路线则更像“把视频作为通用多模态上下文的一种输入”，优势是能直接处理长材料、工具调用、代码生成和跨文档推理。对于长视频 QA，后者可以一次性接纳更多上下文，但解释性较弱：外部用户通常看不到帧级 attention、专家路由或中间证据选择，只能通过提示结构、引用要求、分段检查和工具日志来约束输出。
+
+在工程使用上，1M context 不应被理解为可以无脑堆所有内容。更稳健的流程是保留原始视频证据，同时加入结构化索引：镜头时间戳、ASR 段落、OCR 文本、人物/物体候选、事件标签和用户问题。这样模型既能利用超长上下文做全局回看，又能在回答中定位到具体证据。对于“某人什么时候拿起物体”“前后两段对话是否矛盾”“整部讲座如何组织成学习材料”这类任务，长上下文提供的是统一证据池，MoE 多模态推理负责把池中的远距离线索连起来。
+
+> 💡 关键：Gemini 3 Pro 的可公开技术核心不是单一新损失函数，而是原生多模态、稀疏 MoE、长上下文和推理后训练的系统组合；其中许多内部细节未公开，解读时应把官方披露与合理抽象区分开。
+
+公开资料：
+
+- Google DeepMind Gemini 3 Pro Model Card: https://deepmind.google/models/model-cards/gemini-3-pro
+- Google Gemini 3 发布页: https://blog.google/products-and-platforms/products/gemini/gemini-3/
+- Gemini API Long Context 文档: https://ai.google.dev/gemini-api/docs/long-context
+- Gemini 3 Pro Evaluation Methodology: https://deepmind.google/models/evals-methodology/gemini-3-pro
+
+#### 🧪 练习题
+```yaml
+question: "Gemini 3 Pro 的 sparse MoE Transformer 对长视频多模态理解最直接的作用是什么？"
+options:
+  - "把所有视频帧压缩成一个固定类别标签，避免语言推理"
+  - "让每个 token 动态路由到少量专家，在扩大模型容量的同时控制每 token 计算成本"
+  - "保证 1M token 中任意远距离证据都能被完美召回"
+  - "把视频任务完全转化为纯字幕检索，不需要视觉或音频输入"
+answer: 1
+explain: "MoE 的核心是按 token 激活部分专家，从而解耦总容量和单 token 计算；它有利于多模态 token 的专业化处理，但不等于自动解决所有长距离推理问题。"
+```

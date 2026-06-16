@@ -1,5 +1,5 @@
 /**
- * tool_use-data.js — 由 pipeline/build.py 于 2026-06-15 18:08:18 自动生成。
+ * tool_use-data.js — 由 pipeline/build.py 于 2026-06-16 17:00:05 自动生成。
  * 源文件：content/agent/tool_use.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "tool_use",
     "topic_name": "Agent工具调用",
     "page_title": "Agent工具调用技术演进",
-    "page_subtitle": "2026-06-15 版",
+    "page_subtitle": "2026-06-16 版",
     "page_desc": "从模块化专家路由、ReAct工具闭环、自监督Toolformer，到Gorilla/ToolLLM的API检索选择、LLMCompiler与AsyncFC的复杂编排，再到MCP、BFCL、τ-bench与APB代表的协议和评测标准化，系统梳理Agent工具调用主线。",
     "page_icon": "🛠️",
     "hero_pills": [

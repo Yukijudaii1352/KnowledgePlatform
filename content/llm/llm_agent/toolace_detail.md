@@ -1,10 +1,10 @@
-### 工具调用王牌 (ToolACE)
+### ToolACE：工具调用王牌 (ToolACE)
 
 ```yaml
 id: toolace
 name: ToolACE
 full_name: 工具调用王牌 (ToolACE)
-year: '2025'
+year: 2025
 org: 浙江大学
 paper_url: https://proceedings.iclr.cc/paper_files/paper/2025/hash/663865ea167425c6c562cb0b6bcf76c7-Abstract-Conference.html
 category: tool_use
@@ -13,80 +13,109 @@ motivation: 自动化数据合成提升函数调用准确率
 ```
 
 #### 📝 一句话总结
-
-ToolACE 提出自动化 agentic 数据合成流水线，通过 API 自演化、模型能力引导的对话生成和双层验证，生成准确、复杂且多样的函数调用训练数据，显著提升小参数 LLM 的函数调用能力。
+ToolACE 提出一个面向 LLM 函数调用训练的数据合成与验证流水线，通过工具自进化、能力自适应对话生成和双层校验，解决真实工具调用数据难收集、合成数据覆盖不足且错误率高的问题。
 
 #### 🎯 核心要点
-
-- **三模块数据管线**：Tool Self-evolution Synthesis、Self-Guided Dialog Generation、Dual-Layer Validation
-- **大规模 API 池**：构建 26,507 个多样 API，覆盖真实与合成 API 场景
-- **API 自演化**：用层次化 API context tree 进行 speciation、adaptation、evolution
-- **模型能力自适应**：用待训练 LLM 作为复杂度评估器，生成适合其能力缺口的数据
-- **多代理对话合成**：通过用户代理、工具代理、复杂度评估器等协作生成函数调用对话
-- **双层验证 DLV**：结合规则检查器与模型检查器验证可执行性、参数一致性和答案一致性
-- **强基准表现**：在 BFCL 和 APIBank 上，8B 级 ToolACE 模型显著超过开源函数调用模型，并接近 GPT-4 系列表现
+- 三模块流水线：Tool Self-evolution Synthesis (TSS)、Self-Guided Dialog Generation (SDG)、Dual-Layer Validation Process (DLV)。
+- 大规模 API 池：论文构建了 26,507 个多领域、多约束、多参数形态的 API，用于提升工具多样性。
+- TSS 三步：Speciation 建 API context tree，Adaptation 为每个 API 采样领域和功能复杂度，Evolution 递归改写 API 定义并扩充参数、约束与返回值。
+- SDG 多智能体生成：user agent、assistant agent、tool agent 角色扮演生成单工具、并行工具、依赖工具和非工具使用对话。
+- 自引导复杂度：用待微调模型自身的 loss 判断样本是否过易或过难，再动态调节用户 query 的复杂度。
+- 多格式泛化：将工具定义和调用转换为 JSON、YAML、XML、Markdown、自然语言等格式，降低模型对单一 schema 的过拟合。
+- DLV 双层验证：规则层检查 API 名、必填参数、参数格式、对话结构；模型层检查幻觉、语义一致性和工具返回是否匹配 API 定义。
 
 #### 🔬 深入细节
 
-##### 核心示意图
+![ToolACE 总体框架图](https://arxiv.org/html/2409.00920v1/x1.png)
+*图：ToolACE 整体框架，由 TSS 工具自进化、SDG 自引导对话生成和 DLV 双层校验组成。*
 
-![ToolACE 总体框架](https://arxiv.org/html/2409.00920v2/x1.png)
-*图：ToolACE 的整体数据生成框架，由 TSS、SDG、DLV 三个模块组成。图源：arXiv HTML。*
+ToolACE 的问题设定非常具体：函数调用能力不是单靠通用指令数据就能学好，模型需要看到大量“工具描述 → 用户意图 → 参数抽取 → 调用执行 → 结果整合”的样本。但真实 API 对话难以规模化收集和标注，普通合成方法又容易出现工具覆盖窄、参数不合法、调用和用户意图不一致等问题。ToolACE 因此把数据生产拆成“先造足够多样的工具，再围绕工具生成合适难度的对话，最后用可执行约束验证”的流水线。
 
-##### 算法伪代码
+第一步 TSS 负责扩展工具空间。论文从预训练语料中的 API 文档、产品说明、用户手册等材料出发，抽取应用领域与功能，形成 API context tree。可以把这棵树理解成工具能力的 taxonomy：根节点是大领域，例如 finance、health、transport；下层节点是更细粒度功能，例如 get stock price、book appointment、track shipment。生成某个 API 时，系统从树中采样子树，让 API 获得不同覆盖范围和功能组合。
+
+TSS 的三个子步骤分别控制“从哪里来、复杂到什么程度、如何继续变化”。Speciation 建立领域和功能树，保证工具覆盖不局限在少数热门 API；Adaptation 为每个 API 指定领域和多样性水平，例如只覆盖单一节点的简单 API，或覆盖多个子功能的复杂 API；Evolution 则用 LLM 根据当前子树和示例 API 生成新定义，并通过添加功能、参数、约束、返回字段、嵌套类型等方式持续变异。这个过程最终形成了论文报告的 26,507 个 API 池。
 
 ```python
-# ToolACE 自动化数据合成伪代码
-def toolace_pipeline(raw_api_documents, target_llm):
-    api_tree = build_api_context_tree(raw_api_documents)
+# ToolACE 数据合成核心伪代码：TSS + SDG + DLV
+
+def toolace_pipeline(raw_api_docs, target_llm):
+    # 1. TSS: 从预训练/公开文档构造 API context tree
+    context_tree = build_api_context_tree(raw_api_docs)
     api_pool = []
-    example_buffer = []
+    template_buffer = seed_api_templates()
 
-    for subtree in sample_subtrees(api_tree):
-        base_api = sample(example_buffer) if example_buffer else None
-        api = synthesize_api_definition(subtree, base_api)
-        api = evolve_api(
-            api,
-            mutations=["new_functionality", "new_parameter",
-                       "nested_type", "return_schema_change", "constraints"]
+    for domain_subtree in sample_subtrees(context_tree):
+        api_template = sample(template_buffer)
+        api = frontier_llm.synthesize_api(
+            domain=domain_subtree.domain,
+            functionalities=domain_subtree.nodes,
+            template=api_template,
+            constraints=["parameter types", "required fields", "return schema"],
         )
-        if rule_check_api(api):
+        api = evolve_api(api, mutations=[
+            "add_parameter", "change_type", "add_constraint",
+            "expand_return_schema", "add_nested_structure",
+        ])
+        if rule_check_api_definition(api):
             api_pool.append(api)
-            example_buffer.append(api)
+            template_buffer.update(distill_template(api))
 
+    # 2. SDG: 根据目标模型能力生成合适难度的工具对话
     dialogs = []
-    for api_set in sample_api_sets(api_pool):
-        complexity = target_llm.estimate_complexity(api_set)
-        dialog = multi_agent_generate_dialog(api_set, complexity)
-        if dual_layer_validation(dialog, api_set):
-            dialogs.append(dialog)
+    for _ in range(num_samples):
+        tools = sample_same_domain_tools(api_pool)
+        dialog = []
+        while not finished(dialog):
+            query = user_agent.generate_or_complicate(dialog, tools)
+            action_candidates = [assistant_agent.act(query, tools) for _ in range(k)]
+            action = majority_vote(action_candidates)  # self-consistency
+            tool_result = tool_agent.execute_or_simulate(action, tools)
+            dialog.extend([query, action, tool_result])
 
-    return instruction_tune(target_llm, dialogs)
+            loss = target_llm_loss(target_llm, dialog)
+            if loss < lower_bound:
+                user_agent.increase_complexity()
+            elif loss > upper_bound:
+                user_agent.decrease_complexity()
+
+        dialogs.append(format_generalization(dialog, formats=["json", "yaml", "xml", "markdown"]))
+
+    # 3. DLV: 规则校验 + 模型校验
+    verified = []
+    for sample in dialogs:
+        if not rule_verifier(sample):
+            continue
+        if not model_verifier(sample, checks=["hallucination", "consistency", "tool_response"]):
+            continue
+        verified.append(sample)
+
+    return verified
 ```
 
-##### 方法解读
+SDG 的关键不是“随便让 LLM 编对话”，而是让生成数据贴近待训练模型的最近发展区。论文观察到：候选 API 越多、实际调用 API 越多、用户 query 与 API 描述越不相似，样本通常越难。ToolACE 用目标 LLM 对样本的 loss 作为复杂度信号。一个可实现的表达是：
 
-ToolACE 的问题设定比单纯“收集真实 API”更进一步。真实函数调用数据难以采集和标注，而已有合成数据常见两个问题：覆盖面不足和准确性不足。覆盖面不足会导致模型只会少数简单调用模式；准确性不足会把错误参数、不可执行调用或不一致返回写进训练集，直接污染函数调用能力。
+$$
+\mathcal{L}(x,y;M)=-\frac{1}{|y|}\sum_{t=1}^{|y|}\log p_M(y_t\mid x,y_{<t})
+$$
 
-Tool Self-evolution Synthesis (TSS) 先解决 API 多样性。它从 API 相关文档中抽取领域和功能，形成层次化 API context tree。Speciation 决定 API 属于哪个领域和功能子树，Adaptation 调整每个 API 的能力范围，Evolution 用变异操作加入新功能、参数、约束、嵌套类型或返回结构。这个过程让合成 API 不只是换名字，而是在功能和 schema 上持续扩展。
+其中 \(x\) 包含系统指令、工具列表、对话历史，\(y\) 是应生成的函数调用或 assistant 响应。若目标模型已经低 loss 正确生成，说明样本太简单；若微调后仍高 loss，说明样本可能超出当前能力。SDG 据此维护一个合适复杂度区间 \([\tau_{low},\tau_{high}]\)，并通过 user agent 调节 query：太简单就增加 API 数量、并行/依赖关系或语义绕写；太难就减少工具数量或让意图更贴近 API 描述。
 
-Self-Guided Dialog Generation (SDG) 解决“数据是否适合当前模型”的问题。论文指出，不同规模模型需要的训练样本复杂度不同：过难样本对小模型不可学习，过易样本对大模型没有增益。ToolACE 让待调优 LLM 参与复杂度评估，围绕其能力缺口生成单函数、多函数、并行函数等不同类型对话。
+多智能体生成是 ToolACE 保证数据结构完整的核心机制。User agent 负责提出需求或补充信息，assistant agent 负责判断是否调用工具、调用哪个工具、填哪些参数、是否需要追问，tool agent 负责模拟 API executor 返回结果。论文中特别强调 assistant action 的 self-consistency：同一状态下生成多个候选动作，只有决策一致时才采用。这比单次采样更稳，因为函数调用数据中一个错参数或错工具名都会污染监督信号。
 
-Dual-Layer Validation (DLV) 是质量闸门。规则层检查函数名是否存在、参数类型和必填字段是否满足 schema、调用结果是否可解析；模型层进一步检查对话语义、函数调用与用户意图是否一致、最终回答是否忠实于工具返回。两层结合是为了同时覆盖格式错误和语义错误。
+ToolACE 还显式覆盖四类对话：single function call、parallel function call、dependent function call 和 non-tool-use dialogs。这个设计非常重要，因为真实 agent 既要知道“该调用哪个工具”，也要知道“何时不该调用工具”。例如用户信息不足时应追问；工具列表无关时应拒绝或普通回答；多个城市天气查询可并行；先查航班再订票则是依赖调用。缺少这些负例和结构差异，模型容易学成“看见工具就调用”。
 
-与 ToolLLM 的 DFSDT 强调为真实 API 生成可执行轨迹不同，ToolACE 更强调数据合成本身的“准确、复杂、多样”三目标。它把 API 生成、对话生成和验证都交给 agentic pipeline，并显式让目标模型能力参与数据难度控制，因此更适合持续扩展函数调用训练集。
+DLV 利用了函数调用数据的可验证性。规则层可以确定性检查 API 名是否在 tool list 中、必填参数是否齐全、参数类型和 regex pattern 是否符合 schema、对话 role 顺序是否正确、tool response 是否有对应调用。模型层再处理规则难以覆盖的语义问题：参数值是否凭空捏造、assistant 最终回答是否满足用户约束、模拟工具返回是否符合 API 定义含义。相比一般聊天数据，工具调用样本有更强结构，因此 ToolACE 能把验证做成流水线而不是纯人工抽查。
 
-> 💡 关键：ToolACE 的核心假设是函数调用能力受训练数据质量强约束。高质量合成数据必须同时覆盖 API schema 多样性、调用组合复杂度和可执行一致性。
+> 💡 关键：ToolACE 的贡献不是单个新模型结构，而是“数据生产系统”。它把 API 多样性、query 复杂度、格式泛化和可验证性同时纳入合成闭环，让小参数模型也能通过高质量函数调用数据获得强工具能力。
 
 #### 🧪 练习题
-
 ```yaml
-question: "ToolACE 的 Dual-Layer Validation 主要用于保证什么？"
+question: "ToolACE 用目标 LLM 的 loss 指导数据生成复杂度，主要是为了解决什么问题？"
 options:
-  - "让所有 API 都来自同一个真实网站"
-  - "同时用规则检查和模型检查过滤不可执行或语义不一致的合成数据"
-  - "减少模型参数量"
-  - "把多函数调用强制改写为单函数调用"
+  - "让所有样本都尽可能复杂，从而最大化训练难度"
+  - "让生成样本处在目标模型可学习但尚未掌握的难度区间"
+  - "完全替代规则校验层，避免写 schema 检查规则"
+  - "减少 API 池数量，防止工具覆盖过大"
 answer: 1
-explain: "DLV 包含规则层与模型层，前者检查 schema 和执行约束，后者检查语义一致性与回答忠实性。"
+explain: "ToolACE 借鉴最近发展区思想：太简单的样本贡献小，太难的样本学不会，因此用 loss 动态调节 query 和工具调用复杂度。"
 ```

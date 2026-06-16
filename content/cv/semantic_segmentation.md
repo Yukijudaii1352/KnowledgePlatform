@@ -246,15 +246,83 @@ motivation: 全卷积化实现端到端像素预测
 ```
 
 #### 📝 一句话总结
-FCN 的核心目标是：全卷积化实现端到端像素预测。
+FCN 将分类 CNN 的全连接层卷积化，并用可学习上采样和跳连融合实现端到端像素预测，奠定了现代语义分割“全卷积编码器-解码器”的基础。
 
 #### 🎯 核心要点
-- 核心动机：全卷积化实现端到端像素预测
-- 代表机构：UC Berkeley
+- Fully convolutional：把 AlexNet、VGG、GoogLeNet 等分类网络转成可接受任意尺寸输入、输出空间 score map 的网络。
+- Dense prediction：用逐像素 softmax loss 直接训练语义分割，而不是 patch 分类或滑窗后处理。
+- Transposed convolution：使用可学习反卷积/上采样层把粗预测恢复到输入分辨率。
+- Skip architecture：FCN-32s、FCN-16s、FCN-8s 逐步融合深层语义与浅层细节。
+- Transfer learning：从 ImageNet 分类模型初始化，再微调到分割任务。
+- 代表数据集：PASCAL VOC、NYUDv2、SIFT Flow。
+- 影响：后续 U-Net、SegNet、DeepLab、PSPNet 等都继承了全卷积像素预测范式。
 
 #### 🔬 深入细节
-全卷积化实现端到端像素预测
+![FCN 密集预测示意](https://ar5iv.labs.arxiv.org/html/1411.4038/assets/x1.png)
+*图：FCN 将普通分类网络改造为整图输入、整图输出的像素级预测网络。*
 
+##### 算法伪代码
+
+```python
+def fcn_8s(image):
+    pool3, pool4, conv7 = vgg_fully_convolutional(image)
+
+    score32 = conv1x1(conv7, num_classes)
+    up32 = deconv(score32, stride=2)
+
+    score16 = up32 + conv1x1(pool4, num_classes)
+    up16 = deconv(score16, stride=2)
+
+    score8 = up16 + conv1x1(pool3, num_classes)
+    logits = deconv(score8, stride=8)
+
+    return softmax(logits)
+```
+
+##### 方法解读
+
+FCN 之前，很多分割系统把 CNN 当作局部 patch 分类器：对每个像素附近裁剪 patch，分类后再拼回整图。这既慢又浪费，因为相邻 patch 重叠巨大。FCN 的关键是把分类网络改成一次前向就输出二维 score map。
+
+全连接层可以视为覆盖整个输入特征图的卷积层。例如 VGG 的 `fc6/fc7` 可改成 \(7\times7\) 与 \(1\times1\) 卷积。这样网络不再要求固定输入尺寸，输出空间尺寸随输入变化：
+
+$$
+S=f_{\theta}(I)\in\mathbb{R}^{H'\times W'\times C}
+$$
+
+粗 score map 需要上采样回原图。FCN 使用反卷积层，其实是可学习的双线性上采样泛化：
+
+$$
+\hat{Y}=\operatorname{Deconv}(S)
+$$
+
+只用最深层预测得到 FCN-32s，语义强但边界粗。FCN-16s 把上采样后的深层 score 与 pool4 的浅层 score 相加；FCN-8s 再融合 pool3，使细节更好：
+
+$$
+S_{16}=\operatorname{Up}_2(S_{32})+S_{pool4},\quad
+S_{8}=\operatorname{Up}_2(S_{16})+S_{pool3}
+$$
+
+训练目标是逐像素交叉熵：
+
+$$
+\mathcal{L}=-\sum_{p}\log P(y_p\mid I;\theta)
+$$
+
+FCN 与后续分割网络的差别在于它没有复杂上下文模块、空洞卷积或注意力；它证明了“分类骨干 + 全卷积输出 + 上采样 + 跳连”这条路线可行。之后的改进基本都在扩大感受野、保留分辨率、增强上下文或改善解码边界。
+
+> 💡 关键：FCN 的历史意义是把语义分割从手工后处理和 patch 分类推进到端到端密集预测。
+
+#### 🧪 练习题
+```yaml
+question: "FCN 中 skip architecture 的主要作用是什么？"
+options:
+  - "减少类别数量"
+  - "融合深层语义信息与浅层空间细节以改善边界"
+  - "把输入图像转换成文本"
+  - "替代逐像素损失函数"
+answer: 1
+explain: "深层特征语义强但分辨率低，浅层特征空间细节多；跳连融合可让预测更精细。"
+```
 
 ### U-Net
 
@@ -1047,129 +1115,75 @@ motivation: 金字塔池化聚合全局上下文
 ```
 
 #### 📝 一句话总结
-PSPNet 提出金字塔池化模块（Pyramid Pooling Module），通过多尺度全局先验信息聚合解决了场景解析中因缺乏全局上下文而导致的类别误分类问题，在 ADE20K、PASCAL VOC 2012 和 Cityscapes 三大基准上取得当时最优性能。
+PSPNet 提出 Pyramid Pooling Module，在 FCN 主干上用多尺度池化聚合全局场景先验，解决局部感受野导致的类别混淆、关系错配和小目标不显眼问题。
 
 #### 🎯 核心要点
-- 金字塔池化模块（PPM）：4 级自适应池化（1×1, 2×2, 3×3, 6×6）捕获多尺度全局上下文
-- 骨干网络：采用 dilated ResNet（output stride=8），在不损失分辨率的前提下扩大感受野
-- 深度监督（Auxiliary Loss）：在 ResNet 第 4 阶段（res4b22）添加辅助分类头，权重 0.4，加速收敛
-- 多尺度测试 + 水平翻转数据增强用于推理阶段
-- ADE20K 2016 场景解析挑战赛冠军（mIoU 57.21%）
-- PASCAL VOC 2012 测试集 mIoU 85.4%，Cityscapes 测试集 mIoU 80.2%
+- 核心模块：PPM 使用 1×1、2×2、3×3、6×6 自适应平均池化捕获全局到局部上下文。
+- Backbone：采用 dilated ResNet，保持较高输出分辨率并扩大感受野。
+- 特征融合：每个池化分支经 1×1 卷积降维、双线性上采样，再与原特征拼接。
+- 辅助损失：在中间层增加 auxiliary segmentation head，缓解深层网络优化困难。
+- 推理策略：多尺度和翻转测试可进一步提升结果。
+- 代表成绩：ADE20K 2016 场景解析挑战冠军，并在 PASCAL VOC 2012、Cityscapes 上取得强结果。
+- 影响：后续语义分割中的全局上下文池化、金字塔上下文和多尺度聚合广泛继承 PSPNet 思路。
 
 #### 🔬 深入细节
-![PSPNet 架构总览](https://ar5iv.labs.arxiv.org/html/1612.01105/assets/x3.png)
-*图：PSPNet 整体架构。输入图像经 CNN 提取特征图后，通过金字塔池化模块聚合多尺度上下文，最终拼接生成像素级预测。*
+![PSPNet 架构图](https://ar5iv.labs.arxiv.org/html/1612.01105/assets/x3.png)
+*图：CNN 特征经过金字塔池化模块汇聚多尺度上下文，再融合生成像素级预测。*
 
 ##### 算法伪代码
 
 ```python
-# PSPNet 前向传播伪代码
-def forward(image):
-    # Step 1: 骨干网络提取特征 (dilated ResNet, output_stride=8)
-    feature_map = dilated_resnet(image)  # H/8 × W/8 × 2048
-    
-    # Step 2: 金字塔池化模块 (PPM)
-    pool_1x1 = AdaptiveAvgPool2d(1)(feature_map)   # 1×1×2048 → Conv1x1 → 1×1×512
-    pool_2x2 = AdaptiveAvgPool2d(2)(feature_map)   # 2×2×2048 → Conv1x1 → 2×2×512
-    pool_3x3 = AdaptiveAvgPool2d(3)(feature_map)   # 3×3×2048 → Conv1x1 → 3×3×512
-    pool_6x6 = AdaptiveAvgPool2d(6)(feature_map)   # 6×6×2048 → Conv1x1 → 6×6×512
-    
-    # 上采样回原特征图尺寸并拼接
-    context = Concat([
-        feature_map,                          # 2048-d
-        Upsample(Conv1x1(pool_1x1)),         # 512-d
-        Upsample(Conv1x1(pool_2x2)),         # 512-d
-        Upsample(Conv1x1(pool_3x3)),         # 512-d
-        Upsample(Conv1x1(pool_6x6))          # 512-d
-    ])  # 总计 4096-d
-    
-    # Step 3: 最终分类
-    output = Conv3x3_BN_ReLU(context)  # 降维到 512
-    prediction = Conv1x1(output)        # 输出 num_classes 通道
-    return Upsample_8x(prediction)      # 上采样到原图尺寸
+def pspnet_forward(image):
+    feat = dilated_resnet(image)  # output_stride 通常为 8
+    pyramids = [feat]
+
+    for bin_size in [1, 2, 3, 6]:
+        pooled = adaptive_avg_pool(feat, output_size=(bin_size, bin_size))
+        reduced = conv1x1(pooled, out_channels=feat.channels // 4)
+        up = bilinear_upsample(reduced, size=feat.spatial_size)
+        pyramids.append(up)
+
+    context = concat(pyramids, dim="channel")
+    logits = segmentation_head(context)
+    return bilinear_upsample(logits, size=image.spatial_size)
 ```
 
-##### 动机与背景
+##### 方法解读
 
-场景解析（Scene Parsing）要求对图像中每个像素进行语义标注，是自动驾驶、机器人导航等应用的基础。基于 FCN 的方法虽然实现了端到端像素预测，但存在三个关键问题：
+FCN 已经能端到端分割，但每个像素的预测仍主要依赖局部卷积感受野。场景解析中，类别判断常需要全局信息：船通常在水上，床通常在室内，天空和道路的空间布局也有强先验。缺少上下文时，模型容易把局部纹理相似的类别混淆。
 
-1. **关系不匹配（Mismatched Relationship）**：局部特征无法利用物体间的共现关系。例如，"船"常出现在"水"上方，但缺乏全局上下文时，网络可能将水面上的物体误判为"车"。
-2. **类别混淆（Confusion Categories）**：外观相似的类别（如"田野"和"土地"）在局部区域难以区分，需要全局语义信息辅助判断。
-3. **不显眼类别（Inconspicuous Classes）**：小尺寸物体（如路灯、标志牌）容易被周围大面积区域的特征淹没。
+PPM 的做法是对最终特征图 \(F\) 做多级自适应池化：
 
-> 💡 关键：这三个问题的共同根源是**感受野不足**——即使 dilated convolution 扩大了理论感受野，网络仍然难以有效利用图像级别的全局信息。
+$$
+\operatorname{PPM}(F)=\operatorname{Concat}\left(F,\operatorname{Up}(g_1(P_1(F))),\operatorname{Up}(g_2(P_2(F))),\operatorname{Up}(g_3(P_3(F))),\operatorname{Up}(g_4(P_4(F)))\right)
+$$
 
-##### 核心机制：金字塔池化模块（PPM）
+其中 \(P_n\) 输出 1×1、2×2、3×3、6×6 网格，\(g_n\) 是 1×1 卷积降维。1×1 分支提供全图先验，2×2/3×3 捕获粗空间布局，6×6 保留较细区域上下文。
 
-PPM 的设计灵感来自空间金字塔池化（SPP），但目标不同：SPP 用于生成固定长度的特征向量，而 PPM 用于为每个像素注入多尺度全局上下文。
+通道降维很重要。若每个池化分支都保留原始通道，拼接后全局上下文会带来巨大参数和显存；PSPNet 将每个分支降到原通道的约 \(1/N\)，再拼回原特征，既节省计算又保留局部主干。
 
-**四级池化的设计逻辑：**
+Dilated ResNet 则解决分辨率问题：把后几层下采样改为空洞卷积，使输出 stride 从 32 降到 8，同时维持较大理论感受野。最终预测由 PPM 后特征经卷积分类，再上采样到原图。
 
-$$\text{PPM}(F) = \text{Cat}\left[F,\; \text{Up}(f_1(P_1(F))),\; \text{Up}(f_2(P_2(F))),\; \text{Up}(f_3(P_3(F))),\; \text{Up}(f_4(P_4(F)))\right]$$
+辅助损失可写为：
 
-其中 \(P_n\) 为自适应平均池化（输出尺寸分别为 1×1, 2×2, 3×3, 6×6），\(f_n\) 为 1×1 卷积（降维至原通道数的 \(1/N\)，N=4 即 512 维），Up 为双线性上采样。
+$$
+\mathcal{L}=\mathcal{L}_{main}+\alpha\mathcal{L}_{aux}
+$$
 
-- **1×1 级别**：捕获全局平均信息（相当于全图统计先验）
-- **2×2 级别**：粗粒度空间分区上下文
-- **3×3 级别**：中等粒度区域上下文
-- **6×6 级别**：细粒度局部区域上下文
+论文中辅助头接在 ResNet 中间层，推理时丢弃。它给中层特征提供语义监督，让深层网络更容易收敛。
 
-> ⚠️ 注意：1×1 卷积的降维操作至关重要——它将每级池化的通道数从 2048 降至 512，确保拼接后的特征维度可控（4096 = 2048 + 512×4），避免全局上下文淹没原始局部特征。
-
-##### 骨干网络：Dilated ResNet
-
-PSPNet 使用预训练的 ResNet（101 或更深）作为骨干，并对最后两个 stage 进行 dilated（空洞）卷积改造：
-
-- **原始 ResNet**：经过 5 次下采样，输出为 1/32 分辨率
-- **Dilated 改造**：移除最后两个 stage 的下采样（stride=2→1），用 dilation rate=2 和 4 的空洞卷积补偿感受野损失
-- **最终输出**：1/8 分辨率的特征图（60×60 for 473×473 输入）
-
-这样既保持了较高的空间分辨率（有利于精细分割），又维持了足够大的感受野。
-
-##### 深度监督训练策略
-
-![辅助损失示意](https://ar5iv.labs.arxiv.org/html/1612.01105/assets/x4.png)
-*图：深度监督策略。在 ResNet 第 4 阶段末尾（res4b22）添加辅助分类头。*
-
-总损失函数为：
-
-$$L = L_{\text{main}} + \alpha \cdot L_{\text{aux}}$$
-
-其中 \(\alpha = 0.4\)。辅助损失作用于 res4b22 层的输出，通过额外的分类头（BN + ReLU + Conv1×1 + 交叉熵）产生梯度。这一设计：
-- 缓解深层网络的梯度消失问题
-- 为中间层提供直接的语义监督信号
-- 推理时辅助分支被丢弃，不增加计算开销
-
-##### 训练细节
-
-- **学习率策略**：Poly 衰减，\(\text{lr} = \text{base\_lr} \times (1 - \frac{\text{iter}}{\text{max\_iter}})^{0.9}\)，初始学习率 0.01
-- **优化器**：SGD，momentum=0.9，weight decay=0.0001
-- **Batch Size**：16（多 GPU 同步 BN）
-- **数据增强**：随机缩放（0.5~2.0）、随机裁剪（473×473）、随机水平翻转
-- **推理增强**：多尺度测试 + 水平翻转，取平均
-
-##### 与传统方法的区别
-
-| 方法 | 上下文建模方式 | 局限性 |
-|------|--------------|--------|
-| FCN | 仅依赖卷积感受野 | 理论感受野远大于有效感受野 |
-| DeepLab (ASPP) | 多个 dilation rate 的并行空洞卷积 | 仍是局部操作，无法获取全局信息 |
-| ParseNet | 全局平均池化 | 仅单一尺度全局特征，缺乏层次性 |
-| **PSPNet (PPM)** | **多尺度全局池化 + 拼接** | **兼顾全局统计与多粒度空间布局** |
-
-> 💡 关键：PSPNet 的核心优势在于 PPM 以极低的计算代价（几个池化 + 1×1 卷积）实现了从全局到局部的多尺度上下文聚合，且通过拼接（而非相加）保留了原始特征的完整性。
+> 💡 关键：PSPNet 的 PPM 不是简单多尺度输入，而是在同一高层特征图上构造“场景级上下文金字塔”，低成本补齐 FCN 的全局信息缺口。
 
 #### 🧪 练习题
 ```yaml
-question: "PSPNet 金字塔池化模块中，1×1 卷积的主要作用是什么？"
+question: "PSPNet 中 1×1 金字塔池化分支的主要作用是什么？"
 options:
-  - "增加非线性表达能力"
-  - "将池化后的特征通道数降维，防止全局上下文淹没局部特征"
-  - "替代 3×3 卷积以减少计算量"
-  - "实现跨通道的特征融合以提升分类精度"
-answer: 1
-explain: "PPM 中每级池化后接 1×1 卷积将 2048 维降至 512 维（原通道数的 1/N），确保拼接后全局上下文与原始局部特征的权重平衡。"
+  - "提供全图级上下文先验"
+  - "增加输出类别数"
+  - "替代所有空洞卷积"
+  - "执行实例级匹配"
+answer: 0
+explain: "1×1 自适应平均池化把整幅特征图压成全局描述，为每个像素补充场景级语义。"
 ```
 
 ### DeepLabv3
@@ -3239,16 +3253,94 @@ motivation: 层级特征融合脊柱图像分割
 ```
 
 #### 📝 一句话总结
-SPMamba 的核心目标是：层级特征融合脊柱图像分割。
+SPMamba 面向脊柱医学图像分割，把 Mamba 的长程建模能力与层级特征融合、通道排序结合，解决脊柱结构细长、相邻组织相似和局部卷积难以捕获全局形态连续性的问题。
 
 #### 🎯 核心要点
-- 核心动机：层级特征融合脊柱图像分割
-- 演化来源：继承或改进自 vmamba
-- 代表机构：多机构
+- 论文题名：SPMamba: Spinal image segmentation via Mamba framework with hierarchical feature fusion and channel sorting。
+- 发表信息：Biomedical Signal Processing and Control, 112, Article 108364, DOI `10.1016/j.bspc.2025.108364`。
+- 任务场景：脊柱 CT/MRI/X-ray 等医学影像的语义分割，强调椎体、椎间盘或脊柱相关结构边界。
+- Mamba 主干：利用状态空间模型线性复杂度建模长程依赖，适合高分辨率医学图像。
+- Hierarchical Feature Fusion：融合浅层边缘纹理与深层结构语义，缓解小结构和边界丢失。
+- Channel Sorting：对通道响应进行重排或筛选，让重要解剖结构通道优先参与融合。
+- 页面受限说明：ScienceDirect 正文部分不可直接抓取，以下基于公开题名、DOI 元信息、图像资源和医学 Mamba 分割常见设计做保守解读。
 
 #### 🔬 深入细节
-层级特征融合脊柱图像分割
+![SPMamba 图 1](https://ars.els-cdn.com/content/image/1-s2.0-S1746809425008754-gr1.jpg)
+*图：ScienceDirect 公开的 SPMamba 图 1，用于展示论文核心框架。*
 
+##### 算法伪代码
+
+```python
+def spmamba_segment(image):
+    pyramid = []
+    x = patch_embed(image)
+
+    # 编码：局部卷积/patch embedding + Mamba 长程建模
+    for stage in encoder_stages:
+        x = stage.local_block(x)
+        x = stage.mamba_block(x)
+        pyramid.append(x)
+        x = downsample(x)
+
+    # 层级融合：深层语义逐级回流到浅层边界
+    y = pyramid[-1]
+    for skip in reversed(pyramid[:-1]):
+        skip = channel_sort(skip)     # 强调与脊柱结构相关的通道
+        y = upsample(y)
+        y = hierarchical_fuse(y, skip)
+
+    return segmentation_head(y)
+```
+
+##### 方法解读
+
+脊柱分割比普通器官分割更依赖形态连续性：椎体沿脊柱方向排列，局部边界可能被噪声、病变、低对比或邻近软组织干扰。如果只看局部卷积窗口，模型容易把相邻椎体或背景组织混在一起；如果只看全局，又可能损失精细边缘。
+
+Mamba 的价值在于以线性复杂度处理长序列。将二维或三维医学图像 patch 展平成序列后，选择性状态空间模型可用递推方式传播远距离信息：
+
+$$
+h_t=A(x_t)h_{t-1}+B(x_t)x_t,\quad y_t=C(x_t)h_t
+$$
+
+这比全局 self-attention 的二次复杂度更适合高分辨率医学图像。对脊柱而言，长程状态能捕获“多个椎体沿轴线连续排列”的结构先验。
+
+Hierarchical Feature Fusion 解决的是多尺度问题。浅层特征包含边缘、骨皮质纹理和局部灰度变化；深层特征包含椎体/椎间盘等结构语义。融合可抽象为：
+
+$$
+F_{fuse}^{l}=\phi\left([F_{dec}^{l+1}\uparrow,\;F_{enc}^{l}]\right)
+$$
+
+其中 \(\phi\) 可以是卷积、门控或注意力融合。若没有这一步，Mamba 的全局上下文可能不足以恢复小结构的像素边界。
+
+Channel Sorting 的直觉是不同通道对结构分割贡献不均。通过通道重要性度量 \(s_c\) 对通道重排或加权：
+
+$$
+\tilde{F}=F_{\operatorname{argsort}(s)}
+$$
+
+它让与脊柱解剖结构相关的响应在融合时更突出，减少背景噪声通道干扰。这个思想类似通道注意力，但强调“排序后的层级融合”。
+
+训练通常采用 Dice + Cross Entropy 的组合以处理医学图像类别不均衡：
+
+$$
+\mathcal{L}=\mathcal{L}_{ce}+\lambda(1-\operatorname{Dice})
+$$
+
+与 U-Net 类 CNN 相比，SPMamba 的优势在全局形态；与纯 Transformer 相比，它的优势在序列长度线性复杂度；与普通 VMamba 分割网络相比，它把层级融合和通道排序针对脊柱细长结构做了适配。
+
+> ⚠️ 注意：由于公开摘要/页面可访问内容有限，本文未写入无法核验的具体 Dice、mIoU 或数据集数值。
+
+#### 🧪 练习题
+```yaml
+question: "SPMamba 中层级特征融合最直接解决什么问题？"
+options:
+  - "让模型只输出图像级分类"
+  - "把深层全局语义与浅层边界细节结合，改善脊柱结构分割"
+  - "删除所有跳连以减少显存"
+  - "把医学图像转换成自然语言描述"
+answer: 1
+explain: "脊柱分割既需要全局连续形态，也需要精细边界；层级融合正是连接这两类信息。"
+```
 
 ### SegMaFormer
 
@@ -3267,16 +3359,81 @@ motivation: Mamba+Transformer混合高效分割
 ```
 
 #### 📝 一句话总结
-SegMaFormer 的核心目标是：Mamba+Transformer混合高效分割。
+SegMaFormer 提出轻量级 3D 医学分割混合编码器，在高分辨率早期阶段使用 Mamba 降低长序列建模成本，在低分辨率深层阶段保留 Transformer 注意力，并用 3D RoPE 和 MLP 解码器兼顾效率与精度。
 
 #### 🎯 核心要点
-- 核心动机：Mamba+Transformer混合高效分割
-- 演化来源：继承或改进自 vmamba
-- 代表机构：多机构
+- 任务定位：高效 3D medical image segmentation，面向体数据分割。
+- 编码器：四阶段层级体素表示，早期高分辨率阶段使用 3D Mix Vision Mamba Block。
+- 深层注意力：在 token 数变少的后期阶段使用 Transformer/self-attention，提高全局语义表达。
+- 位置编码：在 overlapped 3D patch embedding 后加入 3D Rotary Position Embedding。
+- 解码器：采用 SegFormer 风格 all-MLP decoder，对多尺度特征投影、上采样、拼接并预测 mask。
+- 参数效率：arXiv 版本报告约 2.02M 参数、15.2 GFLOPs，相比多个大型 Transformer/CNN 模型显著更轻。
+- 数据集：BraTS、Synapse、ACDC 三个公开 3D 医学分割基准。
 
 #### 🔬 深入细节
-Mamba+Transformer混合高效分割
+![SegMaFormer 架构图](https://arxiv.org/html/2603.22002v1/Network-Architecture-Page-1.png)
+*图：SegMaFormer 使用 3D patch embedding、3D RoPE、Mamba/Transformer 混合编码器和 all-MLP 解码器。*
 
+##### 算法伪代码
+
+```python
+def segmaformer(volume):
+    x = overlapped_3d_patch_embedding(volume)
+    x = apply_3d_rope(x)
+    features = []
+
+    for i, block in enumerate(encoder_stages):
+        if i < 3:
+            x = mix_vision_mamba_block(x)      # 高分辨率阶段，线性复杂度
+        else:
+            x = efficient_transformer_block(x) # 低分辨率阶段，自注意力成本可控
+        features.append(x)
+        x = downsample_3d(x)
+
+    projected = [mlp_project(f) for f in features]
+    upsampled = [upsample_to_full(p) for p in projected]
+    fused = mlp_fuse(concat(upsampled))
+    return conv1x1_3d(fused)
+```
+
+##### 方法解读
+
+3D 医学图像的 token 数量增长很快。若把 \(D\times H\times W\) 体数据切成 patch 后直接全局 self-attention，复杂度近似 \(O(N^2)\)，其中 \(N\) 是体素 token 数；这在 CT/MRI 体数据上很容易超出显存和算力预算。
+
+SegMaFormer 的设计原则是把不同模块放在它们最合适的尺度上。早期阶段空间分辨率高、token 多，此时用 Mamba 的线性序列建模：
+
+$$
+\operatorname{Cost}_{Mamba}=O(NC)
+$$
+
+它能捕获长程依赖且不会像注意力那样随 token 数平方增长。后期阶段经过下采样，\(N\) 变小但通道维更高，此时 self-attention 的成本可控，更适合精炼全局语义。
+
+3D RoPE 解决位置感知问题。体数据中的上下、左右、前后方向都包含解剖意义，简单绝对位置嵌入在尺寸变化时泛化较差；旋转位置编码把相对位置信息注入 query/key 或序列表示，让 Mamba 与 Transformer 都能区分 3D 空间关系。
+
+编码器输出四个尺度特征，解码器不使用重卷积 U-Net 解码，而是采用 SegFormer 式 MLP：
+
+$$
+\hat{F}_l=\operatorname{MLP}(F_l),\quad
+F=\operatorname{MLP}\left(\operatorname{Concat}(\operatorname{Up}(\hat{F}_1),...,\operatorname{Up}(\hat{F}_4))\right)
+$$
+
+这种 all-MLP decoder 参数少，适合轻量化目标。训练通常使用 Dice 与交叉熵组合，论文还讨论 deep supervision 对小结构可能并非总是有利。
+
+与纯 VMamba 的区别是它没有在所有尺度都依赖状态空间层，而是在低分辨率处保留 Transformer 的全局表达；与纯 SegFormer3D 相比，它减少了高分辨率阶段的注意力成本。
+
+> 💡 关键：SegMaFormer 的“混合”不是堆模块，而是按 token 数和语义层次分配 Mamba 与 Transformer。
+
+#### 🧪 练习题
+```yaml
+question: "SegMaFormer 为什么把 Mamba 放在早期高分辨率阶段？"
+options:
+  - "因为早期 token 数多，Mamba 的线性复杂度比全局注意力更省"
+  - "因为 Mamba 只能处理二维自然图像"
+  - "因为后期阶段没有语义信息"
+  - "因为 3D RoPE 只能和 Mamba 一起使用"
+answer: 0
+explain: "体数据早期特征 token 数巨大，Mamba 能以线性复杂度建模长程依赖，避免高分辨率全注意力的二次开销。"
+```
 
 ### Taming SAM3
 
@@ -3295,16 +3452,101 @@ motivation: 概念库增强开放词汇分割
 ```
 
 #### 📝 一句话总结
-Taming SAM3 的核心目标是：概念库增强开放词汇分割。
+Taming SAM3 提出 ConceptBank，一个无参数校准框架，用目标域原型、代表性支持样本和候选概念融合修正 SAM3 的提示语义，使开放词汇分割在自然场景与遥感分布漂移下更稳健。
 
 #### 🎯 核心要点
-- 核心动机：概念库增强开放词汇分割
-- 演化来源：继承或改进自 sam
-- 代表机构：多机构
+- 核心问题：SAM3 的 promptable concept segmentation 在目标域会遭遇 data drift 与 concept drift。
+- ConceptBank：为每个类别构建一个校准后的概念嵌入，推理时替代静态类名 prompt。
+- Prototype Anchoring：从目标域少量支持样本中估计类别视觉原型。
+- Representative Mining：挑选与原型最一致的支持样本，减少异常样本和噪声标注影响。
+- Candidate Concept Fusion：生成候选概念描述，用支持集上的分割 Dice 评分，再加权融合文本嵌入。
+- 参数效率：不更新 SAM3 权重，不引入可训练模块，只校准 prompt/概念锚点。
+- 实验覆盖自然场景和遥感 OVS 基准；论文报告在 LoveDA、Potsdam、Vaihingen、iSAID 等遥感数据上显著提升 SAM3。
 
 #### 🔬 深入细节
-概念库增强开放词汇分割
+![ConceptBank 方法图](https://arxiv.org/html/2602.06333v1/x2.png)
+*图：ConceptBank 使用目标域统计构建概念库，在不改动 SAM3 参数的情况下校准开放词汇分割提示。*
 
+##### 算法伪代码
+
+```python
+def build_concept_bank(sam3, support_set, class_names, llm, top_k=8, top_j=4, tau=0.07):
+    bank = {}
+    for cls in class_names:
+        # Stage I: 目标域视觉原型
+        crops = mask_pool_crops(support_set, cls)
+        feats = [normalize(sam3.image_encoder(crop)) for crop in crops]
+        prototype = normalize(mean(feats))
+
+        # Stage II: 代表性支持集
+        ranked = sort_by_cosine(feats, prototype)
+        reps = take_top_k(ranked, top_k)
+
+        # Stage III: 候选概念评分与融合
+        prompts = llm_generate_candidate_descriptions(cls)
+        scores, embeds = [], []
+        for prompt in prompts:
+            emb = sam3.text_encoder(prompt)
+            dice = evaluate_prompt_dice(sam3, reps, emb)
+            scores.append(dice)
+            embeds.append(normalize(emb))
+
+        best = top_j_indices(scores, top_j)
+        weights = softmax([scores[i] / tau for i in best])
+        bank[cls] = sum(w * embeds[i] for w, i in zip(weights, best))
+    return bank
+
+def conceptbank_infer(sam3, image, bank):
+    return sam3.segment_with_concept_embeddings(image, bank.values())
+```
+
+##### 方法解读
+
+SAM3 把分割推进到 concept prompt：给一个文本概念或图像范例，模型输出匹配实例的 mask。但开放词汇分割的标签不是天然稳定的。不同数据集对同一词有不同标注范围；遥感图像还存在俯视视角、尺度、纹理和成像条件差异，导致通用 prompt 与目标域视觉证据错位。
+
+论文把问题拆成两类漂移。Data drift 指视觉分布从 SAM3 预训练/源域转向目标域，例如遥感建筑、水体、道路与自然图像差异巨大。Concept drift 指类别词本身的含义变化，例如 “field”“building”“road” 在不同数据集中的标注粒度和边界规范不同。
+
+ConceptBank 不微调 SAM3，而是校准概念嵌入。Stage I 对每个类别从支持集 mask 区域抽取视觉特征并平均，得到目标域原型：
+
+$$
+\mu_c=\operatorname{Norm}\left(\frac{1}{|S_c|}\sum_{(x,y)\in S_c}\phi_I(\operatorname{maskcrop}(x,y,c))\right)
+$$
+
+Stage II 用余弦相似度选择代表性支持样本：
+
+$$
+R_c=\operatorname{TopK}_{(x,y)\in S_c}\cos(\phi_I(x_c),\mu_c)
+$$
+
+这样可以减少罕见视角、遮挡、错标和背景污染对后续 prompt 评分的影响。
+
+Stage III 的关键是不用静态文本相似度评分候选 prompt，而是在代表性支持集上实际跑 SAM3 分割，用 Dice 衡量候选概念是否“能切对”：
+
+$$
+s_{c,m}=\frac{1}{|R_c|}\sum_{(x,y)\in R_c}\operatorname{Dice}(f_\Phi(x,\phi_T(t_{c,m})),y_c)
+$$
+
+得分最高的若干候选再经温度 softmax 融合为最终概念嵌入：
+
+$$
+e_c^*=\sum_{m\in J_c}\frac{\exp(s_{c,m}/\tau)}{\sum_{j\in J_c}\exp(s_{c,j}/\tau)}\operatorname{Norm}(\phi_T(t_{c,m}))
+$$
+
+推理时概念库 \(B=\{e_c^*\}\) 直接作为 SAM3 的概念锚点，文本编码器可以不再参与每次推理。与微调相比，这种方式计算轻、风险低，也更适合标签很少但类别定义明确的目标域。
+
+> 💡 关键：ConceptBank 校准的是“类别该怎么说、怎么对齐”，不是 SAM3 的视觉分割能力本身。
+
+#### 🧪 练习题
+```yaml
+question: "ConceptBank 为什么用支持集 Dice 而不是只用文本余弦相似度给候选概念打分？"
+options:
+  - "Dice 直接衡量候选 prompt 在目标域上的实际分割效果"
+  - "文本余弦相似度不能计算"
+  - "Dice 可以替代 SAM3 的图像编码器"
+  - "这样可以完全不需要支持样本"
+answer: 0
+explain: "候选概念是否有效取决于它能否驱动 SAM3 切出正确 mask，支持集 Dice 比嵌入相似度更接近最终任务指标。"
+```
 
 ### OmniOVCD
 

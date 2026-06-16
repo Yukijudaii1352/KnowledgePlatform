@@ -1,151 +1,89 @@
-### ART - Automatic Reasoning and Tool-use
+### ART - 自动推理与工具使用 (Automatic Reasoning and Tool-use)
 
 ```yaml
 id: art
 name: ART
-full_name: "Automatic Reasoning and Tool-use for Large Language Models"
+full_name: 自动推理与工具使用 (Automatic Reasoning and Tool-use)
 year: 2023
-organization: "University of Washington, Microsoft Research, UC Irvine, Allen Institute for AI, Meta AI"
+org: 华盛顿大学/AI2
+paper_url: https://arxiv.org/abs/2303.09014
 category: tool_use
 parent: toolformer
+motivation: 自动选择多步推理示例与工具调用
 ```
 
-## 📝 一句话总结
+#### 📝 一句话总结
 
-ART 提出了一个**无需微调**的框架，通过从**任务库**中自动检索多步推理示范，并在推理过程中**无缝调用外部工具**（搜索、代码生成/执行），实现了对新任务的零样本分解与工具使用，在 BigBench 和 MMLU 上大幅超越 few-shot 和 AutoCoT 基线。
+ART 提出一种无需微调的自动多步推理与工具使用框架：给定新任务，它从任务库检索相似的推理程序示例，引导冻结 LLM 生成可解析的步骤，并在遇到工具调用时暂停生成、执行工具、再继续推理。它解决了 CoT 和早期工具使用方法依赖人工任务级 prompt、工具脚本或模型微调的问题。
 
-## 🎯 核心要点
+#### 🎯 核心要点
 
-- **自动化推理分解**：ART 使用冻结的 LLM（InstructGPT），从预构建的任务库中检索相似任务的分解示范，自动为新任务生成结构化的多步推理程序，无需为每个任务手工编写 CoT prompt。
+- 使用冻结 InstructGPT 作为主推理模型，不训练模型参数，靠任务库中的跨任务示例迁移分解模式和工具调用模式。
+- 构建任务库：从 BigBench 选取 15 个种子任务，覆盖 Arithmetic、Code、Search、Free-form reasoning、String Operations 五类技能，每个任务写少量程序式分解示例。
+- 提出 PeG 风格的结构化程序格式：`Qi: [tool] query`、`#i: answer`、`Qj: [EOQ]`、`Ans:`，让 LLM 输出既像 CoT 又能被解析器拦截执行。
+- 引入工具库：包括 SerpAPI 搜索、Codex 生成 Python 代码、Python 环境执行代码；工具输出会被插回当前程序上下文。
+- 提供两种任务检索策略：有少量标注样本时按五个技能簇做验证选择；无分解监督时用 LLM 判断任务对相似度并排序。
+- 支持人类反馈：用户可直接编辑错误程序、添加分解示例或实现新工具，而不需要重新训练 LLM。
+- 在 BigBench 未见任务上平均超过 few-shot 6.9 个百分点、超过 AutoCoT 24.6 个百分点；在 MMLU 子集上分别超过 few-shot 14.6 个百分点、超过 AutoCoT 23.7 个百分点。
+- 工具调用贡献显著：测试任务中工具使用版 ART 比无工具版平均高 16.7 个百分点，算术类任务尤其受益于代码执行的确定性计算。
 
-- **结构化程序语言 PeG**：所有推理步骤遵循统一的查询语言格式（`Qi: [tool] query` → `#i: answer` → `EOQ` → `Ans`），使得工具调用的暂停/恢复可以被自动解析，同时也比自由形式的 CoT 更能引导 LLM 进行结构化推理。
+#### 🔬 深入细节
 
-- **任务库 + 工具库的双库架构**：
-  - **任务库**：包含 15 个 BigBench 任务的分解示范，按 5 个技能集群组织（算术、代码、搜索、字符串操作、CoT 推理）
-  - **工具库**：包含搜索（SerpAPI）、代码生成（Codex）、代码执行（Python 环境）等外部工具，可由人类扩展
+![ART 自动推理与工具使用框架图](https://www.promptingguide.ai/_next/static/media/ART.3b30f615.png)
+*图：ART 从任务库选择相似程序示例，让冻结 LLM 写出新任务的推理程序，并在搜索、代码生成、代码执行等工具调用处暂停生成。图源为 Prompt Engineering Guide 对论文 Fig.1 的公开复刻，原图来自 ART 论文。*
 
-- **工具使用带来显著提升**：在测试任务上，启用工具比不启用平均提升 **+12.3%**，尤其在算术任务上提升巨大（+21.85%），因为代码执行能精确完成复杂计算。
+```python
+def solve_with_art(task_description, task_input, task_library, tool_library, llm):
+    # 1. 从任务库检索 N=3 个相似任务，每个任务取 2 个程序示例
+    demos = retrieve_related_programs(
+        task_description=task_description,
+        task_library=task_library,
+        num_tasks=3,
+        demos_per_task=2,
+    )
+    prompt = build_prompt(demos, task_description, task_input)
+    program = ""
 
-- **人类反馈的低成本接入**：由于 ART 生成的是可解释的程序，人类可以直接编辑推理步骤（添加/删除/修正子步骤）或向工具库添加新工具（如字典查询 `lookup`），无需重新训练模型。在 12 个测试任务上，少量人类反馈使 ART 超越 GPT-3 最佳结果平均 **20%+**。
+    # 2. 让冻结 LLM 逐步生成 PeG 风格程序
+    while not contains_eoq(program):
+        partial = llm.generate_until_next_subtask(prompt + program)
+        program += partial
 
-## 🔬 深入细节
+        step = parse_latest_query(program)  # 例如 Q2: [generate python code] ...
+        if step.tool_name in tool_library:
+            # 3. 命中工具名时暂停 LLM，执行工具并写回 #i
+            tool_output = tool_library[step.tool_name](step.argument, program)
+            program += format_tool_answer(step.index, tool_output)
+        else:
+            # 4. 非工具子步骤由 LLM 继续补全
+            program += llm.generate_step_answer(prompt + program)
 
-### 整体架构
-
-ART 的工作流程如下：
-
-```
-新任务输入
-    ↓
-[任务检索] 从任务库中选择相似任务的分解示范 (N=3个任务, 每个2个示范)
-    ↓
-[构建 Prompt] 将检索到的示范 + 新任务输入组成 prompt
-    ↓
-[LLM 生成] 冻结的 InstructGPT 逐步生成推理程序
-    ↓ (遇到工具调用标记时暂停)
-[工具执行] 调用对应工具 (search/codegen/codeexec)，将结果注入程序
-    ↓ (恢复生成)
-[继续生成] 直到生成 EOQ + 最终答案
-```
-
-### PeG 程序格式
-
-每个任务实例的推理程序遵循以下结构化格式：
-
-```
-Task: [任务名称]
-Input: [输入文本]
-Q1: [search] 搜索查询内容
-#1: 搜索返回的结果
-Q2: [generate python code] 根据上一步结果生成代码
-#2: import math; T=72.0; theta=35.0; Fx=T*math.cos(math.radians(theta))
-Q3: [execute code] 执行代码获取 Fx 的值
-#3: 58.9789
-Q4: [arithmetic] 四舍五入到最近整数
-#4: 59
-Q5: [EOQ]
-Ans: 59 N
+    return parse_final_answer(program)  # Ans: ...
 ```
 
-关键设计：
-- **子步骤查询** `Qi: [tool_name] query`：当 `tool_name` 匹配工具库中的工具时，暂停 LLM 生成，调用外部工具
-- **子步骤答案** `#i: answer`：工具输出或 LLM 自身生成的中间结果
-- **终止符** `EOQ` + `Ans`：标记程序结束和最终答案
+ART 的核心动机是把“会推理”和“会调用工具”从手工 prompt 工程里抽出来。传统 CoT prompt 往往需要人为给目标任务写推理示例；ReAct、Self-Ask、PAL、PoT 等工具增强方法虽然能调用搜索或代码，但常要求开发者针对任务写固定交互脚本；Toolformer 这类方法还需要用工具调用数据微调模型。ART 的选择更轻量：冻结 LLM，只维护一个任务库和一个工具库，让新任务通过检索到的相似程序示例学会如何分解、何时调用工具。
 
-### 任务库构建与检索
+任务库不是普通的 few-shot 输入输出对，而是“程序示例”。每个程序由输入节点、若干 `(query, answer)` 子步骤节点和最终答案节点组成，例如 `Q1: [search] ...` 后跟 `#1: ...`，最后用 `[EOQ]` 结束。这种格式的价值有两层：一是给模型强约束的推理骨架，减少自由文本 CoT 的漂移；二是让运行时可以可靠解析工具符号，一旦生成 `[search]`、`[generate python code]` 或 `[execute code]`，系统就知道应该暂停 LLM 并执行外部模块。
 
-**任务库**包含 15 个 BigBench 任务，按技能聚类为 5 组：
+工具调用采用“暂停-执行-注入-恢复”的闭环。搜索工具把 LLM 生成的 query 送入 SerpAPI，并优先抽取 answer box 或前两个结果片段；代码生成工具把 LLM 的自然语言指令作为 Python 注释交给 Codex；代码执行工具把上一步得到的代码片段放进 Python 环境执行，并把变量值或运行结果写回程序。这样，LLM 负责拆题和组织中间变量，外部工具负责知识检索或精确计算，减少纯语言模型在算术、符号操作和事实查询上的错误。
 
-| 集群 | 代表任务 | 主要工具 |
-|------|---------|---------|
-| 算术 (Arithmetic) | Elementary Math QA, Aqua-rat, GSM8K, Navigate | code gen + code exec |
-| 代码 (Code) | Auto Debugging, Code Description | code gen |
-| 搜索 (Search) | Anachronisms, Musique, Hindu Knowledge, Known Unknown | search |
-| 字符串 (String) | K'th Letter Concatenation, Language Games, Date Understanding | code gen + code exec |
-| 推理 (CoT) | Formal Fallacies, Hyperbation | 纯 LLM 推理 |
+检索策略决定了 ART 如何把“旧任务的程序”迁移到“新任务”。如果目标任务有大约 50 个输入输出标注，ART 会遍历五个技能簇，在 held-out 样本上选表现最好的簇来构建 prompt；如果没有这样的验证集，则用 LLM 对“目标任务-库中任务”做 Similar / Not similar 判断，并按 `log P(Similar) - log P(Not similar)` 排序。论文默认 prompt 取 3 个种子任务、每个任务 2 个程序示例，形成一个多任务、程序式 in-context prompt。
 
-**检索策略**（两种）：
-1. **Held-out 验证**：遍历所有 5 个集群，在约 50 个标注样本上选择表现最好的集群
-2. **LLM 相似度排序**：用 few-shot prompt 让 LLM 判断任务对的相似度，按 log P("Similar")/P("Not similar") 排序
+人类反馈在 ART 中是符号级、即时生效的。用户可以直接把错误程序中的子步骤改掉、补上缺失步骤，或实现一个新工具并在任务库里演示它的用法；下一次检索到这些程序时，模型就会看到更好的分解范式。论文展示了在物理题中补充单位处理、在 word unscramble 中加入 `lookup` 工具等案例。这与 RLHF 不同：ART 不更新模型参数，反馈的作用面主要来自任务库和工具库的可复用性，但成本低、可解释、调试路径短。
 
-### 工具库
+从结果看，ART 的主要收益并不只来自“多写几步”。在任务库内部，即使关掉工具，结构化程序格式也比 AutoCoT 平均高约 8 个百分点；打开工具后，库内任务平均比 AutoCoT 高 17.17 个百分点。对未见 BigBench 任务，工具被调用约 89% 的实例，并贡献了相当比例的提升；算术类任务提升最大，因为把问题转成代码执行可以避免 LLM 手算出错。局限也很明确：代码生成一旦出错会级联影响后续步骤，搜索片段仍需 LLM 抽取和推理，任务库覆盖不足时检索到的程序示例会变弱。
 
-| 工具 | 实现 | 输入 | 输出处理 |
-|------|------|------|---------|
-| Search | SerpAPI (Google Search) | `Qi: [search]` 后的查询文本 | 提取 answer box 或 top-2 搜索结果片段 |
-| Code Generation | Codex (code-davinci-002) | `Qi: [generate python code]` 后的指令（作为 Python 注释传入） | 生成的代码片段追加到程序中 |
-| Code Execution | Python 虚拟环境 | 上一步生成的代码片段 `#(i-1)` | 执行结果（变量值）注入程序 |
+> 💡 关键：ART 把 prompt 从“为每个任务手写推理链”升级为“维护可检索、可执行、可编辑的程序库”，因此它更像一种轻量级的工具增强推理运行时，而不是单纯的 CoT 模板。
 
-### 实验结果
+#### 🧪 练习题
 
-**主要发现**：
-
-| 对比维度 | BigBench 库内任务 | BigBench 测试任务 | MMLU |
-|---------|------------------|------------------|------|
-| ART vs Few-shot | **+14.9%** | **+10.8%** | **+8.6%** |
-| ART vs AutoCoT | **+17.17%** | **+22%** | 显著优势 |
-| 工具使用增益 | **+7.91%** | **+12.3%** | - |
-
-**关键数据点**：
-- 在 **算术任务** 上工具使用增益最大：GSM8K 从 53.4%（无工具）→ 71.0%（有工具），Aqua-rat 从 36.29% → 54.20%
-- 工具在约 **95%** 的测试实例中被调用
-- ART 在 **32/34** BigBench 任务和 **全部** MMLU 任务上匹配或超越 AutoCoT
-- **人类反馈**效果：在 12 个测试任务上，少量编辑（添加步骤/修正代码/新增工具）使 ART 超越 GPT-3 最佳结果平均 **20%+**
-
-**与 GPT-3 Best 对比**：
-- 在库内任务中，ART 在 5/8 个有对比数据的任务上更强或持平
-- 在测试任务中，ART 在算术/搜索任务上表现突出，但在需要精细代码编辑的任务（如 Language Games、Code Description）上仍有差距
-
-### 与相关工作的对比
-
-| 特性 | CoT | AutoCoT | Toolformer | **ART** |
-|------|-----|---------|------------|---------|
-| 多步推理 | ✓ | ✓ | | ✓ |
-| 低监督需求 | | ✓ | ✓ | ✓ |
-| 工具使用 | | | ✓ | ✓ |
-| 可扩展库 | | | | ✓ |
-| 跨任务迁移 | | ✓ | ✓ | ✓ |
-| 人类反馈 | ✓ | | | ✓ |
-
-**ART 的独特优势**：同时具备跨任务迁移、可扩展工具库、人类反馈接入三大特性，且不需要微调 LLM。
-
-### 局限性
-
-1. **代码生成错误的级联效应**：代码生成（Codex）的错误会导致后续步骤全部出错，在 Language Games、Code Description 等任务上表现不佳
-2. **依赖 LLM 能力**：ART 的性能上限受限于底层 LLM（InstructGPT）的推理能力
-3. **任务库覆盖范围**：当前仅覆盖 5 个技能集群，对于超出这些集群的任务类型，检索到的示范可能不够相关
-4. **搜索工具的不稳定性**：搜索结果随时间变化，可能影响可复现性
-
-## 🧪 练习题
-
-**Q1**：ART 使用 PeG 结构化程序格式而非自由形式的 CoT，这带来了哪些具体优势？如果将 PeG 替换为自由形式的自然语言推理链，你预期会在哪些方面产生性能下降？
-
-> **提示**：考虑三个方面——(1) 工具调用的自动解析与暂停/恢复机制；(2) 结构化格式对 LLM 推理质量的引导作用（实验中 ART w/o tools 已经比 AutoCoT 高 8%）；(3) 人类反馈的可操作性（编辑结构化步骤 vs 编辑自由文本）。
-
-**Q2**：论文中 ART 在算术任务上的工具使用增益（+21.85%）远大于搜索任务上的增益（+4.0%），请分析可能的原因，并思考如何提升搜索工具的增益。
-
-> **提示**：算术任务中代码执行提供了**确定性的精确计算**，而搜索工具返回的是**非结构化文本片段**，LLM 仍需从中提取和推理。可以考虑改进搜索结果的后处理（如结构化提取）、使用更精准的知识库 API 替代通用搜索等。
-
-**Q3**：ART 的人类反馈机制（编辑程序 + 扩展工具库）与 RLHF（如 InstructGPT 的训练方式）有什么本质区别？各自的优劣是什么？
-
-> **提示**：ART 的反馈是**符号级别的即时编辑**（修改推理步骤/添加工具），无需重新训练，但只影响被编辑的特定任务示范；RLHF 是**参数级别的全局优化**，能泛化到更多场景，但需要大量标注数据和计算资源。思考两者是否可以互补。
+```yaml
+question: "ART 使用 PeG 风格程序格式的最核心目的是什么？"
+options:
+  - "把冻结 LLM 微调成专门的工具调用模型"
+  - "让推理步骤可解析，从而在工具调用处暂停生成并注入外部结果"
+  - "减少任务库中示例的数量到零"
+  - "保证搜索工具返回的片段一定是正确答案"
+answer: 1
+explain: "PeG 格式把子任务、工具名、参数和输出写成可解析节点，系统才能可靠拦截 `[search]` 等符号并执行工具。ART 不微调 LLM，也不能保证搜索结果天然正确。"
+```

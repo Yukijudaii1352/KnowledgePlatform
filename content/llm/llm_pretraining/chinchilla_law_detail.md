@@ -1,86 +1,107 @@
-### Chinchilla Laws
-
+### 计算最优训练法则 (Training Compute-Optimal Large Language Models)
 ```yaml
 id: chinchilla_law
 name: Chinchilla Laws
 full_name: 计算最优训练法则 (Training Compute-Optimal Large Language Models)
-year: '2022.03'
+year: "2022.03"
 org: DeepMind
 paper_url: https://arxiv.org/abs/2203.15556
 category: scaling
 parent: kaplan_scaling
-motivation: "提出20:1数据参数比的计算最优原则"
+motivation: 提出20:1数据参数比的计算最优原则
 ```
 
 #### 📝 一句话总结
-
-Chinchilla Laws 重新拟合了固定计算预算下参数量 \(N\) 与训练 token 数 \(D\) 的最优比例，指出当时许多大模型参数过多、数据过少。它提出计算最优训练应让模型参数和训练数据近似同比例扩展，经验上约为每个参数 20 个训练 token。
+Chinchilla Laws 重新估计了固定训练 FLOPs 下参数量 \(N\) 与训练 token 数 \(D\) 的最优分配，指出当时许多大模型“参数过大、数据训练不足”。它提出 compute-optimal LLM 应大致等比例扩大参数和数据，经验上接近每个参数约 20 个训练 token 的原则。
 
 #### 🎯 核心要点
-
-- 训练并分析 400 多个语言模型，参数规模从千万级到百亿级，训练 token 覆盖数十亿到数千亿
-- 修正 Kaplan 的“模型优先”结论，认为计算最优时参数量 \(N\) 和训练 token 数 \(D\) 应近似等比例增长
-- 给出经典损失形式 \(L(N,D)=E + A/N^\alpha + B/D^\beta\)，并在 \(C \approx 6ND\) 约束下求最优
-- 提出广泛传播的 20 tokens/parameter 经验法则，例如 70B 参数模型应训练约 1.4T tokens
-- 训练 70B Chinchilla，在相似训练计算下优于 280B Gopher，同时推理成本显著更低
-- 将规模定律从“越大参数越好”转向“参数、数据、计算共同最优”的训练规划
+- 用 400 多个语言模型实验重新估计 \(N_{opt}(C)\) 与 \(D_{opt}(C)\)，模型规模从约 70M 到 16B+ 参数，训练 token 从 5B 到 500B+。
+- 明确优化目标：在 \(\mathrm{FLOPs}(N,D)=C\) 约束下最小化最终预训练损失 \(L(N,D)\)。
+- 提出三种互相验证的方法：固定模型大小扫 token、IsoFLOP 曲线、参数化损失函数拟合。
+- 参数化损失采用 \(\hat L(N,D)=E+A/N^\alpha+B/D^\beta\)，把模型容量不足和数据/优化不足分解为两个幂律项。
+- 三种方法均得到接近等比例的 scaling：\(N_{opt}\propto C^{0.46\sim0.50}\)，\(D_{opt}\propto C^{0.50\sim0.54}\)。
+- 与 Kaplan 2020 的 \(N\propto C^{0.73},D\propto C^{0.27}\) 明显不同，Chinchilla 大幅提高了训练数据的重要性。
+- 用 Gopher 相同计算预算训练 70B Chinchilla、1.4T tokens，相比 280B Gopher 用 4 倍更少参数和约 4 倍更多数据取得更好下游性能。
+- 给出现代预训练常用启发式：compute-optimal 模型大约训练 20 tokens/parameter。
 
 #### 🔬 深入细节
 
-![Chinchilla 计算最优缩放图](https://ar5iv.labs.arxiv.org/html/2203.15556/assets/x1.png)
-*图：Chinchilla 论文主图，展示不同计算预算下模型大小和训练 token 数的计算最优关系。*
+![Chinchilla compute-optimal frontier](https://ar5iv.labs.arxiv.org/html/2203.15556/assets/x1.png)
+*图：论文 Figure 1 对比三种方法预测的最优参数量与 FLOPs 关系，并标出 Chinchilla、Gopher、GPT-3、MT-NLG；三种方法都认为当时大模型普遍应更小但训练更久。*
 
 ```python
-# Chinchilla 计算最优训练规划伪代码
-def chinchilla_plan(compute_budget):
-    # 1. 基于一组小规模训练实验拟合 loss(N, D)
-    params = fit_loss_model(
-        formula="L = E + A / N**alpha + B / D**beta",
-        runs=language_model_runs,
-    )
+# Chinchilla Laws 的核心估计流程伪代码
+runs = []
+for N in model_sizes:                       # 约 70M 到 16B+ 参数
+    for D in token_budgets:                 # 约 5B 到 500B+ tokens
+        model = train_lm(params=N, tokens=D, lr_schedule="cosine_matched_to_D")
+        runs.append({"N": N, "D": D, "C": flops(N, D), "loss": smoothed_train_loss(model)})
 
-    # 2. 在 C ~= 6ND 的约束下搜索最优参数量和 token 数
-    best = None
-    for N in candidate_parameter_counts:
-        D = compute_budget / (6 * N)
-        loss = params.E + params.A / N**params.alpha + params.B / D**params.beta
-        best = min_by_loss(best, {"N": N, "D": D, "loss": loss})
+# Approach 1: 对每个 compute 预算，从训练曲线 envelope 中取最低 loss
+frontier_1 = lower_envelope_over_training_curves(runs)
+fit N_opt ~ C**a, D_opt ~ C**b
 
-    # 3. 工程近似：D / N 约为 20
-    return best
+# Approach 2: 固定 FLOPs，扫描参数量，找到每条 IsoFLOP 曲线的 loss valley
+for C in flops_budgets:
+    candidates = [r for r in runs if close(r.C, C)]
+    N_star = argmin_by_parabolic_fit(candidates, x="N", y="loss")
+    D_star = C / (6 * N_star)
+fit N_opt ~ C**a, D_opt ~ C**b
+
+# Approach 3: 直接拟合参数化损失，再在 compute 约束下求闭式 frontier
+fit E, A, B, alpha, beta in L_hat(N, D) = E + A/N**alpha + B/D**beta
+for C in target_budgets:
+    choose N, D to minimize L_hat(N, D) subject to C ≈ 6*N*D
 ```
 
-**动机与背景：为什么 Kaplan 结论需要修正？** Kaplan 规模定律在 2020 年给出了强有力的可预测性证据，但它的实验分布中大量模型训练 token 相对不足，导致外推时更偏向增大参数量。DeepMind 观察到，Gopher、GPT-3、MT-NLG 等模型在 Chinchilla 视角下都属于“undertrained”：参数很大，但训练数据不足。问题不是这些模型不够大，而是在给定 FLOPs 下，过多计算被花在参数上，数据项成为更强瓶颈。
-
-**核心机制：把 loss 显式拆成参数瓶颈和数据瓶颈。** Chinchilla 使用如下参数化损失：
+Chinchilla 的问题设置非常直接：训练预算通常先由硬件数量和训练时长确定，因此真正要优化的是“同样 FLOPs 下该用多大模型、看多少 token”。论文将目标写成：
 
 $$
-L(N,D)=E+\frac{A}{N^\alpha}+\frac{B}{D^\beta}
+N_{opt}(C),D_{opt}(C)=\operatorname*{argmin}_{N,D\ \text{s.t.}\ \mathrm{FLOPs}(N,D)=C} L(N,D)
 $$
 
-其中 \(E\) 表示不可约损失，\(A/N^\alpha\) 是模型容量不足造成的误差，\(B/D^\beta\) 是训练数据不足造成的误差。训练计算约束为：
+并使用常见近似 \(C\approx 6ND\)。这里 \(N\) 是参数量，\(D\) 是训练 token 数。相比 Kaplan，Chinchilla 的关键修正是让学习率 schedule 与训练 token 数匹配，并显式扫过更多 token budget；否则短训练阶段的 loss 会被高估，进而错误地认为“增加数据不如增加参数”。
+
+三种估计方法分别从不同角度避免偏差。第一种方法把训练曲线视作连续函数，对每个 FLOPs 点取所有 run 中最低 loss 的 envelope，再拟合 \(N_{opt}\propto C^a\)、\(D_{opt}\propto C^b\)。第二种方法在固定 FLOPs 下改变模型大小，因为 \(D=C/(6N)\)，每条 IsoFLOP 曲线都会出现一个 U 形谷底：模型太小会容量不足，模型太大则 token 不够、训练不足。第三种方法直接拟合损失曲面：
 
 $$
-C \approx 6ND
+\hat L(N,D)=E+\frac{A}{N^\alpha}+\frac{B}{D^\beta}
 $$
 
-在固定 \(C\) 下，如果 \(N\) 过大则 \(D\) 变小，数据误差项上升；如果 \(D\) 过大则 \(N\) 变小，容量误差项上升。Chinchilla 的拟合结果显示二者最优时应更平衡：计算预算翻倍时，参数量和训练 token 数都应大致翻倍。
+论文在附录中给出一组拟合值：\(E=1.69\)、\(A=406.4\)、\(B=410.7\)、\(\alpha=0.34\)、\(\beta=0.28\)。其中 \(E\) 可理解为理想生成过程的不可约熵，\(A/N^\alpha\) 是有限模型容量带来的 excess loss，\(B/D^\beta\) 是有限训练数据/优化步数带来的 excess loss。
 
-**方法流程：三种估计方式交叉验证。** 论文不是只用一个公式拟合，而是使用三条互相校验的路线：固定模型大小、改变训练 token 数；固定 FLOPs、扫描不同 \(N,D\) 配比形成 IsoFLOP 曲线；直接拟合参数化 loss。三种方法都指向同一个结论：最优模型比当时主流模型更小，但训练 token 多得多。最终的 Chinchilla 模型选择 70B 参数和约 1.4T token，对应约 20 tokens/parameter。
+在 \(C\approx 6ND\) 约束下，参数化公式可推出闭式最优 frontier：
 
-**与 Kaplan 的区别：模型规模不是唯一优先项。** Kaplan 认为大模型样本效率更高，因此固定计算下应倾向于更大模型、较少数据和提前停止；Chinchilla 则指出这种配置在现代训练规模下会留下大量数据收益。它的实际影响很大：后续 LLaMA、Mistral、Gemma 等开放模型都采用“小于同代最大参数量、训练更多 token”的路线。推理上也有优势：70B Chinchilla 能在相似训练 FLOPs 下超过 280B Gopher，但部署成本只相当于后者一小部分。
+$$
+N_{opt}(C)=G\left(\frac{C}{6}\right)^a,
+\quad
+D_{opt}(C)=G^{-1}\left(\frac{C}{6}\right)^b
+$$
 
-> 💡 关键：Chinchilla 的 20:1 不是自然常数，而是基于当时数据、架构、优化器和目标函数的经验近似；真正重要的是“固定训练计算下要同时扩大参数和数据”。
+$$
+G=\left(\frac{\alpha A}{\beta B}\right)^{1/(\alpha+\beta)},
+\quad
+a=\frac{\beta}{\alpha+\beta},
+\quad
+b=\frac{\alpha}{\alpha+\beta}
+$$
+
+因为 \(\alpha\) 与 \(\beta\) 接近，\(a\) 与 \(b\) 都接近 0.5。论文 Table 2 中三种方法的指数分别约为：Approach 1 为 \((0.50,0.50)\)，Approach 2 为 \((0.49,0.51)\)，Approach 3 为 \((0.46,0.54)\)。这与 Kaplan 的 \((0.73,0.27)\) 形成鲜明对比，也解释了为什么 GPT-3、Gopher、MT-NLG 这类约 300B token 训练的大模型在 Chinchilla 视角下是 undertrained。
+
+最有说服力的验证是 Chinchilla 本身。DeepMind 用与 Gopher 近似相同的计算预算，不训练 280B 参数模型，而是训练 70B 参数模型并使用 1.4T tokens。也就是说，它把预算从“更多参数”转移到“更多 token”。结果 Chinchilla 在许多语言建模、阅读理解、MMLU、BIG-bench 等评测上系统性超过 Gopher，同时参数量更小，推理和微调成本也更低。这个实验把 scaling law 从拟合曲线变成了可操作训练策略。
+
+从机制上看，Chinchilla 的直觉是平衡两种 excess loss。如果模型太小，\(A/N^\alpha\) 是瓶颈；如果模型太大但 token 太少，\(B/D^\beta\) 是瓶颈。compute-optimal 点不是最大模型，也不是最多 token，而是在二者边际收益相当的位置。经验上的 20 tokens/parameter 并不是硬编码常数，而是这些拟合参数、FLOPs 近似和当时数据分布共同导出的可用规则。
+
+> 💡 关键：Chinchilla Laws 的工程影响在于把“更大模型”改写为“参数和数据同步扩张”，直接改变了后续 LLM 预训练的预算规划、数据工程优先级和 overtraining 策略。
 
 #### 🧪 练习题
-
 ```yaml
-question: "Chinchilla Laws 相比 Kaplan Scaling Laws 的核心修正是什么？"
+question: "Chinchilla Laws 相比 Kaplan Scaling Laws 的主要修正是什么？"
 options:
-  - "认为参数量越大越好，训练 token 可以继续减少"
-  - "认为计算最优训练需要更平衡地扩展参数量和训练 token 数"
-  - "认为数据清洗比模型规模更重要，因此不需要规模定律"
-  - "认为推理计算应完全替代预训练计算"
-answer: 1
-explain: "Chinchilla 通过新的 IsoFLOP 与参数化拟合发现，当时大模型普遍数据不足，固定计算下应增加训练 token 并使用相对更小的模型。"
+  - "认为参数量和训练 token 数应随 compute 近似等比例增长"
+  - "认为 embedding 参数应计入主要规模律"
+  - "认为训练数据越少越能提升泛化"
+  - "认为固定 300B token 对所有模型都是 compute-optimal"
+answer: 0
+explain: "Chinchilla 的三种估计方法都得到接近 0.5/0.5 的参数与数据 scaling 指数，说明许多旧模型参数过大、训练 token 不足。"
 ```

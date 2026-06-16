@@ -1,56 +1,139 @@
-### Switch Transformer: 面向万亿参数模型的简单高效稀疏性
+### Switch Transformer：稀疏专家 Transformer
+```yaml
+id: switch_transformer
+name: Switch Transformer
+full_name: "稀疏专家 Transformer (Switch Transformer)"
+year: "2021.01"
+org: "Google Research"
+paper_url: "https://arxiv.org/abs/2101.03961"
+category: "sparse_moe"
+parent: "t5"
+motivation: "Top1路由简化万亿MoE"
+```
 
 #### 📝 一句话总结
-Switch Transformer通过将标准Transformer的FFN层替换为基于Top-1路由的稀疏专家混合（MoE）模块，在相同计算资源下实现高达7倍的预训练加速，成功将语言模型规模扩展至万亿参数，同时保持简洁性和训练稳定性。
+Switch Transformer 提出把 Transformer/T5 中的 dense FFN 替换为 top-1 路由的稀疏专家 FFN，解决了传统 MoE 路由复杂、通信开销大和训练不稳定的问题。它用每个 token 只激活一个专家的简单机制，在近似保持每 token FLOPs 的同时把参数规模扩展到万亿级。
 
 #### 🎯 核心要点
-1. **简化稀疏路由**：采用Switch Routing（k=1，即每个token仅路由给一个专家），取代传统Top-k路由，消除了复杂的k-way散度和reduce操作，大幅降低计算开销。
-2. **可微分负载均衡**：引入辅助损失（load balancing loss）鼓励token在专家间均匀分配，并结合容量因子（capacity factor）机制控制每个专家的最大处理token数，避免显存溢出与token丢弃。
-3. **训练稳定性技巧**：提出selective precision（在MoE路由器部分使用float32，其余bfloat16）实现高精度与高速度兼得；专家参数从dense模型权重初始化，加速收敛并降低方差。
-4. **高效扩展性**：在固定计算量（FLOPs）下，增加专家数量持续提升预训练质量；以步数和时间为基准的扩展实验均证实Switch Transformer优于同计算量下的稠密模型。
-5. **下游迁移与压缩**：稀疏预训练模型可直接fine-tune用于下游任务（SuperGLUE等），且可通过蒸馏将99%的参数量压缩至小型稠密模型，仍保留30%的稀疏模型质量增益。
-6. **多语言与万亿参数**：在101种语言上mSwitch-Base全面超越mT5-Base；成功预训练万亿参数Switch-XXL模型，在C4语料库上实现4倍加速于T5-XXL。
+- 核心架构是 Switch FFN：用稀疏专家层替换 Transformer block 中的前馈网络层，attention 结构保持不变。
+- 路由策略从 MoE 的 top-k 简化为 top-1：每个 token 只发往概率最高的一个专家，降低计算、通信和实现复杂度。
+- Router 使用 softmax gate：先计算 \(p_i(x)=\mathrm{softmax}(W_r x)_i\)，再选择 \(\arg\max_i p_i(x)\)。
+- Switch 层输出为选中专家输出乘以 gate value：\(y=p_{e(x)}(x)E_{e(x)}(x)\)，其中 \(e(x)\) 是 top-1 专家。
+- Expert capacity 用 capacity factor 控制每个专家最多处理的 token 数，过载 token 通过残差路径跳过该专家层。
+- 训练加入可微的负载均衡辅助损失 \(\alpha N\sum_i f_iP_i\)，鼓励 token 分配和 router 概率都接近均匀。
+- 论文以 T5 为基座，在 C4 span-corruption 预训练中展示最高 7x+ pre-training speedup，并在 mT5 101 种语言上普遍收益。
+- 工程改进包括 selective precision、专家初始化缩放、稀疏模型 fine-tuning 正则增强，以及 data/model/expert parallelism 组合。
 
 #### 🔬 深入细节
+![Switch Transformer 编码器块示意图](https://ar5iv.labs.arxiv.org/html/2101.03961/assets/x3.png)
+*图：论文 Figure 2。Switch Transformer 将 dense FFN 替换为 Switch FFN，router 为每个 token 独立选择一个专家，并用对应 gate value 缩放专家输出。*
 
-**1. 问题背景与动机**
-- 传统稠密Transformer（如T5）的算力需求随模型规模平方增长（$O(L^2)$），难以向万亿参数扩展。
-- 稀疏MoE（Mixture-of-Experts）通过将FFN层拆分为多个独立的“专家”子网络，每个token仅激活部分专家，将计算量从平方降为线性或亚线性，但现有实现（如GShard）仍存在路由复杂、负载不均、训练不稳定等挑战。
+![Switch Transformer expert capacity 示意图](https://ar5iv.labs.arxiv.org/html/2101.03961/assets/x4.png)
+*图：论文 Figure 3。capacity factor 决定每个专家的 token 缓冲区大小；过小会丢 token，过大则浪费通信和计算。*
 
-**2. Switch Transformer架构**
-- **基础结构**：在标准Transformer的Block中，每隔一个FFN层替换为MoE层（通常每隔1层替换），其余层保持不变（包括自注意力层和非MoE的FFN）。
-- **Switch Routing**：
-  - 每个token通过Router网络（一个小型全连接层）计算出与各专家匹配的分数 $s_i$，取最大分数的专家 $p = \operatorname{argmax}(s_i)$，将token仅发送给专家 $p$。
-  - 对比Top-k（k≥2），Switch Routing无需额外的散度和归约，实现更简单，且同等计算量下可容纳更多专家或更大模型维度。
-- **容量因子（Capacity Factor, CF）**：
-  - 每个专家的容量 $C = \text{CF} \times \frac{\text{tokens_per_batch}}{\text{num_experts}}$，CF>1.0时为溢出token分配额外空间，CF<1.0时强制丢弃超出容量token。
-  - 实验表明CF=1.0~1.25即可平衡效率与质量，丢弃率<1%。
-- **负载均衡损失**：
-  - 辅助损失 $\mathcal{L}_{\text{aux}} = \alpha \cdot N \cdot \sum_{i=1}^N f_i \cdot P_i$，其中 $f_i$ 是分配给专家 $i$ 的token比例，$P_i$ 是Router分配给专家 $i$ 的平均概率。
-  - 该损失鼓励均匀分配，与主任务损失联合优化，$\alpha$ 为平衡系数（通常 $10^{-2}$ 量级）。
+```python
+# Switch FFN 的核心逻辑，省略设备并行细节
 
-**3. 训练稳定性技术**
-- **Selective Precision**：标准bfloat16训练MOE时易发散，Switch Transformer在Router计算和Expert内部部分操作使用float32，其余低精度，达到bfloat16的速度（仅慢约10%~20%）与float32的稳定性。
-- **专家初始化**：新增加的MoE层专家权重从已训练的dense FFN权重初始化，所有专家共享相同初始值，再在训练中分化。实验表明该方法能大幅降低早期训练方差并加速收敛。
-- **专家丢弃（Expert Dropout）**：在训练初期以一定概率随机丢弃某些专家输出，作为一种正则化手段，提升模型鲁棒性并轻微提升下游性能。
+def switch_ffn(tokens, experts, router_w, capacity_factor, alpha=1e-2):
+    # tokens: [T, d_model]
+    logits = tokens @ router_w                  # [T, num_experts]
+    probs = softmax(to_float32(logits), axis=-1)
 
-**4. 实验与扩展性**
-- **步数基准扩展**：固定训练步数（如100k步），增加专家数（2→256个），Switch-Base模型在C4困惑度持续下降，显示出超线性的扩展收益（更低的perplexity和更高的速度）。
-- **时间基准扩展**：固定实际训练时间（TPU 4x4拓扑），Switch Transformer相比T5-Large达到约7倍加速；在16-expert配置下，以相同训练时长获得显著更低的perplexity。
-- **与稠密模型对比**：给定相同FLOPs预算，Switch模型预训练质量优于稠密模型；即使用更大规模的稠密模型对比，Switch仍具优势，证明稀疏性的效率增益。
-- **下游任务Fine-tuning**：Switch-Base在SuperGLUE上取得81.3分，相比T5-Base（74.6）有显著提升，且仅需更少量训练步数即达峰值。
-- **蒸馏**：将7.4B参数的Switch-Base（已fine-tune）蒸馏至223M的T5-Base，模型尺寸缩减99%，但仍保留30%的质量增益（SuperGLUE从74.6提升至76.6），验证稀疏知识可被高效压缩至小模型。
-- **多语言**：在mC4（101种语言）上，mSwitch-Base相比mT5-Base，所有语言负对数困惑度（NLL）均显著提升，尤其低资源语言改善明显。
-- **万亿参数**：Switch-XXL（64专家，~1.6T参数）在C4上训练，达到T5-XXL（11B参数）的同等质量时，所需计算步数减少4倍；且通过优化模型并行与数据并行策略，成功在TPU v3 Pod上实现高效训练。
+    # top-1 routing: 每个 token 只选择一个专家
+    gate, expert_id = top1(probs)               # [T], [T]
+    expert_mask = one_hot(expert_id, num_experts)
 
-**5. 设计决策消融**
-- **容量因子影响**：CF=1.0时约2% token被丢弃，CF=1.25降至<0.1%，且质量损失极小；CF<1.0导致质量明显下降，因此推荐CF≥1.0。
-- **路由频率**：每隔1层使用MoE（every other layer）性能最佳；每层都使用MoE会导致显存和计算开销过大。
-- **专家数**：增加专家数并保持每步激活的专家总数不变（通过Top-1实现），持续提升质量，说明稀疏性本身带来容量增益。
+    # 负载均衡损失：f 是真实 dispatch 占比，P 是 router 概率占比
+    f = mean(expert_mask, axis=0)               # fraction of tokens per expert
+    P = mean(probs, axis=0)                     # fraction of probability mass
+    aux_loss = alpha * num_experts * sum(f * P)
 
-**6. 实现与代码**
-- 官方提供JAX和Tensorflow两种实现，代码开源（https://github.com/google-research/t5x）。
-- 模型并行与数据并行结合：专家按维度分区，结合mesh-tensorflow实现高效分布式训练。
+    # expert capacity：每个专家最多处理固定数量 token
+    capacity = ceil((len(tokens) / num_experts) * capacity_factor)
+    positions = cumsum_per_expert(expert_mask)
+    keep = positions < capacity
 
-**7. 总结与影响**
-Switch Transformer以极简的Top-1路由设计，成功克服MoE长期以来的工程实现与训练稳定性难题，将稀疏模型的效率优势转化为实际预训练加速和规模扩展，为后续GLaM、PaLM等大型MoE模型奠定基础。其核心贡献在于证明：**简单的稀疏路由+精心设计的负载均衡和训练技巧即可将Transformer推向万亿参数，且保持高可用性**。
+    outputs = zeros_like(tokens)
+    for i, expert in enumerate(experts):
+        selected = (expert_id == i) & keep
+        outputs[selected] = gate[selected, None] * expert(tokens[selected])
+
+    # overflow token 在实际 Transformer block 中主要依赖残差连接保留表示
+    return outputs, aux_loss
+```
+
+Switch Transformer 的动机是把“参数规模”和“每 token 计算量”解耦。普通 dense Transformer 每个 token 都经过同一套 FFN 参数；如果直接把模型加宽或加深，参数、显存、FLOPs 都同步增长。MoE 的想法是准备多个专家 \(E_1,\ldots,E_N\)，但每个 token 只调用其中一部分专家，因此总参数可以很大，单个 token 的实际计算仍接近一个 FFN。Switch 的贡献在于把此前较复杂的 top-k MoE 路由简化到 top-1，让稀疏化更容易稳定扩展。
+
+传统 MoE 对 token 表示 \(x\) 计算 router logits：
+
+$$
+h(x)=W_r x
+$$
+
+然后得到专家概率：
+
+$$
+p_i(x)=\frac{e^{h_i(x)}}{\sum_{j=1}^{N}e^{h_j(x)}}
+$$
+
+top-k MoE 会选择集合 \(\mathcal{T}\) 中的多个专家并线性组合：
+
+$$
+y=\sum_{i\in\mathcal{T}}p_i(x)E_i(x)
+$$
+
+Switch 的变化是令 \(|\mathcal{T}|=1\)。若 \(e(x)=\arg\max_i p_i(x)\)，则输出近似为：
+
+$$
+y=p_{e(x)}(x)E_{e(x)}(x)
+$$
+
+这个设计看似更“硬”，但论文发现它反而更好用。top-1 让每个 token 只需要一次专家 FFN 计算，expert capacity 可以比 top-2 至少减半；跨设备通信也更简单，因为 token 不需要被复制到多个专家再聚合。Router 仍可训练的关键在于 gate value \(p_{e(x)}(x)\) 出现在输出中，梯度可以通过被选中专家的概率回传到 router，虽然 \(\arg\max\) 本身不可微。
+
+容量控制是 Switch 能否高效运行的核心工程问题。每个专家在编译图中必须有固定 batch shape，因此论文定义：
+
+$$
+\text{expert capacity}=\left(\frac{\text{tokens per batch}}{\text{number of experts}}\right)\times\text{capacity factor}
+$$
+
+capacity factor 大于 1 会为负载不均衡预留缓冲，但会增加空槽位、通信和内存；capacity factor 太小则会发生 token overflow。论文的实现中，如果某个专家已满，溢出的 token 不经过该 Switch FFN，而是在 Transformer block 的残差连接中继续向后传播。因此，capacity factor 和负载均衡损失共同决定了稀疏层是否既高效又不损害质量。
+
+负载均衡损失是避免“所有 token 都挤到少数专家”的关键。设一个 batch 有 \(T\) 个 token，\(f_i\) 是实际被派发到专家 \(i\) 的 token 比例：
+
+$$
+f_i=\frac{1}{T}\sum_{x\in B}\mathbf{1}\{\arg\max p(x)=i\}
+$$
+
+\(P_i\) 是 router 给专家 \(i\) 的平均概率质量：
+
+$$
+P_i=\frac{1}{T}\sum_{x\in B}p_i(x)
+$$
+
+辅助损失为：
+
+$$
+\mathcal{L}_{\text{aux}}=\alpha\cdot N\sum_{i=1}^{N}f_iP_i
+$$
+
+当 \(f\) 和 \(P\) 都接近均匀分布 \(1/N\) 时，该点积最小。这里 \(f\) 由 hard routing 产生，不可微；\(P\) 可微，因此损失仍能推动 router logits 变得更均衡。论文使用 \(\alpha=10^{-2}\)，认为它足以快速平衡负载，又不会压过主交叉熵目标。
+
+训练流程继承 T5 的 span-corruption 预训练：在 C4 中遮蔽 15% token，把连续 mask span 替换为 sentinel token，模型预测缺失内容。Switch 不是改 attention，而是改 FFN，因此它可以直接嵌入 T5-Base、T5-Large、mT5 等架构。实验中，Switch-Base 与 dense T5-Base 保持相近 FLOPs per token，但通过增加专家数获得更多参数容量；论文报告在固定资源下可达到 7x 量级的预训练速度优势，大规模模型对 T5-XXL 也有约 4x speedup。
+
+论文还强调 Switch 的稳定训练不是只靠 top-1 路由。Selective precision 指 router 相关计算使用 float32，而其余大部分计算可用 bfloat16，从而降低低精度下 router 抖动；初始化缩放降低专家层激活方差，帮助更多专家扩展；fine-tuning 时对专家层使用更强 dropout/正则，缓解稀疏专家在小数据任务上的过拟合。换言之，Switch 的算法核心很短，但能扩到万亿参数依赖一整套路由、容量、精度和并行策略。
+
+> 💡 关键：Switch Transformer 不是让每个 token 使用“更多计算”，而是让不同 token 使用“不同参数”。这就是它能在近似固定 FLOPs 下增加总参数量的原因。
+
+与 dense scaling 相比，Switch scaling 增加的是专家维度；与早期 MoE 相比，它牺牲 top-2 聚合的表达冗余，换来 top-1 路由的简单性、吞吐和更低通信成本。这个取舍非常适合大规模预训练：当 batch 很大、专家很多、设备很多时，减少一次专家通信和一次 FFN 计算比理论上更平滑的 top-k 混合更有价值。
+
+#### 🧪 练习题
+```yaml
+question: "Switch Transformer 将 MoE 的 top-k 路由改为 top-1 路由，最直接的收益是什么？"
+options:
+  - "每个 token 会同时利用所有专家，因此表达能力最大"
+  - "每个 token 只经过一个专家，降低路由计算、专家计算和跨设备通信"
+  - "不再需要负载均衡损失"
+  - "可以完全移除 Transformer 的 attention 层"
+answer: 1
+explain: "Switch 的核心简化是 top-1 routing；它仍需要负载均衡和 attention，但每个 token 只发送到一个专家，因此计算和通信更低。"
+```

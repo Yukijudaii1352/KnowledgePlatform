@@ -1,180 +1,93 @@
-### DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts Language Model
+### DeepSeek-V2：经济高效 MoE 语言模型
 
 ```yaml
 id: deepseek_v2
 name: DeepSeek-V2
-full_name: DeepSeek-V2 / Strong-Economical-Efficient MoE LLM
-year: "2024"
+full_name: 经济高效 MoE 语言模型 (DeepSeek-V2)
+year: '2024.05'
 org: DeepSeek-AI
 paper_url: https://arxiv.org/abs/2405.04434
-category: llm_base
-parent: deepseek_67b
-motivation: 通过MLA降低KV缓存和推理成本，结合DeepSeekMoE实现以更少训练成本（相较DeepSeek 67B降42.5%）和更高推理吞吐（5.76x），在236B总参数、21B激活参数下达到顶级性能
+category: sparse_moe
+parent: deepseek_moe
+motivation: MLA压缩KV缓存
 ```
 
 #### 📝 一句话总结
-DeepSeek-V2提出多头潜在注意力（MLA）大规模压缩KV缓存（93.3%↓）与DeepSeekMoE（细粒度专家+共享专家）深度结合，以236B总参/21B激活参在8.1T tokens训练后达到开源SOTA，训练成本仅为DeepSeek 67B的57.5%，推理吞吐提升至5.76倍。
+DeepSeek-V2 提出 Multi-head Latent Attention (MLA)，把生成阶段需要缓存的 Key/Value 压缩为低维 latent，并结合 DeepSeekMoE 的细粒度专家和共享专家设计，解决大模型训练成本和长上下文推理显存之间的冲突。
 
 #### 🎯 核心要点
-- **MLA（多头潜在注意力）**：通过低秩压缩将KV投影到极低维潜在向量（dc=512，远小于dhnh=16384），推理时仅缓存（dc+dhR）即每token 576个元素（vs MHA的32K+），KV缓存降93.3%，同时W^{UK}可吸收进W^Q,W^{UV}进W^O，推理时实际无需显式计算Key/Value，强度超越MHA
-- **解耦RoPE**：因RoPE位置敏感会破坏W^{UK}吸收，设计额外多头query q_t^R与共享decoupled key k_t^R独立承载RoPE，最终query=[q^C;q^R]，key=[k^C;k^R]，实现KV缓存降至等效GQA 2.25组但性能超MHA
-- **DeepSeekMoE架构升级**：2共享专家+160路由专家（每专家隐层dim 1536），每token激活6个（含2共享），细粒度专家分割+共享专家隔离，设备限制路由（每token最多3设备）有效控制MoE通信
-- **三辅助损失负载均衡**：Expert-Level Balance Loss（α1=0.003）、Device-Level Balance Loss（α2=0.05）、Communication Balance Loss（α3=0.02），配合设备级token-dropping策略（约10%序列永不被丢弃）确保训练稳定
-- **训练效率优化**：重叠共享专家计算与专家并行all-to-all通信，定制CUDA内核加速路由算法与融合线性运算，基于FlashAttention-2优化MLA，16-way零气泡流水线并行+8-way专家并行+ZeRO-1数据并行，无需张量并行
+- 236B 总参数、21B 每 token 激活参数，预训练语料规模为 8.1T tokens，并通过 YaRN 支持 128K 上下文。
+- MLA 使用低秩 KV 联合压缩，只缓存 \(c_t^{KV}\) 与解耦 RoPE key，将 KV cache 降低 93.3%。
+- 解耦 RoPE 将位置信息放到额外的 \(q_t^R,k_t^R\) 通道，避免 RoPE 破坏低秩矩阵吸收。
+- DeepSeekMoE 采用 2 个共享专家、160 个路由专家，每个 token 激活 6 个路由专家，兼顾通用能力和专家专化。
+- 设备受限路由把每个 token 的专家分配限制到最多 3 个设备，降低跨设备 all-to-all 通信。
+- 训练中加入专家级、设备级、通信级三类负载均衡辅助损失，并使用 token-dropping 控制专家容量。
+- 相比 DeepSeek 67B，论文报告训练成本降低 42.5%，实际部署最大生成吞吐提升到 5.76 倍。
 
 #### 🔬 深入细节
 
-##### 架构总览
+![DeepSeek-V2 架构图](https://arxiv.org/html/2405.04434/x3.png)
+*图：DeepSeek-V2 的基础架构，注意力层采用 MLA，FFN 层采用 DeepSeekMoE。*
 
-![DeepSeek-V2 架构](https://arxiv.org/html/2405.04434v2/assets/x1.png)
-*图: DeepSeek-V2整体架构。Transformer层中，Attention采用MLA（低秩压缩KV+解耦RoPE），FFN采用DeepSeekMoE（共享专家+路由专家）。*
+```python
+# DeepSeek-V2 MLA + DeepSeekMoE 前向流程伪代码
+for token_t in sequence:
+    h = transformer_input[token_t]
 
-##### Multi-Head Latent Attention (MLA)
+    # 1. MLA: KV 被联合压缩到 latent，并把 RoPE 从压缩 KV 中解耦出来
+    c_kv = W_DKV @ h                       # cache this latent
+    c_q = W_DQ @ h
+    q_c = W_UQ @ c_q
+    q_r = rope(W_QR @ c_q, position=token_t)
+    k_r = rope(W_KR @ h, position=token_t)  # cache this decoupled RoPE key
 
-###### 传统MHA的KV缓存瓶颈
-标准MHA每token需缓存2n_h d_h个元素（n_h头数，d_h每头维度）。以DeepSeek-V2的n_h=128,d_h=128为例，每token需2×128×128=32768个元素，长上下文下KV缓存成为推理瓶颈。GQA/MQA虽可降缓存但强度弱。
+    kv_cache.append((c_kv, k_r))
+    attn_out = latent_attention(q_c, q_r, kv_cache)
 
-###### 低秩KV联合压缩
-MLA核心思想：通过低秩分解，将键值对投影到共同的低维潜在空间，推理时仅缓存该压缩向量。
+    # 2. DeepSeekMoE: 共享专家恒激活，路由专家 Top-K 激活
+    u = h + attn_out
+    shared = sum(shared_expert_i(u) for i in range(2))
+    candidate_devices = top_m_devices(router_scores(u), m=3)
+    routed_ids = top_k_experts(router_scores(u, candidate_devices), k=6)
+    routed = sum(gate_i(u) * routed_expert_i(u) for i in routed_ids)
 
-**KV压缩**（对输入h_t ∈ ℝ^d）：
-$$c_t^{KV} = W^{DKV} h_t \in \mathbb{R}^{d_c}$$
-其中d_c ≪ d_h n_h（d_c=512 vs d_h n_h=16384）。随后通过上投影矩阵恢复：
-$$k_t^C = W^{UK} c_t^{KV} \in \mathbb{R}^{d_h n_h}$$
-$$v_t^C = W^{UV} c_t^{KV} \in \mathbb{R}^{d_h n_h}$$
+    output[token_t] = u + shared + routed
+    update_aux_balance_losses(routed_ids, candidate_devices)
+```
 
-推理时，W^{UK}可与W^Q融合、W^{UV}可与W^O融合，因此**无需显式计算和存储完整的k_t^C与v_t^C**，仅需缓存c_t^{KV}（512维）作为KV缓存。
+MLA 的出发点是标准 MHA 的推理瓶颈。MHA 在生成时要为每层、每个历史 token 缓存完整的 \(K,V\)，缓存量与 \(2n_hd_hl\) 成正比；当 batch size 或上下文长度变大时，显存首先被 KV cache 吃掉。GQA/MQA 可以减少 KV 头数，但会牺牲表达能力。DeepSeek-V2 的做法不是少存几个完整头，而是把所有头共享的 KV 信息先压缩进一个低维向量：
 
-**Query低秩压缩**（训练时降低激活内存）：
-$$c_t^Q = W^{DQ} h_t \in \mathbb{R}^{d_c'}$$
-$$q_t^C = W^{UQ} c_t^Q \in \mathbb{R}^{d_h n_h}$$
-其中d_c'=1536（同样远小于16384）。
+$$
+c_t^{KV}=W^{DKV}h_t,\quad
+k_t^C=W^{UK}c_t^{KV},\quad
+v_t^C=W^{UV}c_t^{KV}
+$$
 
-###### 解耦RoPE
-RoPE要求对K和Q施加位置相关旋转矩阵，若直接对k_t^C = W^{UK} c_t^{KV}应用RoPE，则旋转矩阵将嵌入W^{UK}与W^Q之间，破坏矩阵乘法可交换性——推理时必须为所有前缀token重新计算key，使低秩压缩的缓存节省失效。
+推理时只需要缓存 \(c_t^{KV}\)。更关键的是，\(W^{UK}\) 可以吸收到 query 侧投影里，\(W^{UV}\) 可以吸收到输出投影里，因此计算注意力时不必显式恢复完整的 \(k_t^C,v_t^C\)。DeepSeek-V2 的配置中 \(d_c=512\)，而完整多头维度 \(n_hd_h=128\times128=16384\)，缓存从“完整 K/V”变为“低维 latent”，这是 93.3% KV cache 下降的根本来源。
 
-**解耦策略**：
-- 新增decoupled key：k_t^R = RoPE(W^{KR} h_t) ∈ ℝ^{d_h^R}（d_h^R=64，由原始h_t经W^{KR}投影后旋转获得，**需要缓存**）
-- 新增decoupled queries：q_t^R = RoPE(W^{QR} c_t^Q)（从压缩query latent生成）
-- 最终拼接：q_{t,i} = [q_{t,i}^C; q_{t,i}^R], k_{t,i} = [k_{t,i}^C; k_t^R]
-- 注意力计算缩放因子调整为 √(d_h + d_h^R)
+RoPE 是 MLA 中最容易被忽略的技术难点。若直接对 \(k_t^C=W^{UK}c_t^{KV}\) 加 RoPE，位置相关的旋转矩阵会夹在 \(W^{UK}\) 和 query 投影之间，使推理时的矩阵吸收不再成立。DeepSeek-V2 因此新增解耦通道：
 
-推理时KV缓存总量：(d_c + d_h^R) l = (512+64) × 60 = 34,560元素/层，对比MHA的2×128×128×60=1,966,080元素，降至约**1.76%**。
+$$
+q_t=[q_t^C;q_t^R],\quad k_t=[k_t^C;k_t^R]
+$$
 
-与GQA对比：MLA的KV缓存等效于GQA 2.25组（d_h^R=d_h/2=64，dc=4dh=512），但性能超越MHA。
+其中 \(q_t^R\) 和共享的 \(k_t^R\) 专门承载 RoPE 位置信息。这样主体语义仍由低秩 KV latent 提供，位置信息由额外小维度通道提供。论文给出的直觉是：MLA 的 KV cache 近似等价于只有 2.25 个组的 GQA，但能力在消融中强于 MHA。
 
-![MLA压缩示意](https://arxiv.org/html/2405.04434v2/assets/x2.png)
-*图: MLA的KV联合压缩与解耦RoPE机制对比示意图*
+DeepSeekMoE 解决的是训练成本而不是 KV cache。它继承 DeepSeekMoE 的两条设计：细粒度专家分割让每个专家更容易专化，共享专家隔离把通用知识从路由专家里拿出来，减少不同路由专家重复学习同一类通用模式。DeepSeek-V2 每个 MoE 层包含 2 个共享专家和 160 个路由专家，每个 token 额外选择 6 个路由专家；共享专家对所有 token 生效，路由专家只处理与自己亲和度高的 token。
 
-![KV缓存对比](https://arxiv.org/html/2405.04434v2/assets/x3.png)
-*图: MHA/GQA/MQA/MLA的KV缓存直观对比*
+MoE 的代价是通信和负载不均衡。DeepSeek-V2 把专家均匀放在 8 个设备上，并要求每个 token 最多发送到 3 个设备；这限制了 all-to-all 的扇出。训练时还计算三类辅助损失：专家级损失约束单个专家的 token 量，设备级损失约束设备整体负载，通信级损失约束设备接收侧负载。若某设备超出容量预算，则按路由亲和度丢弃低优先级 token，并保留一部分序列从不丢弃，以降低训练与推理的不一致。
 
-| 注意力机制 | KV缓存（每token元素数） | 能力 |
-|-----------|---------------------|------|
-| MHA | 2 n_h d_h l | 强 |
-| GQA | 2 n_g d_h l | 中等 |
-| MQA | 2 d_h l | 弱 |
-| **MLA（本方法）** | (d_c+d_h^R) l ≈ (9/2)d_h l | **更强** |
-
-##### DeepSeekMoE in DeepSeek-V2
-
-DeepSeek-V2采用DeepSeekMoE架构（Dai et al., 2024），继承**细粒度专家分割**与**共享专家隔离**核心思想，并进行改进。
-
-**FFN输出公式**：
-$$\mathbf{h}_t' = \mathbf{u}_t + \sum_{i=1}^{N_s} \text{FFN}_i^{(s)}(\mathbf{u}_t) + \sum_{i=1}^{N_r} g_{i,t} \text{FFN}_i^{(r)}(\mathbf{u}_t)$$
-
-其中门控值 g_{i,t} 由token与路由专家centroid e_i的相似度经Softmax+TopK决定：
-$$s_{i,t} = \text{Softmax}_i(\mathbf{u}_t^T \mathbf{e}_i)$$
-$$g_{i,t} = \begin{cases} s_{i,t}, & s_{i,t} \in \text{Topk}(\{s_{j,t}\}, K_r) \\ 0, & \text{otherwise} \end{cases}$$
-
-**具体配置**：
-- 共享专家数 N_s = 2（无条件全token激活）
-- 路由专家数 N_r = 160（每个专家隐层 dim=1536）
-- 激活路由专家数 K_r = 6
-- 除第1层外所有FFN层替换为MoE层（共59个MoE层）
-
-**设备限制路由**：由于细粒度专家数量大，全量专家并行通信开销高。限制每个token的目标专家最多分布在M=3个设备上，先在M个设备中选最高亲和度专家，再在这M个设备中执行TopK选择。实验表明M≥3时性能与无限制TopK相当。
-
-**三级负载均衡辅助损失**：
-- Expert-Level: ℒ_ExpBal = α1 Σ f_i P_i（f_i为专家i实际选择频率，P_i为平均路由概率）
-- Device-Level: ℒ_DevBal = α2 Σ f_i' P_i'（聚合设备级统计）
-- Communication Balance: ℒ_CommBal = α3 Σ f_i'' P_i''（确保设备收发均衡）
-
-**Token-Dropping策略**：训练时每设备计算平均计算预算（容量因子=1.0），对每个设备按亲和度从低到高丢弃token直至达到预算，并保证约10%序列的token永不丢弃，保证训练推理一致性。
-
-##### Pre-Training
-
-**数据**：
-- 8.1T tokens双语语料，中文token比英文多约12%
-- 基于Byte-level BPE分词器，词表大小100K（同DeepSeek 67B）
-- 沿用DeepSeek 67B数据处理流程，增加数据量并优化质量过滤算法，额外恢复大量误删互联网数据，去除争议性内容
-
-**模型超参数**（关键）：
-- 60层Transformer，hidden dim=5120
-- MLA: n_h=128, d_h=128, d_c=512, d_c'=1536, d_h^R=64
-- MoE: 第1层dense FFN + 59个MoE层，每层2共享+160路由专家，专家隐层dim=1536，K_r=6
-- 总参数236B，每token激活参数21B
-- RMS Norm + 额外缩放因子（在压缩潜在向量、路由专家中间隐状态等宽度瓶颈处）保证稳定训练
-
-**训练超参数**：
-- AdamW: β1=0.9, β2=0.95, weight_decay=0.1
-- 学习率：预热2K步至最大值2.4×10^-4，训练60% token时乘0.316，90%时再乘0.316
-- 批大小：前225B tokens从2304逐步增至9216，之后保持9216
-- 最大序列长度4K，训练8.1T tokens
-- D=8设备并行，M=3设备限制路由，α1=0.003, α2=0.05, α3=0.02
-- Token-dropping仅在训练期间启用，评估时不丢弃
-
-**基础架构**：
-- HAI-LLM框架 + NVIDIA H800 GPU集群（NVLink+NVSwitch节点内，InfiniBand跨节点）
-- 16-way零气泡流水线并行 + 8-way专家并行 + ZeRO-1数据并行（无张量并行）
-- 重叠共享专家计算与专家并行all-to-all通信
-- 定制CUDA内核加速：通信、路由算法、跨专家融合线性运算
-- 基于FlashAttention-2优化MLA
-
-**长上下文扩展**：预训练完成后使用YaRN将上下文窗口从4K扩展至128K，仅应用于解耦共享key k_t^R（RoPE载体），调整长度缩放因子，以32K序列训练1000步，评估表现出色（NIAH测试全窗口长度表现良好）。
-
-##### 评估结果摘要
-
-**Base Model Benchmark**（部分，与其他顶级模型对比）：
-
-| Benchmark | DeepSeek 67B (Dense) | Qwen1.5 72B (Dense) | Mixtral 8×22B (MoE) | LLaMA3 70B (Dense) | DeepSeek-V2 (MoE, 21B act) |
-|-----------|---------------------|---------------------|---------------------|--------------------|----------------------------|
-| MMLU (5-shot) | 71.3 | 77.2 | 77.6 | 78.9 | **78.5** |
-| BBH (3-shot) | 68.7 | 59.9 | 78.9 | 81.0 | **78.9** |
-| ARC-C (25-shot) | 86.4 | 92.8 | 91.2 | 93.3 | **92.4** |
-| HellaSwag (10-shot) | 86.3 | 85.8 | 86.6 | 87.9 | **84.2** |
-| GSM8K (8-shot) | 63.4 | — | — | **93.0** | 79.2 |
-| MATH (4-shot) | 18.7 | — | — | — | **43.6** |
-| HumanEval (0-shot) | 42.7 | — | — | — | **48.8** |
-| **Pile-test (BPB↓)** | 0.642 | 0.637 | 0.623 | 0.602 | **0.606** |
-
-**关键对比**：DeepSeek-V2以仅21B激活参数在与70B+ Dense模型对比中展现竞争力，尤其在Pile-test（BPB=0.606，仅次LLaMA3-70B的0.602）和数学（MATH 43.6）、代码（HumanEval 48.8）上表现突出。
-
-**效率提升** vs DeepSeek 67B：
-- 训练成本：降42.5%
-- KV缓存：降93.3%
-- 最大生成吞吐：提升5.76倍
-
-##### 与DeepSeekMoE原始论文的关键区别
-
-| 维度 | DeepSeekMoE (Paper) | DeepSeek-V2 配置 |
-|------|---------------------|-----------------|
-| 规模 | 2B/16B/145B | 236B (21B激活) |
-| 路由专家数 | 灵活设定 | 固定160 |
-| 共享专家数 | K_s可调 | 固定2 |
-| 激活方案 | 细粒度mN选mK | 直接160选6 |
-| 新增机制 | — | 设备限制路由 (≤M=3)、通讯平衡损失、Token-Dropping |
-| 结合模块 | 仅FFN | × MLA (低秩KV+解耦RoPE) |
+从系统角度看，DeepSeek-V2 的贡献不是单点 MoE 或单点注意力替换，而是把“低缓存注意力”和“稀疏激活 FFN”一起做成可训练、可部署的模型。MLA 让长上下文和大 batch 推理不被 KV cache 限死，DeepSeekMoE 让 236B 总参数模型每个 token 只激活 21B 参数，设备受限路由和负载均衡损失则保证这套稀疏结构在 H800 集群上不会被通信拖垮。
 
 #### 🧪 练习题
 
 ```yaml
-question: "DeepSeek-V2的MLA中解耦RoPE策略主要解决了什么问题？"
+question: "DeepSeek-V2 中解耦 RoPE 的主要作用是什么？"
 options:
-  - "KV缓存过大导致推理内存溢出"
-  - "低秩KV压缩中，RoPE位置敏感性使W^UK无法被W^Q吸收，破坏缓存节省效果"
-  - "MoE专家负载不均衡导致路由崩塌"
-  - "长上下文训练时注意力熵下降"
+  - "让 MoE 路由更均匀，减少专家负载倾斜"
+  - "把位置信息从低秩 KV 压缩主路径中分离出来，保留矩阵吸收带来的 KV cache 节省"
+  - "用更大的词表增强中文和英文混合建模"
+  - "在训练中完全取消所有负载均衡辅助损失"
 answer: 1
-explain: "RoPE的位置敏感旋转矩阵会影响低秩压缩矩阵之间的可交换融合。若直接在压缩key（k_t^C=W^{UK}c_t^{KV}）上施加RoPE，则旋转矩阵粘合在W^{UK}与W^Q之间，破坏推理时的矩阵吸收（因为短矩阵乘法不满足交换律），导致需要为所有前缀token重算key而失去KV缓存节省。解耦RoPE通过额外的decoupled k_t^R和q_t^R独立承载旋转位置信息，保护了低秩压缩缓存的核心优势。"
+explain: "若直接对压缩 key 加 RoPE，位置相关矩阵会破坏推理时的投影矩阵吸收。解耦 RoPE 用额外的 q^R/k^R 通道承载位置信息，从而保留 MLA 的低缓存优势。"
 ```

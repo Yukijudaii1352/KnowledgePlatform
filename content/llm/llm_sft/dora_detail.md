@@ -1,87 +1,108 @@
-### DoRA
-
+### DoRA：权重分解低秩适配
 ```yaml
-id: "dora"
-name: "DoRA"
-full_name: "权重分解低秩适配 (DoRA)"
+id: dora
+name: DoRA
+full_name: 权重分解低秩适配 (DoRA)
 year: "2024.02"
-org: "NVIDIA"
-paper_url: "https://arxiv.org/abs/2402.09353"
-category: "peft"
-parent: "lora"
-motivation: "幅值方向分解缩小与全参微调差距"
+org: NVIDIA
+paper_url: https://arxiv.org/abs/2402.09353
+category: peft
+parent: lora
+motivation: 幅值方向分解缩小与全参微调差距
 ```
 
 #### 📝 一句话总结
-
-DoRA 将预训练权重分解为幅值和方向两部分，单独学习幅值并用 LoRA 更新方向，从而缓解 LoRA 同时承担幅值与方向变化时表达能力不足的问题。
+DoRA 将预训练权重分解为 magnitude 与 direction 两部分，只用 LoRA 更新 direction、单独学习 magnitude，从而让 PEFT 的更新模式更接近全参微调并缩小 LoRA 与 FT 的效果差距。
 
 #### 🎯 核心要点
-
-- 借鉴 Weight Normalization，将权重按列分解为 magnitude 和 direction。
-- Magnitude 作为可训练向量直接更新，direction 由 LoRA 低秩增量更新。
-- 分析发现全量微调与 LoRA 在幅值/方向更新模式上差异明显，DoRA 更接近全量微调。
-- 可在推理时把 magnitude 和 direction 合并为普通权重，保持 LoRA 类部署方式。
-- 在 commonsense reasoning、视觉语言任务和指令微调中通常优于 LoRA，低 rank 时收益更明显。
+- 提出 weight decomposition analysis：把权重列向量拆成幅值 \(m\) 与单位方向 \(V/\lVert V\rVert_c\)，比较 FT、LoRA、DoRA 的幅值/方向更新模式。
+- 发现 LoRA 的 magnitude update 与 direction update 呈强正相关，而 full fine-tuning 更像负相关或解耦更新，说明 LoRA 学习模式受限。
+- DoRA 初始化时从预训练权重得到 \(m=\lVert W_0\rVert_c\)、\(V=W_0\)，训练时冻结 \(V\) 的基座部分、学习 \(m\)，并用 LoRA 低秩增量更新 direction。
+- 核心形式为 \(W'=m\frac{V+\Delta V}{\lVert V+\Delta V\rVert_c}\)，其中 \(\Delta V=BA\) 是 LoRA 增量。
+- 可在推理前把 DoRA 更新合并回权重矩阵，因此与 LoRA 一样不增加额外推理延迟。
+- 为减少训练开销，论文建议对方向归一化分母做 detach，把归一化值视为常数，显著降低反传图显存且几乎不影响精度。
+- 在 LLaMA commonsense reasoning、LLaVA visual instruction tuning、VL-BART image/video-text understanding 上稳定优于同 rank LoRA。
 
 #### 🔬 深入细节
-
-![DoRA 权重分解框架](http://ar5iv.labs.arxiv.org/html/2402.09353/assets/x1.png)
-*图源：论文 Figure 1，DoRA 把权重分解为幅值和方向，并用 LoRA 高效更新方向。*
-
-![DoRA 与 LoRA/FT 的更新模式对比](http://ar5iv.labs.arxiv.org/html/2402.09353/assets/x2.png)
-*图源：论文 Figure 2，对比全量微调、LoRA 和 DoRA 在幅值与方向变化上的模式。*
+![DoRA 权重分解与低秩方向更新框架](https://ar5iv.labs.arxiv.org/html/2402.09353/assets/x1.png)
+*图：论文 Figure 1 展示 DoRA 如何把预训练权重分解为 magnitude 与 direction，并用 LoRA 只更新 direction，最后重新合成为可部署权重。*
 
 ```python
-# DoRA 线性层伪代码
-class DoRALinear:
-    def __init__(self, W0, rank, alpha):
-        self.W0 = freeze(W0)
-        self.m = Parameter(column_norm(W0))      # 幅值
-        self.A = Parameter(random_normal(rank, in_dim))
-        self.B = Parameter(zeros(out_dim, rank)) # 方向增量
-        self.scale = alpha / rank
+# DoRA 核心训练流程（简化）
+for each adapted pretrained weight W0:
+    V = freeze(W0)                    # direction base
+    m = trainable(column_norm(W0))     # magnitude vector
+    A, B = init_lora(rank=r)           # Delta V = B @ A, with zero-init output path
 
-    def forward(self, x):
-        V = self.W0 + self.scale * (self.B @ self.A)
-        direction = V / column_norm(V)
-        W_dora = self.m * direction
-        return x @ W_dora.T
+for batch in dataloader:
+    for adapted_linear in model.layers:
+        delta_V = B @ A
+        direction = V + delta_V
+        norm = column_norm(direction)
 
-for batch in task_data:
-    loss = model_with_dora(batch).loss
-    update_only(dora_magnitude_and_lora_factors, loss)
+        # 论文的低开销版本可 detach(norm)，降低反向图显存
+        W_dora = m * direction / detach(norm)
+        y = x @ W_dora
+
+    loss = task_loss(y, labels)
+    loss.backward()
+    optimizer.step(params=[m, A, B])
+
+# inference 前可把 W_dora merge 成普通线性层权重
 ```
 
-DoRA 的动机来自对 LoRA 与全量微调的行为分析。LoRA 只通过低秩矩阵改变 \(W_0\)，它同时需要表达权重列的长度变化和方向变化；全量微调则可以更自由地分别调整这两类属性。论文观察到 LoRA 的幅值变化和方向变化高度正相关，而全量微调呈现更灵活甚至负相关的模式。
+LoRA 的基本更新是 \(W'=W_0+\Delta W\)，其中 \(\Delta W=BA\)。这个形式虽然参数高效，也能在推理前 merge，但它把“权重向量长度变化”和“权重方向变化”混在同一个低秩增量里。DoRA 的出发点是：如果全参微调能够自由地调节每列权重的幅值和方向，而 LoRA 的低秩增量必须同时解释两者，那么 LoRA 的容量缺口不只是“参数少”，还包括更新几何受限。
 
-DoRA 使用权重归一化形式表示线性层权重。对权重矩阵 \(W\) 的列向量做范数分解：
-
-$$
-W = m \frac{V}{\lVert V\rVert_c}
-$$
-
-其中 \(m\) 是列范数幅值，\(V/\lVert V\rVert_c\) 是方向。DoRA 将 \(m\) 设为可训练参数，而方向基底 \(V\) 由冻结权重加 LoRA 增量得到：
+论文先定义列方向上的权重分解。对权重矩阵 \(W\)，记 \(\lVert W\rVert_c\) 为按列计算的向量范数，则：
 
 $$
-V = W_0 + \Delta V,\quad \Delta V = \frac{\alpha}{r}BA
+W=m\frac{V}{\lVert V\rVert_c},\quad m=\lVert W\rVert_c,\quad V=W.
 $$
 
-这样低秩分支主要负责方向适配，幅值变化由独立向量承担，降低了 LoRA 分支的表达压力。对于低 rank 设置，这种分工尤其有用，因为少量低秩方向不必同时拟合所有尺度变化。
+这里 \(m\) 是每一列的 magnitude，\(V/\lVert V\rVert_c\) 是单位方向。论文用这个分解比较 FT 和 LoRA 在不同训练步、不同层上的变化，发现 LoRA 的方向变化越大时幅值变化也越大，呈明显正相关；而 FT 更常出现一方大、一方小的解耦更新。这意味着 FT 可以“主要转方向但少改长度”或“主要改长度但少转方向”，而 LoRA 更容易把两类变化绑定在一起。
 
-训练流程上，DoRA 仍只更新少量参数：幅值向量 \(m\) 和 LoRA 因子 \(A,B\)。推理时可以计算合成后的 \(W_{\text{DoRA}}\)，因此部署形态接近 LoRA。相比 AdaLoRA 的“动态分配 rank”，DoRA 解决的是“同一低秩更新内部如何表达幅值与方向”的问题，二者关注点不同。
+DoRA 的方法就是显式拆开这两件事。初始化时从预训练权重得到 \(m\) 与 \(V\)，训练时 \(m\) 是可训练向量，direction 则通过低秩矩阵更新：
 
-> 💡 关键：DoRA 的收益来自把 LoRA 的一个任务拆成两个更容易的任务：低秩方向更新 + 显式幅值更新。
+$$
+\Delta V=BA,
+$$
+
+$$
+W'=m\frac{V+\Delta V}{\lVert V+\Delta V\rVert_c}.
+$$
+
+其中 \(V\) 的基座部分来自冻结的 \(W_0\)，\(A,B\) 是 LoRA 参数。这个公式的直觉很直接：LoRA 不再负责同时学“长度”和“方向”，而是专注于调整归一化方向；每列长度交给独立的 \(m\) 学习。新增的 \(m\) 参数量只和输出/列数相关，通常相对 LLM 总参数极小。
+
+DoRA 与 Weight Normalization 看起来相似，但训练语境不同。Weight Normalization 通常从头训练，把权重重参数化为 magnitude 和 direction 以改善优化条件；DoRA 则从一个已经包含大量知识的 \(W_0\) 出发，保留预训练方向作为初始点，只在下游任务上做小幅适配。因此 DoRA 避免了从零初始化方向的敏感性，也保持了 PEFT 的可合并、低推理成本属性。
+
+梯度分析解释了为什么分解能改善 LoRA 稳定性。对 direction 参数 \(V\) 的梯度会受到归一化结构影响，可直观写成“缩放 + 投影”形式：
+
+$$
+\nabla_V\mathcal{L}\propto \frac{m}{\lVert V\rVert_c}\left(I-\frac{VV^\top}{\lVert V\rVert_c^2}\right)\nabla_W\mathcal{L}.
+$$
+
+投影项会削弱沿当前权重方向的分量，让更新更集中在改变方向的有效子空间；缩放项则按 magnitude 调整梯度尺度。这种结构使低秩 \(\Delta V\) 接收到的梯度更接近“方向适配”任务，而不是普通 LoRA 中直接对 \(W_0+BA\) 做混合更新。
+
+> 💡 关键：DoRA 不是替代 LoRA 的低秩矩阵，而是把 LoRA 放在 direction 分支里，同时单独学习 magnitude。它保留 LoRA 的可 merge 优点，但改变了 LoRA 更新的几何含义。
+
+训练开销方面，直接对 \(\lVert V+\Delta V\rVert_c\) 反传会让计算图变大。论文提出把分母视为动态计算但不接收梯度的常数，即：
+
+$$
+W'=m\frac{V+\Delta V}{\operatorname{detach}(\lVert V+\Delta V\rVert_c)}.
+$$
+
+这样前向仍使用当前 direction 的真实范数，反向则避免范数分支带来的额外显存。论文报告该修改在 LLaMA 微调中可显著降低训练显存，精度差异很小。推理时，DoRA 与 LoRA 一样可以预先计算 \(W'\) 并合并到线性层，因此不会像串行 Adapter 那样增加额外推理层。
+
+相较于 AdaLoRA/QLoRA，DoRA 关注的不是“预算分配”或“量化存储”，而是 LoRA 的表达几何。它回答的问题是：在参数量近似不变的情况下，如何让 LoRA 更像 full fine-tuning？答案是把每列权重的长度和方向解耦，让低秩参数只承担方向更新。这个思路也解释了论文实验中 DoRA 在相同 rank 下经常优于 LoRA，甚至在 halved rank 配置下仍能保持竞争力。
 
 #### 🧪 练习题
-
 ```yaml
-question: "DoRA 相比 LoRA 额外引入了什么可训练部分？"
+question: "DoRA 为什么要把权重分解为 magnitude 和 direction？"
 options:
-  - "每列权重的幅值 magnitude 参数"
-  - "完整预训练模型副本"
-  - "人工偏好奖励模型"
-  - "离散 prompt 搜索器"
-answer: 0
-explain: "DoRA 将权重分解为幅值和方向，方向由 LoRA 更新，幅值由单独可训练向量控制。"
+  - "为了在推理时增加一个额外归一化层"
+  - "为了让 LoRA 只负责方向更新，并单独学习幅值，使更新模式更接近全参微调"
+  - "为了把所有权重量化到 4-bit"
+  - "为了按奇异值重要性动态删除 rank"
+answer: 1
+explain: "DoRA 的核心是解耦幅值和方向：magnitude 用可训练向量表示，direction 用 LoRA 更新，从而缩小 LoRA 与 FT 的学习模式差距。"
 ```

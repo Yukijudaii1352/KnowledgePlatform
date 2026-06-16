@@ -1,118 +1,93 @@
-### LLaMA: Open and Efficient Foundation Language Models
+### LLaMA：开放高效基础语言模型
+```yaml
+id: llama
+name: LLaMA
+full_name: 开放高效基础语言模型 (LLaMA)
+year: "2023.02"
+org: Meta AI
+paper_url: https://arxiv.org/abs/2302.13971
+category: open_foundation
+parent: chinchilla
+motivation: 公开数据训练高效小模型
+```
 
 #### 📝 一句话总结
-LLaMA 提出了一系列 7B-65B 参数的高效基础语言模型，**仅使用公开可获取的数据集**训练 1-1.4T tokens，证明了在给定推理预算下，较小模型配合更多数据可超越大得多的模型，其中 LLaMA-13B 在多数 benchmark 上超越 GPT-3(175B)，LLaMA-65B 与 Chinchilla-70B 和 PaLM-540B 竞争。
+LLaMA 提出了一组 7B 到 65B 的高效基础语言模型，用纯公开数据和更多训练 token 证明“小模型长训练”可以在推理成本更低的前提下达到或超过更大闭源模型的效果。
 
 #### 🎯 核心要点
-- 提出 4 种规模模型：LLaMA-7B、13B、33B、65B，全部基于 Transformer 架构
-- 仅使用公开数据集训练（CommonCrawl、C4、GitHub、Wikipedia、Books、ArXiv、StackExchange），总计 1.4T tokens
-- 采用 Pre-normalization + RMSNorm、SwiGLU 激活函数、RoPE 旋转位置编码等架构改进
-- LLaMA-13B 在 8 个常识推理 benchmark 上全面超越 GPT-3(175B)
-- 使用高效实现：xformers 因果多头注意力、手动反向传播、模型/序列并行、激活与梯度通信重叠
-- 遵循 Chinchilla 缩放定律：在给定计算预算下，较小模型 + 更多数据优于大模型 + 较少数据
-- 全模型开源给研究社区（需申请）
+- 模型族覆盖 7B、13B、33B、65B；7B/13B 训练 1.0T token，33B/65B 训练 1.4T token，全局 batch 为 4M token。
+- 训练语料全部来自公开可获取数据：CommonCrawl、C4、GitHub、Wikipedia、Books、ArXiv、StackExchange。
+- 采用 decoder-only Transformer，并集成 RMSNorm 预归一化、SwiGLU 前馈激活、RoPE 旋转位置编码。
+- 使用 SentencePiece BPE tokenizer，数字按单个 digit 切分，未知 UTF-8 字符 fallback 到 byte。
+- 优化器为 AdamW，使用 cosine learning-rate schedule、2000 warmup steps、0.1 weight decay、1.0 gradient clipping。
+- 工程侧使用高效 causal attention、activation checkpointing、model/sequence parallelism 和通信计算重叠来提升训练吞吐。
+- 核心设计目标不是“最大参数量”，而是在给定推理预算下获得最佳性能；LLaMA-13B 在多数 benchmark 上超过 GPT-3 175B，65B 接近 Chinchilla-70B 与 PaLM-540B。
 
 #### 🔬 深入细节
-
-##### 1. 模型架构
-
 ![LLaMA 训练损失曲线](https://ar5iv.labs.arxiv.org/html/2302.13971/assets/x1.png)
-*图 1: LLaMA-7B/13B/33B/65B 在 1-1.4T tokens 上的训练损失曲线，batch size 统一为 4M tokens。*
+*图：LLaMA 7B、13B、33B、65B 随训练 token 增加的 loss 曲线；33B/65B 训练到 1.4T token，小模型训练到 1.0T token。*
 
-LLaMA 基于标准 Transformer 架构（Vaswani et al., 2017），吸收了后续多项改进：
+```python
+# LLaMA 预训练核心流程（按论文方法整理）
+public_sources = ["CommonCrawl", "C4", "GitHub", "Wikipedia", "Books", "ArXiv", "StackExchange"]
+model = DecoderOnlyTransformer(norm="RMSNorm", ffn="SwiGLU", position="RoPE")
+optimizer = AdamW(beta1=0.9, beta2=0.95, weight_decay=0.1)
+scheduler = CosineSchedule(warmup_steps=2000, final_lr_ratio=0.1)
 
-| 改进 | 来源 | 说明 |
-|------|------|------|
-| **Pre-normalization** | GPT-3 | 在每个 Transformer 子层**输入**前归一化，而非输出后，提升训练稳定性 |
-| **RMSNorm** | Zhang & Sennrich (2019) | 使用 RMSNorm 而非 LayerNorm 作为归一化函数 |
-| **SwiGLU 激活** | PaLM (Shazeer, 2020) | 将 ReLU 替换为 SwiGLU，使用 $\\frac{2}{3}4d$ 维度（PaLM 为 $4d$） |
-| **RoPE 位置编码** | GPTNeo (Su et al., 2021) | 移除绝对位置编码，每层加入 Rotary Positional Embeddings |
+for batch in stream_tokens(public_sources, batch_tokens=4_000_000):
+    x = sentencepiece_bpe(batch, split_digits=True, byte_fallback=True)
+    logits = model(x[:, :-1])
+    loss = cross_entropy(logits, x[:, 1:])
+    loss.backward()
+    clip_grad_norm_(model.parameters(), 1.0)
+    optimizer.step()
+    scheduler.step()
+```
 
-##### 2. 模型超参数
+LLaMA 的问题设定来自 Chinchilla scaling law 之后的一个实际矛盾：如果只按训练 compute 最优来选模型，模型可能仍然太大，线上推理成本很高；而服务一个基础模型时，推理预算往往比一次性训练预算更关键。因此论文把目标改成“在多个推理预算点上获得尽可能强的模型”，选择训练较小的 decoder-only Transformer，但让它们看远多于传统设置的 token。论文中特别指出，虽然 Chinchilla 建议 10B 模型约配 200B token，但他们观察到 7B 模型在超过 1T token 后仍持续变好，这就是 LLaMA 选择长训练的直接依据。
 
-| 参数 | 7B | 13B | 33B | 65B |
-|------|-----|-----|------|------|
-| 层数 | 32 | 40 | 60 | 80 |
-| 头数 | 32 | 40 | 52 | 64 |
-| 嵌入维度 | 4096 | 5120 | 6656 | 8192 |
-| 学习率 | 3.0e-4 | 3.0e-4 | 1.5e-4 | 1.5e-4 |
-| Batch size | 4M tokens | 4M tokens | 4M tokens | 4M tokens |
+核心训练目标仍是标准自回归语言建模：给定 token 序列 \(x_1,\ldots,x_T\)，模型最大化下一个 token 的条件概率，等价于最小化负对数似然：
 
-##### 3. 训练数据配比
+$$
+\mathcal{L}_{\text{LM}}(\theta)=-\frac{1}{T}\sum_{t=1}^{T}\log p_\theta(x_t\mid x_{<t})
+$$
 
-| 数据子集 | 采样比例 | 轮数 (1.4T) | 磁盘大小 |
-|----------|----------|-------------|----------|
-| CommonCrawl | 67.0% | 1.10 | ~3.3TB |
-| C4 | 15.0% | 1.06 | ~750GB |
-| GitHub | 4.5% | 0.64 | ~100GB |
-| Wikipedia | 4.5% | 2.45 | ~20GB |
-| Books | 4.5% | 2.23 | ~80GB |
-| ArXiv | 2.5% | 1.06 | ~92GB |
-| StackExchange | 2.0% | 1.03 | ~78GB |
+这个目标看似普通，但 LLaMA 的关键在于数据和预算组合。预训练数据中 CommonCrawl 占 67%，C4 占 15%，GitHub、Wikipedia、Books 各占 4.5%，ArXiv 占 2.5%，StackExchange 占 2%。这些语料的共同约束是公开可获取、可支持研究发布，而不是依赖“Books 2TB”或社交媒体对话这类不可复现数据源。数据侧还进行了去重、语言识别、质量过滤、许可证过滤等处理，使得开放模型能在透明数据来源下逼近闭源模型能力。
 
-##### 4. 优化器与训练细节
+架构上，LLaMA 没有提出全新的 Transformer 结构，而是把当时被证明有效的组件组合成稳定高效的 decoder-only 模型。预归一化把每个子层输入先做 RMSNorm：
 
-优化器配置：
-- **AdamW**: $\\beta_1=0.9, \\beta_2=0.95$
-- **Cosine 学习率调度**: 最终 LR = 10% 最大 LR，2,000 步 warmup
-- **Weight decay**: 0.1，Gradient clipping: 1.0
+$$
+\operatorname{RMSNorm}(x)=\frac{x}{\sqrt{\frac{1}{d}\sum_{i=1}^{d}x_i^2+\epsilon}}\odot g
+$$
 
-高效训练实现：
-1. **因果多头注意力优化**：使用 xformers 库，不存储注意力权重，不计算被 mask 的 key/query scores（参考 Rabe & Staats, 2021; Dao et al., 2022）
-2. **减少激活重计算**：手动实现 Transformer 层反向传播，仅保存在反向传播中计算昂贵的激活（如 linear 层输出），而非依赖 PyTorch autograd
-3. **模型与序列并行**：减少总体内存使用（Korthikanti et al., 2022）
-4. **计算与通信重叠**：尽可能重叠激活计算与 GPU 间 all_reduce 通信
+这样做的直觉是让 attention 和 FFN 子层看到尺度更稳定的输入，降低大规模训练时梯度爆炸或深层不稳定的风险。前馈层用 SwiGLU 替代 ReLU，常见写法为：
 
-训练硬件：所有模型在 **A100-80GB GPU** 上训练，LLaMA-65B 使用 2,048 块 GPU 处理 1.4T tokens 耗时约 21 天。
+$$
+\operatorname{FFN}(x)=\left(\operatorname{Swish}(xW_1)\odot xW_3\right)W_2
+$$
 
-##### 5. 核心实验结果
+SwiGLU 通过门控分支控制信息流，比普通 ReLU FFN 更有表达能力；论文还把隐藏维度设为 \(\frac{2}{3}\cdot4d\)，在性能和计算量之间折中。
 
-**常识推理 (Table 3) - 零样本性能：**
+位置编码使用 RoPE，而不是绝对位置 embedding。RoPE 的做法是在每层 attention 的 query/key 上施加与位置相关的旋转，使相对位置信息自然进入点积注意力：
 
-| 模型 | BoolQ | PIQA | SIQA | HellaSwag | WinoGrande | ARC-e | ARC-c | OBQA |
-|------|-------|------|------|-----------|------------|-------|-------|------|
-| GPT-3 175B | 60.5 | 81.0 | — | 78.9 | 70.2 | 68.8 | 51.4 | 57.6 |
-| Chinchilla 70B | 83.7 | 81.8 | 51.3 | 80.8 | 74.9 | — | — | — |
-| PaLM 540B | 88.0 | 82.3 | — | 83.4 | 81.1 | 76.6 | 53.0 | 53.4 |
-| LLaMA 7B | 76.5 | 79.8 | 48.9 | 76.1 | 70.1 | 72.8 | 47.6 | 57.2 |
-| LLaMA 13B | 78.1 | 80.1 | 50.4 | 79.2 | 73.0 | 74.8 | 52.7 | 56.4 |
-| LLaMA 33B | 83.1 | 82.3 | 50.4 | 82.8 | 76.0 | 80.0 | 57.8 | 58.6 |
-| **LLaMA 65B** | **85.3** | **82.8** | **52.3** | **84.2** | **77.0** | **78.9** | **56.0** | **60.2** |
+$$
+q_m^\top k_n \rightarrow (R_m q)^\top(R_n k)
+$$
 
-> LLaMA-65B 在所有 benchmark 上超过 Chinchilla-70B（除 BoolQ），LLaMA-13B 全面超越 GPT-3(175B)。
+其中 \(R_m\) 和 \(R_n\) 是由 token 位置决定的旋转矩阵。直觉上，RoPE 让注意力分数依赖相对距离 \(m-n\)，比固定绝对位置表更适合长序列泛化，也避免为每个位置学习单独参数。
 
-**其他 benchmark 亮点：**
-- **NaturalQuestions** (Table 4)：LLaMA-65B 零样本 26.4%、5-shot 35.1%，与 PaLM-540B 持平
-- **TriviaQA** (Table 5)：LLaMA-65B 零样本 68.2%（高于 GPT-3 的 64.3%），5-shot 达 71.6%
-- **RACE-middle** (Table 6)：LLaMA-65B 67.9% vs PaLM-540B 68.1%
-- **MMLU** (Table 7)：LLaMA-65B 5-shot 63.4%，接近 PaLM-540B 的 69.3%
-- **MATH/GSM8k** (Table 8)：数学推理能力随模型规模稳定增长
+工程优化也是 LLaMA 能训练 65B 模型的关键。论文使用 xFormers 风格的 memory-efficient causal attention，不存完整 attention matrix，也不计算 causal mask 会屏蔽掉的 query-key 分数；再通过 activation checkpointing 只保留线性层输出等昂贵激活，减少反向传播显存压力。模型并行和序列并行负责把参数、激活和序列维度拆到多卡上，通信计算重叠则尽量隐藏 all-reduce 的开销。最终 65B 模型在 2048 张 80GB A100 上约可达到 380 tokens/sec/GPU，1.4T token 训练约 21 天。
 
-##### 6. 偏置与毒性评估
+与 GPT-3、PaLM、Chinchilla 等闭源或半闭源系统相比，LLaMA 的创新不是某个单点公式，而是一个可复现的训练配方：公开数据、长 token 训练、高效 Transformer 组件、以及面向推理预算的模型尺寸选择。它直接影响了后续开源 LLM 生态，因为 13B 级模型可在单卡或少量 GPU 上运行，却能在常识推理、问答、阅读理解、代码等任务上接近或超过更大模型。
 
-- **CrowS-Pairs (Table 12)**：LLaMA-65B 在 9 类偏置上的整体分数为 66.4（vs OPT-175B 67.2）
-- **WinoGender (Table 13)**：LLaMA 模型在 "their/them/someone" 代词上的共指消解准确率优于 "her/her/she" 和 "his/him/he"，表明存在性别偏置
-- **TruthfulQA (Table 14)**：LLaMA-65B 在 truthful 和 truthful*informative 指标与 GPT-3 相当，但仍存在幻觉问题
-
-##### 7. 碳足迹 (Table 15)
-
-| 模型 | GPU 小时 | 总功耗 | 碳排放 (tCO₂eq) |
-|------|----------|--------|-----------------|
-| OPT-175B | 809,472 | 356 MWh | 137 |
-| BLOOM-175B | 1,082,880 | 475 MWh | 183 |
-| LLaMA-7B | 82,432 | 36 MWh | 14 |
-| LLaMA-13B | 135,168 | 59 MWh | 23 |
-| LLaMA-33B | 530,432 | 233 MWh | 90 |
-| LLaMA-65B | 1,022,362 | 449 MWh | 173 |
-
-#### 📚 练习题
-
-1. **架构分析**：LLaMA 使用了 Pre-normalization 而非 Post-normalization（原始 Transformer）。阐述这种设计对训练稳定性的影响机制，并说明为什么在大规模模型中 Pre-norm 更受青睐。
-
-2. **缩放定律验证**：LLaMA 遵循 Chinchilla 缩放定律（在固定计算预算下，较小模型+更多数据优于大模型+较少数据）。若你有 1e24 FLOPs 预算，根据 Hoffmann et al.（2022），计算"最优"模型参数量和训练 token 数，并与 LLaMA-65B（1.4T tokens）比较。
-
-3. **SwiGLU 激活函数**：推导 SwiGLU 的前向传播公式：$SwiGLU(x) = Swish(xW) \\otimes (xV)$，其中 $Swish(x) = x \\cdot \\sigma(x)$。解释为何 LLaMA 使用 $\\frac{2}{3}4d$ 维度而非 PaLM 的 $4d$（提示：考虑参数量中性）。
-
-4. **RoPE 位置编码**：设计一个小实验，用 numpy 实现 RoPE 编码（维度 64，序列长度 128），可视化位置 0 与位置 k 的旋转角差异，验证其相对位置建模能力。
-
-5. **偏置评估**：论文发现 LLaMA 在 WinoGender 上呈现性别偏置。设计一个评估方案，用现有中文数据集（如 CLUE/WSC）测试类似偏置，并讨论如何在预训练阶段缓解该问题。
+#### 🧪 练习题
+```yaml
+question: "LLaMA 相比单纯扩大参数量的路线，最核心的效率思想是什么？"
+options:
+  - "用 encoder-decoder 架构替代 decoder-only 架构"
+  - "在推理预算约束下，用较小模型训练更多公开 token"
+  - "主要依赖人工标注指令数据提升能力"
+  - "用检索系统替代参数化语言模型"
+answer: 1
+explain: "LLaMA 的核心是让较小模型看更多 token，从而在服务成本更低的情况下达到强性能；它仍是 decoder-only 自回归 Transformer。"
+```

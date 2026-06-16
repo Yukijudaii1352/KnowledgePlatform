@@ -1,5 +1,5 @@
 /**
- * harness-data.js — 由 pipeline/build.py 于 2026-06-15 18:08:17 自动生成。
+ * harness-data.js — 由 pipeline/build.py 于 2026-06-16 17:00:05 自动生成。
  * 源文件：content/agent/harness.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "harness",
     "topic_name": "Harness",
     "page_title": "Agent Harness Engineering 技术演进",
-    "page_subtitle": "2026-06-15 版",
+    "page_subtitle": "2026-06-16 版",
     "page_desc": "从 WebArena、AgentBench、SWE-bench 的可复现实验环境，到 Codex、Claude Code、GenericAgent、OpenClaw 的执行 harness，再到 Meta-Harness、AHE、Harness-Bench、RHO 代表的自动优化与诊断范式，系统梳理 Agent 评测 harness、任务环境、自动回归与运行时工程主线。",
     "page_icon": "🧰",
     "hero_pills": [

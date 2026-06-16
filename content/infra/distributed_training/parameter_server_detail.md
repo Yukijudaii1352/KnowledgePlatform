@@ -1,182 +1,123 @@
-### Parameter Server — 通信高效的分布式机器学习
+### Parameter Server (参数服务器)
 
 ```yaml
 id: parameter_server
 name: Parameter Server
-full_name: 通信高效的分布式机器学习 (Communication Efficient Distributed Machine Learning with the Parameter Server)
-year: "2014"
-org: CMU / Baidu / Google
-paper_url: https://proceedings.neurips.cc/paper/2014/hash/1ff1de774005f8da13f42943881c655f-Abstract.html
-category: infra
+full_name: 参数服务器 (Parameter Server)
+year: '2014'
+org: CMU/Google
+paper_url: https://proceedings.neurips.cc/paper_files/paper/2014/hash/935ad074f32d1e8f085a143449894cdc-Abstract.html
+category: dp
 parent: —
-motivation: 提出参数服务器框架的两大通信松弛策略（异步一致性模型+用户自定义过滤器），并给出延迟块近端梯度法的收敛保证
+motivation: Server-Worker架构支持异步/同步梯度聚合
 ```
 
 #### 📝 一句话总结
 
-Parameter Server 通过引入灵活的异步一致性模型和用户自定义过滤器两大松弛策略，大幅降低分布式机器学习中的通信开销，并提出延迟块近端梯度法（Delayed Block Proximal Gradient）在非凸非光滑问题上给出收敛保证，实现了在 636TB 数据、1000 台机器上的近线性加速。
+Parameter Server 将全局模型参数拆成键值分片放在 Server 组上，Worker 只拉取本地数据需要的 working set 并推送梯度，解决大规模数据并行训练中参数同步、异步容忍和网络通信开销过高的问题。
 
 #### 🎯 核心要点
 
-- **参数服务器架构**：Server 节点维护全局共享参数，Worker 节点并行计算梯度并通过 push/pull 接口通信
-- **两大通信松弛策略**：(1) 异步任务依赖的灵活一致性模型（Sequential / Eventual / Bounded Delay）；(2) 用户自定义过滤器（如 KKT filter）
-- **延迟块近端梯度法 (DBPG)**：针对非凸非光滑复合优化问题，在有界延迟 \(\tau\) 下证明收敛到临界点
-- **KKT 过滤器**：仅传输可能改变最优活跃集的参数，对稀疏模型可过滤 98%+ 的无效通信
-- **Key Caching + Compression**：利用参数键的时间局部性缓存 key 列表，结合 Snappy 压缩降低带宽
-- **实验规模**：ℓ₁ 正则化逻辑回归在 636TB 广告点击数据上训练，1000 台机器实现 800× 加速
-- **极简接口**：用户仅需约 300 行代码即可实现完整算法，对比同类系统需 10,000+ 行
+- Server-Worker 架构：Server 保存全局共享参数，Worker 保存数据分片并通过 `push`/`pull` 读写参数。
+- 参数按 key range 分片：每个 Server 只维护一部分参数，多个 Server 聚合带宽并避免单点瓶颈。
+- 支持同步与异步：通过任务依赖图表达 Sequential、Eventual、Bounded Delay 等一致性模型。
+- 支持用户自定义过滤器：Significantly modified、Random skip、KKT、Key caching、Compression 等过滤器减少无效通信。
+- Delayed Block Proximal Gradient：只更新参数块，在有界延迟下求解非凸、非光滑复合目标并给出收敛条件。
+- 面向稀疏超大规模数据：论文在 636TB 点击数据、170B 样本、65B 特征、1000 台机器上验证通信压缩与等待时间降低。
 
 #### 🔬 深入细节
 
-##### 系统架构示意
+##### 远程示意图
 
-```
-┌─────────────────────────────────────────────────────┐
-│                   Server Group                       │
-│  ┌─────────┐  ┌─────────┐  ┌─────────┐            │
-│  │Server 1 │  │Server 2 │  │Server 3 │  ...       │
-│  │(keys    │  │(keys    │  │(keys    │            │
-│  │ 1..k/3) │  │k/3..2k/3│  │2k/3..k) │            │
-│  └────┬────┘  └────┬────┘  └────┬────┘            │
-└───────┼─────────────┼─────────────┼────────────────┘
-        │  push/pull  │             │
-┌───────┼─────────────┼─────────────┼────────────────┐
-│  ┌────┴────┐  ┌────┴────┐  ┌────┴────┐            │
-│  │Worker 1 │  │Worker 2 │  │Worker 3 │  ...       │
-│  │(data    │  │(data    │  │(data    │            │
-│  │ shard 1)│  │ shard 2)│  │ shard 3)│            │
-│  └─────────┘  └─────────┘  └─────────┘            │
-│                   Worker Group                       │
-└─────────────────────────────────────────────────────┘
-```
-
-*图：Parameter Server 架构。Server 按 key range 分片存储全局参数，Worker 持有数据分片并通过 push/pull 与 Server 交互。*
+![多服务器参数服务器架构](https://d2l.ai/_images/ps-multips.svg)
+*图：D2L 参数服务器章节提供的多服务器架构图，展示单个 Parameter Server 的带宽瓶颈以及多 Server 按参数分片聚合带宽的方案；该章节明确引用 Li et al. 2014 的参数服务器系统。*
 
 ##### 算法伪代码
 
 ```python
-# Delayed Block Proximal Gradient (DBPG) - Worker 端
-def worker_task(worker_id, data_shard, server):
-    while not converged:
-        # 1. Pull: 从 Server 拉取当前参数（可能有延迟 τ）
-        w = server.pull(keys, deps=task_dependencies)
-        
-        # 2. Compute: 在本地数据上计算梯度
-        grad = compute_gradient(data_shard, w)
-        
-        # 3. Filter: 应用用户自定义过滤器（如 KKT filter）
-        filtered_grad = kkt_filter(grad, w)
-        
-        # 4. Push: 将过滤后的梯度推送到 Server
-        server.push(filtered_keys, filtered_grad)
+# Parameter Server 上的一轮同步或有界异步梯度聚合
+def worker_loop(worker_id, data_shard, server_group, tau):
+    working_keys = infer_working_set(data_shard)
+    w_local = server_group.pull(working_keys)
 
-# Server 端聚合
-def server_update(key, received_grads):
-    # 聚合梯度并执行近端算子
-    g = aggregate(received_grads)
-    # 近端梯度更新（处理 ℓ₁ 正则化等非光滑项）
-    w[key] = prox_operator(w[key] - η * g, λ)
+    for t in range(num_steps):
+        wait_until_iterations_before(t - tau).finished()
+
+        grad, coord_lr = compute_gradient_and_lr(data_shard, w_local)
+        active_grad = kkt_filter(grad, w_local)
+
+        server_group.push(keys=active_grad.keys(), values=(active_grad, coord_lr))
+        w_delta = server_group.pull(keys=working_keys, filter="significantly_modified")
+        w_local.update(w_delta)
+
+def server_update(block_id, received_messages):
+    grad = sum(msg.grad for msg in received_messages)
+    coord_lr = aggregate_lr(msg.coord_lr for msg in received_messages)
+    U = diag(coord_lr)
+    w[block_id] = prox_update(w[block_id], grad, U)
 ```
 
-##### 动机与背景
+##### 机制解读
 
-分布式机器学习的核心瓶颈在于**通信开销**。当数据规模达到数百 TB、参数维度达到数十亿时，Worker 与 Server 之间的参数同步成为性能瓶颈。传统 BSP（Bulk Synchronous Parallel）模式要求所有 Worker 完成当前迭代后才能进入下一轮，导致：
+Parameter Server 的核心抽象是把“分布式训练”改写成键值参数存储上的 `push` 和 `pull`。Worker 不需要知道全局参数如何分片，也不需要和其他 Worker 直接通信；它只负责用自己的数据分片计算梯度，并把梯度发给负责相应 key range 的 Server。Server 端执行可交换的聚合：
 
-1. **同步屏障**（Barrier）使得最慢的 Worker 决定整体速度
-2. **全量通信**每轮传输所有参数，即使大部分参数变化极小
-3. **网络带宽**成为扩展性的硬约束
+$$
+\mathbf{g}^{(t)} = \sum_{r=1}^{m} \mathbf{g}_{r}^{(t)}, \qquad
+\mathbf{w}^{(t+1)} = \mathbf{w}^{(t)} - \eta \left(\mathbf{g}^{(t)} + \partial h(\mathbf{w}^{(t)})\right)
+$$
 
-> 💡 关键：本文的核心洞察是——大多数分布式 ML 算法并不需要完全同步的参数视图，适度的"陈旧性"（staleness）不会破坏收敛性，反而能大幅提升吞吐量。
+这里 \(m\) 是 Worker 数量，\(h\) 是正则项。实际系统并不总是全量同步所有参数，因为高维稀疏数据下，单个 Worker 只需要很小一部分 working set。论文报告在 100 个 Worker 时平均 Worker 只需要约 7.8% 的模型参数，Worker 数增加到 10000 时 working set 比例进一步降到 0.15%，这正是 `pull(keys)` 接口比全量广播更省通信的原因。
 
-##### 核心机制一：灵活一致性模型
+一致性模型由任务依赖图控制，而不是硬编码在训练循环里。Sequential 等价于 BSP：第 \(t+1\) 个任务必须等待第 \(t\) 个任务完成；Eventual 允许任务尽快执行，但参数可能很旧；Bounded Delay 设置最大陈旧度 \(\tau\)，新任务开始前必须保证 \(t-\tau\) 以前的任务完成：
 
-论文提出三种一致性模型，通过任务间的依赖关系（dependency）控制：
+$$
+\text{start}(t) \Rightarrow \forall t' \le t-\tau,\ \text{finished}(t')
+$$
 
-| 一致性模型 | 描述 | 延迟 | 适用场景 |
-|-----------|------|------|---------|
-| Sequential | 所有任务串行执行 | 0 | 调试、精确验证 |
-| Eventual | 无任何依赖约束 | 无界 | 对陈旧性不敏感的算法 |
-| Bounded Delay | 新任务需等待 \(\tau\) 轮前的任务完成 | ≤ \(\tau\) | 大多数实际场景 |
+这个设计把“系统吞吐”和“算法收敛”之间的取舍显式暴露出来。同步模型等待最慢 Worker，网络抖动和负载不均会形成 straggler；有界异步允许快 Worker 继续推进，只要延迟不超过 \(\tau\)，算法仍能用适当学习率保持收敛。
 
-Bounded Delay 模型的形式化定义：
+论文进一步提出 Delayed Block Proximal Gradient，把目标写成非凸、非光滑复合优化：
 
-$$\text{task } t \text{ 开始前，所有 task } t' \leq t - \tau \text{ 必须已完成}$$
+$$
+\min_{\mathbf{w}} F(\mathbf{w}) = f(\mathbf{w}) + h(\mathbf{w})
+$$
 
-这意味着 Worker 看到的参数最多落后 \(\tau\) 个迭代，在实践中 \(\tau\) 通常设为 Worker 数量的一小部分。
+Server 对某个参数块执行广义近端更新：
 
-##### 核心机制二：用户自定义过滤器
+$$
+\operatorname{Prox}_{\gamma}^{U}(x)=
+\arg\min_y h(y)+\frac{1}{2\gamma}\|x-y\|_{U}^{2},
+\qquad
+\mathbf{w}^{(t+1)}=
+\operatorname{Prox}_{\gamma_t}^{U}\left(\mathbf{w}^{(t)}-\gamma_t\nabla f(\tilde{\mathbf{w}}^{(t)})\right)
+$$
 
-过滤器在 push/pull 操作时决定哪些 (key, value) 对需要实际传输。论文重点介绍了 **KKT Filter**：
+其中 \(\tilde{\mathbf{w}}^{(t)}\) 是有界陈旧的参数视图，\(U=\operatorname{diag}(\mathbf{u}^{(t)})\) 表示坐标级学习率。论文给出的收敛条件体现了延迟代价：若最小坐标学习率为 \(M_t\)，学习率满足
 
-对于 ℓ₁ 正则化问题 \(\min_w f(w) + \lambda \|w\|_1\)，KKT 最优性条件为：
+$$
+\gamma_t \le \frac{M_t}{L_{\mathrm{var}}+\tau L_{\mathrm{cov}}+\epsilon}
+$$
 
-$$|[\nabla f(w)]_i| \leq \lambda \implies w_i^* = 0$$
+则在有界延迟和过滤误差逐步减小的条件下，算法期望收敛到 stationary point。直觉是：\(\tau\) 越大，陈旧梯度越不可靠，因此需要更保守的 \(\gamma_t\)；但系统层面节省的等待时间通常可以覆盖这部分算法代价。
 
-即如果某个参数的梯度绝对值小于正则化系数 \(\lambda\)，则该参数在最优解处为零，无需传输。KKT Filter 的工作原理：
+用户自定义过滤器是 Parameter Server 相比朴素 Server-Worker 聚合的关键增强。以 \(\ell_1\) 正则逻辑回归为例，KKT filter 利用 soft-shrinkage 的最优性条件：若某坐标当前为零且梯度不足以越过正则阈值，则该坐标更新后仍为零，可以跳过通信：
 
-1. Worker 计算局部梯度后，检查每个参数是否满足 KKT 条件
-2. 仅传输**违反** KKT 条件的参数（即活跃集中的参数）
-3. 对于高度稀疏的模型（如广告 CTR 预估），可过滤掉 **98% 以上**的参数通信
+$$
+w_k=0 \land |\hat{g}_k| \le \lambda-\delta
+\Rightarrow \text{skip coordinate } k
+$$
 
-> ⚠️ 注意：KKT Filter 不是近似——它利用的是精确的最优性条件，因此不会影响最终收敛精度，只是跳过了"确定为零"的参数更新。
-
-##### 核心机制三：延迟块近端梯度法 (DBPG) 的收敛分析
-
-论文考虑如下非凸非光滑复合优化问题：
-
-$$\min_{w \in \mathbb{R}^p} F(w) = f(w) + h(w)$$
-
-其中 \(f\) 是光滑（可能非凸）函数，\(h\) 是非光滑凸正则化项（如 \(\|w\|_1\)）。
-
-**关键假设：**
-- \(\nabla f\) 是 Lipschitz 连续的，常数为 \(L\)
-- 延迟有界：\(\tau_{\max} \leq \tau\)
-- 块坐标更新：每次仅更新参数的一个子集（block）
-
-**收敛定理（Theorem 1）：** 设学习率 \(\eta = \frac{c}{L(\tau+1)}\)（其中 \(c < 1\)），则经过 \(T\) 次迭代后：
-
-$$\frac{1}{T} \sum_{t=1}^{T} \mathbb{E}\left[\left\| G_\eta(w^t) \right\|^2\right] \leq \frac{2L(\tau+1)(F(w^0) - F^*)}{cT}$$
-
-其中 \(G_\eta(w) = \frac{1}{\eta}(w - \text{prox}_{\eta h}(w - \eta \nabla f(w)))\) 是广义梯度映射。
-
-> 💡 关键：收敛速率为 \(O\left(\frac{\tau+1}{T}\right)\)，说明延迟 \(\tau\) 仅线性减慢收敛，而并行带来的吞吐量提升通常远超此代价。当 Worker 数 \(P\) 满足 \(P \leq O(\sqrt{T})\) 时，可实现近线性加速。
-
-##### 通信优化：Key Caching 与压缩
-
-除了算法层面的过滤，系统层面还采用：
-
-1. **Key Caching**：Worker 与 Server 之间缓存已传输的 key 列表。若连续两次 push 的 key 集合相同（时间局部性），则第二次仅传 value，节省 key 传输开销
-2. **Value 压缩**：使用 Snappy 对 value 向量进行压缩，对稀疏梯度效果显著
-3. **Range Push/Pull**：支持按 key 范围批量操作，减少 RPC 次数
-
-##### 与传统方法的对比
-
-| 特性 | MapReduce/AllReduce | 第一代 PS | 本文 (第三代 PS) |
-|------|-------------------|----------|----------------|
-| 同步模型 | 严格 BSP | 简单异步 | 灵活一致性（3种） |
-| 通信过滤 | 无 | 无 | KKT Filter 等 |
-| 收敛保证 | 同步保证 | 无理论 | DBPG 定理 |
-| 容错 | 重启任务 | 检查点 | 向量时钟+复制 |
-| 编程复杂度 | 高 | 中 | 低（~300行） |
-
-##### 实验结果
-
-在 636TB 广告点击预测数据集上（1000 台机器，每台 16 核 + 192GB 内存）：
-
-- **稀疏逻辑回归**（170 亿参数）：Bounded Delay (\(\tau=8\)) 相比 Sequential 获得 **800×** 加速
-- **KKT Filter 效果**：过滤 98.4% 的参数通信，几乎不影响收敛精度
-- **Key Caching**：减少 40-50% 的网络传输量
-- **对比 Vowpal Wabbit**：PS 框架在相同精度下快 10× 以上
+这不是随机压缩，而是利用稀疏正则的活跃集结构；再叠加 key caching 和数值压缩后，论文在 636TB 点击数据实验中报告 Server 侧和 Worker 侧分别获得约 40x 和 12x 的通信压缩。相比 AllReduce 每步同步完整梯度，Parameter Server 更适合超高维稀疏模型，因为它把通信粒度从“整个张量”降到“会影响目标函数的 key-value 子集”。
 
 #### 🧪 练习题
 
 ```yaml
-question: "Parameter Server 中 KKT Filter 的核心原理是什么？"
+question: "Parameter Server 的 Bounded Delay 一致性模型主要解决什么问题？"
 options:
-  - "随机丢弃一定比例的梯度以减少通信量"
-  - "利用 ℓ₁ 正则化的最优性条件，仅传输可能非零的参数梯度"
-  - "对梯度进行 Top-K 稀疏化，只保留最大的 K 个分量"
-  - "通过量化将 32 位浮点梯度压缩为 1 位信号"
+  - "让所有 Worker 永远使用完全相同的最新参数"
+  - "限制参数陈旧度，在减少同步等待的同时保持可分析的收敛条件"
+  - "把模型权重切分到多个 GPU 的 tensor 维度"
+  - "只保留梯度绝对值最大的 Top-K 坐标"
 answer: 1
-explain: "KKT Filter 利用 ℓ₁ 正则化的 KKT 条件：若 |∇f(w)_i| ≤ λ，则 w_i* = 0，该参数无需传输。这是精确的最优性条件而非近似。"
+explain: "Bounded Delay 允许 Worker 使用最多落后 tau 轮的参数，减少 straggler 等待；收敛条件中的学习率会随 tau 增大而更保守。"
 ```

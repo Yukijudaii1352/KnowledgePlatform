@@ -255,15 +255,108 @@ motivation: 首个多模态BERT扩展，双流架构实现跨模态注意力
 ```
 
 #### 📝 一句话总结
-ViLBERT 的核心目标是：首个多模态BERT扩展，双流架构实现跨模态注意力。
+ViLBERT 将 BERT 扩展为视觉流与语言流并行的双流 Transformer，通过跨模态 co-attention 在目标区域和文本 token 之间建立可迁移的视觉语言 grounding，解决了早期视觉语言模型高度依赖任务专用结构的问题。
 
 #### 🎯 核心要点
-- 核心动机：首个多模态BERT扩展，双流架构实现跨模态注意力
-- 代表机构：Georgia Tech / Meta
+- 双流架构：语言 token 与图像 object region 分别进入两个 Transformer 流，保留各自模态的结构归纳偏置
+- Co-attentional Transformer：视觉流和语言流在若干层中双向交叉注意力交互，而非简单拼接成单序列
+- 视觉输入采用检测器区域特征：使用预训练 Faster R-CNN 提取 RoI 特征、位置框和特殊图像 token
+- 预训练数据使用 Conceptual Captions：在大规模网页 alt-text 图文对上学习任务无关表征
+- 两类预训练代理任务：masked multimodal modeling 与 image-text alignment
+- 下游迁移只加轻量任务头：覆盖 VQA、VCR、RefCOCO+ 与 caption-based image retrieval
 
 #### 🔬 深入细节
-首个多模态BERT扩展，双流架构实现跨模态注意力
+##### 核心架构示意图
 
+![ViLBERT 双流 co-attention 架构](https://ar5iv.labs.arxiv.org/html/1908.02265/assets/x1.png)
+*图：ViLBERT 将文本 token 与图像区域分别送入语言流和视觉流，并通过 Co-TRM 层让两种表示互相注意。*
+
+##### 算法伪代码
+
+```python
+# ViLBERT 预训练核心流程
+for image, caption in conceptual_captions:
+    words = bert_tokenize(caption)
+    regions, boxes = faster_rcnn(image)          # RoI features + spatial boxes
+
+    words_masked, word_labels = mask_words(words)
+    regions_masked, region_labels = mask_regions(regions)
+
+    text_h = text_embedding(words_masked)
+    visual_h = region_embedding(regions_masked, boxes)
+
+    for layer in unimodal_text_layers:
+        text_h = transformer_block(text_h)
+    for layer in unimodal_visual_layers:
+        visual_h = transformer_block(visual_h)
+
+    for layer in co_attention_layers:
+        text_h = self_attention(text_h)
+        visual_h = self_attention(visual_h)
+        text_h = cross_attention(query=text_h, key=visual_h, value=visual_h)
+        visual_h = cross_attention(query=visual_h, key=text_h, value=text_h)
+
+    loss_mlm = predict_masked_words(text_h, word_labels)
+    loss_mrm = predict_masked_regions(visual_h, region_labels)
+    loss_align = image_text_matching(text_h["CLS"], visual_h["IMG"])
+    optimize(loss_mlm + loss_mrm + loss_align)
+```
+
+##### 动机与背景
+
+BERT 证明了“先用代理任务预训练、再迁移到下游任务”的范式在语言任务上非常有效，但早期视觉语言任务仍大量依赖为 VQA、检索、指代表达等单独设计的网络。ViLBERT 的目标是把视觉 grounding 也变成一种可预训练、可迁移的能力，让同一个 backbone 通过少量任务头适配多种视觉语言任务。
+
+直接把图像区域和词 token 拼成一个序列是一种自然选择，但 ViLBERT 选择双流结构：文本仍像 BERT 一样建模句法与语义，图像区域则在视觉流中建模物体间关系。这样做的好处是早期层可以专注各自模态，只有高层通过 co-attention 交换信息，避免两种输入在底层被过早混合。
+
+##### 核心机制：双向 co-attention
+
+ViLBERT 的关键层是 Co-TRM。给定语言表示 \(H\) 和视觉表示 \(V\)，标准自注意力先在各自模态内更新表示，然后交叉注意力执行：
+
+$$
+\mathrm{Attn}_{H \leftarrow V}=\mathrm{softmax}\left(\frac{Q_H K_V^\top}{\sqrt{d}}\right)V_V
+$$
+
+$$
+\mathrm{Attn}_{V \leftarrow H}=\mathrm{softmax}\left(\frac{Q_V K_H^\top}{\sqrt{d}}\right)V_H
+$$
+
+第一式让每个文本 token 查询相关图像区域，第二式让每个图像区域查询相关词语。直觉上，“man shopping for fruit” 中的 `fruit` 会从水果区域获得视觉证据，水果区域也会从 `fruit`、`shopping` 等词获得语义约束。
+
+##### 输入表示与预训练任务
+
+视觉输入不是原始 patch，而是目标检测器产生的 object region。每个区域由外观特征和边界框位置编码组成，再加上一个类似 `[IMG]` 的全图聚合 token。语言输入沿用 BERT 的 token、segment、position embedding，因此 ViLBERT 可以复用 BERT 初始化。
+
+Masked multimodal modeling 同时遮蔽文本词和图像区域：遮蔽词需要由周围词与图像区域恢复，遮蔽区域需要由其他区域与文本语义恢复。Image-text alignment 则判断图像和句子是否匹配，促使 `[CLS]` 与 `[IMG]` 级别的全局表示学到跨模态一致性。
+
+> 💡 关键：ViLBERT 的创新不只是“把图像喂给 BERT”，而是把视觉与语言看成两个需要独立建模、再高层对齐的表示系统。
+
+##### 训练与迁移流程
+
+预训练阶段使用 Conceptual Captions 图文对。每个 batch 中既有真实图文对，也有替换 caption 形成的负样本。优化目标由遮蔽预测损失和图文匹配损失组成：
+
+$$
+\mathcal{L}=\mathcal{L}_{\text{MLM}}+\mathcal{L}_{\text{MRM}}+\mathcal{L}_{\text{ITM}}
+$$
+
+下游阶段保持同一个双流 backbone，只在不同任务上添加小型输出头。例如 VQA 读取融合后的全局表示做答案分类；图文检索使用全局匹配分数；RefCOCO+ 根据文本条件对区域打分；VCR 则把候选答案或 rationale 组织成文本输入。
+
+##### 与传统方法的区别
+
+传统视觉语言模型常把“视觉注意力”当成某个下游任务的局部模块，模型在一个任务中学到的 grounding 难以迁移。ViLBERT 把 grounding 提前到预训练阶段，并用 co-attention 层显式学习区域与词语之间的双向依赖，因此在多个任务上只需轻量适配即可获得较强表现。
+
+与后来的单流 VisualBERT/UNITER 相比，ViLBERT 的双流设计更强调模态专属编码；与后来的 CLIP 相比，它不是只学习全局图文相似度，而是保留区域级、token 级交互，更适合需要细粒度关系推理的 VQA 和 VCR。
+
+#### 🧪 练习题
+```yaml
+question: "ViLBERT 使用双流架构和 co-attention 的主要目的是什么？"
+options:
+  - "减少图像检测器的计算量"
+  - "让视觉和语言先分别建模，再在高层进行双向跨模态交互"
+  - "把所有视觉区域转换成自然语言 caption"
+  - "避免使用任何预训练语言模型"
+answer: 1
+explain: "ViLBERT 保留视觉流和语言流的模态专属表示，并通过 Co-TRM 层让 token 与区域互相注意，从而学习可迁移的视觉语言 grounding。"
+```
 
 ### CLIP
 
@@ -282,136 +375,104 @@ motivation: 4亿图文对对比学习，零样本视觉理解奠基
 ```
 
 #### 📝 一句话总结
-CLIP 通过在 4 亿图文对上进行对比学习预训练，将图像和文本映射到共享嵌入空间，实现了强大的零样本视觉分类能力，无需任何标注数据即可匹配 ResNet-50 在 ImageNet 上的监督学习性能。
+CLIP 在 4 亿互联网图文对上训练图像编码器和文本编码器，用对比学习把两种模态对齐到同一嵌入空间，解决了传统视觉分类器依赖封闭标签集、难以零样本迁移的问题。
 
 #### 🎯 核心要点
-- **对比学习目标**：使用对称的 InfoNCE 损失，最大化匹配图文对的余弦相似度，最小化非匹配对的相似度
-- **大规模数据集 WIT**：从互联网收集的 4 亿（图像, 文本）对，覆盖 50 万条搜索查询
-- **双编码器架构**：图像编码器（ResNet / ViT）+ 文本编码器（Transformer），各自独立编码后在共享空间对齐
-- **可学习温度参数**：温度 \(\tau\) 作为 log 参数化的可学习标量直接优化，控制 softmax 的 logits 范围
-- **零样本迁移**：通过自然语言描述类别名，将分类问题转化为图文匹配问题，无需微调
-- **Prompt Engineering & Ensembling**：使用 "A photo of a {label}." 等模板和多 prompt 集成，在 ImageNet 上提升约 5%
-- **训练规模**：batch size = 32,768，最大模型 RN50x64 在 592 块 V100 上训练 18 天
+- 双编码器架构：图像编码器使用 ResNet 或 ViT，文本编码器使用 Transformer
+- 训练数据 WIT：约 4 亿个从互联网收集的 image-text pairs
+- 对称对比目标：同时优化 image-to-text 与 text-to-image 的 InfoNCE 交叉熵
+- 大 batch 负样本：一个 batch 内 \(N\) 个正样本构成 \(N^2-N\) 个隐式负样本
+- 可学习温度参数：缩放余弦相似度 logits，控制对比学习分布锐度
+- 零样本分类：用 prompt 模板把类别名变成文本嵌入，将分类转化为图文匹配
+- Prompt engineering 与 prompt ensembling 显著提升开放集识别稳定性
 
 #### 🔬 深入细节
 ##### 核心架构示意图
 
 ![CLIP 训练与零样本推理流程](https://ar5iv.labs.arxiv.org/html/2103.00020/assets/x1.png)
-*图 1：CLIP 的三阶段流程——(1) 对比预训练：联合训练图像编码器和文本编码器，使匹配的图文对在嵌入空间中对齐；(2) 创建零样本分类器：将数据集的类别名嵌入文本模板生成文本嵌入；(3) 零样本预测：计算图像嵌入与所有类别文本嵌入的相似度，选择最高者。*
+*图：CLIP 先做图文对比预训练，再用文本 prompt 生成零样本分类器，最后通过图像-文本相似度完成预测。*
 
 ##### 算法伪代码
 
-![CLIP 核心实现伪代码](https://ar5iv.labs.arxiv.org/html/2103.00020/assets/x3.png)
-*图 3：CLIP 核心实现的 NumPy 风格伪代码。*
-
-以下为整理后的伪代码：
-
 ```python
-# CLIP 对比学习核心伪代码
-# image_encoder: ResNet 或 Vision Transformer
-# text_encoder:  Transformer
-# I[n, h, w, c]: 一个 mini-batch 的图像
-# T[n, l]:       一个 mini-batch 的文本
+# CLIP 对比预训练核心逻辑
+for images, texts in dataloader:
+    image_features = image_encoder(images)       # [N, d_i]
+    text_features = text_encoder(texts)          # [N, d_t]
 
-# 分别提取特征
-I_f = image_encoder(I)    # [n, d_i]
-T_f = text_encoder(T)     # [n, d_t]
+    image_emb = l2_normalize(image_features @ W_i)
+    text_emb = l2_normalize(text_features @ W_t)
 
-# 线性投影到共享的多模态嵌入空间
-I_e = l2_normalize(I_f @ W_i, axis=1)  # [n, d_e]
-T_e = l2_normalize(T_f @ W_t, axis=1)  # [n, d_e]
+    logits = exp(logit_scale) * image_emb @ text_emb.T
+    labels = arange(len(images))                 # 对角线是匹配图文对
 
-# 计算缩放的余弦相似度矩阵
-logits = (I_e @ T_e.T) * exp(t)  # [n, n], t 为可学习的 log 温度
+    loss_i2t = cross_entropy(logits, labels)
+    loss_t2i = cross_entropy(logits.T, labels)
+    loss = (loss_i2t + loss_t2i) / 2
+    optimize(loss)
 
-# 对称交叉熵损失（InfoNCE）
-labels = arange(n)  # 对角线为正样本对
-loss_i = cross_entropy_loss(logits, labels, axis=0)   # 图像→文本
-loss_t = cross_entropy_loss(logits, labels, axis=1)   # 文本→图像
-loss   = (loss_i + loss_t) / 2
+# 零样本分类
+class_texts = [template.format(label) for label in class_names]
+class_emb = l2_normalize(text_encoder(class_texts) @ W_t)
+pred = argmax(l2_normalize(image_encoder(image) @ W_i) @ class_emb.T)
 ```
 
 ##### 动机与背景
 
-传统视觉模型依赖人工标注的固定类别标签（如 ImageNet 的 1000 类），这带来两个根本问题：**标注成本高昂**和**泛化能力受限**——模型只能识别训练时见过的类别。自然语言处理领域已经证明，从互联网原始文本中学习的预训练模型（如 GPT 系列）具有强大的零样本迁移能力。CLIP 的核心动机是：**能否用自然语言作为监督信号来训练视觉模型，从而继承 NLP 的开放世界泛化能力？**
+传统视觉识别依赖 ImageNet 这类人工标注标签，训练好的分类器只能输出固定类别。CLIP 的核心判断是：互联网上天然存在海量图像及其文字描述，自然语言本身可以提供更开放、更可组合的监督信号。只要模型能把“图片”和“描述图片的文字”对齐，就能把任意类别名、属性短语或任务描述变成分类器。
 
-早期工作如 VirTex、ICMLM 和 ConVIRT 已探索了图文联合学习，但规模有限。CLIP 的关键洞察是：**对比学习目标比预测式目标（如逐词生成图像描述）在计算效率上高出 4 倍**。这使得在 4 亿规模的数据上训练成为可能。
+论文比较了预测式目标和对比目标。逐词生成 caption 虽然直观，但训练成本高且要求模型学习完整语言建模；CLIP 只要求匹配图像和文本是否成对，把任务化简为 batch 内 \(N\) 路检索，因此能扩展到 4 亿图文对。
 
-##### 核心机制：对比学习目标
+##### 核心机制：对称 InfoNCE
 
-CLIP 的训练目标是一个**对称的对比损失**。给定一个 batch 中的 \(N\) 个图文对，CLIP 构造一个 \(N \times N\) 的相似度矩阵，其中对角线元素为正样本对（匹配的图文），其余 \(N^2 - N\) 个为负样本对。
+对一个 batch 的 \(N\) 个图文对，CLIP 计算图像嵌入 \(I_i\) 与文本嵌入 \(T_j\) 的余弦相似度矩阵：
 
-损失函数为对称的 InfoNCE：
+$$
+s_{ij}=\exp(t)\cdot \frac{I_i^\top T_j}{\|I_i\|\|T_j\|}
+$$
 
-$$\mathcal{L} = \frac{1}{2} \left[ \frac{1}{N}\sum_{i=1}^{N} -\log \frac{\exp(\text{sim}(\mathbf{I}_i, \mathbf{T}_i)/\tau)}{\sum_{j=1}^{N}\exp(\text{sim}(\mathbf{I}_i, \mathbf{T}_j)/\tau)} + \frac{1}{N}\sum_{i=1}^{N} -\log \frac{\exp(\text{sim}(\mathbf{T}_i, \mathbf{I}_i)/\tau)}{\sum_{j=1}^{N}\exp(\text{sim}(\mathbf{T}_i, \mathbf{I}_j)/\tau)} \right]$$
+其中 \(t\) 是可学习的 logit scale。对称损失为：
 
-其中 \(\text{sim}(\mathbf{I}, \mathbf{T}) = \frac{\mathbf{I} \cdot \mathbf{T}}{|\mathbf{I}||\mathbf{T}|}\) 为余弦相似度，\(\tau\) 为可学习的温度参数。
+$$
+\mathcal{L}=\frac{1}{2}\left[
+\frac{1}{N}\sum_i -\log\frac{\exp(s_{ii})}{\sum_j\exp(s_{ij})}
++
+\frac{1}{N}\sum_i -\log\frac{\exp(s_{ii})}{\sum_j\exp(s_{ji})}
+\right]
+$$
 
-> 💡 **关键直觉**：这个损失函数本质上是在做一个 \(N\) 路分类——对于每张图像，要从 \(N\) 个文本中找到匹配的那一个（反之亦然）。batch size 越大，负样本越多，对比信号越强。这就是为什么 CLIP 使用了 32,768 的超大 batch size。
+第一项让每张图像找对文本，第二项让每段文本找对图像。对角线是正样本，其余位置都是负样本。batch 越大，模型看到的对比候选越多，图文空间的语义边界越清晰。
 
-##### 双编码器架构
+##### 图像编码器、文本编码器与共享空间
 
-**图像编码器**提供两种选择：
-1. **ResNet 系列**：基于 ResNet-50，加入 ResNet-D 改进、抗锯齿模糊池化，并将全局平均池化替换为**注意力池化**（单层 Transformer 风格的 QKV 注意力，query 以全局平均池化表示为条件）。通过 EfficientNet 风格的宽度-深度-分辨率联合缩放，扩展到 RN50x4、RN50x16、RN50x64。
-2. **Vision Transformer (ViT)**：紧跟 ViT 原始实现，仅增加了对 patch + position embeddings 的额外 LayerNorm。训练了 ViT-B/32、ViT-B/16、ViT-L/14 三个规模。
+CLIP 的图像编码器包含两条路线：改造 ResNet 的版本使用 attention pooling 替代普通全局平均池化；ViT 版本把图像切成 patch 后用 Transformer 编码。文本编码器是 Transformer，使用 BPE 分词，并取文本末尾 token 的表示作为句子特征。
 
-**文本编码器**为 Transformer（63M 参数，12 层，512 宽度，8 头注意力），使用 BPE 分词（词表大小 49,152），最大序列长度 76。文本序列以 `[SOS]` 和 `[EOS]` 括起，取 `[EOS]` 位置最高层的激活作为文本表征，经 LayerNorm 后线性投影到共享嵌入空间。使用**掩码自注意力**以保留未来初始化预训练语言模型的能力。
+两个编码器输出后分别乘上线性投影矩阵 \(W_i\)、\(W_t\)，映射到同一维共享空间并做 L2 归一化。这样相似度就是超球面上的角度关系，训练目标不会依赖某个模态的特征范数。
 
-> ⚠️ **注意**：两个编码器的输出分别通过各自的线性投影层 \(W_i\) 和 \(W_t\) 映射到**同一维度的共享嵌入空间**，然后进行 L2 归一化。这意味着图像和文本在几何上被约束在同一个超球面上。
+> 💡 关键：文本编码器在零样本分类时相当于“动态生成分类器权重”。类别不再是训练时固定的 index，而是自然语言描述。
 
 ##### 零样本推理流程
 
-CLIP 的零样本分类本质上是将分类问题转化为**检索问题**：
+给定一个新数据集，CLIP 不微调模型，而是为每个类别构造 prompt，例如 `a photo of a {label}`。文本编码器把这些 prompt 变成类别原型向量；图像编码器把测试图像变成图像向量；最终选择相似度最高的文本类别。
 
-1. **构造文本分类器**：将目标数据集的每个类别名填入 prompt 模板（如 "A photo of a {label}."），通过文本编码器生成类别嵌入向量
-2. **编码测试图像**：通过图像编码器提取图像嵌入
-3. **匹配预测**：计算图像嵌入与所有类别嵌入的余弦相似度，选择最高相似度的类别
-
-> 💡 **关键洞察**：从这个角度看，文本编码器实际上是一个**超网络 (Hypernetwork)**——它根据自然语言描述动态生成线性分类器的权重。每一步 CLIP 预训练都可以看作在优化一个随机创建的代理分类器（32,768 类，每类 1 个样本）。
-
-##### Prompt Engineering 与集成
-
-直接使用类别名作为文本输入效果欠佳，原因有二：(1) **多义性**——如 "crane" 既可以是建筑起重机也可以是鹤；(2) **分布偏移**——预训练数据中文本通常是完整句子而非单词。
-
-解决方案：
-- **Prompt 模板**：使用 "A photo of a {label}." 作为默认模板，在 ImageNet 上提升 1.3%
-- **领域定制**：如宠物数据集用 "A photo of a {label}, a type of pet."，卫星图用 "a satellite photo of a {label}."
-- **Prompt 集成**：对同一类别使用多个不同 prompt（如 "A photo of a big {label}" 和 "A photo of a small {label}"），在嵌入空间中平均。ImageNet 上使用 80 个 prompt 集成，额外提升 3.5%
-
-##### 训练细节与规模
-
-| 配置 | 值 |
-|------|-----|
-| 数据集 | WIT (WebImageText)，4 亿图文对 |
-| Batch Size | 32,768 |
-| 训练轮数 | 32 epochs |
-| 优化器 | AdamW（解耦权重衰减） |
-| 学习率调度 | Cosine schedule |
-| 温度初始化 | \(\tau\) 初始化为 0.07，logits 裁剪至最大 100 |
-| 精度 | 混合精度训练 + 梯度检查点 + 半精度 Adam 统计量 |
-| 最大模型训练时间 | RN50x64: 592 V100 × 18 天; ViT-L/14: 256 V100 × 12 天 |
-| 最佳模型 | ViT-L/14@336px（额外 1 epoch 高分辨率微调） |
+Prompt engineering 解决了两个问题：类别名通常太短，和训练时的自然语言 caption 分布不一致；某些类别名还有歧义。使用领域相关模板和多个 prompt 的 embedding 平均，可以显著改善 ImageNet 等数据集上的零样本准确率。
 
 ##### 与传统方法的区别
 
-| 维度 | 传统监督学习 | CLIP |
-|------|-------------|------|
-| 监督信号 | 人工标注的固定类别标签 | 自然语言文本（互联网自动采集） |
-| 类别空间 | 封闭集（如 1000 类） | 开放集（任意自然语言描述） |
-| 迁移方式 | 微调或线性探测 | 零样本（无需任何标注数据） |
-| 训练目标 | 交叉熵分类 | 对比学习（图文匹配） |
-| 鲁棒性 | 对分布偏移敏感 | 显著更强的分布偏移鲁棒性 |
+监督分类器学习的是固定标签空间中的 \(p(y\mid x)\)，迁移到新类别需要重新标注和训练。CLIP 学习的是 \(p(\text{text matches image})\) 的跨模态相似度，类别、属性、风格甚至任务描述都可以写成文本参与匹配。
+
+与 ViLBERT 这类细粒度交互模型相比，CLIP 的双塔结构不在每个样本内部做 token-region 交互，因此训练和检索极其高效；代价是它更擅长全局对齐与开放分类，对需要复杂多步视觉推理的任务通常需要后续模型在其表征上继续构建。
 
 #### 🧪 练习题
 ```yaml
-question: "CLIP 选择对比学习目标而非预测式目标（如图像描述生成）的主要原因是什么？"
+question: "CLIP 能进行零样本分类的关键原因是什么？"
 options:
-  - "对比学习目标的分类精度更高"
-  - "预测式目标无法处理图文对数据"
-  - "对比学习目标的训练效率高出约 4 倍"
-  - "对比学习目标不需要负样本"
-answer: 2
-explain: "论文实验表明，对比目标比等价的预测目标（bag-of-words 或 autoregressive）在相同计算量下效率高约 4 倍，这使得在 4 亿规模数据上训练成为可能。"
+  - "它在训练时见过所有下游数据集标签"
+  - "它把类别名通过文本编码器转成可匹配的文本嵌入"
+  - "它只使用图像编码器，不需要文本输入"
+  - "它在推理时重新训练最后一层分类头"
+answer: 1
+explain: "CLIP 将类别描述写成 prompt 并编码为文本向量，再与图像向量比较相似度，因此可以在未微调的情况下处理新类别。"
 ```
 
 ### Flamingo
@@ -431,16 +492,110 @@ motivation: Perceiver+门控交叉注意力，少样本推理突破
 ```
 
 #### 📝 一句话总结
-Flamingo 的核心目标是：Perceiver+门控交叉注意力，少样本推理突破。
+Flamingo 在冻结视觉编码器和冻结语言模型之间加入 Perceiver Resampler 与门控交叉注意力层，使模型能读取任意交错的图像/视频与文本提示，解决了 CLIP 类模型只能匹配、不能开放式生成和少样本适配的问题。
 
 #### 🎯 核心要点
-- 核心动机：Perceiver+门控交叉注意力，少样本推理突破
-- 演化来源：继承或改进自 clip
-- 代表机构：DeepMind
+- 冻结视觉模型：使用预训练 NFNet 从图像或视频中提取高分辨率视觉特征
+- Perceiver Resampler：把可变数量的空间/时间视觉特征压缩为固定数量视觉 token
+- 冻结 Chinchilla 语言模型：保留大语言模型的文本生成和少样本学习能力
+- Gated XAttn-Dense 层：在语言模型层之间插入可训练交叉注意力和前馈层，并用零初始化门控保持训练稳定
+- 支持交错多模态上下文：输入可以是 `<image> text <image> text ...` 的任意序列
+- 图像因果注意力：每个文本位置只直接 cross-attend 到最近相关视觉输入，历史视觉依赖通过 LM 自注意力传递
+- 训练数据混合：M3W 网页交错图文、ALIGN/LTIP 图文对和 VTP 视频文本对共同训练
 
 #### 🔬 深入细节
-Perceiver+门控交叉注意力，少样本推理突破
+##### 核心架构示意图
 
+![Flamingo 架构总览](https://ar5iv.labs.arxiv.org/html/2204.14198/assets/x38.png)
+*图：Flamingo 用 Perceiver Resampler 将视觉特征变成少量视觉 token，再通过门控交叉注意力注入冻结语言模型。*
+
+##### 算法伪代码
+
+```python
+# Flamingo 视觉条件语言建模
+for sequence in multimodal_web_corpus:
+    text_tokens, visual_inputs = parse_interleaved_sequence(sequence)
+
+    visual_tokens_by_input = []
+    for image_or_video in visual_inputs:
+        feats = frozen_nfnet(image_or_video)             # spatial / temporal grid
+        tokens = perceiver_resampler(feats, n_latents=64)
+        visual_tokens_by_input.append(tokens)
+
+    h = token_embedding(text_tokens)
+    for lm_block, gated_xattn_dense in flamingo_layers:
+        relevant_visual = image_causal_select(visual_tokens_by_input, h.position)
+        h = h + tanh(alpha_xattn) * cross_attention(h, relevant_visual)
+        h = h + tanh(alpha_ffw) * feed_forward(h)
+        h = frozen_lm_block(h)
+
+    loss = next_token_lm_loss(h, text_tokens)
+    optimize(trainable_perceiver_and_gated_layers_only(loss))
+```
+
+##### 动机与背景
+
+CLIP 证明了自然语言监督能训练强大的开放词表视觉表征，但它的输出是相似度分数，天然适合分类和检索，不适合开放式 VQA、captioning、多轮对话或少样本视觉推理。另一方面，大语言模型已经具备 in-context learning 能力，但只能读取文本。Flamingo 的问题设定就是：如何在尽量不破坏预训练能力的前提下，让大语言模型接收视觉上下文。
+
+Flamingo 采用“冻结强模型 + 训练桥接层”的策略。视觉编码器负责感知，语言模型负责生成和推理，中间模块只学习如何把视觉信息压缩并送入语言模型。这样既减少训练成本，也避免大规模端到端训练导致的灾难性遗忘。
+
+##### Perceiver Resampler：固定长度视觉接口
+
+图像和视频会产生大量 patch 或时空网格特征，直接让语言模型对所有视觉特征 cross-attend 代价很高。Perceiver Resampler 引入一组可学习 latent query，对视觉特征做交叉注意力，输出固定数量的视觉 token：
+
+$$
+Z=\mathrm{Transformer}\left(Q_{\text{latent}}, K=V_{\text{vision}}, V=V_{\text{vision}}\right)
+$$
+
+无论输入是一张图还是多帧视频，输出都被压缩为固定大小，例如 64 个视觉 token。直觉上，这些 latent query 像一组可学习的“视觉摘要槽”，从高维视觉网格中抽取对语言生成最有用的信息。
+
+##### 门控交叉注意力注入语言模型
+
+Flamingo 不把视觉 token 拼进词序列，而是在冻结 LM 层之间插入新训练的 Gated XAttn-Dense block。该 block 先以语言隐藏状态为 query、视觉 token 为 key/value 做 cross-attention，再经过前馈层：
+
+$$
+h' = h + \tanh(\alpha_{\text{xattn}})\cdot \mathrm{CrossAttn}(h, Z)
+$$
+
+$$
+h'' = h' + \tanh(\alpha_{\text{ffw}})\cdot \mathrm{FFW}(h')
+$$
+
+门控参数 \(\alpha\) 初始化为 0，因此训练刚开始时模型几乎等价于原始语言模型。随着训练推进，模型逐步学会在需要时读取视觉 token。
+
+> 💡 关键：零初始化门控不是装饰性技巧，而是让一个已训练好的大语言模型在新增视觉通道后仍保持稳定生成的核心设计。
+
+##### 交错输入与训练目标
+
+Flamingo 的输入是图像/视频和文本交错的序列，例如少样本 VQA 可以写成“图1 + 问答示例1 + 图2 + 问答示例2 + 测试图 + 问题”。训练目标仍然是自回归语言建模：
+
+$$
+\mathcal{L}=-\sum_t \log p(y_t \mid y_{<t}, x_{\le t}^{\text{visual}})
+$$
+
+其中文本 token 只能利用当前位置之前的视觉输入。论文还设计了 per-image/video attention masking：一个文本位置直接 cross-attend 到最近对应的视觉输入，而更早图像的信息通过语言模型自注意力保留。这使模型训练时只见过有限图像数，也能在评估时扩展到更多 shots。
+
+##### 数据混合与少样本适配
+
+Flamingo 使用三类网页数据：M3W 从约 4300 万网页中恢复图文在 DOM 中的交错位置；ALIGN 与 LTIP 提供大规模图文对；VTP 提供视频文本对。不同数据集的负对数似然加权求和，权重需要调节，因为网页交错数据对 few-shot 能力尤其重要，而图文/视频对提供更密集的视觉描述监督。
+
+推理时 Flamingo 不需要梯度更新，只要把少量示例放进 prompt，就可以做 captioning、open-ended VQA、multiple-choice VQA、视频问答等任务。这是它和“每个任务单独微调”的传统视觉语言系统之间最关键的差异。
+
+##### 与前序方法的区别
+
+与 CLIP 相比，Flamingo 是生成式模型，能输出自由文本而不仅是相似度。与 ViLBERT/BLIP 这类中等规模 VLP 模型相比，Flamingo 直接借用大语言模型的 in-context learning 能力，并通过少量可训练模块把视觉接入进去。与后来的 BLIP-2 相比，Flamingo 的桥接方式更深：它把交叉注意力插入 LM 多层，而 BLIP-2 主要通过 Q-Former 输出软视觉前缀。
+
+#### 🧪 练习题
+```yaml
+question: "Flamingo 中 Gated XAttn-Dense 层的零初始化门控主要解决什么问题？"
+options:
+  - "让视觉编码器完全不参与训练"
+  - "使新增视觉交叉注意力在训练初期不破坏冻结语言模型的原有行为"
+  - "把图像 token 数量固定为 1 个"
+  - "强制模型只做图文检索"
+answer: 1
+explain: "门控参数初始为 0 时，新插入层的输出几乎不影响原语言模型，训练过程再逐步学习如何利用视觉信息。"
+```
 
 ### BLIP-2
 
@@ -459,16 +614,101 @@ motivation: Q-Former轻量桥接，冻结编码器高效训练
 ```
 
 #### 📝 一句话总结
-BLIP-2 的核心目标是：Q-Former轻量桥接，冻结编码器高效训练。
+BLIP-2 提出 Q-Former 作为冻结视觉编码器与冻结大语言模型之间的轻量桥接器，通过两阶段预训练完成视觉语言对齐，解决了端到端训练大规模 VLM 成本高、且难以复用现成单模态模型的问题。
 
 #### 🎯 核心要点
-- 核心动机：Q-Former轻量桥接，冻结编码器高效训练
-- 演化来源：继承或改进自 clip
-- 代表机构：Salesforce
+- 冻结两端大模型：图像编码器使用 CLIP/EVA-CLIP ViT，语言模型使用 OPT 或 FlanT5
+- Q-Former 桥接模块：188M 参数，包含可学习 query token 与共享 self-attention 的图像/文本 Transformer
+- 固定数量查询：常用 32 个 learnable queries 从视觉特征中抽取与文本最相关的信息
+- 第一阶段视觉语言表征学习：联合优化 ITC、ITM、ITG 三个目标
+- 第二阶段视觉到语言生成学习：将 query 输出线性投影为 LLM 可读的软视觉 prompt
+- 高效训练：只训练 Q-Former 和少量投影层，大幅减少可训练参数与显存成本
+- 支持零样本图像到文本生成、视觉问答、captioning 与图文检索
 
 #### 🔬 深入细节
-Q-Former轻量桥接，冻结编码器高效训练
+##### 核心架构示意图
 
+![BLIP-2 两阶段框架](https://arxiv.org/html/2301.12597v3/x1.png)
+*图：BLIP-2 先用 Q-Former 从冻结图像编码器抽取语言相关视觉表示，再把该表示接到冻结 LLM 上做生成。*
+
+##### 算法伪代码
+
+```python
+# Stage 1: 从冻结图像编码器学习视觉语言表示
+for image, text in image_text_pairs:
+    image_feats = frozen_image_encoder(image)
+    query_outputs = q_former(learned_queries, image_feats, text=None)
+    text_outputs = q_former(text=text, image_feats=None)
+
+    loss_itc = image_text_contrastive(query_outputs, text_outputs)
+    loss_itm = image_text_matching(q_former(learned_queries, image_feats, text))
+    loss_itg = image_grounded_text_generation(q_former(learned_queries, image_feats, text))
+    optimize_q_former(loss_itc + loss_itm + loss_itg)
+
+# Stage 2: 让冻结 LLM 理解视觉 soft prompt
+for image, text in image_text_pairs:
+    image_feats = frozen_image_encoder(image)
+    visual_queries = q_former(learned_queries, image_feats)
+    visual_prompt = linear_projection(visual_queries)
+    loss = frozen_llm_language_modeling(prefix=visual_prompt, target=text)
+    optimize_q_former_and_projection(loss)
+```
+
+##### 动机与背景
+
+大规模视觉语言预训练通常需要同时训练视觉 backbone、跨模态融合层和语言模型，成本高且容易破坏预训练模型已有能力。BLIP-2 的核心假设是：强视觉模型已经懂图像，强语言模型已经懂生成和指令，真正缺失的是一个足够小、可训练、能把视觉特征翻译成语言模型可用表示的接口。
+
+Q-Former 正是这个接口。它不是把全部图像 patch 送入 LLM，而是用少量 query token 从冻结图像特征中提取“与语言相关”的瓶颈表示。这个瓶颈既降低计算，也迫使模型过滤掉对文本生成无关的视觉细节。
+
+##### Q-Former 结构
+
+Q-Former 包含两套功能视角：图像 Transformer 用 learnable queries 与冻结图像特征做 cross-attention；文本 Transformer 可以编码或解码文本。两者共享 self-attention 层，但根据任务使用不同 attention mask 控制 query 与 text 的交互。
+
+常用配置中有 32 个 query，每个 query 维度 768。假设 query 输出为 \(Q=\{q_1,\dots,q_M\}\)，文本 `[CLS]` 表示为 \(t\)，图文相似度可以取所有 query 与文本相似度的最大值：
+
+$$
+s(I,T)=\max_m \frac{q_m^\top t}{\|q_m\|\|t\|}
+$$
+
+这比单个全局图像向量更灵活：不同 query 可以关注物体、属性、关系或背景等不同视觉证据。
+
+##### 第一阶段：视觉语言表征学习
+
+第一阶段只连接冻结图像编码器和 Q-Former，联合三个目标。Image-Text Contrastive Learning 使用 in-batch negatives 对齐图像 query 表示和文本表示；Image-Text Matching 用 hard negatives 训练细粒度匹配分类器；Image-Grounded Text Generation 让文本解码器在 query 条件下生成 caption。
+
+不同目标使用不同 attention mask。ITC 为避免信息泄露，让 query 和 text 互不可见；ITM 使用双向 mask 让两者充分交互；ITG 使用 causal mask，让文本 token 只能看 query 和之前文本。这个设计让同一个 Q-Former 同时学会检索式对齐、匹配判断和生成式视觉 grounding。
+
+##### 第二阶段：接入冻结 LLM
+
+第二阶段把 Q-Former 输出通过全连接层投影到 LLM embedding 维度，并作为 soft visual prompt 前置到语言输入中。对于 decoder-only OPT，训练目标是条件语言建模；对于 encoder-decoder FlanT5，使用 prefix language modeling，把视觉 prompt 和前缀文本送入 encoder，让 decoder 生成后缀文本。
+
+$$
+\mathcal{L}_{\text{LM}}=-\sum_t \log p_\text{LLM}(y_t \mid y_{<t}, \mathrm{Proj}(Q(I)))
+$$
+
+LLM 参数保持冻结，因此 Q-Former 必须输出能被语言模型解释的视觉 token。相比直接微调 LLM，这种方式训练成本低，也更不容易遗忘语言模型本身的指令和知识能力。
+
+> 💡 关键：BLIP-2 的两阶段训练先让 Q-Former 学“视觉和文本如何对齐”，再学“如何把视觉表示写成 LLM 能读的软提示”。两个问题分开后更稳定。
+
+##### 数据与训练效率
+
+BLIP-2 使用约 129M 图像的混合预训练数据，包括 COCO、Visual Genome、CC3M、CC12M、SBU 以及 LAION400M 子集，并使用 CapFilt 生成/筛选合成 caption。论文报告在冻结 ViT 和 LLM 的条件下，最大模型第一阶段和第二阶段分别只需数天级训练。
+
+##### 与 Flamingo 和 CLIP 的区别
+
+CLIP 学到的是全局图文对比空间，不能直接做开放文本生成。Flamingo 把交叉注意力插入冻结 LM 的多层，表达力强但新增模块更深。BLIP-2 把视觉信息浓缩成少量 soft prompts 输入 LLM，结构更模块化、更便宜，也便于更换视觉编码器或语言模型。
+
+#### 🧪 练习题
+```yaml
+question: "BLIP-2 中 Q-Former 的核心作用是什么？"
+options:
+  - "替代冻结语言模型完成所有文本生成"
+  - "从冻结图像特征中抽取少量语言相关视觉表示，并桥接到冻结 LLM"
+  - "把图像分类标签直接映射成 one-hot 向量"
+  - "只用于提高图像编码器的分辨率"
+answer: 1
+explain: "Q-Former 使用 learnable queries 读取冻结视觉特征，经过两阶段训练后输出 LLM 可理解的视觉 soft prompt。"
+```
 
 ### LLaVA
 
@@ -487,16 +727,102 @@ motivation: 视觉指令微调，线性投影实现强大通用推理
 ```
 
 #### 📝 一句话总结
-LLaVA 的核心目标是：视觉指令微调，线性投影实现强大通用推理。
+LLaVA 首次系统地把 GPT-4 生成的视觉指令数据用于训练开源多模态助手，用 CLIP 视觉编码器、线性投影和 Vicuna 语言模型构成简单端到端架构，解决了早期 VLM 缺少指令跟随与通用视觉对话能力的问题。
 
 #### 🎯 核心要点
-- 核心动机：视觉指令微调，线性投影实现强大通用推理
-- 演化来源：继承或改进自 blip2
-- 代表机构：UW-Madison
+- GPT-assisted 数据生成：用 COCO caption 与 bounding box 的文本化信息提示 GPT-4 生成视觉指令样本
+- LLaVA-Instruct-158K：包含 conversation、detailed description、complex reasoning 三类指令数据
+- 简洁模型结构：CLIP ViT-L/14 视觉编码器 + 线性投影矩阵 + Vicuna LLM
+- 两阶段训练：先在 CC-595K 上做视觉-语言特征对齐，再在 158K 指令数据上微调
+- 视觉编码器冻结：主要训练投影层和语言模型，降低视觉侧训练成本
+- 统一自回归目标：只对 assistant 回答 token 计算语言建模损失
+- ScienceQA 上结合 GPT-4 达到强视觉推理表现，推动后续开源多模态助手路线
 
 #### 🔬 深入细节
-视觉指令微调，线性投影实现强大通用推理
+##### 核心架构示意图
 
+![LLaVA 网络架构](https://ar5iv.labs.arxiv.org/html/2304.08485/assets/x1.png)
+*图：LLaVA 用投影矩阵 \(W\) 将 CLIP 视觉特征映射到 Vicuna 词嵌入空间，再与语言指令一起输入 LLM。*
+
+##### 算法伪代码
+
+```python
+# 数据生成
+for coco_image in coco:
+    symbolic_context = captions(coco_image) + bounding_boxes(coco_image)
+    instructions = gpt4_generate(symbolic_context,
+                                 types=["conversation", "detail", "reasoning"])
+    save(image=coco_image, conversations=instructions)
+
+# Stage 1: feature alignment
+for image, caption in cc595k:
+    z_v = frozen_clip_vit(image)
+    h_v = projection_W(z_v)
+    prompt = "<image>\nDescribe the image briefly."
+    loss = lm_loss(frozen_vicuna, prefix=h_v, prompt=prompt, target=caption)
+    optimize(W)
+
+# Stage 2: visual instruction tuning
+for image, dialogue in llava_instruct_158k:
+    z_v = frozen_clip_vit(image)
+    h_v = projection_W(z_v)
+    loss = autoregressive_loss(vicuna, visual_tokens=h_v,
+                               dialogue=dialogue,
+                               mask_only_assistant_tokens=True)
+    optimize(W, vicuna)
+```
+
+##### 动机与背景
+
+指令微调让语言模型从“补全文本”变成“遵循用户任务”的助手，但多模态领域当时缺少大规模高质量视觉指令数据。已有 VLM 可以 caption 或 VQA，却不擅长多轮对话、开放式解释和复杂视觉推理。LLaVA 的核心贡献是把语言模型指令微调的思路迁移到图像-语言空间。
+
+由于 GPT-4 当时是文本输入，LLaVA 不能直接把图像交给 GPT-4 生成标注，于是把 COCO 图像的 caption 和 bounding boxes 转成符号化文本上下文。这些文本描述物体、位置和场景，再由 GPT-4 生成三类回答：多轮对话、详细描述和复杂推理。这样用少量已有视觉标注撬动了更丰富的指令数据。
+
+##### 模型结构：线性视觉 tokenizer
+
+LLaVA 选择非常简单的连接器。给定图像 \(X_v\)，CLIP ViT-L/14 输出视觉特征 \(Z_v\)，投影矩阵 \(W\) 将其映射到 LLM 词嵌入维度：
+
+$$
+H_v = W Z_v
+$$
+
+得到的 \(H_v\) 被当作一串视觉 token，与用户语言指令 token 拼接后输入 Vicuna。与 BLIP-2 的 Q-Former 或 Flamingo 的多层 gated cross-attention 相比，LLaVA 的连接器表达力更弱，但训练和复现成本低，便于快速验证“数据与指令微调是否足够重要”。
+
+##### 两阶段训练流程
+
+第一阶段是 feature alignment。模型在过滤后的 CC3M 子集 CC-595K 上训练，视觉编码器和 Vicuna 都冻结，只训练 \(W\)。输入通常是让模型简要描述图像的单轮指令，目标是原始 caption。这个阶段把视觉特征对齐到语言模型 embedding 空间，相当于训练一个兼容 Vicuna 的视觉 tokenizer。
+
+第二阶段是 visual instruction tuning。视觉编码器继续冻结，投影层和 Vicuna 一起训练。多轮对话被组织成 Vicuna 风格的 prompt，损失只作用于 assistant 的回答部分：
+
+$$
+\mathcal{L}=-\sum_{t \in \text{assistant}} \log p_\theta(y_t \mid y_{<t}, H_v, X_q)
+$$
+
+这样模型不会被要求预测用户问题本身，而是学习在图像条件下给出符合指令的回答。
+
+> 💡 关键：LLaVA 的性能提升很大程度来自视觉指令数据，而不只是架构。它证明了简单投影连接器配合高质量 instruction tuning 就能产生强多模态助手。
+
+##### 数据类型与推理能力
+
+LLaVA-Instruct-158K 包含约 58K conversation、23K detailed description 和 77K complex reasoning。前两类提高视觉对话和描述能力，complex reasoning 让模型练习基于场景信息进行因果、空间、常识推断。
+
+在 ScienceQA 中，LLaVA 把题目、选项、图像和推理要求组织成单轮问答，训练模型输出 reasoning 和 answer。论文还展示了 LLaVA 与 GPT-4 协同后在 ScienceQA 上达到当时很强的准确率，说明视觉模型生成的中间推理可以与更强语言模型互补。
+
+##### 与 BLIP-2、Flamingo 的区别
+
+BLIP-2 重点是用 Q-Former 高效桥接冻结视觉编码器和冻结 LLM；Flamingo 重点是大规模交错图文预训练和少样本上下文学习。LLaVA 的重点则是 instruction tuning：它并不追求最复杂的桥接结构，而是用简单结构证明“面向用户指令的视觉对话数据”可以显著改变模型行为。
+
+#### 🧪 练习题
+```yaml
+question: "LLaVA 第一阶段 feature alignment 的主要训练对象是什么？"
+options:
+  - "CLIP 视觉编码器的全部参数"
+  - "Vicuna 的全部参数"
+  - "连接视觉特征和语言嵌入空间的投影矩阵"
+  - "GPT-4 数据生成器"
+answer: 2
+explain: "第一阶段冻结视觉编码器和 LLM，只训练线性投影矩阵，使 CLIP 视觉特征能作为 Vicuna 可读的视觉 token。"
+```
 
 ### Multimodal-CoT
 
@@ -515,16 +841,122 @@ motivation: 两阶段框架生成推理理由，首超人类水平
 ```
 
 #### 📝 一句话总结
-Multimodal-CoT 的核心目标是：两阶段框架生成推理理由，首超人类水平。
+Multimodal-CoT 将多模态问答拆成“先生成视觉语言依据的 rationale、再基于 rationale 推断答案”两个阶段，解决了小于 1B 的语言模型直接生成 CoT 时容易幻觉并误导答案的问题。
 
 #### 🎯 核心要点
-- 核心动机：两阶段框架生成推理理由，首超人类水平
-- 演化来源：继承或改进自 blip2
-- 代表机构：Amazon
+- 两阶段框架：Stage 1 生成 rationale，Stage 2 将 rationale 拼回输入后预测答案
+- 视觉特征参与两个阶段：图像不是先转成 caption，而是通过冻结 ViT 提供 patch-level features
+- T5/FLAN-Alpaca backbone：用 encoder-decoder 语言模型实现文本生成式 rationale 与 answer
+- 跨模态交互模块：文本表示作为 query，视觉 patch 表示作为 key/value 做单头注意力
+- 门控融合：自适应融合语言表示和视觉注意力输出，降低无关视觉信息干扰
+- 支持无图问题：没有图像时使用同形状零向量作为 blank visual features
+- ScienceQA 和 A-OKVQA 验证：显示视觉特征可减少幻觉、加速收敛并提升答案准确率
 
 #### 🔬 深入细节
-两阶段框架生成推理理由，首超人类水平
+##### 核心架构示意图
 
+![Multimodal-CoT 两阶段框架](https://ar5iv.labs.arxiv.org/html/2302.00923/assets/x4.png)
+*图：Multimodal-CoT 先用语言和视觉输入生成 rationale，再把 rationale 加入第二阶段输入以推断最终答案。*
+
+##### 算法伪代码
+
+```python
+# 训练阶段：两个模型结构相同，但目标不同
+for question, context, choices, image, rationale, answer in scienceqa:
+    x1 = concat(question, context, choices)
+    v = frozen_vit(image) if image is not None else zeros_like_visual_features()
+
+    pred_rationale = model_rationale(language=x1, vision=v)
+    loss_r = seq2seq_loss(pred_rationale, rationale)
+
+    x2 = concat(question, context, choices, rationale)
+    pred_answer = model_answer(language=x2, vision=v)
+    loss_a = seq2seq_loss(pred_answer, answer)
+
+    optimize(loss_r + loss_a)
+
+# 推理阶段：先生成，再回答
+r_hat = model_rationale(language=concat(Q, C, M), vision=V)
+a_hat = model_answer(language=concat(Q, C, M, r_hat), vision=V)
+```
+
+##### 动机与背景
+
+语言模型的 CoT 能在数学和常识任务上提升推理，但论文发现小模型在 ScienceQA 这类多模态任务上直接输出“rationale 再 answer”反而会降低准确率。原因是模型会生成看似合理但与图像不一致的 rationale，一旦错误 rationale 被放在答案前面，就会强烈误导后续答案生成。
+
+Multimodal-CoT 的核心设计是把 CoT 从一个连续生成问题拆开：第一阶段专门学习生成有视觉依据的 rationale，第二阶段专门学习利用该 rationale 做答案推断。这个拆分让模型可以分别优化“解释质量”和“答案正确性”，也便于把视觉特征注入两个阶段。
+
+##### 视觉语言编码与融合
+
+语言输入 \(X\) 经过 Transformer encoder 得到文本表示：
+
+$$
+H=\mathrm{LanguageEncoder}(X)
+$$
+
+图像 \(I\) 经冻结 ViT 提取 patch-level 特征，再线性投影到和文本表示相同的维度：
+
+$$
+V=W_v\cdot \mathrm{VisionExtractor}(I)
+$$
+
+交互阶段以文本表示为 query、视觉 patch 为 key/value 做注意力：
+
+$$
+A=\mathrm{softmax}\left(\frac{H V^\top}{\sqrt{d}}\right)V
+$$
+
+随后使用门控机制融合文本与视觉注意力输出：
+
+$$
+G=\sigma(W_h H + W_a A)
+$$
+
+$$
+F=G\odot H + (1-G)\odot A
+$$
+
+融合后的 \(F\) 输入 Transformer decoder，生成 rationale 或 answer。门控的直觉是：并非每个 token 都需要视觉信息，模型应学会在文本已足够时依赖语言，在图像关键时打开视觉通道。
+
+##### 两阶段目标
+
+第一阶段输入通常是 question、context 和 multiple choices，输出人工标注 rationale：
+
+$$
+p(R \mid Q,C,M,I)
+$$
+
+第二阶段把生成或标注的 rationale 追加到输入中，输出答案：
+
+$$
+p(A \mid Q,C,M,R,I)
+$$
+
+训练时两个阶段使用标注 rationale；推理时先由第一阶段生成 \(\hat{R}\)，再用 \(\hat{R}\) 做答案推断。这种 train/inference 设定迫使 rationale 生成模块尽可能提供可用中间证据，而不是只在答案后生成解释。
+
+> ⚠️ 注意：Multimodal-CoT 并不是简单“让模型多说几步”。如果 rationale 缺少视觉 grounding，它会比不使用 CoT 更危险，因为错误中间结论会被第二阶段当作条件。
+
+##### 幻觉缓解机制
+
+论文对错误样本分析发现，文本-only 两阶段模型经常对图中物体关系做错误假设。加入 ViT patch 特征后，rationale 的 RougeL 和答案准确率同时提升，说明视觉信号不仅帮助最终答案，也改善了中间推理链的事实性。
+
+Caption 作为视觉替代只带来有限收益，因为 caption 会丢失空间关系、数量、图表和细粒度视觉属性。直接使用视觉特征则保留更多低层证据，模型可以在 token 与 patch 之间建立更细的注意力对应。
+
+##### 与 BLIP-2/LLaVA 的区别
+
+BLIP-2 和 LLaVA 更关注通用视觉语言接口或指令跟随，Multimodal-CoT 更聚焦“如何让小模型可靠地产生中间推理”。它不是依赖超大模型 few-shot prompting，而是在可训练的小型 encoder-decoder 框架里显式建模 rationale generation 与 answer inference，适合 ScienceQA 这类有解释标注的多模态推理数据。
+
+#### 🧪 练习题
+```yaml
+question: "Multimodal-CoT 为什么要把 rationale 生成和答案推断拆成两个阶段？"
+options:
+  - "为了让模型完全不使用图像特征"
+  - "为了减少文本输入长度到 1 个 token"
+  - "为了先生成有视觉依据的中间推理，再用它辅助答案推断，降低幻觉误导"
+  - "为了把所有问题都转成图像分类任务"
+answer: 2
+explain: "小模型直接生成 CoT 容易产生错误 rationale；两阶段设计让模型先优化中间理由，再将理由作为条件进行答案预测。"
+```
 
 ### DDCoT
 
@@ -543,16 +975,110 @@ motivation: 职责分离减轻幻觉，提升推理可靠性
 ```
 
 #### 📝 一句话总结
-DDCoT 的核心目标是：职责分离减轻幻觉，提升推理可靠性。
+DDCoT 将多模态 CoT 中的“语言推理”和“视觉识别”职责显式拆开，用 negative-space prompting 标记 LLM 无法仅凭文本确定的部分，再调用视觉模型补全证据，解决了 LLM 在看不见图像时编造视觉事实导致推理幻觉的问题。
 
 #### 🎯 核心要点
-- 核心动机：职责分离减轻幻觉，提升推理可靠性
-- 演化来源：继承或改进自 mm_cot
-- 代表机构：Tsinghua
+- Duty-distinct prompting：把复杂问题拆成子问题，并判断每个子问题是否需要视觉识别
+- Negative-space prompting：要求 LLM 在缺少图像时对不可判断子问题回答 `Uncertain`
+- 视觉补全：使用现成 VQA/视觉模型回答被标记为不确定的视觉子问题
+- 批判式整合：LLM 在整合阶段被提示“补充信息可能无效”，从而筛选或修正视觉模型错误
+- 同时支持 zero-shot prompting 和 fine-tuning 两种使用方式
+- Deep-Layer Prompting：在微调小模型时为不同 encoder 层加入可学习 prompts
+- Rationale-Compressed Visual Embedding：用生成的 rationale 过滤和压缩关键视觉特征
 
 #### 🔬 深入细节
-职责分离减轻幻觉，提升推理可靠性
+##### 核心架构示意图
 
+![DDCoT 框架总览](https://ar5iv.labs.arxiv.org/html/2310.16436/assets/x5.png)
+*图：DDCoT 先把问题拆成语言推理与视觉识别子任务，再将视觉补全结果与原问题联合整合为 rationale，并可用于 zero-shot 或 fine-tuning。*
+
+##### 算法伪代码
+
+```python
+# DDCoT rationale generation
+def ddcot(question, context, choices, image):
+    sub_questions = llm(
+        "Think step by step and deconstruct the question "
+        "into necessary sub-questions.",
+        question, context, choices
+    )
+
+    sub_answers = []
+    for sq in sub_questions:
+        text_answer = llm(
+            "Assume you have no image. Answer the sub-question; "
+            "write Uncertain if it cannot be determined.",
+            sq, question, context, choices
+        )
+        if text_answer == "Uncertain":
+            visual_answer = vqa_model(image, sq)
+            sub_answers.append((sq, visual_answer, "visual"))
+        else:
+            sub_answers.append((sq, text_answer, "language"))
+
+    rationale = llm(
+        "Use the supplementary information critically; it may be invalid. "
+        "Select valid information and reason step by step.",
+        question, context, choices, sub_answers
+    )
+    return rationale
+
+# 使用方式
+rationale = ddcot(Q, C, M, I)
+answer = llm_or_finetuned_model(Q, C, M, I, rationale)
+```
+
+##### 动机与背景
+
+多模态 CoT 的难点不只是“需要图像”，更在于 LLM 很容易把自身语言先验当成视觉事实。例如问题需要判断图中物体朝向、数量或相对位置时，纯文本 LLM 往往会生成流畅但错误的中间推理。DDCoT 的两个核心洞察是：保持批判性，以及让不同模型做自己擅长的事。
+
+“职责分离”意味着 LLM 不应被迫承担视觉识别职责。它擅长拆解问题、组织逻辑、整合证据；视觉模型擅长回答局部识别问题。把这两类职责混在一个 prompt 中，会让 LLM 在看不见图像时编造缺失信息。
+
+##### Negative-space prompting
+
+DDCoT 首先让 LLM 将原问题拆成一组必要子问题。然后显式设定一个假设：“你没有任何图片信息”。在这个假设下，如果子问题可由题干、选项和常识回答，LLM 给出文本子答案；如果必须看图，则输出 `Uncertain`。
+
+这个 `Uncertain` 就是 negative space：它不是失败，而是把缺失的视觉证据标记出来。相比让 LLM 直接猜测，negative space 把不确定性显式暴露，后续系统才能调用视觉模型补全。
+
+##### 视觉补全与批判式整合
+
+对每个 `Uncertain` 子问题，DDCoT 调用视觉问答模型获取视觉补充答案。视觉模型可能也会出错，因此 DDCoT 不把这些答案当作绝对事实，而是在最终整合 prompt 中明确提醒 LLM：补充信息不一定有效，需要选择可信信息形成 rationale。
+
+> 💡 关键：DDCoT 不是简单“LLM + VQA”。它把视觉模型输出放在可被质疑的补充证据位置，让 LLM 在整合时保留对原问题和常识的一致性检查。
+
+##### Fine-tuning 使用：DLP 与 RCVE
+
+除了 zero-shot prompting，DDCoT 还把生成的 rationale 用于微调较小的多模态模型。Deep-Layer Prompting 在 encoder 的多层插入可学习 prompt，使浅层和深层都能参与跨模态对齐，而不是只在输入层拼接视觉信息。
+
+Rationale-Compressed Visual Embedding 则利用 rationale 作为先验来筛选视觉特征。给定文本/理由表示 \(T\)、全局视觉特征 \(V_g\) 和局部视觉特征 \(V_l\)，模型先用 cross-attention 得到与文本相关的视觉摘要：
+
+$$
+\tilde{V}_g=\mathrm{CrossAttn}(Q=T,K=V_g,V=V_g)
+$$
+
+再通过低秩中间向量从局部视觉特征中过滤关键区域，形成最终输入语言模型的压缩视觉 embedding。直觉上，rationale 告诉模型“应该看什么”，RCVE 则把视觉输入压缩到与推理相关的部分。
+
+##### 训练/推理流程
+
+Zero-shot 场景中，DDCoT 先生成 rationale，再把 rationale 与题目一起输入 GPT-3/ChatGPT 等 LLM 预测答案。Fine-tuning 场景中，生成的 multimodal rationales 作为训练信号，配合 DLP 和 RCVE 微调 UnifiedQA 等小模型，在 ScienceQA 上提升答案准确率和解释质量。
+
+论文强调 DDCoT 的 rationale 在自动指标上未必总是最高，但在人类评估中的相关性、正确性、完整性、一致性和可解释性更强。这与方法目标一致：它追求的是可靠视觉 grounding，而不只是生成与参考文本表面相似的解释。
+
+##### 与 Multimodal-CoT 的区别
+
+Multimodal-CoT 通过架构注入视觉特征，并用两阶段训练缓解小模型幻觉；DDCoT 则从 prompt 和职责分解角度处理幻觉。它不要求每一步都由同一个模型完成，而是让 LLM 承担推理规划与整合，让视觉模型承担识别，并通过 negative space 避免 LLM 在视觉缺失处过度自信。
+
+#### 🧪 练习题
+```yaml
+question: "DDCoT 中 negative-space prompting 的主要作用是什么？"
+options:
+  - "让 LLM 在无法仅凭文本判断的视觉子问题上显式输出不确定"
+  - "把所有图像转换成黑白图"
+  - "删除最终 rationale 中的所有视觉信息"
+  - "强制视觉模型完成语言推理"
+answer: 0
+explain: "Negative-space prompting 要求 LLM 承认缺失视觉证据，避免编造事实，并为后续视觉模型补全留下明确接口。"
+```
 
 ### T-SciQ
 
@@ -571,16 +1097,118 @@ motivation: LLM信号教导多模态推理，解决数据稀缺
 ```
 
 #### 📝 一句话总结
-T-SciQ 的核心目标是：LLM信号教导多模态推理，解决数据稀缺。
+T-SciQ 用大语言模型 SciTeacher 自动生成并混合普通 CoT 与计划式 PCoT 教学信号，再微调小型多模态学生模型，解决了 ScienceQA 中人工 rationale 获取昂贵且质量受限的问题。
 
 #### 🎯 核心要点
-- 核心动机：LLM信号教导多模态推理，解决数据稀缺
-- 演化来源：继承或改进自 mm_cot
-- 代表机构：HKUST
+- Teacher-student 框架：SciTeacher 生成 CoT/PCoT 教学数据，SciStudent 通过监督微调学习
+- QA-CoT 样本：用问题、上下文、选项和正确答案提示 LLM 生成详细解释
+- QA-PCoT 样本：通过 lecture generation、plan generation、rationale generation 三步生成计划式推理
+- 数据混合策略：按 ScienceQA skill 在验证集上选择 CoT 或 PCoT 教学信号
+- 学生模型沿用 Multimodal-CoT 两阶段结构：先学 rationale generation，再学 answer inference
+- 不依赖人工 CoT：用 LLM 生成信号替换 ScienceQA 原始人工解释
+- 在 ScienceQA 上显著提升小模型，Multimodal-T-SciQ 最高达到 96.18% 准确率
 
 #### 🔬 深入细节
-LLM信号教导多模态推理，解决数据稀缺
+##### 核心架构示意图
 
+![T-SciQ 三阶段教学流程](https://ar5iv.labs.arxiv.org/html/2305.03453/assets/figures/aaai2024_main.png)
+*图：T-SciQ 先生成 CoT 与 PCoT 两类教学数据，再按验证效果混合，最后用混合信号微调学生模型。*
+
+##### 算法伪代码
+
+```python
+# 1. 生成两类教学信号
+for example in scienceqa_train:
+    qa_cot = sci_teacher(
+        question=example.question,
+        context=example.context,
+        options=example.options,
+        correct_answer=example.answer,
+        instruction="Please give me a detailed explanation."
+    )
+
+for skill, examples in group_by_skill(scienceqa_train):
+    lecture = sci_teacher(f"Skill: {skill}. QA pairs: {examples}. Give a lecture.")
+    plan = sci_teacher(f"Skill: {skill}. Lecture: {lecture}. Devise a step-by-step plan.")
+    for example in examples:
+        qa_pcot = sci_teacher(
+            f"Skill: {skill}. Lecture: {lecture}. Plan: {plan}. "
+            f"QA pair: {example}. Carry out the plan step by step."
+        )
+
+# 2. 按 skill 选择更有效的教学信号
+for skill in skills:
+    err_cot = validate_student(skill, signal="CoT")
+    err_pcot = validate_student(skill, signal="PCoT")
+    chosen_signal[skill] = "PCoT" if err_pcot < err_cot else "CoT"
+
+# 3. 用混合教学信号训练学生
+for example in scienceqa_train:
+    rationale = generated_signal[chosen_signal[example.skill]][example.id]
+    train_multimodal_cot_student(example, rationale, example.answer)
+```
+
+##### 动机与背景
+
+ScienceQA 提供了题目、图像、选项和解释，但高质量 CoT 标注昂贵，且人工解释可能缺少外部知识或不适合训练小模型。T-SciQ 的核心问题是：能否让强 LLM 作为老师，自动生成更适合学生模型学习的推理信号。
+
+与直接让 GPT-4/GPT-3.5 推理不同，T-SciQ 关注的是“教学数据”。SciTeacher 不在测试时替学生答题，而是在训练前生成 rationale，随后由小得多的 SciStudent 通过监督学习掌握多模态 CoT 能力。
+
+##### QA-CoT：普通解释式教学
+
+QA-CoT 使用非常直接的零样本模板，把 question、context、options 和 correct answer 都填入 prompt，并要求 LLM 给出详细解释。正确答案作为 hint 可以减少老师生成错误 rationale 的概率：
+
+$$
+R_{\text{CoT}} = \mathrm{LLM}(Q,C,M,A,\text{instruction})
+$$
+
+这种信号适合相对简单的问题，因为老师只需解释为什么正确答案成立，不必显式规划解题步骤。
+
+##### QA-PCoT：计划式教学
+
+复杂 science question 往往需要先知道解题知识，再制定步骤。T-SciQ 因此生成 plan-based CoT，分三步完成。第一步按 skill 生成一条通用 lecture；第二步基于 lecture 和同 skill 的样例生成解题 plan；第三步将 lecture、plan 和具体 QA pair 一起输入 LLM，让其按计划执行并生成 rationale。
+
+可以把 PCoT 看成：
+
+$$
+R_{\text{PCoT}}=\mathrm{LLM}(Q,C,M,A,\mathrm{Plan}(\mathrm{Lecture}(\text{skill})))
+$$
+
+它比普通 CoT 更适合复杂问题，因为学生看到的不只是结论解释，还有可复用的领域知识和解题流程。
+
+##### 混合教学数据：按 skill 选择
+
+T-SciQ 没有假设 PCoT 总是更好。对于简单问题，过长的计划式解释可能引入噪声；对于复杂问题，普通 CoT 又可能缺少分解。论文用验证集为每个 skill 选择更合适的信号：
+
+$$
+z_s^\*=\arg\min_{z\in\{\text{CoT},\text{PCoT}\}}\mathrm{Err}_{\text{val}}(s,z)
+$$
+
+如果某个 skill 上 PCoT 验证错误更少，就对该 skill 的训练样本使用 PCoT；否则使用 CoT。这个按技能粒度的选择比全局混合更稳，因为 ScienceQA 的不同技能难度差异很大。
+
+> 💡 关键：T-SciQ 的“mixed LLM signals”不是简单拼接两份数据，而是用验证反馈决定每类科学技能更需要解释还是规划。
+
+##### 学生训练流程
+
+学生模型沿用 Multimodal-CoT 的两阶段范式。第一阶段学习从题目、选项和视觉输入生成老师提供的 rationale；第二阶段学习在题目、视觉输入和 rationale 条件下预测答案。区别在于监督信号从人工 annotated rationale 换成 T-SciQ 生成的混合 teacher rationale。
+
+论文默认使用 GPT-3.5 text-davinci-003 作为 teacher，并在 UnifiedQA、Multimodal-CoT 等学生架构上验证。学生模型比 teacher 小约 200 倍，但通过高质量教学信号在 ScienceQA 上取得显著提升，最强 Multimodal-T-SciQ 达到 96.18%。
+
+##### 与 Multimodal-CoT、DDCoT 的区别
+
+Multimodal-CoT 主要设计了两阶段学生架构，并使用已有 rationale 标注训练；T-SciQ 主要解决训练信号来源和质量问题。DDCoT 强调推理/识别职责分离与幻觉控制；T-SciQ 强调把 LLM 生成的不同类型教学信号按问题技能混合，提升小模型学习效率。
+
+#### 🧪 练习题
+```yaml
+question: "T-SciQ 为什么要混合 QA-CoT 和 QA-PCoT 两类教学信号？"
+options:
+  - "因为所有问题都只适合最长的推理链"
+  - "因为简单问题更适合普通解释，复杂问题更需要计划式分解"
+  - "因为学生模型不能读取图像"
+  - "因为 CoT 和 PCoT 分别对应不同的答案选项编号"
+answer: 1
+explain: "T-SciQ 按 skill 在验证集上选择 CoT 或 PCoT，避免简单问题被过度规划干扰，同时让复杂问题获得更清晰的解题计划。"
+```
 
 ### Visual CoT
 
@@ -599,170 +1227,93 @@ motivation: 首个综合视觉CoT数据集，定义标注规范
 ```
 
 #### 📝 一句话总结
-Visual CoT 构建了一个包含 438k 样本的视觉思维链（Visual Chain-of-Thought）数据集，并提出一种让多模态大语言模型在推理时**先预测关键区域边界框、再裁剪放大该区域重新编码**的两阶段推理流程，使模型能够像人类一样"聚焦细节再回答"，在多个 VQA 基准上以更少的视觉 token 实现了超越更大模型和更高分辨率方案的性能。
+Visual CoT 提出大规模视觉思维链数据集和 VisCoT 基线，让 MLLM 先定位回答问题所需的关键图像区域，再裁剪放大局部信息生成答案，解决固定低分辨率视觉 token 容易丢失小目标、文字和细粒度证据的问题。
 
 #### 🎯 核心要点
-- **视觉 CoT 数据集**：438k VQA 样本，覆盖 5 大领域（文档/文字识别、图表理解、通用 VQA、关系推理、细粒度识别），其中约 98k 样本附带详细推理步骤标注，数据来源于 12 个公开数据集
-- **CoT 边界框标注流水线**：利用 GPT-4 生成推理步骤，再通过专用检测/OCR 模型将文本描述的关键区域自动转化为精确的边界框坐标
-- **Visual Sampler 机制**：基于模型预测的边界框，以中心扩展方式裁剪出正方形子区域，经 CLIP 视觉编码器重新编码后与全局特征拼接，实现"先定位后精读"
-- **两阶段推理流程**：第一阶段输出关键区域坐标 \([x_1, y_1, x_2, y_2]\)，第二阶段将裁剪区域的视觉特征追加到序列中再生成最终答案
-- **Token 效率优势**：224×224 全局 + CoT 裁剪区域（共约 500 token）即可超越 448×448 全图方案（约 1024 token），证明"智能聚焦"比"暴力提分辨率"更高效
-- **多任务兼容**：同一模型同时支持 VQA 问答和 Referring Expression Comprehension（REC）目标检测任务，REC 性能超越专用模型
+- 构建 438k 个带关键区域 bounding box 的视觉 CoT 问答样本，其中约 98k 样本包含详细推理步骤
+- 覆盖 Text/Doc、Chart、General VQA、Relation Reasoning、Fine-Grained Understanding 五类视觉推理场景
+- 数据标注以“问题-答案-关键区域框”为核心，部分样本加入自然语言逐步推理，形成可监督的视觉聚焦过程
+- 提出 VisCoT 多轮处理流程：全图编码 → 预测关键区域框 → Visual Sampler 裁剪局部 → 全局和局部 token 联合回答
+- Visual Sampler 以 bbox 中心为基准裁剪正方形区域，并保证最小裁剪范围以适配 CLIP 视觉编码器
+- 引入 Visual CoT benchmark，专门评估模型在需要定位局部证据时的视觉推理能力
 
 #### 🔬 深入细节
-##### 整体框架
+##### 核心示意图
 
-![Visual CoT 整体框架](https://arxiv.org/html/2403.16999v2/x1.png)
-*图：Visual CoT 的完整流程。给定图像和问题，模型首先预测关键区域的边界框，Visual Sampler 据此裁剪并重新编码该区域，最后将新增的视觉特征拼接到已有序列中生成最终答案。*
+![Visual CoT 数据集示例](https://arxiv.org/html/2403.16999v2/x1.png)
+*图：Visual CoT 覆盖图表、文档/文字、通用 VQA、细粒度识别和关系推理，每个样本标出回答所需的关键区域。*
 
-Visual CoT 的核心思想是将人类"先扫视全局、再聚焦细节"的视觉推理模式引入多模态大语言模型。传统 MLLM（如 LLaVA）将整张图像编码为固定分辨率的视觉 token 后直接回答问题，当关键信息位于图像的小区域时（如文档中的某个数字、图表中的某条曲线），低分辨率编码会丢失细节。Visual CoT 通过让模型"自己决定看哪里"来解决这一问题。
+![VisCoT 推理框架](https://arxiv.org/html/2403.16999v2/x3.png)
+*图：VisCoT 先用全图视觉 token 预测关键区域，再对局部区域重新编码，最后联合全局与局部证据回答。*
 
-##### 数据集构建流水线
-
-![数据集构建与示例](https://arxiv.org/html/2403.16999v2/x2.png)
-*图：Visual CoT 数据集的构建流程与各领域示例。*
-
-数据集构建分为三个关键步骤：
-
-**步骤一：推理步骤生成。** 对于每个 VQA 样本，将图像、问题和答案输入 GPT-4，要求其生成逐步推理过程，并在推理中明确指出需要关注的图像区域（以自然语言描述）。
-
-**步骤二：区域定位与边界框生成。** 根据 GPT-4 输出的区域描述，使用专用模型将其转化为精确坐标：
-- 对于**文档/文字类**数据，使用 OCR 引擎（如 PaddleOCR）定位文字区域
-- 对于**通用物体类**数据，使用开放词汇检测器（如 Grounding DINO）定位目标
-- 对于**图表类**数据，结合 OCR 和检测器处理混合内容
-
-**步骤三：质量过滤。** 通过 IoU 阈值、面积比例等规则过滤掉定位不准确的样本，确保边界框确实指向回答问题所需的关键区域。
-
-最终数据集涵盖 5 个领域、12 个来源数据集：
-
-| 领域 | 来源数据集 | 样本数 |
-|------|-----------|--------|
-| 文档/文字 | SROIE, TextVQA, TextCaps, STVQA | ~120k |
-| 图表 | ChartQA, DVQA, PlotQA | ~95k |
-| 通用 VQA | VQAv2, OK-VQA, GQA | ~150k |
-| 关系推理 | VSR | ~10k |
-| 细粒度 | Hateful Memes | ~8.5k |
-
-##### Visual Sampler 裁剪策略
-
-![Visual Sampler 示意](https://arxiv.org/html/2403.16999v2/x3.png)
-*图：Visual Sampler 的裁剪策略。以预测框中心为基准，取半宽、半高、半分辨率三者的最大值作为扩展半径，裁剪出正方形区域。*
-
-Visual Sampler 是连接"定位"与"精读"的关键组件。给定模型预测的边界框 \([x_1, y_1, x_2, y_2]\)，裁剪过程如下：
+##### 算法伪代码
 
 ```python
-# Visual Sampler 裁剪伪代码
-def visual_sampler(image, bbox, input_resolution):
-    x1, y1, x2, y2 = bbox
-    cx, cy = (x1 + x2) / 2, (y1 + y2) / 2          # 边界框中心
-    w_half, h_half = (x2 - x1) / 2, (y2 - y1) / 2   # 半宽、半高
-    res_half = input_resolution / 2                    # 输入分辨率的一半
+# VisCoT 两阶段视觉思维链推理
+def viscot_inference(image, question, mlm, vision_encoder, projector):
+    global_feat = projector(vision_encoder(image))
 
-    # 取三者最大值作为正方形半边长
-    half_len = max(w_half, h_half, res_half)
+    # 第一轮：让模型输出最有助于回答问题的关键区域
+    bbox_prompt = question + " Please provide the bounding box coordinate of the region that can help you answer the question better."
+    bbox = mlm.generate_bbox(global_feat, bbox_prompt)  # [x1, y1, x2, y2]
 
-    # 以中心扩展为正方形，并裁剪到图像边界内
-    crop_x1 = max(0, cx - half_len)
-    crop_y1 = max(0, cy - half_len)
-    crop_x2 = min(image.width, cx + half_len)
-    crop_y2 = min(image.height, cy + half_len)
+    # Visual Sampler：根据 bbox 裁剪并放大局部区域
+    crop = visual_sampler(image, bbox, input_resolution=vision_encoder.resolution)
+    local_feat = projector(vision_encoder(crop))
 
-    cropped = image.crop((crop_x1, crop_y1, crop_x2, crop_y2))
-    # 缩放到与全局图像相同的输入分辨率
-    cropped = cropped.resize((input_resolution, input_resolution))
-    return cropped
+    # 第二轮：全局 + 局部视觉 token 一起进入 MLLM
+    answer = mlm.generate_answer([global_feat, local_feat], question)
+    return answer, bbox
 ```
 
-这一设计有三个关键考量：
+##### 动机与背景
 
-1. **正方形裁剪**：CLIP ViT 的输入为正方形，直接裁剪正方形避免了额外的形变
-2. **最小尺寸保证**（\(\text{res\_half}\) 下界）：即使预测框很小，裁剪区域也不会小于输入分辨率的一半，防止过度放大导致的模糊
-3. **中心对齐**：以预测框中心为裁剪中心，保留目标周围的上下文信息
+传统 MLLM 通常把整张图像缩放到固定分辨率，再送入 CLIP 或类似视觉编码器。这个流程对全局语义足够，但对收据里的小字、图表中的局部数字、鸟类细粒度纹理或空间关系中的小目标很脆弱：关键信息在缩放后可能只占少数 patch，模型只能从低分辨率全图中猜测答案。
 
-> 💡 **关键直觉**：Visual Sampler 的本质是一个"可微的数字变焦镜头"——模型通过预测坐标来控制镜头对准哪里，然后用相同的视觉编码器对放大后的区域重新提取特征。
+Visual CoT 的核心判断是：复杂视觉问答不只需要语言 CoT，还需要“视觉注意路径”的监督。数据集中每个样本不仅有答案，还标注了能够支撑答案的关键 bbox；这使模型可以学习“回答前应该看哪里”，从而把不可解释的全图一次性回答拆成可检查的定位和回答两步。
 
-##### 两阶段推理流程
+##### Visual Sampler 与局部重编码
 
-完整的推理过程可以形式化为：
+给定模型预测的边界框 \([x_1,y_1,x_2,y_2]\)，Visual Sampler 先计算中心点和半宽半高：
 
-**第一阶段（定位）：**
+$$
+c_x=\frac{x_1+x_2}{2}, \quad c_y=\frac{y_1+y_2}{2}
+$$
 
-$$\text{bbox} = [x_1, y_1, x_2, y_2] = f_{\text{LLM}}(H_0, T_q)$$
+$$
+w_h=\frac{x_2-x_1}{2}, \quad h_h=\frac{y_2-y_1}{2}
+$$
 
-其中 \(H_0 = g_{\text{ViT}}(I)\) 是全局图像特征，\(T_q\) 是问题的文本 token。模型在生成答案之前，先输出一个特殊格式的边界框坐标。
+为了适配正方形视觉编码器输入，它取 \(\max(w_h,h_h,r/2)\) 作为裁剪半边长，其中 \(r\) 是视觉编码器输入分辨率。这样既避免 bbox 过窄导致上下文不足，也避免随意放大一个极小区域造成模糊。
 
-**第二阶段（精读与回答）：**
+> 💡 关键：Visual CoT 不是额外接一个检测器，而是让 MLLM 自己生成 bbox；检测/OCR 模型主要用于构建监督数据，推理时核心流程仍是 MLLM + 视觉编码器。
 
-$$I_{\text{crop}} = \text{VisualSampler}(I, \text{bbox})$$
+##### 训练与推理流程
 
-$$H_1 = g_{\text{ViT}}(I_{\text{crop}})$$
+训练时，VisCoT 基线沿用 LLaVA-1.5 式结构：第一阶段冻结视觉编码器和 LLM，只训练图文投影；第二阶段对指令数据和 Visual CoT 数据进行微调。对带 CoT 标注的数据，模型学习先输出关键区域坐标，再基于局部裁剪生成答案；对没有 CoT 标注的数据，模型仍可直接执行普通 VQA。
 
-$$\text{answer} = f_{\text{LLM}}([H_0; H_1], T_q)$$
+推理时用户可以选择是否启用视觉 CoT。启用时，模型在答案前先生成关键区域 bbox，系统用 bbox 裁剪原图并重新编码，再把 \(H_0\)（全图特征）与 \(H_1\)（局部特征）拼接给 LLM：
 
-裁剪后的图像经同一 CLIP ViT 编码得到 \(H_1\)，与原始全局特征 \(H_0\) 拼接后，模型基于"全局+局部"的双重视觉信息生成最终答案。
+$$
+\text{answer}=f_{\theta}([H_0;H_1], q)
+$$
 
-> ⚠️ **注意**：整个流程只需要一个 ViT 和一个 LLM，不引入额外的检测模型。边界框预测完全由 LLM 自身完成，这使得模型在推理时保持端到端的简洁性。
+这与简单提高全图分辨率不同。提高分辨率会让 token 数按面积增长，而 Visual CoT 只增加一个局部视角，因此更像“主动变焦”：先用低成本全局理解定位，再把计算集中到最有信息量的位置。
 
-##### 训练策略
+##### 与传统 CoT 的区别
 
-模型基于 LLaVA-1.5 架构（CLIP ViT-L/14 + Vicuna-7B/13B），采用两阶段训练：
-
-| 阶段 | 数据 | 学习率 | 训练参数 | Epoch |
-|------|------|--------|----------|-------|
-| 预训练 | 558k 图文对齐数据 | 2e-3 | 仅投影层 | 1 |
-| 微调 | 665k 指令数据 + 438k VisCoT 数据 | 2e-5 | 全参数 | 1 |
-
-训练在 32 张 A100 GPU 上使用 FSDP ZeRO-3 策略完成。训练数据中的 CoT 样本格式为：
-
-```
-Question: {question}
-Answer: To answer this question, I need to focus on [x1, y1, x2, y2].
-{reasoning steps}
-The answer is {answer}.
-```
-
-##### 实验结果与分析
-
-**主要结果：** VisCoT-7B（336×336）在 8 个 VQA 基准上的平均得分达到 0.580，超越了 LLaVA-1.5-13B（0.478）这一参数量近两倍的模型。
-
-关键发现包括：
-
-1. **CoT 的显著增益**：在消融实验中，移除 CoT 机制后平均性能从 0.580 降至 0.443（-13.7%），证明视觉思维链的核心价值
-2. **GT 边界框上界**：使用 ground-truth 边界框时性能可达 0.752，说明更精准的定位还有巨大提升空间
-3. **Token 效率**：224 分辨率 + CoT 裁剪（~500 token）的性能优于 448 分辨率无 CoT（~1024 token），以约一半的 token 量实现更好效果
-4. **文档场景的巨大提升**：在 SROIE（收据信息提取）任务上，VisCoT 相比基线提升约 8 倍（从 5.8% 到 47.8%），因为文档中的关键文字通常集中在小区域
-5. **REC 能力**：模型在 RefCOCO/RefCOCO+/RefCOCOg 上的目标检测性能超越了 KOSMOS-2、Shikra 等专用模型，证明 CoT 训练带来的定位能力具有通用性
-
-> 💡 **关键洞察**：Visual CoT 揭示了一个重要设计原则——对于需要细节理解的视觉任务，"智能地选择看哪里"比"盲目提高全图分辨率"更有效且更经济。这与人类视觉系统中注视点（foveation）机制的原理一致。
+文本 CoT 主要把推理路径写成自然语言，但如果模型一开始没有看清视觉证据，语言推理会放大幻觉。Visual CoT 把中间步骤改为可验证的视觉区域框，使推理链直接锚定图像证据。相比 VisProg/ViperGPT 这类外部工具调用方法，VisCoT 更偏数据监督和端到端 MLLM 能力注入，不要求 LLM 生成可执行程序。
 
 #### 🧪 练习题
 ```yaml
-- question: "Visual CoT 中 Visual Sampler 裁剪区域的最小尺寸由什么决定？"
-  options:
-    - "预测边界框的面积"
-    - "输入分辨率的一半（res_half）"
-    - "图像原始分辨率"
-    - "CLIP ViT 的 patch 大小"
-  answer: 1
-  explain: "Visual Sampler 取 w_half、h_half、res_half 三者的最大值作为裁剪半边长，其中 res_half（输入分辨率的一半）作为下界，确保裁剪区域不会过小导致放大后模糊。"
-
-- question: "Visual CoT 的两阶段推理中，第二阶段的视觉输入是什么？"
-  options:
-    - "仅裁剪区域的特征 H1"
-    - "全局特征 H0 与裁剪区域特征 H1 的拼接 [H0; H1]"
-    - "全局特征 H0 与 H1 的加权平均"
-    - "将裁剪区域覆盖到原图后重新编码"
-  answer: 1
-  explain: "第二阶段将裁剪区域经 ViT 编码得到 H1，与全局特征 H0 直接拼接后输入 LLM，使模型同时获得全局上下文和局部细节信息。"
-
-- question: "Visual CoT 数据集中，边界框标注是如何生成的？"
-  options:
-    - "人工标注员逐一标注每个样本的关键区域"
-    - "使用 GPT-4 直接输出边界框坐标"
-    - "GPT-4 生成推理步骤描述关键区域，再用检测/OCR 模型转化为坐标"
-    - "从原始数据集的已有标注中直接复用"
-  answer: 2
-  explain: "数据集构建采用两步流水线：先用 GPT-4 生成包含区域描述的推理步骤，再用 Grounding DINO、PaddleOCR 等专用模型将自然语言描述转化为精确的边界框坐标。"
+question: "Visual CoT 中先预测 bbox 再裁剪局部区域的主要目的是什么？"
+options:
+  - "减少语言模型参数量"
+  - "让模型聚焦回答所需的小区域或细节证据，而不是只依赖低分辨率全图"
+  - "把所有视觉任务统一转换为图像分类"
+  - "用随机裁剪增加数据增强强度"
+answer: 1
+explain: "Visual CoT 的关键是先定位支持答案的视觉证据，再重新编码局部区域，从而缓解小目标、文字和细粒度区域在全图缩放中丢失的问题。"
 ```
 
 ### Image-of-Thought
@@ -782,16 +1333,102 @@ motivation: 每步锚定文本与视觉证据，精细化推理
 ```
 
 #### 📝 一句话总结
-Image-of-Thought 的核心目标是：每步锚定文本与视觉证据，精细化推理。
+Image-of-Thought 提出一种免训练 prompting 方法，让 MLLM 自动把问题拆成子目标，并在每一步调用图像处理工具生成视觉证据，再用“文本理由 + 视觉理由”的混合 rationale 修正最终答案，解决纯文本 CoT 难以可靠锚定图像细节的问题。
 
 #### 🎯 核心要点
-- 核心动机：每步锚定文本与视觉证据，精细化推理
-- 演化来源：继承或改进自 visual_cot
-- 代表机构：CUHK
+- 将 CoT 从纯文本扩展为多模态 rationale：每步包含 step、visual rationale、textual rationale 三元组
+- 自动设计 IoT 流程：模型根据问题选择需要关注的目标、区域、空间关系或颜色等视觉操作
+- 工具箱包含 FastSAM、GroundingDINO 和 PIL 等图像处理能力，用于分割、检测、裁剪、区域增强和空间辅助
+- 将每一步生成的视觉证据重新输入 MLLM，使最终回答建立在显式可见的中间图像证据上
+- 不需要额外训练数据或微调，主要依赖提示模板、多轮交互和外部视觉工具
+- 在 MMBench、MME、MMVet 上验证，对空间关系、位置、属性比较等认知类任务提升更明显
 
 #### 🔬 深入细节
-每步锚定文本与视觉证据，精细化推理
+##### 核心示意图
 
+![Image-of-Thought 方法框架](https://arxiv.org/html/2405.13872v2/x1.png)
+*图：IoT prompting 先设计图像处理步骤，逐步提取视觉 rationale，再把混合 rationale 序列反馈给 MLLM 修正答案。*
+
+##### 算法伪代码
+
+```python
+# Image-of-Thought Prompting
+def image_of_thought(question, image, mllm, toolbox):
+    # 1. 让 MLLM 根据问题自动规划视觉证据抽取流程
+    sub_goals = mllm.plan_visual_steps(question, image)
+    rationales = []
+
+    # 2. 每个子目标选择并执行图像处理操作
+    for goal in sub_goals:
+        action = mllm.select_tool(goal, toolbox)
+        visual_rationale = toolbox.execute(action, image, goal)
+        textual_rationale = mllm.explain_step(question, goal, visual_rationale)
+        rationales.append({
+            "step": goal,
+            "visual": visual_rationale,
+            "text": textual_rationale,
+        })
+
+    # 3. 把图像证据链和文本理由链一起反馈给模型
+    answer = mllm.refine_answer(question, image, rationales)
+    return answer, rationales
+```
+
+##### 动机与背景
+
+多模态 CoT 的核心难点是：语言模型可以生成看似合理的推理步骤，但这些步骤未必真的来自图像。尤其在空间关系、目标位置、局部颜色、遮挡和多目标比较任务中，纯文本 CoT 容易把“猜测的描述”当成证据，导致推理链可读但不可靠。
+
+Image-of-Thought 的思路是把中间推理步骤显式落到图像操作上。模型不只是写“我需要看左上角”，还要选择检测、分割、裁剪、空间标尺、颜色空间转换等操作，得到一个可重新输入模型的视觉 rationale。这样每一步推理都有对应的图像证据。
+
+##### 多模态 rationale 三元组
+
+IoT 把每个中间步骤表示成：
+
+$$
+r_i=(s_i, v_i, t_i)
+$$
+
+其中 \(s_i\) 是子目标或操作说明，\(v_i\) 是工具生成的视觉证据，\(t_i\) 是 MLLM 对该视觉证据的文字解释。多个步骤串联后形成 multimodal rationale series：
+
+$$
+R=\{(s_1,v_1,t_1),\dots,(s_n,v_n,t_n)\}
+$$
+
+最终回答不是直接从原图和问题生成，而是基于 \(R\) 做答案 refining：
+
+$$
+a=\operatorname{MLLM}(q, I, R)
+$$
+
+这种设计把“想什么”和“看到了什么”绑定起来，减少文本理由脱离图像的风险。
+
+##### 工具调用与视觉证据抽取
+
+论文使用可扩展工具箱来生成视觉 rationale。FastSAM 负责快速分割和显著区域提取，GroundingDINO 支持文本条件目标检测，PIL 用于裁剪、区域拼接、坐标标注、颜色变换等基础图像处理。论文还讨论了空间标尺、密集目标检测、referring object detection、颜色空间转换等操作，它们共同服务于把复杂问题拆成更小的视觉检查点。
+
+> 💡 关键：IoT 的工具不是为了替代 MLLM，而是把 MLLM 的注意力落到“可以重新看的中间图像”上；最终判断仍由 MLLM 综合原图、子图和文本理由完成。
+
+##### 训练/推理流程
+
+IoT 是 training-free 方法。推理开始时，提示词要求模型“逐步思考图像特征”，并告知模型可以使用图像处理操作。模型先规划子目标，再为每个子目标选择工具并生成视觉 rationale。得到 rationale 序列后，模型再次看到这些中间结果，并输出修正后的最终答案。
+
+与 Visual CoT 的数据监督不同，IoT 不需要预先标注 bbox 或训练模型学会定位。它更像一个推理时流程控制器：通过 prompt 让 MLLM 自主决定要抽取哪些视觉证据，并把抽取到的图像片段作为额外上下文。优点是部署轻、无需训练；代价是依赖工具质量和多轮调用稳定性。
+
+##### 与传统 CoT 的区别
+
+传统 CoT 只扩展文本上下文，无法保证每一步都被视觉证据支持；IoT 则把每步理由拆为视觉和文本两部分。当问题需要判断“哪一个更靠左”“某个小物体是什么颜色”“两个对象是否接触”时，视觉 rationale 能直接突出相关区域，降低模型在整图中遗漏关键证据的概率。
+
+#### 🧪 练习题
+```yaml
+question: "Image-of-Thought 中 multimodal rationale 的核心组成是什么？"
+options:
+  - "只包含最终答案和置信度"
+  - "由 step、visual rationale、textual rationale 组成的三元组序列"
+  - "仅由模型隐藏层 attention map 组成"
+  - "由训练集标签和梯度信息组成"
+answer: 1
+explain: "IoT 每一步都绑定子目标、图像处理得到的视觉证据和 MLLM 生成的文本解释，再把这些混合理由反馈给模型修正答案。"
+```
 
 ### LLaVA-CoT
 
@@ -810,179 +1447,126 @@ motivation: 让VLM逐步推理，结构化提升多步准确性
 ```
 
 #### 📝 一句话总结
-LLaVA-CoT 提出将视觉语言模型的推理过程分解为四个结构化阶段（摘要→描述→推理→结论），并配合阶段级束搜索与回溯机制（SWIRES），在仅 100k 训练数据的条件下使 11B 模型在多个推理基准上超越 GPT-4o-mini，实现了多模态 CoT 推理的系统性突破。
+LLaVA-CoT 提出让 VLM 自主生成 Summary、Caption、Reasoning、Conclusion 四阶段结构化推理，并配合阶段级测试时搜索 SWIRES，解决普通 VLM 在复杂视觉问答中仓促回答、推理路径不稳定的问题。
 
 #### 🎯 核心要点
-- **四阶段结构化推理**：将响应分为 `<SUMMARY>`、`<CAPTION>`、`<REASONING>`、`<CONCLUSION>` 四个 XML 标签包裹的阶段，强制模型先规划、再观察、再推理、最后总结
-- **LLaVA-CoT-100k 数据集**：从 ShareGPT4V、ChartQA、A-OKVQA、GeoQA+ 等 10 个 VQA 数据集中筛选 99k 样本，由 GPT-4o 生成四阶段格式的推理标注
-- **基座模型**：Llama-3.2-11B-Vision-Instruct，全参数 SFT，8×H100 训练
-- **SWIRES（Stage-wise Beam Search with Backtracking）**：测试时在每个推理阶段生成多个候选、用奖励模型评分筛选、不满足阈值则回溯重试，实现阶段级 test-time scaling
-- **奖励模型**：InternLM-XComposer2.5-Reward（IXC-2.5-Reward），用于在线评估各阶段输出质量
-- **性能**：6 个基准平均从基座 56.6 提升至 62.4（训练后）→ 65.5（+SWIRES），在 MMStar、MMBench、MathVista 等推理密集型任务上超越 GPT-4o-mini 和 Gemini-1.5-pro
-- **消融发现**：直接训练 CoT 数据（无标签）= 59.0，加标签但无结构 = 60.9，完整四阶段 = 62.4，证明结构化标签是关键
+- 将多模态回答显式拆为 `<SUMMARY>`、`<CAPTION>`、`<REASONING>`、`<CONCLUSION>` 四个阶段
+- 构建 LLaVA-CoT-100k 数据集，用 GPT-4o 将多源 VQA 样本重写为结构化推理标注
+- 基座模型为 Llama-3.2-11B-Vision-Instruct，使用全参数 SFT 学会阶段化输出
+- Summary 负责解题规划，Caption 负责视觉解释，Reasoning 负责逻辑推导，Conclusion 输出最终答案
+- 提出 SWIRES 阶段级回溯搜索：在每个阶段生成候选、奖励模型评分、低质量时回溯重试
+- 使用 InternLM-XComposer2.5-Reward 作为测试时奖励模型，在 MMStar、MMBench、MMVet、MathVista、AI2D、HallusionBench 上验证
 
 #### 🔬 深入细节
-##### 动机与背景
+##### 核心示意图
 
-当前视觉语言模型（VLM）在面对复杂推理任务时存在两个关键问题：
+![LLaVA-CoT 推理示例](https://raw.githubusercontent.com/PKU-YuanGroup/LLaVA-CoT/main/figures/reasoning.png)
+*图：公开项目示例展示 LLaVA-CoT 如何先总结任务、描述图像，再逐步推理并给出结论。*
 
-1. **仓促回答**：模型未充分组织问题信息就直接给出答案，例如 Llama-3.2-11B-Vision-Instruct 在看到"这个人接下来会做什么？"的问题时，误将选项中的"cry"理解为自杀倾向而拒绝回答
-2. **推理偏离**：模型在推理过程中偏离逻辑路径，草率得出"问题无意义"等错误结论
+![LLaVA-CoT 基准表现](https://raw.githubusercontent.com/PKU-YuanGroup/LLaVA-CoT/main/figures/result.png)
+*图：LLaVA-CoT 项目页展示其 11B 模型在六个多模态推理基准上的平均表现。*
 
-这些问题的根源在于：VLM 缺乏系统性的推理框架来组织"看什么→想什么→怎么推→得什么"的完整思维链。传统的 CoT prompting 虽然在 LLM 中有效，但直接应用于 VLM 时效果有限（实验显示基座模型加 CoT 提示后平均分不变，仍为 56.9）。
-
-> 💡 关键洞察：VLM 的推理不仅需要语言层面的链式思考，还需要在**视觉感知**和**逻辑推理**之间建立显式的阶段划分。
-
-##### 核心方法：四阶段结构化推理
-
-![LLaVA-CoT 四阶段推理框架](assets/llava_cot_framework.png)
-*图：LLaVA-CoT 将推理过程分解为 Summary → Caption → Reasoning → Conclusion 四个阶段*
-
-LLaVA-CoT 的核心创新是将模型的推理过程显式分解为四个阶段，每个阶段用 XML 标签包裹：
-
-**Stage 1 — Summary（问题摘要）**：模型首先概述解题思路，规划后续步骤。这迫使模型在回答前先"想清楚要做什么"，避免仓促回答。
-
-**Stage 2 — Caption（视觉描述）**：模型描述图像中与问题相关的细节。这一阶段将视觉感知与推理解耦，确保模型充分"看清楚图片内容"。
-
-**Stage 3 — Reasoning（逻辑推理）**：基于前两个阶段的信息，模型进行逐步的逻辑推理。这是传统 CoT 的核心部分，但因为有了前置的规划和观察，推理质量显著提升。
-
-**Stage 4 — Conclusion（最终结论）**：给出简洁直接的最终答案。
-
-模型输出格式示例：
-```
-<SUMMARY>我需要分析图中的几何关系来求解角度...</SUMMARY>
-<CAPTION>图中显示一个三角形ABC，其中角A=60°，边AB上有一点D...</CAPTION>
-<REASONING>由三角形内角和定理，角B+角C=120°。又因为AD是角平分线...</REASONING>
-<CONCLUSION>角BDC = 120°</CONCLUSION>
-```
-
-> ⚠️ 注意：标签结构不是简单的 prompt 工程——模型通过 SFT 学会了在生成过程中自主切换阶段，标签成为模型内部推理流程的一部分。
-
-##### 数据集构建：LLaVA-CoT-100k
-
-数据集构建流程：
-
-1. **来源选择**：从 10 个 VQA 数据集中采样，覆盖通用 VQA（ShareGPT4V, A-OKVQA）、图表理解（ChartQA, DVQA）、文档/OCR（DocVQA, SynthDoG-EN）、数学推理（GeoQA+, CLEVR-Math）、科学推理（AI2D）等多种任务类型
-2. **GPT-4o 标注**：将原始问题、图像和标准答案提供给 GPT-4o，要求其按四阶段格式生成推理过程
-3. **格式验证**：过滤不符合 XML 标签格式的输出
-4. **答案一致性检查**：用 GPT-4o 验证生成的 CONCLUSION 与原始标准答案是否一致，过滤拒绝回答或答案不匹配的样本
-
-最终得到约 99k 高质量样本。
-
-##### 训练细节
-
-| 参数 | 值 |
-|------|-----|
-| 基座模型 | Llama-3.2-11B-Vision-Instruct |
-| 训练方式 | 全参数 SFT（FSDP） |
-| 学习率 | \(1 \times 10^{-5}\) |
-| Epochs | 3 |
-| Batch size | 4 |
-| Context length | 4096 |
-| 混合精度 | True |
-| 硬件 | 8 × H100 GPU |
-
-##### SWIRES：阶段级测试时搜索
-
-![SWIRES 阶段级束搜索与回溯机制](assets/llava_cot_swires.png)
-*图：SWIRES 在每个推理阶段生成多个候选，用奖励模型评分筛选，不满足条件则回溯*
-
-SWIRES（Stage-wise Beam Search with Backtracking）是 LLaVA-CoT 的测试时缩放方法，其核心思想是：**利用四阶段结构的天然分界点，在每个阶段独立进行束搜索和质量控制**。
-
-算法伪代码：
+##### 算法伪代码
 
 ```python
-# SWIRES: Stage-wise Retrace Algorithm
-# M=4 (candidates per stage), N=2 (keep top), C=3 (max backtracks)
-def swires(question, image, reward_model, M=4, N=2, C=3):
-    # Stage 1: Generate one summary
-    summary = generate_summary(question, image)
-    
-    backtrack_count = 0
-    candidates, scores = [], []
-    
-    while backtrack_count < C:
-        # Stage 2: Generate M captions, keep top N
-        captions = [generate_caption(summary) for _ in range(M)]
-        caption_scores = [reward_model.score(c) for c in captions]
-        top_captions = top_k(captions, caption_scores, N)
-        
-        # Stage 3: Generate M reasonings per caption
-        for caption in top_captions:
-            reasonings = [generate_reasoning(caption) for _ in range(M)]
-            for r in reasonings:
-                candidates.append(r)
-                scores.append(reward_model.score(r))
-        
-        # Check backtrack condition
-        sorted_scores = sorted(scores, reverse=True)
-        threshold = reward_mean + Z * reward_std  # Z=0.2533
-        if sorted_scores[1] >= threshold:  # 2nd best passes
-            break
-        backtrack_count += 1
-    
-    # Stage 4: Generate conclusion for top N reasonings
-    top_reasonings = top_k(candidates, scores, N)
-    conclusions = [generate_conclusion(r) for r in top_reasonings]
-    conclusion_scores = [reward_model.score(c) for c in conclusions]
-    
-    return conclusions[argmax(conclusion_scores)]
+# LLaVA-CoT 四阶段生成 + SWIRES 阶段搜索
+STAGES = ["SUMMARY", "CAPTION", "REASONING", "CONCLUSION"]
+
+def llava_cot_answer(image, question, model):
+    context = [image, question]
+    outputs = {}
+    for stage in STAGES:
+        outputs[stage] = model.generate(
+            context=context,
+            prefix=f"<{stage}>"
+        )
+        context.append(f"<{stage}>{outputs[stage]}</{stage}>")
+    return outputs["CONCLUSION"], outputs
+
+def swires(image, question, model, reward_model, m=4, n=2, max_backtracks=3):
+    summary = generate_stage(model, image, question, "SUMMARY")
+    beams = [(summary, 0.0)]
+
+    for stage in ["CAPTION", "REASONING", "CONCLUSION"]:
+        candidates = []
+        backtracks = 0
+        while backtracks <= max_backtracks:
+            for prefix, _ in beams:
+                for _ in range(m):
+                    out = generate_stage(model, image, question, stage, prefix)
+                    score = reward_model.score(image, question, prefix + out)
+                    candidates.append((prefix + out, score))
+            candidates = sorted(candidates, key=lambda x: x[1], reverse=True)
+            if quality_is_enough(candidates, reward_model) or stage == "CONCLUSION":
+                break
+            backtracks += 1
+        beams = candidates[:n]
+    return beams[0][0]
 ```
 
-**回溯阈值设计**：
+##### 动机与背景
 
-回溯条件基于奖励分数的统计分布：
+普通 VLM 在复杂视觉问题中常见两类错误：一是没有先弄清问题就直接回答，二是在推理过程中遗漏或误读视觉证据。简单加一句“think step by step”并不稳定，因为模型仍可能把视觉描述、逻辑计算和最终答案混在一起生成，错误会在长回答中逐步累积。
 
-$$\text{backtrack\_cutoff} = \mu_{\text{reward}} + Z \times \sigma_{\text{reward}}$$
+LLaVA-CoT 的核心设计是给推理过程加结构边界。四个阶段分别承担不同职责：Summary 先决定要解决什么，Caption 把与问题相关的图像事实说清楚，Reasoning 在这些事实上推导，Conclusion 只输出最终结果。这个结构让模型学到更可控的生成顺序。
 
-其中 \(\mu_{\text{reward}} = -0.77\)，\(\sigma_{\text{reward}} = 2.08\)，\(Z = 0.2533\)。这个 Z 值对应标准正态分布中 top 40% 的分位点——即只要第二好的候选分数超过此阈值（意味着它在分布中排名前 40%），就认为当前候选集质量足够，无需回溯。
+##### 四阶段结构化推理
 
-> 💡 关键：SWIRES 与传统 Best-of-N 搜索的本质区别在于**阶段级粒度**。传统方法在完整响应级别搜索，而 SWIRES 在每个阶段独立搜索，允许不同阶段的最优候选自由组合，搜索效率更高。
+模型输出被 XML-like 标签包裹：
 
-##### 与传统方法的对比
+```text
+<SUMMARY>分析问题目标和所需步骤</SUMMARY>
+<CAPTION>描述与问题相关的图像细节</CAPTION>
+<REASONING>基于视觉事实逐步推理</REASONING>
+<CONCLUSION>给出最终答案</CONCLUSION>
+```
 
-| 方法 | 搜索粒度 | 回溯能力 | 适用场景 |
-|------|---------|---------|---------|
-| Best-of-N | 完整响应 | 无 | 通用 |
-| Beam Search | Token 级 | 无 | 生成质量 |
-| SWIRES | 推理阶段级 | 有（阶段间回溯） | 结构化推理 |
+从概率建模角度，完整回答被分解为阶段条件生成：
 
-实验表明，SWIRES 在相同计算预算下显著优于 Best-of-N：在 MMStar 上，Best-of-N（32 次采样）达到 59.5，而 SWIRES（等效计算量）达到 61.2。
+$$
+p(y\mid x,q)=\prod_{s\in\{\text{sum,cap,rea,con}\}} p(y_s\mid x,q,y_{<s})
+$$
 
-##### 实验结果
+这种分解让后续阶段显式依赖前序阶段，Caption 的视觉事实成为 Reasoning 的条件，Reasoning 的结论再约束 Conclusion。
 
-**主要结果（6 个推理基准）**：
+##### 数据与训练流程
 
-| 模型 | MMStar | MMBench | MMVet | MathVista | AI2D | Hallusion | Avg |
-|------|--------|---------|-------|-----------|------|-----------|-----|
-| Llama-3.2-11B (base) | 49.8 | 65.8 | 57.6 | 47.6 | 77.0 | 41.9 | 56.6 |
-| GPT-4o-mini | 54.9 | 76.9 | 66.9 | 52.4 | 77.8 | 46.1 | 62.5 |
-| **LLaVA-CoT** | **57.6** | 73.8 | 60.0 | **54.8** | **85.0** | 43.1 | **62.4** |
-| **LLaVA-CoT + SWIRES** | **61.2** | **75.3** | **63.2** | **57.4** | **85.7** | **50.1** | **65.5** |
+LLaVA-CoT-100k 从多个视觉问答来源构造训练样本，覆盖通用 VQA、图表、文档 OCR、数学、科学和幻觉检测相关任务。作者使用 GPT-4o 生成四阶段标注，并过滤格式错误或答案不一致的样本。训练时对 Llama-3.2-11B-Vision-Instruct 做监督微调，让模型在没有额外提示模板约束时也能自然产出四阶段推理。
 
-**消融实验（训练策略）**：
+损失就是标准自回归语言建模损失，只是目标序列包含结构标签：
 
-| 训练方式 | MMStar | Avg |
-|---------|--------|-----|
-| 基座直接推理 | 49.8 | 56.6 |
-| 直接训练 CoT（无标签） | 51.8 | 59.0 |
-| 加标签但无结构 | 54.3 | 60.9 |
-| **完整四阶段（LLaVA-CoT）** | **57.6** | **62.4** |
+$$
+\mathcal{L}_{\text{SFT}}=-\sum_t \log p_{\theta}(y_t\mid y_{<t}, I, q)
+$$
 
-消融结果清晰表明：(1) CoT 训练本身带来 +2.4 的提升；(2) XML 标签结构额外带来 +1.9；(3) 完整四阶段设计再带来 +1.5。结构化标签不仅是格式约束，更是帮助模型建立内部推理流程的关键机制。
+> 💡 关键：标签不是展示格式而已。消融中去掉结构标签会降低效果，说明阶段边界帮助模型建立更稳定的内部推理流程。
 
-**MMStar 技能维度分析**显示，LLaVA-CoT 的增益主要来自推理密集型维度（Instance Reasoning +10.7, Logical Reasoning +9.3, Math +10.0, Science & Tech +8.0），而在感知维度（Coarse/Fine-grained Perception）上提升较小（+3.3/+4.0），验证了方法确实增强了推理而非感知能力。
+##### SWIRES 测试时搜索
+
+SWIRES 利用四阶段输出的天然边界做 test-time scaling。传统 Best-of-N 对完整回答采样再评分，粒度太粗；如果中间视觉描述错了，后面再好也难修复。SWIRES 在 Caption、Reasoning、Conclusion 等阶段分别生成候选，用奖励模型打分，保留 top-\(N\)，若候选质量低于阈值则回溯重试。
+
+论文用奖励分数均值和方差设定回溯阈值：
+
+$$
+\tau=\mu_{\text{reward}} + Z\sigma_{\text{reward}}
+$$
+
+当阶段候选的高分项不足以通过阈值时，系统重新生成该阶段，最多回溯 \(C\) 次。这样做的直觉是把搜索预算花在“出错阶段”，而不是盲目生成更多完整答案。
+
+##### 与传统 CoT 的区别
+
+传统 CoT 主要增加推理文本长度，不区分规划、视觉观察和逻辑计算。LLaVA-CoT 把这些职责显式拆开，并用训练数据让模型习惯这种结构。相比 Visual CoT 的 bbox/局部重编码，LLaVA-CoT 更偏语言结构化推理；相比 VisProg/ViperGPT，它不执行外部程序，而是在 VLM 内部完成分阶段生成。
 
 #### 🧪 练习题
 ```yaml
-question: "LLaVA-CoT 的 SWIRES 测试时搜索方法与传统 Best-of-N 采样的核心区别是什么？"
+question: "LLaVA-CoT 中 SWIRES 相比 Best-of-N 的核心区别是什么？"
 options:
-  - "SWIRES 使用更大的采样温度来增加多样性"
-  - "SWIRES 在每个推理阶段独立进行束搜索和回溯，而非在完整响应级别搜索"
-  - "SWIRES 使用更强的奖励模型进行评分"
-  - "SWIRES 通过微调模型参数来提升推理质量"
+  - "SWIRES 在完整回答级别一次性采样更多答案"
+  - "SWIRES 在推理阶段级别生成、评分和回溯候选，而不是只对完整回答排序"
+  - "SWIRES 通过重新训练奖励模型提升结果"
+  - "SWIRES 只保留 Summary 阶段，不生成其他阶段"
 answer: 1
-explain: "SWIRES 利用四阶段结构化推理的天然分界点，在 Caption、Reasoning、Conclusion 每个阶段独立生成多个候选并用奖励模型筛选，还支持阶段间回溯。这种阶段级粒度的搜索比完整响应级别的 Best-of-N 更高效，因为它允许不同阶段的最优候选自由组合。"
+explain: "SWIRES 利用 Summary、Caption、Reasoning、Conclusion 的阶段边界，在中间阶段就筛选和回溯，从而更早修复视觉描述或逻辑推理错误。"
 ```
 
 ### VisProg
@@ -1002,16 +1586,91 @@ motivation: LLM生成Python调用视觉API，无需训练
 ```
 
 #### 📝 一句话总结
-VisProg 的核心目标是：LLM生成Python调用视觉API，无需训练。
+VisProg 提出用 LLM 根据自然语言指令生成 python-like 视觉程序，再调用现成视觉模型、图像处理函数和 Python 逻辑执行组合推理，解决端到端 VLM 难以无训练覆盖长尾复杂视觉任务的问题。
 
 #### 🎯 核心要点
-- 核心动机：LLM生成Python调用视觉API，无需训练
-- 演化来源：继承或改进自 blip2
-- 代表机构：UW
+- 使用 GPT-3 的 in-context learning 从少量“指令-程序”示例生成视觉程序，无需梯度训练
+- 程序由一系列模块调用组成，每行读取前序变量并产生新的中间变量
+- 模块库包含 OWL-ViT、DSFD、MaskFormer、CLIP、ViLT、Stable Diffusion、OpenCV/Python 函数等
+- 支持四类任务：组合 VQA、图像对 NLVR 零样本推理、知识目标标注、语言引导图像编辑
+- 每个模块实现 `parse`、`execute`、`html` 三类接口，既执行计算也生成可视化 rationale
+- 与 Neural Module Networks 不同，VisProg 不学习模块布局和模块参数，而是重用现成模型和 Python 解释器
 
 #### 🔬 深入细节
-LLM生成Python调用视觉API，无需训练
+##### 核心示意图
 
+![VisProg 系统框架](https://ar5iv.labs.arxiv.org/html/2211.11559/assets/x1.png)
+*图：VisProg 根据自然语言指令生成模块化视觉程序，执行时调用视觉/语言/图像处理模块，并汇总中间结果形成可解释 rationale。*
+
+##### 算法伪代码
+
+```python
+# VisProg 推理流程
+def visprog(image_or_images, instruction, llm, examples, module_registry):
+    prompt = build_prompt(examples, instruction)
+    program_text = llm.generate(prompt)  # python-like module calls
+
+    state = {"IMAGE": image_or_images}
+    rationale_html = []
+    for step in parse_program(program_text):
+        module = module_registry[step.module_name]
+        inputs = [state[name] for name in step.input_variables]
+        output = module.execute(*inputs, **step.literal_args)
+        state[step.output_variable] = output
+        rationale_html.append(module.html(inputs, output))
+
+    return state[program_text.return_variable], rationale_html
+```
+
+##### 动机与背景
+
+许多真实视觉任务不是单一分类或问答，而是“定位目标、裁剪区域、读取属性、查知识、做计数或逻辑判断”的组合。端到端模型需要为每种任务收集数据并训练，Neural Module Networks 虽然可组合，但通常要学习程序布局和模块参数，监督昂贵且很难扩展到开放长尾任务。
+
+VisProg 的关键判断是：复杂任务的组合逻辑可以交给 LLM 生成程序，而底层感知能力可以复用已有模型。这样系统不需要为每个新任务微调，只要在 prompt 中提供几个示例，LLM 就能根据指令生成调用模块的程序。
+
+##### 模块与程序表示
+
+每个程序步骤包含模块名、输入变量、字面参数和输出变量，例如可以先 `LOC(image=IMAGE, object='person')` 得到人框，再 `CROP` 出区域，最后调用 `VQA` 或 `COUNT`。从形式上看，VisProg 学的是一个函数组合：
+
+$$
+y = m_k(\dots m_2(m_1(x))\dots)
+$$
+
+其中 \(m_i\) 可以是神经模型、图像处理函数、知识检索或 Python 逻辑。模块的输入输出不局限于文本，也可以是 bbox、mask、图像 patch、对象列表或生成图像。
+
+##### 可解释执行器
+
+VisProg 的执行器维护一个状态字典：
+
+$$
+S_t = S_{t-1} \cup \{v_t = m_t(\operatorname{args}_t; S_{t-1})\}
+$$
+
+这意味着每一步的中间变量都可检查。模块除了 `execute()` 外还提供 `html()`，用于可视化输入和输出，例如显示检测框、分割 mask、裁剪图或编辑结果。最终 rationale 不是语言模型自己编写的解释，而是执行轨迹的可视化摘要。
+
+> 💡 关键：VisProg 的“思维链”是可运行程序，而不是纯自然语言。程序一旦执行失败或中间结果错误，用户可以定位是哪一步模块或哪条指令出了问题。
+
+##### 训练/推理流程
+
+VisProg 没有任务专属训练阶段。用户为某类任务写少量 in-context 示例，每个示例包含自然语言指令和期望程序。推理时把这些示例与新指令拼接给 GPT-3，得到视觉程序后由解释器执行。由于 LLM 不直接看图像，程序生成依赖指令语义；具体视觉内容则在执行阶段由模块读取。
+
+论文展示了 20 个左右模块的组合能力。对于 GQA，系统可把复杂问题拆成定位、裁剪、VQA、计数、表达式求值；对于 NLVRv2，系统把图像对问题拆成两张图上的局部判断和 Python 布尔表达式；对于知识目标标注，GPT-3 可生成候选类别列表，再用 CLIP 对区域分类；对于图像编辑，则组合分割和 Stable Diffusion 等模块完成局部修改。
+
+##### 与 VLM/Neural Module Networks 的区别
+
+端到端 VLM 把感知和推理都压进一次前向传播，缺少显式中间状态；Neural Module Networks 依赖训练得到的布局或模块，扩展新模块成本高。VisProg 把布局生成交给 LLM，把逻辑执行交给 Python，把感知交给现成专家模型，因此更灵活、更容易调试，但性能也受限于程序生成稳定性和模块库覆盖范围。
+
+#### 🧪 练习题
+```yaml
+question: "VisProg 相比端到端 VLM 的核心优势是什么？"
+options:
+  - "通过更大图像分辨率提升所有任务性能"
+  - "把复杂视觉任务拆成可执行模块程序，复用现成模型且无需任务专属训练"
+  - "只使用一个 CLIP 向量完成所有推理"
+  - "完全不依赖语言模型"
+answer: 1
+explain: "VisProg 让 LLM 生成程序，执行器调用视觉、语言和 Python 模块，显式暴露中间结果，因此更适合组合式长尾任务。"
+```
 
 ### ViperGPT
 
@@ -1030,16 +1689,87 @@ motivation: 代码执行实现可解释可调试的视觉推理
 ```
 
 #### 📝 一句话总结
-ViperGPT 的核心目标是：代码执行实现可解释可调试的视觉推理。
+ViperGPT 提出让代码生成模型直接编写并执行 Python 函数，通过 API 组合 GLIP、MiDaS、BLIP-2、X-VLM 等视觉语言模块，把复杂视觉问题转化为可审计的程序执行过程，解决端到端模型感知与推理混在一起、难以泛化和解释的问题。
 
 #### 🎯 核心要点
-- 核心动机：代码执行实现可解释可调试的视觉推理
-- 演化来源：继承或改进自 visprog
-- 代表机构：Columbia
+- 用 Codex 作为 program generator，将自然语言视觉查询生成 Python 函数定义
+- 提供抽象 API，而不是完整实现，让模型依据函数签名、docstring 和示例生成代码
+- 核心类包括 `ImagePatch` 与 `VideoSegment`，支持图像 patch、视频片段、目标列表和任意 Python 返回类型
+- 感知模块调用 GLIP、MiDaS、BLIP-2、X-VLM 等预训练模型，逻辑、排序、循环、算术由 Python 解释器完成
+- 不训练任务专属模型，可用于 visual grounding、GQA、OK-VQA、视频因果和时间推理
+- 程序中间变量可检查，错误可定位到具体 API 调用或 Python 逻辑
 
 #### 🔬 深入细节
-代码执行实现可解释可调试的视觉推理
+##### 核心示意图
 
+![ViperGPT 执行示例](https://ar5iv.labs.arxiv.org/html/2303.08128/assets/x1.png)
+*图：ViperGPT 根据图像和查询生成 Python 程序，执行程序并展示中间变量，使最终答案可解释、可调试。*
+
+##### 算法伪代码
+
+```python
+# ViperGPT: query -> Python function -> execution
+def vipergpt(query, visual_input, codex, api_spec):
+    prompt = api_spec + "\n# Query: " + query + "\n"
+    code = codex.generate(prompt)  # def execute_command(image): ...
+
+    # 只暴露受控 API 环境，真实实现内部调用预训练模型
+    env = {
+        "ImagePatch": ImagePatch,
+        "VideoSegment": VideoSegment,
+        "distance": distance,
+        "bool_to_yesno": bool_to_yesno,
+    }
+    fn = compile_python_function(code, env)
+    result = fn(visual_input)
+    return result, code
+```
+
+##### 动机与背景
+
+视觉问答中的复杂问题常常需要先做感知再做符号推理。例如“每个孩子公平分到几个松饼”需要检测孩子和松饼、计数、再做除法。端到端 VLM 往往把这些步骤隐式压进一次生成，既不能保证计数和数学逻辑可靠，也无法知道错误来自检测、计数还是推理。
+
+ViperGPT 把推理问题拆成两个系统：LLM 负责编写程序，Python 解释器负责执行逻辑，预训练视觉模型负责感知。这等价于把复杂查询 \(q\) 转换成程序 \(p\)，再执行：
+
+$$
+p = G_{\phi}(q, \mathcal{A}), \quad y = \operatorname{Exec}(p, x, \mathcal{M})
+$$
+
+其中 \(\mathcal{A}\) 是 API 规范，\(\mathcal{M}\) 是可调用的视觉语言模块集合。
+
+##### API 设计
+
+论文强调只把 API 规范放进 prompt，而不是把模块实现塞进上下文。`ImagePatch` 表示图像或裁剪区域，提供 `find(object_name)`、`exists(object_name)`、`verify_property(property)`、`best_text_match(options, prefix)`、`simple_query(question)`、`compute_depth()`、`crop(...)` 等方法。`VideoSegment` 则处理视频区间、帧采样和时间关系。
+
+这种抽象有两个好处。第一，LLM 的上下文只需要理解“能调用什么”和“返回什么”，不会被实现细节占满。第二，模块实现可以升级，例如把 detector 从 GLIP 换成更强模型，而程序生成接口不变。
+
+##### Python 执行与可解释性
+
+ViperGPT 和 VisProg 的差异在于它不是只生成受限的模块调用序列，而是直接生成 Python 函数。Python 的 `if/else`、`for`、`sort`、`math` 等语言能力自然提供符号推理、控制流和算术能力；视觉模块则只处理它们擅长的感知任务。
+
+> 💡 关键：ViperGPT 的可解释性来自真实执行轨迹。生成的代码、中间 patch、检测结果和最终返回值都能被检查，而不是让模型事后生成解释。
+
+##### 模块与任务覆盖
+
+论文实现中使用 GLIP 处理开放词汇检测和存在性判断，MiDaS 处理深度估计，BLIP-2 处理图像问答，X-VLM/CLIP 类模型处理图文匹配。基于这些模块，ViperGPT 在 RefCOCO/RefCOCO+ 做 visual grounding，在 GQA 做组合 VQA，在 OK-VQA 做外部知识依赖问答，在视频任务上处理因果和时间关系。
+
+在 GQA 中，代码可以先定位目标，再裁剪相对区域，最后对局部区域调用 VQA；在 OK-VQA 中，程序可先抽取图像实体，再用 LLM 查询外部知识；在视频任务中，程序能遍历帧或片段并比较时间顺序。这些都利用了 Python 的结构化控制能力。
+
+##### 与 VisProg 的区别
+
+VisProg 生成更接近 DSL 的模块调用列表，强调模块库和可视化 rationale；ViperGPT 进一步放宽为普通 Python 代码，表达力更强，也更自然支持复杂控制流和任意返回类型。代价是代码安全、运行错误和 API 滥用需要额外防护，因此实际系统中应限制执行环境并审计可调用函数。
+
+#### 🧪 练习题
+```yaml
+question: "ViperGPT 为什么要把视觉查询转换成 Python 代码执行？"
+options:
+  - "为了让 Python 替代所有视觉模型"
+  - "为了显式组合感知模块与符号逻辑，使中间步骤可检查并支持控制流、算术和条件判断"
+  - "为了减少图像输入大小"
+  - "为了训练一个新的端到端视觉编码器"
+answer: 1
+explain: "ViperGPT 让 Codex 生成 Python 函数，视觉模块负责感知，Python 负责逻辑执行，因此复杂任务能被拆解、审计和调试。"
+```
 
 ### GENOME
 
@@ -1058,16 +1788,98 @@ motivation: 模块生长与重用，动态扩展组合泛化
 ```
 
 #### 📝 一句话总结
-GENOME 的核心目标是：模块生长与重用，动态扩展组合泛化。
+GENOME 提出让 LLM 从少量训练样例中判断现有模块是否足够、自动生成新模块并通过测试后加入模块库，使神经符号视觉推理系统能像积累技能一样“生长和复用”模块，解决 VisProg/ViperGPT 每个样例都重新生成代码、难以积累可迁移能力的问题。
 
 #### 🎯 核心要点
-- 核心动机：模块生长与重用，动态扩展组合泛化
-- 演化来源：继承或改进自 vipergpt
-- 代表机构：MIT
+- 三阶段框架：Module Initialization、Module Generation、Module Execution
+- 模块初始化阶段判断现有模块能否解决新任务，若不足则生成新模块签名和输入输出规范
+- 模块生成阶段让 LLM 编写新模块代码，并用少量训练样例作为测试用例验证通过率
+- 只有通过测试的新模块才被加入可扩展 module library，供后续任务复用
+- 模块执行阶段把新查询解析为高层符号操作，并调用已有和新生成模块完成推理
+- 覆盖 VQA、referring expression comprehension、Raven、图像编辑、知识标注等任务，强调模块迁移和少样本适应
 
 #### 🔬 深入细节
-模块生长与重用，动态扩展组合泛化
+##### 核心示意图
 
+![GENOME 三阶段框架](https://ar5iv.labs.arxiv.org/html/2311.04901/assets/x2.png)
+*图：GENOME 包含模块初始化、模块生成、模块执行三阶段；新模块通过测试后进入模块库，并可在后续任务中复用。*
+
+##### 算法伪代码
+
+```python
+# GENOME: grow and reuse visual reasoning modules
+def genome_train(task_examples, module_library, llm):
+    # Stage 1: 判断现有模块是否足够，并提出新模块签名
+    need_new, signatures, reasoning_tests = llm.initialize_modules(
+        examples=task_examples,
+        existing_signatures=module_library.signatures()
+    )
+
+    # Stage 2: 生成并测试新模块
+    for sig in signatures if need_new else []:
+        for attempt in range(MAX_TRIES):
+            code = llm.write_module(sig, task_examples, module_library.signatures())
+            module = compile_module(code)
+            passed = run_unit_tests(module, reasoning_tests, task_examples)
+            if passed:
+                module_library.add(sig.name, module)
+                break
+    return module_library
+
+def genome_infer(image, query, module_library, llm):
+    # Stage 3: 将自然语言 query 解析成高层程序并执行
+    program = llm.parse_to_symbolic_program(query, module_library.signatures())
+    state = {"IMAGE": image}
+    for op in program:
+        state[op.output] = module_library[op.name](*resolve_args(op, state))
+    return state[program.return_value]
+```
+
+##### 动机与背景
+
+VisProg 需要人类预先定义模块，ViperGPT 虽然能为每个样例生成代码，但通常是“一次性代码”：每来一个新输入就重新生成完整代码片段，没有把成功经验沉淀成可复用模块。这样既低效，也容易在相似问题上重复犯错。
+
+GENOME 的核心目标是让神经符号系统拥有“模块生长”的能力。系统从少量样例中发现现有模块缺口，生成一个有明确输入输出的新模块，并用这些样例当作测试集验证模块是否真正可用。通过测试后，模块被加入库中，后续任务可以直接复用或组合它。
+
+##### 三阶段机制
+
+第一阶段是 Module Initialization。LLM 读取训练样例和已有模块签名，判断现有操作是否足以表达解题过程。如果不足，它会提出新模块，例如 `COMPARE_ATTRIBUTE(IMAGE, BOX0, BOX1, ATTR)`，并给出输入输出类型与推理步骤。这一步决定“要长出什么技能”。
+
+第二阶段是 Module Generation。LLM 根据模块签名和样例生成 Python 代码，代码可以调用已有视觉模块或基础函数。系统将少量训练样例变成测试用例，执行生成模块并检查输出；失败时继续重试或改写。只有通过测试的模块才会加入库：
+
+$$
+\mathcal{M}_{t+1}=\mathcal{M}_t \cup \{m_{\text{new}}\}, \quad \text{if } \operatorname{Pass}(m_{\text{new}}, \mathcal{D}_{\text{few-shot}})
+$$
+
+第三阶段是 Module Execution。面对测试查询，LLM 将自然语言解析成高层符号程序，执行器调用模块库中已有模块和新模块得到结果。此时系统不必为每个样例从零写完整程序，而是复用已经验证过的能力块。
+
+##### 为什么测试用例重要
+
+GENOME 与普通代码生成的关键差异是“生成后验证”。视觉推理模块的失败可能来自输入类型不匹配、边界框处理错误、属性比较逻辑错误或对已有模块调用方式错误。少量训练样例虽然不是大规模监督数据，但足以作为 sanity check，过滤明显不可用的模块。
+
+> 💡 关键：GENOME 把 few-shot examples 从“提示 LLM 怎么回答”升级为“测试新模块能否成为可复用技能”的依据。
+
+##### 模块复用与迁移
+
+一旦新模块进入库，它不仅能用于同一任务的新样本，也能迁移到相关任务。例如用于比较对象属性、判断空间关系、识别模式结构的模块，可以从 VQA 迁移到图像编辑、知识标注或 Raven 式视觉推理。模块库越丰富，后续任务越可能通过组合已有模块解决。
+
+这种设计也提升了可解释性。最终答案来自符号程序的执行轨迹，而不是黑箱生成；当结果错误时，可以检查是解析程序错了、某个已有模块错了，还是新模块没有覆盖足够案例。
+
+##### 与 ViperGPT 的区别
+
+ViperGPT 强调直接生成并执行 Python 代码，表达力强但缺少长期记忆；GENOME 进一步把代码片段提升为命名模块，并通过测试后持久化到模块库。它的目标不是为每个输入“临时写脚本”，而是让系统逐步形成可复用的视觉推理技能集。
+
+#### 🧪 练习题
+```yaml
+question: "GENOME 中新模块为什么要先通过少量训练样例测试再加入模块库？"
+options:
+  - "为了增加模型参数量"
+  - "为了验证生成代码确实满足输入输出规范并能解决目标任务，避免不可用模块污染模块库"
+  - "为了把图像转换成更高分辨率"
+  - "为了完全替代 LLM 的程序解析能力"
+answer: 1
+explain: "GENOME 的核心是生成可复用模块；测试用例用于过滤错误实现，只有通过验证的模块才会被沉淀为后续可复用技能。"
+```
 
 ### CoT-VLA
 
@@ -1086,157 +1898,113 @@ motivation: CoT扩展至具身智能，提升机器人决策
 ```
 
 #### 📝 一句话总结
-CoT-VLA 提出在视觉-语言-动作模型中引入**视觉思维链（Visual Chain-of-Thought）**机制，在预测动作之前先自回归生成未来子目标图像作为隐式推理步骤，结合混合注意力机制和动作分块策略，显著提升了机器人在仿真与真实环境中的长时操作任务成功率。
+CoT-VLA 将视觉思维链引入视觉-语言-动作模型，在输出动作前先自回归生成未来子目标图像作为视觉推理中间状态，再预测短动作序列，解决现有 VLA 直接从当前观测到动作、缺少时间规划和视觉想象的问题。
 
 #### 🎯 核心要点
-- **视觉思维链（Visual CoT）**：在动作预测前先生成未来子目标图像（预测未来约 0.4 秒的场景），作为视觉推理的中间步骤，替代传统文本 CoT
-- **基础模型 VILA-U 7B**：基于统一视觉-语言模型，使用离散视觉 tokenizer 将图像编码为 \(16 \times 16 \times 4 = 1024\) 个 token，实现图像理解与生成的统一
-- **混合注意力机制（Hybrid Attention）**：图像/文本 token 使用因果注意力，动作 token 使用全注意力（bidirectional），使动作预测能同时利用所有上下文信息
-- **动作分块（Action Chunking）**：每步预测 10 个连续动作（7-DoF，256 bins 离散化），减少自回归步数，提升推理效率
-- **两阶段训练**：先在 OpenX-Embodiment、EPIC-KITCHENS、Something-Something V2 上预训练视觉预测能力，再在目标机器人数据上微调
-- **三大评估基准**：LIBERO 仿真（4 个任务套件）、Bridge-V2 真实机器人、Franka 桌面操作，均取得 SOTA 或竞争性结果
+- 把 CoT 从文本推理扩展到机器人控制：中间思维不是文字，而是未来子目标图像
+- 基于统一视觉-语言模型生成视觉 token、文本 token 和动作 token
+- 视觉 CoT 阶段预测未来图像帧，使模型先“想象目标状态”再行动
+- 动作表示为 7-DoF 连续控制离散化后的 token，每个维度映射到 256 个 bin
+- 使用 action chunking，一次预测 10 个连续动作以降低闭环控制的自回归开销
+- 混合注意力机制：图像/文本 token 保持因果生成，动作 token 使用全注意力互相协调
+- 两阶段训练：先用机器人演示和无动作视频预训练视觉预测，再在目标机器人数据上适配
 
 #### 🔬 深入细节
-##### 整体架构
+##### 核心示意图
 
-![CoT-VLA 与传统 VLA 对比](https://ar5iv.labs.arxiv.org/html/2503.22020/assets/x1.png)
-*图 1：传统 VLA 直接从观测预测动作（System-1 快思考），CoT-VLA 先生成子目标图像再预测动作（System-2 慢思考），实现视觉推理*
+![CoT-VLA 方法动机](https://arxiv.org/html/2503.22020v1/x1.png)
+*图：CoT-VLA 相比直接动作预测，先生成未来子目标图像作为视觉思维链，再据此产生动作。*
 
-![CoT-VLA 模型架构](https://ar5iv.labs.arxiv.org/html/2503.22020/assets/x2.png)
-*图 2：CoT-VLA 完整架构。输入为当前观测图像 + 语言指令，模型先自回归生成子目标图像 token，再基于混合注意力预测动作 chunk*
+![CoT-VLA 模型结构](https://arxiv.org/html/2503.22020v1/x2.png)
+*图：CoT-VLA 统一处理图像、语言、视觉思维和动作 token。*
 
-CoT-VLA 的核心思想源自认知科学中的 **System-1 / System-2 双系统理论**：传统 VLA（如 OpenVLA、π₀）类似 System-1 的快速反射式决策，直接从观测映射到动作；而 CoT-VLA 引入 System-2 的慢思考过程——在输出动作前，先"想象"未来场景会是什么样子，再据此做出决策。
+![CoT-VLA 混合注意力](https://arxiv.org/html/2503.22020v1/x3.png)
+*图：图像/文本生成使用因果注意力，动作 token 间使用全注意力以预测协调的动作 chunk。*
 
-##### 视觉思维链机制
-
-**为什么用视觉 CoT 而非文本 CoT？** 机器人操作任务的推理本质上是空间性的——物体在哪里、手臂该往哪移动、目标状态是什么样。这些信息用自然语言描述既冗长又不精确，而一张子目标图像可以直接编码丰富的空间几何信息。
-
-**子目标图像的定义**：给定当前时刻 \(t\) 的观测，子目标图像为未来 \(t + k\) 时刻的图像帧（\(k\) 对应约 0.4 秒后的场景）。训练时直接从演示轨迹中取对应帧作为监督信号，无需额外标注。
-
-**图像 token 化**：使用 VILA-U 的离散视觉 tokenizer，将 \(256 \times 256\) 的图像编码为 \(16 \times 16\) 的空间网格，每个位置有 4 层残差深度（residual depth），共 \(1024\) 个离散 token。生成子目标图像时按光栅扫描顺序自回归生成这些 token。
-
-训练损失函数为：
-
-$$\mathcal{L} = \mathcal{L}_{\text{visual}} + \mathcal{L}_{\text{action}}$$
-
-其中：
-
-$$\mathcal{L}_{\text{visual}} = -\sum_{i=1}^{N_{\text{img}}} \log p_\theta(v_i \mid v_{<i}, \mathbf{o}, \mathbf{l})$$
-
-$$\mathcal{L}_{\text{action}} = -\sum_{j=1}^{N_{\text{act}}} \log p_\theta(a_j \mid a_{<j}, \hat{\mathbf{s}}, \mathbf{o}, \mathbf{l})$$
-
-> 💡 **关键**：视觉损失 \(\mathcal{L}_{\text{visual}}\) 迫使模型学习预测未来场景的能力（即世界模型），而动作损失 \(\mathcal{L}_{\text{action}}\) 确保生成的子目标图像能有效指导动作预测。两者联合优化使模型同时具备"想象"和"执行"能力。
-
-##### 混合注意力机制
-
-![混合注意力机制](https://ar5iv.labs.arxiv.org/html/2503.22020/assets/x3.png)
-*图 3：混合注意力设计。图像和文本 token 使用因果注意力（下三角掩码），动作 token 使用全注意力（可看到所有 token）*
-
-传统 LLM 使用纯因果注意力（每个 token 只能看到之前的 token），这对文本生成是合理的，但对动作预测并非最优——一个动作 chunk 中的各个动作应该相互协调。
-
-CoT-VLA 的混合注意力设计：
-- **图像 token 和文本 token**：保持因果注意力，维持自回归生成能力
-- **动作 token**：使用全注意力（bidirectional），每个动作 token 可以看到所有其他 token（包括后续的动作 token）
-
-> ⚠️ **注意**：这种设计使得动作 token 不再是严格自回归的，而是类似 BERT 的双向编码。这意味着动作 chunk 内的所有动作可以并行解码，既提升了质量又不增加推理延迟。
-
-##### 动作表示与分块
-
-- **动作空间**：7-DoF（6 维末端执行器位姿 + 1 维夹爪开合）
-- **离散化**：每个维度均匀量化为 256 个 bin
-- **动作分块**：每次预测 \(C = 10\) 个连续动作，共 \(10 \times 7 = 70\) 个 token
-- 执行时使用时序集成（temporal ensembling）平滑相邻 chunk 的重叠动作
-
-##### 核心算法伪代码
+##### 算法伪代码
 
 ```python
-# CoT-VLA 推理流程
-def cot_vla_inference(observation, language_instruction, model):
-    # Step 1: 编码输入
-    img_tokens = visual_tokenizer.encode(observation)  # 1024 tokens
-    text_tokens = text_tokenizer.encode(language_instruction)
-    
-    # Step 2: Visual Chain-of-Thought — 自回归生成子目标图像
-    subgoal_tokens = []
-    for i in range(1024):  # 16x16x4 tokens
-        next_token = model.generate_next(
-            context=[img_tokens, text_tokens, subgoal_tokens],
-            attention="causal"  # 因果注意力
+# CoT-VLA test-time closed-loop control
+def cot_vla_control_loop(env, instruction, model, visual_tokenizer):
+    obs = env.get_observation()
+    while not env.done():
+        obs_tokens = visual_tokenizer.encode(obs.image)
+        text_tokens = tokenize(instruction)
+
+        # Visual Chain-of-Thought: 生成未来子目标图像 token
+        subgoal_tokens = model.generate_visual_tokens(
+            context=[obs_tokens, text_tokens],
+            attention="causal"
         )
-        subgoal_tokens.append(next_token)
-    subgoal_image = visual_tokenizer.decode(subgoal_tokens)
-    
-    # Step 3: 动作预测 — 全注意力并行解码
-    action_chunk = model.predict_actions(
-        context=[img_tokens, text_tokens, subgoal_tokens],
-        num_actions=10,  # chunk size C=10
-        attention="full"  # 动作 token 间全注意力
-    )  # shape: (10, 7), 每个动作 7-DoF
-    
-    # Step 4: 离散 bin → 连续动作值
-    actions = dequantize(action_chunk, num_bins=256)
-    return actions, subgoal_image
+
+        # Action prediction: 基于当前观测、指令和子目标图像预测动作块
+        action_tokens = model.predict_action_chunk(
+            context=[obs_tokens, text_tokens, subgoal_tokens],
+            chunk_size=10,
+            attention_for_actions="full"
+        )
+        actions = dequantize(action_tokens, bins=256)
+
+        for action in actions:
+            obs = env.step(action)
+            if env.done():
+                break
 ```
 
-##### 训练流程
+##### 动机与背景
 
-**阶段一：预训练（视觉预测能力）**
-- 数据：OpenX-Embodiment 子集（Bridge-V2、Fractal 等）+ EPIC-KITCHENS（人手操作视频）+ Something-Something V2（人-物交互视频）
-- 目标：仅优化 \(\mathcal{L}_{\text{visual}}\)，训练模型预测未来图像帧的能力
-- 预训练带来 **46.7% 的相对性能提升**，说明视觉预测预训练对下游任务至关重要
+Vision-Language-Action 模型将图像观测和语言指令映射为机器人动作，但多数方法更像反射式策略：看到当前画面后直接预测动作。这对短程拾取可行，对长时操作、需要绕开障碍、先移动到子目标再执行的任务则缺少显式规划。
 
-**阶段二：微调（目标任务）**
-- 数据：目标机器人的演示轨迹
-- 目标：联合优化 \(\mathcal{L}_{\text{visual}} + \mathcal{L}_{\text{action}}\)
-- 超参数：学习率 \(2 \times 10^{-5}\)，batch size 128（LIBERO）/ 256（Bridge-V2），训练 100 epoch
+CoT-VLA 的关键假设是：机器人任务的中间推理更适合用视觉状态表示，而不是自然语言句子。未来子目标图像能直接编码物体位置、机械臂姿态、目标区域和空间关系，比“向左移动一点再靠近杯子”这类文本更精确。
 
-##### 与传统方法的区别
+##### 视觉思维链与训练目标
 
-| 特性 | OpenVLA | π₀ | CoT-VLA |
-|------|---------|-----|---------|
-| 推理方式 | 直接映射 | 扩散去噪 | 视觉 CoT + 动作预测 |
-| 动作表示 | 离散 token | 连续（flow matching） | 离散 token（分块） |
-| 注意力 | 纯因果 | 因果 | 混合（因果 + 全） |
-| 世界模型 | 无 | 无 | 隐式（子目标生成） |
-| 推理速度 | 快 | 中等 | 较慢（7× overhead） |
+给定当前观测 \(o_t\) 和语言指令 \(l\)，模型先生成未来视觉 token \(\hat{s}_{t+k}\)，再预测动作序列 \(a_{t:t+C-1}\)。视觉生成损失为：
 
-##### 实验结果
+$$
+\mathcal{L}_{\text{visual}}=-\sum_i \log p_{\theta}(v_i \mid v_{<i}, o_t, l)
+$$
 
-**LIBERO 仿真基准**（4 个任务套件，每套 10 个任务，每任务 20 次评估）：
+动作损失为离散动作 token 的交叉熵：
 
-| 方法 | LIBERO-Spatial | LIBERO-Object | LIBERO-Goal | LIBERO-Long | 平均 |
-|------|---------------|---------------|-------------|-------------|------|
-| Diffusion Policy | 78.3% | 92.5% | 68.3% | 50.5% | 72.4% |
-| OpenVLA | 84.7% | 88.4% | 51.6% | 46.7% | 67.8% |
-| π₀ (fine-tuned) | 82.3% | 90.0% | 75.0% | 62.5% | 77.5% |
-| **CoT-VLA** | **86.3%** | **91.0%** | **79.0%** | **68.2%** | **81.1%** |
+$$
+\mathcal{L}_{\text{action}}=-\sum_j \log p_{\theta}(a_j \mid o_t, l, \hat{s}_{t+k})
+$$
 
-CoT-VLA 在所有 4 个套件上均取得最佳或接近最佳结果，尤其在需要长期推理的 LIBERO-Long 上优势明显（+5.7% vs π₀）。
+总目标将二者相加：
 
-**消融实验关键发现**：
-- 动作分块（+8.4%）、混合注意力（+6.1%）、视觉 CoT（+4.9%）各自贡献显著
-- 使用 **GT 目标图像**替代生成的子目标图像时，成功率提升约 **40%**，表明提升视觉生成质量是重要的未来方向
-- 预训练带来 46.7% 的相对提升，验证了跨域视觉预测迁移的有效性
+$$
+\mathcal{L}=\mathcal{L}_{\text{visual}}+\mathcal{L}_{\text{action}}
+$$
 
-![子目标图像可视化](https://ar5iv.labs.arxiv.org/html/2503.22020/assets/x5.png)
-*图 5：CoT-VLA 生成的子目标图像示例。尽管图像质量不如扩散模型，但已足够捕捉物体位置和机械臂姿态的关键变化*
+> 💡 关键：视觉损失让模型学习“任务接下来应该长什么样”，动作损失让这个想象状态真正服务于控制。
 
-##### 局限性
+##### 动作 token 与混合注意力
 
-- **推理延迟**：生成 1024 个图像 token 导致约 **7 倍推理减速**（约 1 秒/步），限制了实时应用
-- **图像质量**：离散 tokenizer 生成的图像质量低于扩散模型，存在伪影
-- **动作 chunk 不连续**：相邻 chunk 之间可能出现不平滑过渡，时序集成仅部分缓解
+每个动作是 7 维，包括末端执行器位姿和夹爪控制。论文将每个动作维度按训练数据分位范围离散到 256 个 bin，并复用文本 tokenizer 中较少使用的 token 作为动作 token。一次预测 \(C=10\) 个动作，共 \(10\times7\) 个动作 token。
+
+动作 chunk 内部需要相互一致，例如第 1 步和第 10 步不能指向冲突目标。因此 CoT-VLA 对动作 token 使用全注意力，让所有动作维度和时间步彼此可见；而图像和文本 token 仍保持因果注意力，保证视觉思维链可以自回归生成。
+
+##### 训练/适配流程
+
+预训练阶段使用 Open X-Embodiment 的机器人演示，以及 EPIC-KITCHENS、Something-Something V2 等无动作视频，让模型学习未来视觉预测。无动作视频不能提供机器人控制标签，但可以训练“观察当前状态并想象未来变化”的能力。
+
+适配阶段在目标机器人数据上微调，优化视觉和动作联合目标。论文在 LIBERO 仿真、Bridge-V2 真实机器人和 Franka tabletop 三类设置上评估，展示视觉思维链对仿真与真实操作任务都有帮助。
+
+##### 与传统 VLA 的区别
+
+OpenVLA 等模型主要直接预测动作，CoT-VLA 在动作前加入未来图像作为显式中间变量；SUSIE 等两阶段方法也会生成目标图像，但 CoT-VLA 把视觉生成和动作预测统一在一个自回归模型中训练。相比文本 CoT，视觉 CoT 更贴近机器人操作中的空间状态和时间变化。
 
 #### 🧪 练习题
 ```yaml
-question: "CoT-VLA 中视觉思维链（Visual CoT）的核心作用是什么？"
+question: "CoT-VLA 中视觉思维链的核心作用是什么？"
 options:
-  - "用文本描述未来场景，指导动作生成"
-  - "在动作预测前生成子目标图像作为隐式推理步骤，提供空间规划信息"
-  - "通过扩散模型生成高质量目标图像用于奖励计算"
-  - "将动作序列可视化为图像以便人类监督"
+  - "把机器人动作翻译成自然语言解释"
+  - "在动作预测前生成未来子目标图像，作为空间规划和动作决策的中间状态"
+  - "用扩散模型生成训练数据标签"
+  - "删除语言指令，只依赖当前图像"
 answer: 1
-explain: "CoT-VLA 的核心创新是在预测动作前先自回归生成未来子目标图像（而非文本），这些图像编码了丰富的空间信息，作为视觉推理的中间步骤指导后续动作预测。"
+explain: "CoT-VLA 先预测未来视觉状态，再基于当前观测、指令和子目标图像生成动作 chunk，使 VLA 获得显式时间规划能力。"
 ```
 
 ### MVoT
@@ -1256,16 +2024,119 @@ motivation: 生成图像想象推理过程，空间推理优势
 ```
 
 #### 📝 一句话总结
-MVoT 的核心目标是：生成图像想象推理过程，空间推理优势。
+MVoT 提出让多模态模型在空间推理过程中交错生成文字思考和图像化中间状态，并用 token discrepancy loss 提升视觉思维图的质量，解决纯文本 CoT 在复杂空间变化中容易坐标描述错误、难以保持视觉状态的问题。
 
 #### 🎯 核心要点
-- 核心动机：生成图像想象推理过程，空间推理优势
-- 演化来源：继承或改进自 visual_cot
-- 代表机构：PKU
+- 将 CoT 扩展为 Multimodal Visualization-of-Thought：每一步既有 verbal thought，也有 visual thought
+- 使用能生成交错文本和图像的自回归 MLLM，让模型边推理边“画出”中间状态
+- 采用 Anole-7B/Chameleon 式统一离散 token 架构，文本 token 和图像 token 串接进同一个 causal Transformer
+- 引入 token discrepancy loss，在视觉 embedding 空间惩罚偏离 ground-truth image token 的预测，改善生成图像一致性
+- 在 Maze、MiniBehavior、FrozenLake 三类动态空间推理任务上构造交错文本-图像训练数据
+- 与 Direct、纯文本 CoT、普通 interleaved training 对比，强调 MVoT 在更复杂空间环境下的鲁棒性
 
 #### 🔬 深入细节
-生成图像想象推理过程，空间推理优势
+##### 核心示意图
 
+![MVoT 推理范式](https://arxiv.org/html/2501.07542v1/x1.png)
+*图：MVoT 在推理轨迹中交错生成文字步骤和可视化图像状态，让后续推理条件化于此前的视觉思维。*
+
+![Token discrepancy loss](https://arxiv.org/html/2501.07542v1/x3.png)
+*图：MVoT 在自回归 MLLM 训练中加入 token discrepancy loss，缓解文本 tokenizer 与图像 tokenizer 表征差异带来的视觉生成质量问题。*
+
+##### 算法伪代码
+
+```python
+# MVoT autoregressive reasoning
+def mvot_reason(input_image, question, model):
+    context = [encode_image(input_image), encode_text(question)]
+    thoughts = []
+
+    while not should_answer(context):
+        verbal = model.generate_text(context, tag="verbal_thought")
+        context.append(encode_text(verbal))
+
+        visual_tokens = model.generate_image_tokens(context, tag="visual_thought")
+        visual = decode_image(visual_tokens)
+        context.append(visual_tokens)
+
+        thoughts.append((verbal, visual))
+
+    answer = model.generate_text(context, tag="final_answer")
+    return answer, thoughts
+
+def mvot_training_loss(logits, labels, visual_token_positions, codebook):
+    ce = cross_entropy(logits, labels)
+    discrepancy = token_discrepancy_loss(
+        logits[visual_token_positions],
+        labels[visual_token_positions],
+        codebook
+    )
+    return ce + discrepancy
+```
+
+##### 动机与背景
+
+纯文本 CoT 对数学和语言推理很有效，但空间任务经常需要维护动态视觉状态：人在迷宫中走到哪里、物体是否被拿起、FrozenLake 的洞和目标位置如何变化。把这些状态全部翻译成坐标文本既冗长又脆弱，一旦文本描述中某个坐标错了，后续推理会持续偏离。
+
+MVoT 的核心观点是：人类不只用语言思考，也会在脑中形成图像。对于空间推理，模型如果能生成中间图像状态，就可以把“当前我认为世界是什么样”显式保留下来，并让后续步骤直接基于这个视觉状态继续推理。
+
+##### 交错多模态推理形式
+
+给定输入 \(X\)，普通 CoT 生成文本中间步骤：
+
+$$
+z_i \sim p_{\theta}(z_i \mid X, z_{<i})
+$$
+
+MVoT 为每个文本步骤增加图像可视化 \(v_i\)，后续步骤同时依赖文本和视觉历史：
+
+$$
+(z_i, v_i) \sim p_{\theta}(z_i, v_i \mid X, z_{<i}, v_{<i})
+$$
+
+最终答案基于完整的交错轨迹：
+
+$$
+a \sim p_{\theta}(a \mid X, z_{1:n}, v_{1:n})
+$$
+
+这使模型可以把环境变化画出来，而不是只在文本中描述。
+
+##### 自回归 MLLM 与 token discrepancy loss
+
+MVoT 使用统一 Transformer 处理图像和文本 token。图像 tokenizer 将图像映射为离散 codebook index，文本 tokenizer 生成普通语言 token，二者拼接后由 causal Transformer 预测下一 token。训练时，文本和图像 token 都参与交叉熵损失。
+
+问题在于图像 token 的 codebook 有视觉几何结构，而普通交叉熵只把所有错误 token 同等看待。Token discrepancy loss 进一步在视觉 embedding 空间度量预测分布与真实 token 的距离，使模型更少把概率分配给视觉上差异很大的 token：
+
+$$
+\mathcal{L}=\mathcal{L}_{\text{CE}}+\lambda \mathcal{L}_{\text{TD}}
+$$
+
+其中 \(\mathcal{L}_{\text{TD}}\) 根据 codebook embedding 间距离加权惩罚视觉 token 预测偏差。直觉上，颜色或位置相近的错误比完全无关的错误更可接受，该损失让模型学习这种视觉相似性。
+
+##### 训练与任务设计
+
+论文构造三类受控动态空间推理任务。Maze 要根据初始迷宫和动作序列预测最终位置；MiniBehavior 扩展到 embodied 场景，需要判断打印机、桌子和 agent 的交互结果；FrozenLake 包含更复杂图案和洞，需要判断动作序列是否安全到达目标。
+
+训练数据被组织成交错文本-图像对：模型先生成一步文字说明，再生成对应环境状态图。实验使用 Anole-7B 作为 backbone，并通过 LoRA 做指令微调。与普通 interleaved training 不同，MVoT 对文字和图像预测都计算损失，而不是只监督文本 token。
+
+> 💡 关键：MVoT 的“图像思维”不是展示给人看的附属解释，而是下一步推理的条件；图像质量越可靠，后续空间推理越稳定。
+
+##### 与 Visual CoT / Image-of-Thought 的区别
+
+Visual CoT 和 Image-of-Thought 主要从输入图像中定位、裁剪或提取视觉证据；MVoT 更进一步，让模型生成新的中间图像状态，表达“经过这一步操作后世界应变成什么样”。因此它特别适合空间状态会随动作更新的任务，而不只是静态图像问答。
+
+#### 🧪 练习题
+```yaml
+question: "MVoT 中 token discrepancy loss 的主要作用是什么？"
+options:
+  - "让模型只生成文本，不再生成图像"
+  - "在视觉 embedding 空间约束图像 token 预测，提升生成视觉思维的连贯性和保真度"
+  - "把所有动作转换为 one-hot 文本标签"
+  - "降低输入图像分辨率以节省显存"
+answer: 1
+explain: "普通交叉熵忽略图像 codebook 的视觉相似性；token discrepancy loss 根据视觉 embedding 距离惩罚偏离真实图像 token 的预测。"
+```
 
 ### Latent Sketchpad
 
@@ -1284,16 +2155,126 @@ motivation: 潜空间草图绘制，高效辅助复杂推理
 ```
 
 #### 📝 一句话总结
-Latent Sketchpad 的核心目标是：潜空间草图绘制，高效辅助复杂推理。
+Latent Sketchpad 提出在冻结的多模态大模型中外挂 Context-Aware Vision Head，让模型在自回归文本推理过程中生成连续视觉 latent，并用 Sketch Decoder 将这些 latent 渲染成可解释草图，从而把文本 CoT 扩展为“边想边画”的潜空间视觉思考。
 
 #### 🎯 核心要点
-- 核心动机：潜空间草图绘制，高效辅助复杂推理
-- 演化来源：继承或改进自 mvot
-- 代表机构：Google
+- **潜空间视觉草图板**：不直接生成像素图，而是在 MLLM 视觉特征空间中生成连续 visual latents，用作推理中间状态
+- **Context-Aware Vision Head**：根据 MLLM 当前隐藏状态、历史图像 latent 和当前图像已生成 latent，自回归地产生下一组视觉 latent
+- **Pretrained Sketch Decoder**：独立于主模型训练，将视觉 latent 对齐到 VAE latent 空间，再渲染为草图，便于人类检查推理轨迹
+- **冻结主干的模块化训练**：Vision Head 和 Sketch Decoder 可单独训练，尽量保持 Gemma3、Qwen2.5-VL 等预训练 MLLM 的原有理解能力
+- **MazePlanning 数据集**：构造 47.8K 训练迷宫和 500 测试迷宫，用 interleaved text-image reasoning 评估空间规划能力
+- **与 MVoT 的区别**：MVoT 依赖统一生成模型产生像素级中间图；Latent Sketchpad 复用预训练视觉特征，在 latent 层完成轻量视觉思考
 
 #### 🔬 深入细节
-潜空间草图绘制，高效辅助复杂推理
+##### 核心示意图
 
+![Latent Sketchpad 总览](https://github.com/hwanyu112/Latent-Sketchpad/raw/main/asset/overview.png)
+*图：Latent Sketchpad 在现有 MLLM 上增加 Vision Head 与 Sketch Decoder，使模型可以在文本推理中插入视觉 latent。*
+
+##### 动机与背景
+
+传统多模态 CoT 主要把视觉信息转写为语言，复杂空间关系、路径规划和动态场景状态会被压缩成离散文本描述，容易丢失几何细节。另一类方法调用外部视觉工具或图像生成模型，但工具能力固定，像素生成也往往更关注逼真度而不是推理需要的抽象结构。
+
+Latent Sketchpad 的核心判断是：预训练 MLLM 的视觉编码器已经拥有可用于理解的高质量视觉表征，只是这些表征通常只作为输入感知结果，而不会在推理过程中被主动生成。论文因此把视觉特征空间重新用作“内部草图板”：模型每走一步，可以生成下一段视觉 latent，用它帮助后续语言推理。
+
+这种设计把视觉思考放在 latent 层，而不是像素层。latent 不需要对人类天然可读，但它可以保留空间结构；当需要解释时，再通过 Sketch Decoder 渲染成草图。这样既避免了高成本图像生成，又能让模型拥有可插拔的视觉中间状态。
+
+##### 方法机制
+
+![Vision Head 与 Sketch Decoder 架构](https://github.com/hwanyu112/Latent-Sketchpad/raw/main/asset/task_visualization.png)
+*图：Latent Sketchpad 在 MazePlanning 中生成逐步草图，展示模型对路径状态的中间视觉表示。*
+
+给定输入图像 \(X_0\)，视觉编码器先得到 visual latents：
+
+$$l_{X_0}=G(X_0)\in\mathbb{R}^{n_v\times d_v}$$
+
+连接器 \(C(\cdot)\) 将其投影到 LLM embedding 空间：
+
+$$h_{X_0}=C(l_{X_0})$$
+
+Latent Sketchpad 在原有文本 token 流中插入特殊标记，例如 `<start_of_image>` 与 `<end_of_image>`。当模型生成到视觉片段时，Context-Aware Vision Head 负责预测视觉 latent，而不是普通词表 token。它同时利用两类上下文：
+
+- **Global context**：历史图像或历史草图 latent，提供长程视觉记忆
+- **Local context**：当前正在生成的草图 latent，保证同一张草图内部连贯
+
+可抽象为：
+
+$$\hat{l}_{t}=H_\phi(h_t,\;l_{<t}^{global},\;l_{<t}^{local})$$
+
+其中 \(H_\phi\) 是 Vision Head，\(h_t\) 是 MLLM 当前隐藏状态。训练时用视觉编码器得到的目标 latent \(l_t\) 监督：
+
+$$\mathcal{L}_{vision}=\sum_t d(\hat{l}_t,l_t)$$
+
+距离 \(d(\cdot)\) 可使用 cosine、L1 或 MSE。关键是主干 MLLM 冻结，只训练 Vision Head，降低对原模型语言/视觉理解能力的扰动。
+
+##### 推理流程伪代码
+
+```python
+# Latent Sketchpad 推理伪代码
+def latent_sketchpad_reason(model, vision_head, sketch_decoder, image, question):
+    visual_latents = vision_encoder(image)
+    context = connector(visual_latents) + tokenize(question)
+    generated = []
+    sketch_latents = []
+
+    while not stop(generated):
+        token = model.next_token(context + generated)
+
+        if token == "<start_of_image>":
+            current_sketch = []
+            for i in range(NUM_VISUAL_TOKENS):
+                h_i = model.hidden_state(context + generated + current_sketch)
+                z_i = vision_head(
+                    hidden_state=h_i,
+                    global_visual_memory=sketch_latents,
+                    local_visual_context=current_sketch,
+                )
+                current_sketch.append(z_i)
+
+            sketch_latents.append(current_sketch)
+            generated.append("<visual_latents>")
+        else:
+            generated.append(token)
+
+    sketches = [sketch_decoder.decode(z) for z in sketch_latents]
+    return parse_answer(generated), sketches
+```
+
+##### Sketch Decoder
+
+Sketch Decoder 解决“latent 有用但人看不懂”的问题。它使用 AlignerNet 将 ViT/SigLIP/CLIP 等视觉特征映射到冻结 VAE 的 latent 空间，再由 VAE decoder 输出草图风格图像。训练目标结合像素重建、VAE latent 分布对齐和 patch embedding 对齐：
+
+$$\mathcal{L}_{decoder}=\mathcal{L}_{focal}+\mathcal{L}_{nll}+\mathcal{L}_{mse}$$
+
+其中 \(\mathcal{L}_{focal}\) 更强调前景笔画区域，\(\mathcal{L}_{nll}\) 对齐 VAE posterior，\(\mathcal{L}_{mse}\) 保持视觉 patch 语义一致。论文用 Quick, Draw! 草图数据预训练 decoder，因此输出更像结构化草图而非真实照片。
+
+> 💡 关键：Sketch Decoder 不参与最终答案生成，它是解释器；模型真正用于推理的是连续视觉 latent。
+
+##### 训练与评估
+
+训练通常分两层：先让 MLLM 在 MazePlanning 上学习 interleaved reasoning 格式，再训练 Vision Head 对齐视觉 latent。MazePlanning 任务要求模型根据迷宫当前状态规划动作序列，输出被 `<actions>` 标签包裹的路径。评估指标包括 Success Rate（完整动作序列正确）和 Progress Rate（首次错误前连续正确动作比例）。
+
+与文本 CoT 相比，Latent Sketchpad 的优势在于可以持续维护“当前路径/状态”的视觉记忆；与外部工具相比，它不需要每一步调用检测器、分割器或绘图程序；与像素级图像生成相比，它只在潜空间中补充推理状态，视觉输出只是可选解释。
+
+##### 与传统方法的区别
+
+| 方法 | 中间推理形态 | 是否依赖外部工具 | 是否直接生成像素 | 主要优势 |
+|---|---|---|---|---|
+| Text CoT | 文本 rationale | 否 | 否 | 简单、通用 |
+| MVoT / Visual Sketchpad | 图像或绘图结果 | 常需要 | 是 | 人类可读、空间直观 |
+| Latent Sketchpad | 连续视觉 latent | 否 | 否，解释时才解码 | 轻量、可插拔、保留视觉结构 |
+
+#### 🧪 练习题
+```yaml
+question: "Latent Sketchpad 为什么选择在视觉 latent 空间生成中间草图，而不是直接生成像素图？"
+options:
+  - "因为 latent 空间可以复用预训练视觉特征，成本更低且更贴近推理所需的结构信息"
+  - "因为像素图无法被 Sketch Decoder 读取"
+  - "因为模型只能输出固定长度的文本 token"
+  - "因为 MazePlanning 不包含任何视觉输入"
+answer: 0
+explain: "Latent Sketchpad 的核心是把预训练 MLLM 的视觉特征重新用于生成式视觉思考，推理时使用连续 latent，只有解释时才解码成草图。"
+```
 
 ### Visual Thoughts
 
@@ -1312,16 +2293,116 @@ motivation: 统一视觉思维框架，整合多种操作
 ```
 
 #### 📝 一句话总结
-Visual Thoughts 的核心目标是：统一视觉思维框架，整合多种操作。
+Visual Thoughts 提出一个统一解释框架：多模态 CoT 的收益并不来自“文本 CoT”或“图像 CoT”的形式本身，而来自推理链中显式承载视觉信息的 visual thoughts；其效果取决于视觉信息表达的清晰度、简洁度和与任务的相关性。
 
 #### 🎯 核心要点
-- 核心动机：统一视觉思维框架，整合多种操作
-- 演化来源：继承或改进自 mvot
-- 代表机构：Tsinghua
+- **统一视角**：将 Textual-MCoT 与 Interleaved-MCoT 统一解释为 visual thoughts 在不同模态中的表达
+- **视觉缓存假设**：visual thoughts 像任务相关视觉信息的 cache，避免后续推理反复从原始图像中检索所有细节
+- **四类表达形式**：Natural Language、Structured Language、Edited Image、Generative Image
+- **有效性验证**：去除 visual thoughts 会显著降低推理性能，甚至可能比只看问题更差
+- **场景差异**：图像形式在复杂视觉信息传递上更强，文本形式在简单任务或结构化表达清晰时更高效
+- **内部机制分析**：visual thoughts 作为输入图像与深层 transformer reasoning 之间的中介，促进视觉信息向更深层流动
 
 #### 🔬 深入细节
-统一视觉思维框架，整合多种操作
+##### 核心示意图
 
+![Textual-MCoT 与 Interleaved-MCoT 对比](https://ar5iv.labs.arxiv.org/html/2505.15510/assets/x1.png)
+*图：Visual Thoughts 将纯文本 rationale 和图文交错 rationale 都视为 visual thoughts 的不同表达。*
+
+##### 动机与背景
+
+多模态 CoT 领域长期存在一个争论：复杂视觉推理到底应该用文本中间步骤，还是应该生成/编辑中间图像？Textual-MCoT 使用图像描述、场景图或自然语言 rationale；Interleaved-MCoT 则在推理链中插入生成图、编辑图或工具处理图。两者在不同任务上各有优势，但缺少统一解释。
+
+Visual Thoughts 的观点是：形式不是根因，真正起作用的是推理链中是否创建了任务相关的视觉中间表示。这个表示可以是文本，也可以是图像；它的作用是把原图中与问题相关的内容抽取出来，让后续 reasoning 不必每一步都重新访问完整原图。
+
+论文把原始图像类比为外部存储，把 visual thoughts 类比为 cache。外部存储信息完整但访问成本高，cache 信息更少但与当前任务高度相关，能支撑更深、更快的推理。
+
+![Visual Thoughts 缓存机制](https://ar5iv.labs.arxiv.org/html/2505.15510/assets/x2.png)
+*图：没有 visual thoughts 时，模型需要反复从原图提取信息；有 visual thoughts 时，推理步骤可直接读取任务相关视觉缓存。*
+
+##### 形式化定义
+
+给定输入图像 \(I\)、问题 \(q\)、已有推理步骤 \(s_{<t}\)，visual thought \(v_t\) 是一个显式传递视觉信息的中间步骤：
+
+$$v_t \sim p_\theta(v_t \mid I, q, s_{<t}, e)$$
+
+其中 \(e\) 表示要求采用的表达形式，例如自然语言描述、结构化场景图、图像编辑结果或生成图。随后模型基于 visual thought 生成派生推理步骤：
+
+$$s_t \sim p_\theta(s_t \mid q, s_{<t}, v_{\le t})$$
+
+这一定义把“描述图片”“生成辅助图”“标注区域”“绘制几何图”都纳入同一个框架：它们都是把原始视觉输入转化为更适合当前推理的中间表达。
+
+##### 四类 Visual Thought
+
+![四类 Visual Thoughts](https://ar5iv.labs.arxiv.org/html/2505.15510/assets/x3.png)
+*图：Visual Thoughts 分为文本表达的 N-LANG/S-LANG 和视觉表达的 E-IMG/G-IMG。*
+
+**1. Natural Language (N-LANG)**  
+模型先生成与问题相关的自然语言图像描述，再进行推理。例如先描述“左侧有两个苹果，右侧有三个苹果”，再计算总数。优点是实现简单、兼容所有 LVLM；缺点是可能漏掉细粒度视觉细节。
+
+**2. Structured Language (S-LANG)**  
+模型输出场景图、JSON、表格或结构化属性列表，再用结构化信息推理。它比自然语言更清晰，适合几何、图表、实体关系等需要约束表达的任务。
+
+**3. Edited Image (E-IMG)**  
+通过检测、分割、深度估计、标注、裁剪等工具处理原图，把任务相关区域显式呈现给模型。例如在图上标出目标物体或几何辅助线。它保留图像模态优势，但需要额外工具。
+
+**4. Generative Image (G-IMG)**  
+模型调用图像生成器绘制辅助图，例如根据函数表达式生成曲线图，或把文字题转换为几何示意图。它适合原图缺失或需要构造新视觉状态的任务，但成本更高且生成错误会传播。
+
+##### 核心流程伪代码
+
+```python
+# Visual Thoughts 统一推理伪代码
+def visual_thought_reason(vlm, image, question, mode):
+    thoughts = []
+
+    if mode == "N-LANG":
+        thoughts.append(vlm.caption(image, question))
+    elif mode == "S-LANG":
+        thoughts.append(vlm.scene_graph(image, question))
+    elif mode == "E-IMG":
+        thoughts.append(run_visual_tool(image, question))  # segmentation / grounding / depth
+    elif mode == "G-IMG":
+        thoughts.append(generate_auxiliary_image(question))
+
+    rationale = vlm.reason(
+        image=image,
+        question=question,
+        visual_thoughts=thoughts,
+    )
+    return vlm.answer(rationale)
+```
+
+##### 为什么 Visual Thoughts 有效
+
+论文的实验设计包括“保留 visual thoughts”“清空 visual thoughts”“用文字替换图像形式 visual thoughts”等对照。结果显示，清空 visual thought cache 后性能下降明显，说明模型并非只靠原图和最终问题就能完成多步推理；visual thoughts 在推理链中确实承载了可复用的视觉信息。
+
+更重要的是，visual thoughts 的表达质量影响效果。清晰、简洁、与问题相关的表达最有效；冗长或含糊的描述会增加噪声；图像形式表达在复杂视觉关系上更强，但如果需要调用外部工具或生成模型，错误也会随链路传播。
+
+论文还用 attention 与信息流分析解释内部机制：visual thoughts 让与任务相关的视觉信息更容易进入深层 transformer block，并成为后续 reasoning token 的主要条件之一。这比“每一步都重新看整张图”更接近显式工作记忆。
+
+> 💡 关键：Visual Thoughts 不是一种单独算法，而是解释和设计多模态 CoT 的方法论；它告诉我们应该优化“视觉信息如何进入推理链”，而不是只争论文本链或图像链。
+
+##### 与传统方法的区别
+
+| 范式 | 中间步骤 | 典型问题 | Visual Thoughts 的解释 |
+|---|---|---|---|
+| Vanilla VLM | 直接回答 | 缺少显式视觉工作记忆 | 没有 visual thought cache |
+| Textual-MCoT | 文本描述/场景图 | 细节可能被语言压缩 | 文本形态的 visual thoughts |
+| Interleaved-MCoT | 图像编辑/生成 | 成本高、依赖工具 | 图像形态的 visual thoughts |
+| Visual Thoughts | 任意清晰视觉中间表达 | 需要选择合适表达 | 按任务匹配 cache 形式 |
+
+#### 🧪 练习题
+```yaml
+question: "Visual Thoughts 论文认为多模态 CoT 提升性能的核心原因是什么？"
+options:
+  - "模型输出越长，准确率一定越高"
+  - "推理链中存在能承载任务相关视觉信息的中间表达，作为后续推理的缓存"
+  - "所有任务都必须生成中间图像，文本 CoT 没有作用"
+  - "只要调用外部视觉工具，就能避免所有幻觉"
+answer: 1
+explain: "论文把 visual thoughts 视为任务相关视觉信息的 cache；它可以是文本也可以是图像，关键在于清晰、简洁地把视觉信息传给后续推理。"
+```
 
 ### COVT
 
@@ -1340,16 +2421,144 @@ motivation: 连续视觉Token推理，无需外部工具
 ```
 
 #### 📝 一句话总结
-COVT 的核心目标是：连续视觉Token推理，无需外部工具。
+COVT 将视觉语言模型的中间推理从离散文本空间扩展到连续视觉 token 空间，让模型在 `<think>` 中生成少量承载分割、深度、边缘和语义特征的 visual thought tokens，从而在无需外部工具的情况下提升细粒度感知和空间推理。
 
 #### 🎯 核心要点
-- 核心动机：连续视觉Token推理，无需外部工具
-- 演化来源：继承或改进自 visual_thoughts
-- 代表机构：SJTU
+- **连续视觉 token 推理**：在语言 token 之外插入连续 latent visual tokens，使 VLM 能直接在视觉空间中思考
+- **约 20 个 visual thought tokens**：用小预算 token 表达密集视觉线索，兼顾效率和感知保真度
+- **多专家蒸馏**：从 SAM、DepthAnything、PIDINet、DINO 等轻量视觉专家中对齐分割、深度、边缘和语义特征
+- **四阶段训练管线**：comprehension → generation → reasoning → efficient reasoning，逐步让模型理解、生成并使用视觉思维 token
+- **可解释解码**：推理时可只使用 latent；需要解释时可把 visual tokens 解码为 mask、depth、edge 等密集预测
+- **广泛基准提升**：在 CV-Bench、MMVP、RealWorldQA、MMStar、WorldMedQA、HRBench 等十余个感知/推理基准上带来 3% 到 16% 增益
 
 #### 🔬 深入细节
-连续视觉Token推理，无需外部工具
+##### 核心示意图
 
+![COVT teaser](https://github.com/Wakals/CoVT/raw/main/assets/teaser.png)
+*图：COVT 在文本推理链中插入连续视觉 token，使 VLM 不再只能把视觉信息翻译成离散语言。*
+
+##### 动机与背景
+
+标准 VLM 把图像编码成视觉 embedding，再通过投影层送入语言模型。后续推理基本在离散语言空间中展开，这对数学、逻辑和知识推理很有效，但对边界、深度、布局、相对位置等连续视觉信息非常低效。模型必须先把高维视觉关系说成文字，再用文字推理，形成明显的信息瓶颈。
+
+工具增强方法可以调用检测、分割或深度估计模型，但这种方式把感知能力委托给外部模块，成本高，且最终效果受工具能力限制。生成或裁剪中间图像也仍然需要重新投影回文本空间，细粒度信息依然容易丢失。
+
+COVT 的目标是让 VLM 在内部直接拥有“视觉思维链”：模型可以在生成 rationale 时输出少量连续视觉 token，这些 token 不是词表符号，而是携带视觉专家知识的 latent 表征。
+
+##### CoVT Token 设计
+
+![COVT pipeline](https://github.com/Wakals/CoVT/raw/main/assets/pipeline.png)
+*图：COVT visual tokens 可对齐分割、深度、边缘、DINO 特征等视觉专家，也可按需解码为可视化结果。*
+
+COVT 把输出序列从纯文本扩展为混合序列：
+
+$$y_t \in \mathcal{V}_{text} \cup \mathbb{R}^{d_v}$$
+
+其中 \(\mathcal{V}_{text}\) 是离散文本词表，\(\mathbb{R}^{d_v}\) 是连续视觉 token 空间。生成时，模型在 `<think>` 内既可以输出文本 token，也可以输出视觉 token：
+
+$$p_\theta(y_t \mid x, y_{<t})$$
+
+当 \(y_t\) 是文本 token 时使用常规交叉熵；当 \(y_t\) 是视觉 token 时，用 projection layer 输出连续向量，并通过专家监督对齐。
+
+论文中典型 token 分配为：
+
+- SAM mask prompts：8 个 visual tokens，用于分割/实例定位
+- DepthAnything：4 个 visual tokens，用于深度结构
+- PIDINet：4 个 visual tokens，用于边缘结构
+- DINO：4 个 visual tokens，用于 patch-level 语义特征
+
+这组约 20 个 tokens 不是要重建完整图像，而是把最关键的感知线索压缩进推理链。
+
+##### 训练目标
+
+COVT 的损失由语言建模和视觉对齐两部分组成：
+
+$$\mathcal{L}=\mathcal{L}_{text}+\lambda_{seg}\mathcal{L}_{seg}+\lambda_{depth}\mathcal{L}_{depth}+\lambda_{edge}\mathcal{L}_{edge}+\lambda_{dino}\mathcal{L}_{dino}$$
+
+其中：
+
+- \(\mathcal{L}_{text}\)：普通 next-token prediction，保持 VLM 的回答能力
+- \(\mathcal{L}_{seg}\)：让视觉 token 作为 prompt 重建 SAM 风格 mask
+- \(\mathcal{L}_{depth}\)：对齐深度图或深度排序线索
+- \(\mathcal{L}_{edge}\)：对齐边缘结构
+- \(\mathcal{L}_{dino}\)：匹配 DINO patch 特征，保留语义与局部对应关系
+
+> 💡 关键：视觉专家只用于训练监督；推理阶段 COVT 不需要再调用这些专家，因此它是 self-contained 的视觉推理框架。
+
+##### 四阶段训练流程
+
+```python
+# COVT 训练流程伪代码
+def train_covt(vlm, data):
+    # Stage 1: comprehension
+    # 让模型理解带视觉 token 标记的输入/输出格式
+    train_text_reasoning_format(vlm, data.caption_and_qa)
+
+    # Stage 2: generation
+    # 学会在推理链中生成连续 visual thought tokens
+    for batch in data.visual_alignment:
+        z = vlm.generate_visual_tokens(batch.image, batch.question)
+        loss = align_to_experts(
+            z,
+            sam_mask=batch.sam_mask,
+            depth=batch.depth_map,
+            edge=batch.edge_map,
+            dino=batch.dino_features,
+        )
+        update(vlm, loss)
+
+    # Stage 3: reasoning
+    # 用带视觉 token 的 CoT 训练最终回答
+    train_multimodal_reasoning(vlm, data.reasoning)
+
+    # Stage 4: efficient reasoning
+    # 压缩 visual token 数量，只保留能带来收益的视觉思维预算
+    train_with_token_budget(vlm, max_visual_tokens=20)
+```
+
+##### 推理流程
+
+推理时，COVT 输入图像和问题，先在 `<think>` 中生成文本 reasoning 与 visual thought tokens。最终答案仍以文本输出：
+
+```python
+def covt_inference(model, image, question, visualize=False):
+    response, visual_tokens = model.generate_interleaved_thoughts(
+        image=image,
+        question=question,
+        format="<think> ... visual_tokens ... </think><answer> ... </answer>",
+    )
+
+    if visualize:
+        dense_maps = decode_visual_tokens(visual_tokens)
+        return extract_answer(response), dense_maps
+
+    return extract_answer(response)
+```
+
+如果用户需要解释，visual tokens 可以解码成 segmentation mask、depth map 或 edge map；如果只追求效率，则不解码，模型直接使用 latent token 完成推理。
+
+##### 与传统方法的区别
+
+| 方法 | 推理空间 | 工具依赖 | 密集视觉信息 | 主要限制 |
+|---|---|---|---|---|
+| Text CoT | 离散文本 | 否 | 弱 | 视觉细节被语言压缩 |
+| Tool-augmented VLM | 文本 + 外部输出 | 是 | 强 | 成本高、受工具上限限制 |
+| Visual image CoT | 图像/文本交错 | 可能需要 | 中到强 | 生成或重编码成本高 |
+| COVT | 文本 + 连续视觉 token | 否 | 强 | 需要训练视觉 token 对齐 |
+
+COVT 的创新点在于把“工具”内化为连续 visual thought tokens。它不是调用 SAM 或 DepthAnything 来回答问题，而是用这些专家训练一个可被 VLM 自回归生成和消费的视觉思维空间。
+
+#### 🧪 练习题
+```yaml
+question: "COVT 中连续 visual thought tokens 的主要作用是什么？"
+options:
+  - "替代所有文本 token，使模型只输出图像"
+  - "在推理链中编码分割、深度、边缘等细粒度视觉线索，减少纯文本推理的信息瓶颈"
+  - "把输入图像压缩成更小的 JPEG 文件"
+  - "在推理阶段调用 SAM、DepthAnything 等外部工具"
+answer: 1
+explain: "COVT 的 visual tokens 是可由模型内部生成和消费的连续 latent，训练时对齐视觉专家，推理时无需外部工具即可保留密集视觉信息。"
+```
 
 ### Zebra-CoT
 
@@ -1368,16 +2577,123 @@ motivation: 交错视觉语言推理数据，训练基础
 ```
 
 #### 📝 一句话总结
-Zebra-CoT 的核心目标是：交错视觉语言推理数据，训练基础。
+Zebra-CoT 构建了一个包含 182,384 条图文交错 reasoning trace 的大规模 Visual CoT 数据集，覆盖科学、2D/3D 视觉推理和策略游戏等 18 个领域，用高质量中间图像-文本链解决视觉 CoT 缺少训练数据的问题。
 
 #### 🎯 核心要点
-- 核心动机：交错视觉语言推理数据，训练基础
-- 演化来源：继承或改进自 visual_thoughts
-- 代表机构：Meta
+- **大规模 interleaved Visual CoT 数据**：182,384 条逻辑连贯的文本-图像交错推理轨迹
+- **覆盖 18 个领域、50+ 任务**：科学推理、2D 视觉推理、3D 视觉推理、视觉逻辑与策略游戏
+- **四大任务族**：Scientific Reasoning、2D Visual Reasoning、3D Visual Reasoning、Visual Logic & Strategic Games
+- **面向原生视觉 CoT 训练**：训练模型在推理过程中生成中间图像，而不是只输出文本解释
+- **Anole-7B 与 Bagel-7B 微调验证**：Anole-7B 在测试集提升约 +12%，标准 VLM benchmark 最高提升约 +13%
+- **开放数据与模型**：发布 Hugging Face 数据集和 Bagel-Zebra-CoT 模型，支持后续 visual reasoning 研究
 
 #### 🔬 深入细节
-交错视觉语言推理数据，训练基础
+##### 核心示意图
 
+![Zebra-CoT 数据组成](https://github.com/multimodal-reasoning-lab/Bagel-Zebra-CoT/raw/main/assets/zebra_cot_datacard.png)
+*图：Zebra-CoT 数据集覆盖科学、2D、3D、视觉逻辑与策略游戏四大类任务。*
+
+##### 动机与背景
+
+Visual CoT 的目标是让模型像人一样在解决复杂问题时画图、标注、移动物体或构造中间视觉状态。但训练这类模型有两个现实困难：第一，现成模型的 visual CoT 能力较弱，用它们做强化学习冷启动很不稳定；第二，高质量图文交错推理数据稀缺，尤其缺少“中间图像确实服务于推理”的样本。
+
+Zebra-CoT 的定位不是提出一个新模型结构，而是补齐训练基础设施。它把任务设计成天然需要视觉辅助的形式，让每个样本包含问题图像、文本思考步骤、中间视觉结果和最终答案，训练模型学会何时生成视觉中间状态以及如何让它推动后续推理。
+
+##### 示例与数据形态
+
+![Bagel-Zebra-CoT 推理示例](https://github.com/multimodal-reasoning-lab/Bagel-Zebra-CoT/raw/main/assets/bagel-cot-example.png)
+*图：模型先删除圆柱体、再加入红色球体，逐步生成中间图像并给出答案。*
+
+一个 Zebra-CoT 样本可以抽象为：
+
+$$D_i=(x_0,\;q,\;(t_1,x_1),(t_2,x_2),...,\;a)$$
+
+其中 \(x_0\) 是初始图像，\(q\) 是问题，\(t_k\) 是第 \(k\) 步文本 rationale，\(x_k\) 是对应中间图像，\(a\) 是最终答案。与普通 CoT 数据相比，Zebra-CoT 的关键在于 \(x_k\) 不是装饰图，而是会改变或显式呈现推理状态。
+
+例如在 2D 物体操作任务中，文本步骤“Remove all cylinders”对应一张已删除圆柱体的中间图；下一步“Add 1 red sphere”对应再加入红球的图。最终答案依赖这些视觉状态的逐步更新。
+
+##### 数据构建流程
+
+```python
+# Zebra-CoT 数据构建伪代码
+def build_zebra_cot(task_spec):
+    initial_state = sample_problem_state(task_spec)
+    question, answer_plan = create_question_and_plan(initial_state, task_spec)
+
+    trace = []
+    state = initial_state
+    for step in answer_plan:
+        text_thought = render_text_rationale(step, state)
+        state = apply_visual_operation(state, step)
+        reasoning_image = render_state_as_image(state)
+        trace.append((text_thought, reasoning_image))
+
+    final_answer = compute_answer(state, question)
+
+    if verify_trace_consistency(initial_state, question, trace, final_answer):
+        return {
+            "image": initial_state.image,
+            "question": question,
+            "interleaved_trace": trace,
+            "answer": final_answer,
+        }
+```
+
+实际构建中，不同任务族使用不同生成器或验证器。例如几何、物理、图算法等科学任务强调符号约束和图形一致性；视觉搜索、拼图、关系推理强调图像状态变化；3D embodied/robot planning 强调空间与动作链；棋类、Connect Four、Tetris、RPM 等强调规则推演。
+
+##### 任务覆盖
+
+Zebra-CoT 特别选择“画图有价值”的任务，而不是任意 VQA：
+
+- **Scientific Reasoning**：几何、物理、化学、图算法、竞赛编程等，需要公式、图形或状态转移辅助推理
+- **2D Visual Reasoning**：视觉搜索、jigsaw puzzle、文本/文档搜索、关系推理、通用 VQA
+- **3D Visual Reasoning**：具身 CoT、多跳物体计数、机器人规划
+- **Visual Logic & Strategic Games**：ARC-AGI、Chess、Checkers、Maze、RPM、Tetris、Connect Four、Ciphers 等
+
+这种任务分布让模型不仅学习“描述图像”，还学习“通过生成/修改图像推进推理”。
+
+##### 训练与目标函数
+
+微调 interleaved 模型时，可以把文本 token 与图像 token 放在同一序列中做自回归建模：
+
+$$\mathcal{L}=-\sum_t \log p_\theta(y_t \mid y_{<t}, x_0, q)$$
+
+其中 \(y_t\) 可能是文本 token，也可能是图像 tokenizer 的离散 image token。模型因此同时学习：
+
+- 在什么位置生成 `<think>` 文本；
+- 在什么位置生成中间图像；
+- 中间图像如何反映上一步操作；
+- 最终 `<answer>` 如何读取视觉状态并给出结果。
+
+对于 Bagel/Anole 这类 any-to-any 模型，Zebra-CoT 可以直接作为 interleaved sequence 训练数据。对于只支持文本输出的 VLM，则可把中间图像转成描述或引用，但会损失 Zebra-CoT 的核心优势。
+
+##### 与传统 CoT 数据的区别
+
+| 数据类型 | 中间步骤 | 是否改变视觉状态 | 适合训练的能力 |
+|---|---|---|---|
+| 文本 CoT | 文本 rationale | 否 | 语言推理、解释 |
+| Visual CoT caption 数据 | 图像描述 + 文本 | 通常否 | 视觉信息提取 |
+| Zebra-CoT | 文本 + 中间图像 | 是 | 原生图文交错推理、视觉状态更新 |
+
+> 💡 关键：Zebra-CoT 的价值在于让模型看到“中间图像如何服务于下一步推理”，这比只给最终答案或只给文本解释更接近 visual thinking 的训练信号。
+
+##### 效果与意义
+
+论文用 Anole-7B 和 Bagel-7B 验证数据集效果。Anole-7B 微调后在 Zebra-CoT 测试集上提升约 +12%，在标准 VLM benchmark 上最高带来约 +13% 的增益；Bagel-7B 则能生成更自然的图文交错视觉推理链。
+
+这说明 Zebra-CoT 不只是 benchmark，也能作为训练集提升模型的 multimodal reasoning 能力。它对后续 Visual Thoughts、COVT、Latent Sketchpad 等路线的意义在于：提供了可监督的图文交错推理轨迹，让模型先学会“何时需要视觉中间态”，再进一步用 RL 或 latent token 方法优化。
+
+#### 🧪 练习题
+```yaml
+question: "Zebra-CoT 相比普通文本 CoT 数据集的核心区别是什么？"
+options:
+  - "只包含最终答案，不包含任何推理过程"
+  - "包含逻辑连贯的文本-图像交错推理轨迹，中间图像会显式推进视觉状态"
+  - "只用于 OCR 识别，不涉及复杂推理"
+  - "要求模型在推理阶段调用固定外部检测器"
+answer: 1
+explain: "Zebra-CoT 的每条样本包含 interleaved text-image trace，中间图像是推理状态的一部分，用于训练模型原生执行 Visual CoT。"
+```
 
 ### Reason-RFT
 
@@ -1396,16 +2712,138 @@ motivation: GRPO强化微调，提升推理泛化能力
 ```
 
 #### 📝 一句话总结
-Reason-RFT 的核心目标是：GRPO强化微调，提升推理泛化能力。
+Reason-RFT 提出两阶段视觉推理强化微调框架，先用少量高质量 CoT SFT 激活 VLM 的推理格式和任务先验，再用 GRPO 与任务可验证奖励提升跨域泛化、数据效率和复杂视觉推理能力。
 
 #### 🎯 核心要点
-- 核心动机：GRPO强化微调，提升推理泛化能力
-- 演化来源：继承或改进自 llava_cot
-- 代表机构：NTU
+- **两阶段训练**：Stage 1 用 CoT SFT 做 reasoning activation；Stage 2 用 GRPO 做 RL-based reasoning enhancement
+- **面向视觉推理的 GRPO**：不训练单独 value model，而用组内 reward 归一化计算相对优势，降低 RL 微调成本
+- **结构化输出奖励**：要求 `<think>...</think>` 包裹推理过程、`<answer>...</answer>` 包裹最终答案
+- **三类 accuracy reward**：离散值匹配、数学数值容差匹配、函数序列分步匹配
+- **系统化评测任务**：重构视觉计数、结构感知、空间变换三类视觉推理数据，并设计 ID/OOD 域移评测
+- **数据效率优势**：少量 CoT 激活 + RL 探索可在少样本设置下接近或超过完整 SFT 基线
 
 #### 🔬 深入细节
-GRPO强化微调，提升推理泛化能力
+##### 核心示意图
 
+![Reason-RFT pipeline](https://tanhuajie.github.io/ReasonRFT/images/pipeline.png)
+*图：Reason-RFT 先进行 SFT-based activation，再用 GRPO 与格式/准确性奖励进行强化微调。*
+
+##### 动机与背景
+
+传统视觉推理增强主要依赖两类方法：神经符号程序或 CoT SFT。神经符号方法可解释，但依赖程序生成和模块组合，系统复杂；CoT SFT 更直接，但需要大量高质量推理标注，容易让模型记住训练分布中的固定解题模式，面对视角变化、物体外观变化或题型迁移时泛化不足。
+
+Reason-RFT 的出发点是把 SFT 和 RL 的优势结合起来。SFT 用于冷启动，让模型知道“如何按结构化格式推理”；RL 用于探索，让模型不只模仿标注轨迹，而是根据答案正确性优化自己的推理策略。这样可以缓解纯 SFT 的 cognitive rigidity，也避免纯 RL 初期没有稳定推理格式的问题。
+
+##### Stage 1：SFT-based Reasoning Activation
+
+第一阶段使用带 CoT 的视觉推理数据训练模型生成推理步骤 \(r\) 与答案 \(a\)。给定图像 \(I\)、问题 \(q\)，训练目标是最大化：
+
+$$\mathcal{L}_{SFT}=-\log p_\theta(r,a \mid I,q)$$
+
+这一步不追求覆盖所有任务，只要求建立稳定先验：模型会分解问题、输出 `<think>` 和 `<answer>`，并能在视觉计数、几何结构、空间变换等任务中形成基本推理链。
+
+> 💡 关键：Reason-RFT 不是用 SFT 解决全部问题，而是用 SFT 给 RL 一个可优化的起点。
+
+##### Stage 2：GRPO-based Reasoning Enhancement
+
+第二阶段对每个输入采样一组候选回答：
+
+$$\{o_i\}_{i=1}^{G}\sim \pi_{\theta_{old}}(\cdot\mid I,q)$$
+
+每个候选通过 reward function 得到分数 \(R_i\)。GRPO 不需要 value model，而是在组内计算相对优势：
+
+$$\hat{A}_i=\frac{R_i-\mathrm{mean}(\{R_j\}_{j=1}^{G})}{\mathrm{std}(\{R_j\}_{j=1}^{G})}$$
+
+再用 clipped policy objective 更新策略：
+
+$$\mathcal{J}_{GRPO}=\frac{1}{G}\sum_{i=1}^{G}\frac{1}{|o_i|}\sum_t
+\min\left(\rho_{i,t}\hat{A}_i,\mathrm{clip}(\rho_{i,t},1-\epsilon,1+\epsilon)\hat{A}_i\right)
+-\beta D_{KL}(\pi_\theta||\pi_{ref})$$
+
+其中 \(\rho_{i,t}\) 是新旧策略在 token \(t\) 上的概率比。KL 项限制模型不要偏离参考模型过远，clip 项避免单次更新过激。
+
+##### Reward 设计
+
+Reason-RFT 的 reward 由格式和准确性组成：
+
+$$R=R_{format}+R_{acc}$$
+
+**格式奖励**检查输出是否遵循：
+
+```text
+<think> reasoning process </think>
+<answer> final answer </answer>
+```
+
+**准确性奖励**按任务类型区分：
+
+- **Discrete-valued reward**：用于计数、选择题、离散结构感知，答案完全匹配得 1，否则 0
+- **Mathematical reward**：用于角度、长度、数值或 LaTeX 表达，允许小容差并可给部分分
+- **Function-based reward**：用于空间变换序列，按函数名、对象、参数分层匹配，完整匹配得高分，部分匹配得较低分
+
+这种 reward 设计让同一个 GRPO 框架能覆盖不同视觉推理任务，而不必为每个任务训练独立奖励模型。
+
+##### 训练流程伪代码
+
+```python
+# Reason-RFT 两阶段训练伪代码
+def train_reason_rft(vlm, cot_data, rl_data):
+    # Stage 1: reasoning activation
+    for image, question, rationale, answer in cot_data:
+        target = f"<think>{rationale}</think><answer>{answer}</answer>"
+        loss = -vlm.log_prob(target, image=image, question=question)
+        update(vlm, loss)
+
+    policy = copy(vlm)
+    reference = freeze(copy(vlm))
+
+    # Stage 2: GRPO enhancement
+    for image, question, ground_truth in rl_data:
+        outputs = policy.sample_group(image, question, group_size=G)
+        rewards = []
+
+        for out in outputs:
+            r_format = check_format(out)
+            r_acc = task_specific_accuracy(out.answer, ground_truth)
+            rewards.append(r_format + r_acc)
+
+        advantages = normalize_within_group(rewards)
+        loss = grpo_clipped_loss(policy, reference, outputs, advantages)
+        update(policy, loss)
+
+    return policy
+```
+
+##### 数据与评测
+
+Reason-RFT 将视觉推理拆成三类核心能力：
+
+- **Visual Counting**：基于 CLEVR-Math 构造训练和 ID 测试，并用 Super-CLEVR 资产构造 OOD 视角/外观分布
+- **Structure Perception**：从 Geo170K、Math360K 等筛选几何、图表、结构关系题，并用 Geometry3K 测试域移
+- **Spatial Transformation**：基于 TRANCE 生成初始/最终 3D 状态，要求预测变换函数序列，并用不同视角渲染评估泛化
+
+实验对比了 ANS-SFT、CoT-SFT、Reason-RFT-Zero 和 Reason-RFT。结论是：纯 SFT 在 ID 上可有效，但 OOD 泛化弱；纯 RL 可探索更短或更灵活的链路，但冷启动不稳；SFT 激活后再 RL 的 Reason-RFT 在准确率、域移鲁棒性和少样本效率上更均衡。
+
+##### 与传统方法的区别
+
+| 方法 | 训练信号 | 优势 | 风险 |
+|---|---|---|---|
+| ANS-SFT | 只学最终答案 | 简单直接 | 缺少显式推理 |
+| CoT-SFT | 模仿标注推理链 | 冷启动稳定 | 可能过拟合标注风格 |
+| Reason-RFT-Zero | 直接 RL | 推理更自由 | 初期格式和探索不稳 |
+| Reason-RFT | CoT SFT + GRPO | 兼顾稳定性与泛化 | 需要可验证 reward |
+
+#### 🧪 练习题
+```yaml
+question: "Reason-RFT 为什么要先做 CoT SFT，再进行 GRPO 强化微调？"
+options:
+  - "因为 GRPO 只能训练文本模型，不能训练视觉语言模型"
+  - "因为 SFT 用于激活结构化推理格式和任务先验，GRPO 再通过可验证奖励提升泛化"
+  - "因为 SFT 会冻结所有参数，GRPO 只更新视觉编码器"
+  - "因为格式奖励无法在强化学习中使用"
+answer: 1
+explain: "SFT 提供稳定冷启动，避免纯 RL 初期不会按格式推理；GRPO 则用组内相对优势和任务 reward 推动模型探索更泛化的推理策略。"
+```
 
 ### VisionThink
 
@@ -1424,146 +2862,118 @@ motivation: RL+Token压缩，效率与性能平衡
 ```
 
 #### 📝 一句话总结
-VisionThink 提出了一种动态分辨率视觉语言模型范式：模型先接收低分辨率图像进行推理，通过强化学习（Multi-Turn GRPO）自主决定是否需要请求高分辨率图像，结合 LLM-as-Judge 评估开放式 VQA 答案，在保持甚至超越全分辨率模型性能的同时大幅降低视觉 token 数量和推理时间。
+VisionThink 提出一种样本级动态视觉 token 压缩范式：模型先用低分辨率图像回答，只有判断信息不足时才输出特殊 token 请求高分辨率图像，并通过 LLM-as-Judge、Multi-Turn GRPO 和 penalty 控制机制在准确率与推理效率之间取得平衡。
 
 #### 🎯 核心要点
-- **动态分辨率推理范式**：模型首先接收低分辨率图像（如 384×384），在推理过程中自主决定是否调用 `<resize>` 工具获取高分辨率图像（如 768×768），实现"按需升分辨率"
-- **Multi-Turn GRPO 训练**：将 GRPO（Group Relative Policy Optimization）扩展为多轮交互场景，模型在第一轮输出后可能触发工具调用，工具返回的 token 被 mask 不参与策略梯度计算
-- **LLM-as-Judge 奖励机制**：使用 Qwen2.5-72B-Instruct 作为裁判模型评估开放式 VQA 答案的正确性，解决传统精确匹配无法处理同义表达的问题
-- **Penalty 控制机制**：通过阈值 \(\theta\)（默认 0.2）控制高分辨率请求比例——仅当 resize 比例超过阈值时施加惩罚，平衡性能与效率
-- **训练数据**：仅需 20K 样本（10K 高分辨率依赖 + 10K 低分辨率可解），涵盖 MathVerse、AI2D、ChartQA、DocVQA 等多类型数据
-- **显著效率提升**：相比全分辨率基线，视觉 token 减少约 62%，推理时间减少约 66%，同时在多数基准上性能持平或提升
+- **按样本动态分辨率**：先输入低分辨率图像以减少视觉 token，必要时再请求高分辨率图像
+- **特殊 token / 工具调用机制**：模型通过指定格式发起 image resize 请求，进入第二轮高分辨率推理
+- **LLM-as-Judge 奖励**：用外部 LLM 对开放式 VQA 答案做语义正确性判断，突破精确字符串匹配限制
+- **Multi-Turn GRPO**：把 GRPO 扩展到多轮工具调用场景，对用户输入和工具返回 token 做 mask，只优化模型生成 token
+- **Penalty 控制 resize 比例**：避免模型塌缩为“总是高分辨率”或“总是低分辨率”，使其学会何时值得付出额外视觉 token
+- **与传统压缩方法兼容**：不同于固定剪枝比例，VisionThink 在样本级决定 token 预算，可与 FastV、SparseVLM 等空间剪枝方法互补
 
 #### 🔬 深入细节
-##### 核心框架
+##### 核心示意图
 
-![VisionThink 框架总览](https://ar5iv.labs.arxiv.org/html/2507.13348/assets/x2.png)
-*图：VisionThink 框架。(a) 左图展示推理流程——模型先接收低分辨率图像，自主决定是否调用 resize 工具获取高分辨率图像；(b) 右图展示 Multi-Turn GRPO 训练流程，包含 LLM-as-Judge 奖励评估。*
+![VisionThink 框架](https://raw.githubusercontent.com/dvlab-research/VisionThink/main/files/Framework.jpg)
+*图：VisionThink 对简单样本直接用低分辨率回答，对 OCR/细节依赖样本请求高分辨率图像。*
 
 ##### 动机与背景
 
-当前视觉语言模型（VLM）为追求高性能，普遍采用高分辨率图像输入，导致视觉 token 数量急剧增长。例如，将图像从 384×384 提升到 768×768，视觉 token 数量从约 729 增加到约 2916（4 倍增长）。然而，论文的关键观察是：**并非所有任务都需要高分辨率输入**。
+VLM 性能提升往往伴随视觉 token 数量增长。例如同一张高分辨率图像，在新一代模型中可能被切成数千个视觉 token。视觉 token 通常比问题文本长得多，因此序列长度和计算成本主要由图像决定。
 
-![关键观察](https://ar5iv.labs.arxiv.org/html/2507.13348/assets/x1.png)
-*图：(a) 不同分辨率下的性能对比——部分基准（如 MathVerse）在低分辨率下即可达到高性能，而 OCR 类基准（如 DocVQA）确实需要高分辨率；(b)(c) VisionThink 在性能和效率上的优势。*
+论文的关键观察是：大多数通用 VQA 场景并不需要完整高分辨率信息，低分辨率甚至四分之一视觉 token 也能答对；但 ChartQA、OCRBench、DocVQA 等 OCR 或细粒度任务对高分辨率高度敏感。固定比例 token pruning 无法区分这两类样本，简单样本浪费计算，困难样本又可能丢失关键文字或细节。
 
-传统的高效 VLM 方法（如 FastV、FitPrune）通过注意力分数剪枝或合并 token 来减少冗余，但它们：
-1. 对所有样本施加**固定比例**的 token 削减，无法区分简单/困难样本
-2. 在 OCR 相关基准上性能下降严重
-3. 是**被动的后处理策略**，而非让模型主动决策
+VisionThink 因此把“视觉 token 压缩比例”变成模型策略的一部分：模型先看低分辨率，如果信息足够就直接答；如果不够，就主动请求原始高分辨率图像继续推理。
 
-VisionThink 提出了一种全新范式：让模型**主动思考**是否需要更多视觉信息，将分辨率选择从工程启发式转变为模型的内生能力。
+##### Multi-Turn 推理流程
 
-##### 核心技术方案
+推理有两条路径：
 
-**1. Multi-Turn 推理流程**
-
-推理过程分为两种路径：
-
-- **路径 A（低分辨率足够）**：模型接收低分辨率图像 → 思考 → 直接输出答案
-- **路径 B（需要高分辨率）**：模型接收低分辨率图像 → 思考 → 输出 `<resize>` 工具调用 → 环境返回高分辨率图像 → 继续思考 → 输出答案
+- **低分辨率路径**：低分辨率图像 + 问题 → `<think>` → `<answer>`
+- **高分辨率路径**：低分辨率图像 + 问题 → 判断信息不足 → 输出 resize 调用 → 环境返回高分辨率图像 → 再推理并回答
 
 ```python
 # VisionThink 推理伪代码
 def visionthink_inference(model, image, question):
-    # Step 1: 输入低分辨率图像
-    low_res_image = resize(image, 384)
-    low_res_tokens = vision_encoder(low_res_image)  # ~729 tokens
-    
-    # Step 2: 模型第一轮推理
-    prompt = f"<image>{low_res_tokens}</image>\n{question}"
-    response_turn1 = model.generate(prompt)
-    
-    # Step 3: 检查是否请求高分辨率
-    if "<resize>" in response_turn1:
-        # 环境返回高分辨率图像
-        high_res_image = resize(image, 768)
-        high_res_tokens = vision_encoder(high_res_image)  # ~2916 tokens
-        
-        # Step 4: 模型第二轮推理（拼接高分辨率信息）
-        prompt_turn2 = prompt + response_turn1 + f"<image>{high_res_tokens}</image>"
-        response_turn2 = model.generate(prompt_turn2)
-        return extract_answer(response_turn2)
-    else:
-        return extract_answer(response_turn1)
+    low_image = resize(image, scale=0.5)
+    prompt = build_prompt(low_image, question)
+
+    first_response = model.generate(prompt)
+
+    if requests_high_resolution(first_response):
+        high_image = image
+        tool_result = encode_tool_result(high_image)
+        second_prompt = prompt + first_response + tool_result
+        second_response = model.generate(second_prompt)
+        return extract_answer(second_response)
+
+    return extract_answer(first_response)
 ```
 
-**2. LLM-as-Judge 奖励设计**
+这个过程本质上是多轮交互：模型第一轮不只是回答，也可以选择是否购买更多视觉信息。选择高分辨率会增加 token 和时间成本，但可能提升 OCR/图表/文档题的正确率。
 
-传统 RL 训练中，VQA 答案的正确性通常通过精确字符串匹配判断。但开放式问答中，语义等价的不同表达（如 "2/3" vs "0.667"、"New York" vs "NYC"）会被误判为错误。VisionThink 引入 LLM-as-Judge 解决此问题：
+##### LLM-as-Judge 奖励
 
-$$r_{\text{acc}}(q, a, a^*) = \text{LLM-Judge}(q, a, a^*) \in \{0, 1\}$$
+通用 VQA 的答案常有多种等价表达，规则匹配不够稳定。VisionThink 使用 LLM-as-Judge 判断模型答案 \(a\) 与标准答案 \(a^\*\) 是否语义一致：
 
-其中 \(q\) 为问题，\(a\) 为模型预测答案，\(a^*\) 为标准答案。裁判模型（Qwen2.5-72B-Instruct）综合考虑问题语境，判断语义等价性。
+$$R_{acc}(q,a,a^\*)\in\{0,1\}$$
 
-> 💡 **关键**：LLM-as-Judge 不仅提升了奖励信号的准确性，还使得训练数据中可以包含更多开放式 VQA 样本，扩大了可用训练数据的范围。
+判断只基于问题、预测答案和标准答案的文本，不重新看图像，以避免裁判模型视觉能力影响训练 reward。离散 0/1 奖励比连续分数更稳，减少裁判误判对策略更新的放大。
 
-**3. Multi-Turn GRPO**
+##### Multi-Turn GRPO
 
-标准 GRPO 的目标函数为：
+标准 GRPO 的组内优势为：
 
-$$\mathcal{J}_{\text{GRPO}}(\theta) = \mathbb{E}_{q \sim P(Q), \{o_i\}_{i=1}^G \sim \pi_{\theta_{\text{old}}}(O|q)} \left[ \frac{1}{G} \sum_{i=1}^G \frac{1}{|o_i|} \sum_{t=1}^{|o_i|} \min\left(\rho_{i,t} \hat{A}_{i}, \text{clip}(\rho_{i,t}, 1-\varepsilon, 1+\varepsilon) \hat{A}_{i}\right) - \beta D_{\text{KL}} \right]$$
+$$\hat{A}_i=\frac{R_i-\mathrm{mean}(\{R_j\})}{\mathrm{std}(\{R_j\})}$$
 
-其中 \(\rho_{i,t} = \frac{\pi_\theta(o_{i,t} | q, o_{i,<t})}{\pi_{\theta_{\text{old}}}(o_{i,t} | q, o_{i,<t})}\) 为新旧策略的概率比，\(\hat{A}_i\) 为基于组内奖励归一化的优势值。
+VisionThink 将其用于多轮输出。由于高分辨率图像 token 是工具/环境返回的内容，不是模型策略生成的 token，训练时需要 mask：
 
-VisionThink 将其扩展为 **Multi-Turn** 版本，关键修改是：**工具返回的 token（高分辨率图像 token）不参与策略梯度计算**，因为这些 token 由环境生成，不属于模型策略的一部分：
+$$\mathcal{J}_{MT-GRPO}=
+\mathbb{E}\left[\sum_{i,t}m_{i,t}
+\min(\rho_{i,t}\hat{A}_i,\mathrm{clip}(\rho_{i,t},1-\epsilon,1+\epsilon)\hat{A}_i)
+-\beta D_{KL}\right]$$
 
-$$\mathcal{J}_{\text{MT-GRPO}}(\theta) = \mathbb{E}\left[ \frac{1}{G} \sum_{i=1}^G \frac{1}{|o_i|} \sum_{t=1}^{|o_i|} \mathbf{m}_{i,t} \cdot \min\left(\rho_{i,t} \hat{A}_{i}, \text{clip}(\rho_{i,t}, 1-\varepsilon, 1+\varepsilon) \hat{A}_{i}\right) - \beta D_{\text{KL}} \right]$$
+其中 \(m_{i,t}=1\) 表示模型生成 token，\(m_{i,t}=0\) 表示用户输入或工具返回 token。这样优化目标只奖励/惩罚模型可控制的行为，包括是否请求 resize、如何推理、如何回答。
 
-其中 \(\mathbf{m}_{i,t}\) 为 mask 向量：模型生成的 token 处为 1，工具返回的 token 处为 0。
+##### Reward 与 Penalty
 
-> ⚠️ **注意**：如果不对工具返回 token 进行 mask，这些 token 的梯度会干扰策略优化，因为模型无法控制环境返回的内容。
+总 reward 包含三部分：
 
-**4. 奖励函数与 Penalty 机制**
+$$R=R_{acc}+R_{format}+R_{penalty}$$
 
-总奖励由三部分组成：
+- \(R_{acc}\)：LLM-as-Judge 判断答案正确性
+- \(R_{format}\)：检查 `<think>`、`<answer>` 和 resize 调用 JSON 格式
+- \(R_{penalty}\)：控制高分辨率请求比例，避免策略塌缩
 
-$$R = r_{\text{acc}} + r_{\text{format}} + r_{\text{penalty}}$$
+Penalty 的难点是两种塌缩都可能发生：不惩罚 resize 时，模型倾向于总是请求高分辨率；过度惩罚 resize 时，模型会总是低分辨率直接猜。VisionThink 根据低分辨率和高分辨率的正确性统计设定阈值，动态决定该惩罚直接回答还是惩罚 resize。
 
-- **准确性奖励** \(r_{\text{acc}} \in \{0, 1\}\)：由 LLM-as-Judge 评估
-- **格式奖励** \(r_{\text{format}}\)：鼓励模型使用 `<think>...</think>` 和 `<answer>...</answer>` 标签的规范输出格式
-- **Penalty 惩罚** \(r_{\text{penalty}}\)：控制高分辨率请求比例
+> ⚠️ 注意：VisionThink 的目标不是最少 token，而是在“该省时省、该看清看清”的前提下最大化任务 reward。
 
-Penalty 的设计尤为精巧。直接对所有 resize 请求施加惩罚会导致模型完全放弃使用高分辨率，在 OCR 类任务上性能崩溃。因此采用**阈值控制**：
+##### 训练数据与评估
 
-$$r_{\text{penalty}} = \begin{cases} -\lambda & \text{if resize ratio} > \theta \text{ and sample requests resize} \\ 0 & \text{otherwise} \end{cases}$$
+论文使用 Qwen2.5-VL-7B-Instruct 作为基座，先验证 LLM-as-Judge 能在通用 VQA 上支撑 RL，再训练高低分辨率决策能力。数据覆盖通用 VQA 与细粒度/OCR 任务，使模型同时见到“低分辨率足够”和“必须高分辨率”的样本。
 
-其中 \(\theta = 0.2\) 表示允许最多 20% 的样本请求高分辨率。只有当当前 batch 中 resize 比例超过阈值时，才对请求 resize 的样本施加惩罚。
+评估包含 ChartQA、OCRBench、DocVQA、MME、MMVet、RealWorldQA、POPE、MathVista、MathVerse 等。相较 FastV、SparseVLM 等固定保留比例方法，VisionThink 在平均使用约一半视觉 token 的情况下保持或提升总体性能，并在 OCR 相关任务上避免固定剪枝造成的大幅退化。
 
-![Penalty 消融实验](https://ar5iv.labs.arxiv.org/html/2507.13348/assets/x3.png)
-*图：(a) Penalty 比例的影响——全部惩罚或完全不惩罚都不是最优策略；(b) 不同 θ 值对性能和 resize 比例的影响。*
+##### 与传统视觉 token 压缩的区别
 
-**5. 训练数据构建**
-
-训练数据仅需 20K 样本，按以下策略构建：
-
-- **10K 高分辨率依赖样本**：从 DocVQA、ChartQA、InfoVQA 等 OCR 密集型数据集中筛选，这些样本在低分辨率下性能显著下降
-- **10K 低分辨率可解样本**：从 MathVerse、AI2D、ScienceQA 等数据集中筛选，这些样本在低分辨率下即可正确回答
-
-这种混合构建确保模型学会**区分**何时需要高分辨率、何时低分辨率即可。
-
-##### 效率与性能分析
-
-![推理效率对比](https://ar5iv.labs.arxiv.org/html/2507.13348/assets/x4.png)
-*图：VisionThink 与传统高效 VLM 方法的推理时间和性能对比。VisionThink 在保持高性能的同时显著降低推理时间。*
-
-VisionThink 的效率优势来源于：大部分样本（约 80%）仅使用低分辨率图像（729 tokens），仅约 20% 的困难样本使用高分辨率（2916 tokens）。平均视觉 token 数量从 2916 降至约 1166，减少约 60%。
-
-![自适应 Resize 比例](https://ar5iv.labs.arxiv.org/html/2507.13348/assets/x5.png)
-*图：VisionThink 在不同基准上的 resize 比例——OCR 类任务（DocVQA、ChartQA）的 resize 比例显著高于数学/科学类任务，验证了模型确实学会了"按需升分辨率"。*
-
-> 💡 **关键洞察**：VisionThink 不是一种特定的 token 削减策略，而是一种**新范式**，可以与现有的高效 VLM 方法（如 FastV、FitPrune）正交组合，进一步提升效率。
+| 方法 | 决策粒度 | 是否需要固定阈值 | OCR 任务风险 | 与 vLLM/FlashAttention 兼容性 |
+|---|---|---|---|---|
+| FastV / SparseVLM | token/层级剪枝 | 是 | 可能误删关键 token | 剪枝逻辑增加复杂度 |
+| 直接降采样 | 全样本固定 | 是 | 高 | 简单 |
+| VisionThink | 样本级动态 | 否，由策略决定 | 低，必要时看高分辨率 | 主要改变输入轮次，工程上更直接 |
 
 #### 🧪 练习题
 ```yaml
-question: "VisionThink 在 Multi-Turn GRPO 训练中，为什么要对工具返回的 token 进行 mask 处理？"
+question: "VisionThink 中 penalty 控制机制的主要目的是什么？"
 options:
-  - "为了减少显存占用，加速训练"
-  - "因为工具返回的 token 由环境生成，不属于模型策略，其梯度会干扰策略优化"
-  - "为了防止模型过拟合到高分辨率图像特征"
-  - "因为工具返回的 token 数量过多，会导致梯度爆炸"
+  - "强制所有样本都使用最低分辨率"
+  - "避免模型塌缩为总是请求高分辨率或总是直接低分辨率回答"
+  - "替代 LLM-as-Judge 的准确性奖励"
+  - "减少语言 token 的数量，与视觉 token 无关"
 answer: 1
-explain: "工具返回的高分辨率图像 token 由环境（视觉编码器）生成，不受模型策略控制。如果不 mask，这些 token 的概率比会产生无意义的梯度信号，干扰策略优化方向。"
+explain: "没有 penalty 时模型可能总是请求高分辨率；惩罚过强又会使模型不敢请求高分辨率。VisionThink 用阈值控制 resize 比例，在效率和性能之间平衡。"
 ```
 
 ### VL-Rethinker
@@ -1583,16 +2993,131 @@ motivation: RL激励自反思，提升复杂推理性能
 ```
 
 #### 📝 一句话总结
-VL-Rethinker 的核心目标是：RL激励自反思，提升复杂推理性能。
+VL-Rethinker 用强化学习直接激励 VLM 形成“先答、再反思、再修正”的慢思考能力，通过 Selective Sample Replay 缓解大模型 GRPO 的 vanishing advantages，并用 Forced Rethinking 显式训练自我检查步骤，在数学、科学和多学科视觉推理中提升复杂问题表现。
 
 #### 🎯 核心要点
-- 核心动机：RL激励自反思，提升复杂推理性能
-- 演化来源：继承或改进自 reason_rft
-- 代表机构：PKU
+- **面向 VLM 的慢思考 RL**：不依赖蒸馏闭源模型，而用可验证奖励直接训练 Qwen2.5-VL 系列
+- **Vanishing Advantages 问题**：大模型训练快速饱和，组内样本 reward 变得相同，导致 GRPO 有效梯度减少
+- **Selective Sample Replay (SSR)**：从候选样本中优先重放有非零/高优势的 informative queries，提高训练信号密度
+- **Forced Rethinking**：在初始 rollout 后追加反思触发语，强制模型生成 self-reflection 步骤
+- **ViRL39K 数据集**：约 39K 可验证多模态问答，覆盖 STEM、图表、文档、空间关系和社会科学等
+- **SOTA 结果**：VL-Rethinker-72B 在 MathVista、MathVerse、MathVision、MMMU-Pro、EMMA、MEGA-Bench 等基准上推进开源模型表现
 
 #### 🔬 深入细节
-RL激励自反思，提升复杂推理性能
+##### 核心示意图
 
+![VL-Rethinker overview](https://tiger-ai-lab.github.io/VL-Rethinker/static/images/overview.png)
+*图：VL-Rethinker 由 Selective Sample Replay 和 Forced Rethinking 两个关键训练组件组成。*
+
+##### 动机与背景
+
+GPT-o1、DeepSeek-R1 等慢思考模型证明了显式反思能提升复杂数学和代码问题表现，但视觉语言模型的慢思考能力并未同步提升。很多 VLM 即使用长 CoT，也容易把第一轮错误视觉理解一路推到最终答案，缺少“我刚才看错了吗”的自我检查。
+
+VL-Rethinker 的目标是用 RL 直接诱导 VLM 的 self-reflection，而不是从强模型蒸馏反思文本。它先发现标准 GRPO 在 72B 级 VLM 上存在严重训练信号稀释：模型很快对大量样本全答对或全答错，组内 reward 方差趋近 0，相对优势消失，更新效率下降。
+
+##### Vanishing Advantages
+
+GRPO 依赖组内 reward 差异计算优势：
+
+$$\hat{A}_i=\frac{R_i-\mu_R}{\sigma_R}$$
+
+如果一个 query 的 \(G\) 个采样回答全部正确或全部错误，则 \(\sigma_R\) 很小或为 0，这个 query 几乎不提供有效策略梯度。随着大模型能力增强，这类“全对/全错”的 query 比例上升，有效 query 比例下降。
+
+![Vanishing advantages](https://tiger-ai-lab.github.io/VL-Rethinker/static/images/vanishing_adv.png)
+*图：随着训练推进，72B 模型中有效 query 比例下降，说明标准 GRPO 的训练信号逐渐稀疏。*
+
+##### Selective Sample Replay
+
+SSR 从 active learning 角度处理这个问题：训练应该更多关注“接近能力边界”的样本，也就是模型有时答对、有时答错、组内优势不为 0 的样本。它将这些样本放入 replay buffer，并按优势强度采样重放。
+
+```python
+# Selective Sample Replay 伪代码
+def selective_sample_replay(candidates, replay_size, alpha=1.0):
+    # candidates: rollouts grouped by query, each query has rewards and advantages
+    effective = []
+    for query_group in candidates:
+        if has_nonzero_advantage(query_group):
+            effective.append(query_group)
+
+    weights = normalize([advantage_strength(q) ** alpha for q in effective])
+    replay_batch = sample(effective, size=replay_size, p=weights)
+    return replay_batch
+```
+
+与简单过滤不同，SSR 不是只丢弃无效样本，而是把 informative samples 重新分配到训练中，提高每个 batch 的有效优势密度。这样可以让大模型继续在边界样本上学习，而不是浪费计算在已经饱和的 query 上。
+
+##### Forced Rethinking
+
+SSR 提升了 RL 效率，但论文观察到仅用 SSR 得到的模型并不一定会自然生成反思或自验证步骤。为此，VL-Rethinker 引入 Forced Rethinking：在 RL 训练的初始 rollout 末尾追加一个反思触发语，引导模型检查自己的第一轮推理。
+
+形式上，模型先生成初始回答：
+
+$$o^{(1)}\sim \pi_\theta(\cdot\mid I,q)$$
+
+训练环境再追加触发语 \(t_{rethink}\)，例如“Wait, does it seem right?”，要求模型继续生成：
+
+$$o^{(2)}\sim \pi_\theta(\cdot\mid I,q,o^{(1)},t_{rethink})$$
+
+最终 reward 根据反思后的答案计算。这样模型会学到：在复杂视觉推理中，先验答案可以被重新检查，必要时修正视觉理解或数学推导。
+
+![Forced Rethinking 示例](https://tiger-ai-lab.github.io/VL-Rethinker/static/images/rethinking.png)
+*图：Forced Rethinking 让模型显式复查初始推理，并在发现误读题意时自我修正。*
+
+##### 训练流程伪代码
+
+```python
+# VL-Rethinker 训练伪代码
+def train_vl_rethinker(policy, data):
+    reference = freeze(copy(policy))
+    replay_buffer = []
+
+    for batch in data:
+        rollouts = policy.sample_group(batch, group_size=G)
+        rewards = rule_based_verify(rollouts, batch.answers)
+        advantages = group_relative_advantages(rewards)
+
+        replay_buffer.extend(select_informative(rollouts, advantages))
+        replay = selective_sample_replay(replay_buffer, replay_size=B)
+
+        rethinking_rollouts = []
+        for item in replay:
+            first = item.response
+            prompt2 = item.prompt + first + "\nWait, does it seem right?"
+            second = policy.generate(prompt2)
+            rethinking_rollouts.append((first, second))
+
+        final_rewards = verify_after_rethinking(rethinking_rollouts)
+        loss = grpo_loss(policy, reference, rethinking_rollouts, final_rewards)
+        update(policy, loss)
+```
+
+##### 数据与评估
+
+VL-Rethinker 使用 ViRL39K 作为 RL 数据基础。它强调可验证性和覆盖面：数学、物理、化学、生物，图表/表格/文档推理，空间关系，多学科 STEM 和社会科学问题；同时带有模型能力标注，便于给不同规模模型选择合适难度样本。
+
+模型在 Qwen2.5-VL-7B/72B 上训练，72B 版本在 MathVista、MathVerse、MathVision 等数学视觉推理基准上显著增强，也在 MMMU-Pro、EMMA、MEGA-Bench 等综合基准上缩小与强闭源模型差距。
+
+##### 与 Reason-RFT 的关系
+
+Reason-RFT 关注“如何用 SFT + GRPO 提升视觉推理泛化”；VL-Rethinker 更进一步关注“RL 训练出来的模型是否会反思”。它处理两个更细的问题：大模型 GRPO 的有效样本减少，以及模型虽然答得更强但缺少自我检查行为。
+
+| 方法 | 核心训练信号 | 主要目标 |
+|---|---|---|
+| Reason-RFT | CoT SFT + 任务 reward | 泛化与数据效率 |
+| VL-Rethinker | SSR + Forced Rethinking | 大模型 RL 稳定性与自反思 |
+| Think or Not | Thought Dropout + GRPO | 动态决定是否需要推理 |
+
+#### 🧪 练习题
+```yaml
+question: "VL-Rethinker 中 Selective Sample Replay 主要解决什么问题？"
+options:
+  - "视觉编码器无法读取高分辨率图片"
+  - "标准 GRPO 中大量 query 组内 reward 相同，导致相对优势消失、有效训练信号变少"
+  - "模型无法输出 JSON 格式"
+  - "训练数据没有任何图像"
+answer: 1
+explain: "SSR 优先重放具有非零或高优势的样本，把训练集中到模型能力边界附近，从而缓解大模型训练中的 vanishing advantages。"
+```
 
 ### Think or Not
 
@@ -1611,16 +3136,140 @@ motivation: GRPO选择性推理，动态调整推理深度
 ```
 
 #### 📝 一句话总结
-Think or Not 的核心目标是：GRPO选择性推理，动态调整推理深度。
+Think or Not 提出 TON 两阶段训练策略，让 VLM 先通过 Thought Dropout 学会“空思考”格式，再用 GRPO 自主探索何时跳过推理、何时展开推理，在保持或提升准确率的同时显著减少输出长度和训练/推理成本。
 
 #### 🎯 核心要点
-- 核心动机：GRPO选择性推理，动态调整推理深度
-- 演化来源：继承或改进自 reason_rft
-- 代表机构：Tsinghua
+- **选择性推理目标**：模型不是总要长 CoT，而是先决定当前样本是否值得显式推理
+- **Thought Dropout**：SFT 阶段随机把 reasoning trace 替换为空 thought，给模型建立 no-think 冷启动格式
+- **Reverse Thinking 数据构造**：给定问题、图像和答案，让基座模型反推简洁 reasoning trace，避免依赖闭源教师
+- **GRPO 自探索**：RL 阶段不额外加入长度惩罚，让 outcome reward 自然选择 think 或 non-think
+- **多任务验证**：在 CLEVR 计数、GeoQA 数学、AITZ 手机导航及 OOD 设置上评估
+- **高效收益**：相比 vanilla GRPO，TON 可将 completion length 最高减少约 90%，同时准确率不降甚至提升
 
 #### 🔬 深入细节
-GRPO选择性推理，动态调整推理深度
+##### 核心示意图
 
+![TON teaser](https://github.com/kokolerk/TON/raw/main/assets/teaser.png)
+*图：简单题中 TON 跳过冗长思考直接回答，难题中仍保留完整推理链。*
+
+##### 动机与背景
+
+GRPO 等 RL 后训练方法常鼓励模型在回答前生成完整 reasoning trace，这在复杂任务上有效，但也会带来过度推理：简单计数、显然的图形问题或重复模板任务不需要长篇 `<think>`，长输出反而增加训练采样时间、推理延迟和错误暴露面。
+
+论文的核心观察是：有些样本即使去掉整个 reasoning trace，答案仍然正确；而仅靠 prompt 让模型“简单题不要思考”并不可靠，模型会保守地继续输出完整推理。因此，“是否思考”不是推理能力的副产品，而是一种需要训练的格式和策略能力。
+
+##### Stage 1：Thought Dropout
+
+常规 SFT 数据形如：
+
+```text
+<think>reasoning trace</think><answer>answer</answer>
+```
+
+TON 随机把 `<think>` 中的内容替换为空白，例如只保留换行：
+
+```python
+def thought_dropout(thought, dropout_prob):
+    if random.random() < dropout_prob:
+        thought = "\n\n"
+    return thought
+```
+
+训练后模型见过两类合法格式：
+
+```text
+<think>完整推理</think><answer>...</answer>
+<think>
+
+</think><answer>...</answer>
+```
+
+这一步的作用不是告诉模型具体哪些题该跳过，而是让“跳过思考”成为可生成的合法动作。真正的选择策略交给第二阶段 RL 学习。
+
+##### Reverse Thinking：构造冷启动 thoughts
+
+如果没有人工 CoT 标注，TON 使用 reverse thinking：给定图像 \(I\)、问题 \(q\) 和标准答案 \(a^\*\)，让基座模型生成解释“如何从输入得到答案”的简洁 thought：
+
+$$r \sim \pi_{base}(r \mid I,q,a^\*)$$
+
+这样可以低成本构造 SFT 所需的 reasoning trace，再对其执行 Thought Dropout。与调用闭源教师相比，这种方式更轻量，也让 thoughts 风格接近目标基座模型。
+
+##### Stage 2：GRPO 选择 think / non-think
+
+SFT 只提供格式能力，GRPO 学习决策。对同一图像问题采样 \(G\) 个候选输出，有的包含完整 thought，有的为空 thought。每个输出根据任务 reward 评分：
+
+$$R=R_{format}+R_{outcome}$$
+
+组内优势为：
+
+$$\hat{A}_i=\frac{R_i-\mu_R}{\sigma_R}$$
+
+如果某个简单样本在 non-think 模式下也能答对，它会得到与 think 模式相同或更稳定的 reward；随着训练推进，模型会提高空 thought 的概率，减少输出长度。对于困难样本，空 thought 更容易答错，完整推理样本获得更高优势，模型会保留推理。
+
+```python
+# TON 训练伪代码
+def train_ton(model, sft_data, rl_data, dropout_prob=0.5):
+    # Stage 1: SFT with thought dropout
+    for image, question, thought, answer in sft_data:
+        thought = thought_dropout(thought, dropout_prob)
+        target = f"<think>{thought}</think><answer>{answer}</answer>"
+        update(model, sft_loss(model, image, question, target))
+
+    # Stage 2: GRPO
+    reference = freeze(copy(model))
+    for image, question, answer in rl_data:
+        outputs = model.sample_group(image, question, group_size=G)
+        rewards = [
+            format_reward(o) + outcome_reward(o.answer, answer)
+            for o in outputs
+        ]
+        advantages = normalize_within_group(rewards)
+        update(model, grpo_loss(model, reference, outputs, advantages))
+
+    return model
+```
+
+##### Reward 设计
+
+TON 的 reward 不需要显式惩罚长度。它主要使用：
+
+- **Format reward**：输出是否包含合法 `<think>` 和 `<answer>` 标签，空 thought 也是合法格式
+- **Discrete matching**：计数、分类、数学数值题要求预测答案匹配 ground truth
+- **Continuous matching**：AITZ 等 UI 导航任务对坐标或点击位置设置容差区域，既评估 action type，也评估 exact click
+
+这种设计的重点是给 non-think 留出空间，而不是强制短输出。模型如果空 thought 答错，reward 会自然低；如果空 thought 答对，就会逐步学会跳过。
+
+##### 实验设置
+
+TON 在三类任务上验证：
+
+- **CLEVR / Super-CLEVR**：3D 物体计数，包含 OOD 计数测试
+- **GeoQA**：中学几何数学题，推理难度较高
+- **AITZ**：移动端 GUI 导航，输出结构化 action 和坐标，包含 Web shopping、Google apps、Install 等 OOD 域
+
+基座使用 Qwen2.5-VL-Instruct-3B/7B。论文发现 TON 在简单或中等任务上能显著提升 skip-thought ratio，输出长度随训练下降；在难题上仍会保留推理链，说明它学到的是样本级自适应，而不是简单截断。
+
+##### 与传统 GRPO 的区别
+
+| 方法 | SFT 格式 | RL 行为空间 | 输出长度 |
+|---|---|---|---|
+| Vanilla GRPO | 总是完整 `<think>` | 主要探索不同推理内容 | 容易持续变长 |
+| 长度惩罚 RL | 完整 `<think>` + 短输出偏好 | 被外部惩罚压短 | 可能压坏难题推理 |
+| TON | 完整 thought 与空 thought 都合法 | 同时探索 think / non-think | 简单题短，难题长 |
+
+> 💡 关键：TON 把“是否思考”显式纳入动作空间，而不是事后压缩已经生成的推理链。
+
+#### 🧪 练习题
+```yaml
+question: "Think or Not 中 Thought Dropout 的核心作用是什么？"
+options:
+  - "在 SFT 阶段随机删除答案，让模型学会拒答"
+  - "把部分 reasoning trace 替换为空 thought，使模型获得跳过显式推理的冷启动格式"
+  - "强制所有样本都不输出 `<think>` 标签"
+  - "用外部奖励模型给每个 token 打分"
+answer: 1
+explain: "Thought Dropout 让空 thought 成为合法输出形式；随后 GRPO 根据任务 reward 学习哪些样本适合跳过推理，哪些仍需要完整推理。"
+```
 
 ### Grounded-RL
 
@@ -1639,16 +3288,138 @@ motivation: 推理步骤锚定视觉证据，减少幻觉
 ```
 
 #### 📝 一句话总结
-Grounded-RL 的核心目标是：推理步骤锚定视觉证据，减少幻觉。
+Grounded-RL 提出 ViGoRL，用强化学习训练视觉语言模型在每一步推理中显式输出图像坐标，把自然语言思考锚定到可检查的视觉证据。它用 MCTS 生成带回溯和区域探索的冷启动轨迹，再用 GRPO 优化最终任务奖励，从而缓解普通 CoT/RL 只追求答案正确却不真正看图的问题。
 
 #### 🎯 核心要点
-- 核心动机：推理步骤锚定视觉证据，减少幻觉
-- 演化来源：继承或改进自 reason_rft
-- 代表机构：CMU
+- **显式接地推理轨迹**：将每个推理节点表示为 \(\langle s_t,(x_t,y_t)\rangle\)，其中 \(s_t\) 是文本思考，\((x_t,y_t)\) 是对应视觉证据位置
+- **两阶段训练流程**：先用教师模型和 MCTS 生成接地推理树并做 SFT 冷启动，再用 GRPO 对接地格式和任务正确性进行强化学习
+- **MCTS 冷启动数据**：用 Qwen2.5-VL-72B 作为教师扩展搜索树，从 1,500 个 prompts 生成约 30K 条高质量接地推理轨迹
+- **复合奖励设计**：总奖励由格式奖励 \(r_{\text{fmt}}\) 和任务奖励 \(r_{\text{task}}\) 加权组成，坐标引用必须合法才给格式分
+- **多轮视觉反馈**：模型可通过 `<tool_call>` 请求以预测坐标为中心的高分辨率 crop，再基于 `<observation>` 继续推理
+- **跨任务评估**：覆盖 SAT-2、BLINK、RoboSpatial、V*Bench、ScreenSpot、VisualWebArena 等空间推理、视觉搜索和网页 grounding 任务
 
 #### 🔬 深入细节
-推理步骤锚定视觉证据，减少幻觉
+##### 核心框架
 
+![ViGoRL 方法总览](https://arxiv.org/html/2505.23678v3/Figures/Figure2_V3.jpg)
+*图：ViGoRL 先用 MCTS 生成接地图像区域的推理树，线性化为 SFT 冷启动轨迹，再用 GRPO 按最终奖励强化接地推理行为。*
+
+##### 动机与背景
+
+传统多模态 CoT 让模型输出较长的文字推理，但这些推理步骤往往只停留在“图中有某物”“左边那个区域”等模糊引用上。论文观察到，普通 VLM 在复杂视觉推理中常把图像当作静态上下文，而不是在每一步主动定位、检查、回看具体区域；标准 RL 只奖励最终答案时，还可能放大这种捷径，因为模型可以靠语言模式或数据偏置拿到奖励。
+
+Grounded-RL 的核心判断是：视觉推理和数学/代码推理不同，模型不仅要会“想”，还要知道每个想法来自图像中的哪里。因此 ViGoRL 把推理链从纯文本序列改写为带坐标的轨迹：
+
+$$
+\tau = [n_1,\ldots,n_T,a], \quad n_t=\langle s_t,(x_t,y_t)\rangle
+$$
+
+对应的策略分解为：
+
+$$
+\pi_\theta(\tau \mid I,q)=
+\left(\prod_{t=1}^{T}\pi_\theta(n_t \mid I,q,n_{<t})\right)
+\pi_\theta(a \mid I,q,n_{\le T})
+$$
+
+这里的关键不是让模型多输出一个坐标字段，而是把坐标变成策略的一部分。模型必须为每个推理步骤选择一个可定位的视觉证据点，后续训练才能奖励“有效地看图”和“正确地回答”。
+
+##### MCTS 生成接地冷启动轨迹
+
+ViGoRL 不直接从空白模型开始 RL，因为预训练 VLM 的初始采样分布很少包含充分的区域探索、视觉验证和回溯。论文用 MCTS 构造冷启动数据，每个搜索节点就是一个接地推理步骤 \(\langle s_t,(x_t,y_t)\rangle\)：
+
+```python
+# ViGoRL MCTS 冷启动伪代码
+def build_grounded_traces(image, question, teacher, judge):
+    tree = init_root(image, question)
+    for _ in range(num_search_iters):
+        node = select_by_ucb(tree)                       # 选择高价值且未充分探索的路径
+        child = teacher.sample_grounded_step(node)       # 生成 thought + coordinate，或候选答案
+        reward = rollout_until_answer(child, teacher, judge)
+        backpropagate(child, reward)                     # 将终局正确性回传到路径
+
+    paths = extract_successful_and_corrected_paths(tree)
+    return linearize(paths)                              # direct chains + corrected chains
+```
+
+MCTS 的价值在于它天然支持分支探索和回溯：如果某个区域或思路导致错误，搜索树可以转向其他区域，并把“等一下，这里不对”的纠正链也保留下来。线性化后有两类 SFT 样本：直接走向正确答案的 direct chains，以及先失败再回溯修正的 corrected chains。这比普通 teacher distillation 更像人类视觉检索过程。
+
+##### GRPO 强化接地格式与答案正确性
+
+SFT 得到的 \(\pi_{\theta_0}\) 只是模仿 MCTS 轨迹，面对新问题不一定最优。ViGoRL 接着用 GRPO 优化长轨迹奖励。对同一输入 \(x\) 采样 \(G\) 条轨迹 \(\{\tau^{(i)}\}_{i=1}^{G}\)，每条轨迹有标量奖励 \(r^{(i)}=R(\tau^{(i)})\)，组内优势为：
+
+$$
+\hat{A}^{(i)} = r^{(i)} - \bar{R}, \quad
+\bar{R}=\frac{1}{G}\sum_i r^{(i)}
+$$
+
+GRPO 的裁剪目标可写为：
+
+$$
+\mathcal{L}_{\text{GRPO}}(\theta)=
+-\frac{1}{G}\sum_{i=1}^{G}\frac{1}{|\tau^{(i)}|}
+\sum_t
+\min\left[
+\rho_t^{(i)}\hat{A}^{(i)},
+\text{clip}(\rho_t^{(i)},1-\epsilon,1+\epsilon)\hat{A}^{(i)}
+\right]
+\beta D_{\text{KL}}(\pi_\theta\|\pi_{\text{ref}})
+$$
+
+其中 \(\rho_t^{(i)}=\frac{\pi_\theta(\tau_t^{(i)}\mid \tau_{<t}^{(i)},x)}{\pi_{\text{old}}(\tau_t^{(i)}\mid \tau_{<t}^{(i)},x)}\)。总奖励为：
+
+$$
+R(\tau)=\lambda_{\text{fmt}}r_{\text{fmt}}+\lambda_{\text{task}}r_{\text{task}}
+$$
+
+\(r_{\text{fmt}}\) 检查 `<think>`、`<answer>` 和坐标格式是否有效，且只有所有坐标引用合法时才给格式奖励；\(r_{\text{task}}\) 随任务定义，例如 SAT-2 用答案是否匹配，网页 grounding 用预测坐标是否落在标注框内，网页动作预测则拆成 action type 和 argument 两部分。
+
+> 💡 关键：Grounded-RL 不直接奖励“写得像推理”，而是奖励带合法视觉锚点的推理轨迹和最终任务成功。这样可以抑制没有视觉证据支撑的语言化幻觉。
+
+##### 多轮 RL：把坐标变成可交互视觉反馈
+
+单轮接地仍有一个限制：模型虽然输出了坐标，但视觉编码器看到的还是同一张全局缩放图，小文字、按钮、局部边界可能已经被压缩掉。ViGoRL 因此引入多轮设置：模型预测坐标后，可以调用 crop 工具获得局部高分辨率观察。
+
+```python
+# ViGoRL 多轮推理伪代码
+def vigorl_multiturn(model, image, question, max_turns=5):
+    context = [image, question]
+    for _ in range(max_turns):
+        output = model.generate(context)
+        if has_answer(output):
+            return extract_answer(output)
+
+        coord = extract_coordinate_from_tool_call(output)
+        crop = crop_around(image, coord)                 # 环境返回局部高分辨率图
+        context += [output, f"<observation>{crop}</observation>"]
+
+    context += ["<think>Please provide your response now</think>"]
+    return extract_answer(model.generate(context))
+```
+
+多轮训练把单轮 MCTS 轨迹改写成 dialog：每轮先输出 `<think>`，再输出 `<tool_call>{"name":"crop","arguments":{"coordinate": ...}}</tool_call>` 或 `<answer>`；环境返回 `<observation>` 后继续。RL 时 observation token 被 mask，不作为策略梯度的目标，因为它们来自环境而不是模型策略。
+
+多轮格式奖励还加入了严格 tag 自动机和坐标多样性奖励：如果模型重复同一坐标、不调用工具或破坏对话结构，格式分会下降；若多次选择足够不同的区域，则可获得小额 bonus。这鼓励模型把推理预算花在真正的视觉探索上，而不是一轮结束或反复看同一点。
+
+##### 与普通 CoT/RL 的区别
+
+| 方法 | 推理中间态 | 奖励重点 | 主要风险 |
+|---|---|---|---|
+| 普通 CoT | 纯文本 thought | 最终答案或格式 | 文本解释看似合理但未真正引用图像 |
+| Vanilla GRPO | 纯文本或弱格式输出 | 任务正确性 | RL 放大捷径，可能更少进行视觉验证 |
+| Grounded-RL / ViGoRL | thought + coordinate + 可选 crop | 合法接地、任务正确、区域探索 | 需要构造接地冷启动和工具式多轮环境 |
+
+#### 🧪 练习题
+```yaml
+question: "Grounded-RL 为什么要先用 MCTS 生成接地冷启动轨迹，再进行 GRPO？"
+options:
+  - "因为 MCTS 可以替代视觉编码器，直接输出最终答案"
+  - "因为预训练 VLM 很少自然产生区域探索和回溯行为，冷启动能把接地推理分布先引入策略"
+  - "因为 GRPO 只能优化树结构数据，不能优化线性文本"
+  - "因为坐标奖励不需要最终答案正确性"
+answer: 1
+explain: "论文发现普通 VLM 和 vanilla RL 容易产生不接地图像的语言捷径。MCTS 用教师模型搜索 thought+coordinate 路径，并保留探索、验证、回溯轨迹，使后续 GRPO 有更好的初始策略。"
+```
 
 ### SSR-CoT
 
@@ -1667,16 +3438,173 @@ motivation: 百万级空间推理数据，增强深度感知
 ```
 
 #### 📝 一句话总结
-SSR-CoT 的核心目标是：百万级空间推理数据，增强深度感知。
+SSR-CoT/SSR 提出用深度图生成空间推理 rationale，并把这些文本 rationale 蒸馏成紧凑的 latent tokens 注入 VLM，使模型在无需显式输出长 CoT 的情况下获得深度感知和空间推理能力。它同时构建百万级 SSR-CoT 数据集与 SSRBench，用于训练和评估图像-深度-问题-推理-答案链路。
 
 #### 🎯 核心要点
-- 核心动机：百万级空间推理数据，增强深度感知
-- 演化来源：继承或改进自 visual_cot
-- 代表机构：SJTU
+- **MIDI 模块**：提出 Mamba-based Image-Depth Interpreter，将 RGB 特征、深度特征和问题编码为深度感知的空间 reasoning latent tokens
+- **深度到 rationale 的桥接**：先用 Depth Pro 估计深度，再把空间关系、距离、位置等信息写入中间 rationale
+- **latent CoT 蒸馏**：不在推理时输出冗长文字 CoT，而是把 rationale 压缩进 \(Z_R\) latent tokens，插入 VLM 输入序列
+- **两阶段训练**：Stage 1 对齐 MIDI latent tokens 与自然语言 rationale；Stage 2 可选地与 VLM 联合训练，直接监督最终答案
+- **SSR-CoT 数据集**：整合 LLaVA-CoT、Visual-CoT、VoCoT、SpatialQA，形成超过 100 万条 image-depth-question-rationale-answer 样本
+- **SSRBench 基准**：覆盖 general 与 spatial 任务，用于评估深度利用、空间关系理解和 VQA 泛化
 
 #### 🔬 深入细节
-百万级空间推理数据，增强深度感知
+##### 核心框架
 
+![SSR 框架图](https://arxiv.org/html/2505.12448v3/x2.png)
+*图：SSR 由深度估计、MIDI 模块、VLM 推理与两阶段训练组成；Stage 1 让 MIDI 学会恢复空间 rationale，Stage 2 可选地让 MIDI 与 VLM 联合生成最终答案。*
+
+##### 动机与背景
+
+多数 VLM 只看 RGB 图像，天然缺少几何深度信息。即使引入深度图或点云，传统做法也常把深度当作额外输入特征，缺少“如何把深度用于推理”的中间表达。例如判断“谁在更前面”“物体是否在桌子下面”“人推着什么”时，模型需要把像素级深度转成对象级位置、距离、遮挡和交互关系。
+
+SSR 的核心思想是把深度数据翻译成结构化、可解释的空间 rationale，再把 rationale 压缩为 latent tokens。这样既保留了 CoT 的推理信息，又避免推理阶段生成大量文字带来的成本。
+
+##### MIDI：从图像和深度生成空间 latent tokens
+
+给定 RGB 图像 \(X_V \in \mathbb{R}^{H\times W\times 3}\)、文本问题 \(X_T\)，SSR 首先用 Depth Pro 得到单目深度图：
+
+$$
+X_D \in \mathbb{R}^{H\times W\times 1}
+$$
+
+随后分别提取 RGB 和深度特征。论文使用 CLIP ViT-L/14 作为视觉编码器 \(E_V\)，使用 SigLIP 作为深度编码器 \(E_D\)：
+
+$$
+H_\alpha = E_\alpha(X_\alpha), \quad \alpha \in \{V,D\}
+$$
+
+再通过两层 MLP projector \(\phi_V,\phi_D\) 映射到语言模型可用的语义空间：
+
+$$
+Z_\alpha = \phi_\alpha(H_\alpha), \quad \alpha \in \{V,D\}
+$$
+
+MIDI 的核心是一个 Mamba-based language model \(f_{\text{LM}}\)，它联合 RGB 特征、深度特征和问题，生成表示中间空间 rationale 的隐状态：
+
+$$
+H_R = f_{\text{LM}}(Z_V,Z_D,X_T)
+$$
+
+最后再用投影层 \(\phi_R\) 变成可插入 VLM 的 latent rationale tokens：
+
+$$
+Z_R = \phi_R(H_R)
+$$
+
+这些 \(Z_R\) token 被当作“隐式空间思维链”拼入 VLM 的图文输入，最终答案为：
+
+$$
+Y_A = f_{\text{VLM}}(X_V,Z_R,X_T)
+$$
+
+> 💡 关键：SSR 不是简单把深度图塞给 VLM，而是让 MIDI 把深度转换成任务相关的空间推理表示，再由 VLM 使用这些 latent tokens 回答问题。
+
+##### 两阶段训练目标
+
+**Stage 1：Reasoning and Alignment**
+
+Stage 1 只训练 MIDI，使它产生的 latent tokens 能被冻结或后续 LLM 理解为原始文字 rationale。每个样本包含 ground-truth rationale \(Y_R\)，训练目标是从 \(X_V,X_D,X_T,Z_R\) 自回归重建该 rationale：
+
+$$
+\mathcal{L}_1(\theta)=
+-\mathbb{E}_{(X_V,X_D,X_T,Z_R,Y_R)\sim D}
+\left[
+\frac{1}{|Y_R|}
+\sum_{i=1}^{|Y_R|}
+\log P_\theta(Y_{R,i}\mid X_V,X_D,X_T,Z_R,Y_{R,<i})
+\right]
+$$
+
+这一阶段解决两个问题：MIDI 必须学会“读懂深度并形成空间推理”，同时还要把 latent tokens 投影到语言语义空间，使后续 VLM 能消费它们。
+
+**Stage 2：Co-Training**
+
+Stage 2 是可选的联合训练。此时不再监督中间 rationale，而是让 VLM 直接生成答案 \(Y_A\)，目标函数为：
+
+$$
+\mathcal{L}_2(\theta)=
+-\mathbb{E}_{(X_V,X_D,X_T,Y_A)\sim D}
+\left[
+\frac{1}{|Y_A|}
+\sum_{j=1}^{|Y_A|}
+\log P_\theta(Y_{A,j}\mid X_V,X_D,X_T,Y_{A,<j})
+\right]
+$$
+
+因为 Stage 2 不需要 rationale 标注，所以可以引入更多普通 VQA 样本来扩展泛化能力。论文也强调 MIDI 具备 plug-and-play 特性：只做 Stage 1 时，也能把 \(Z_R\) 作为外部模块接入已有 VLM。
+
+##### SSR-CoT 数据构造
+
+![SSR-CoT 标注流程](https://arxiv.org/html/2505.12448v3/x3.png)
+*图：SSR-CoT 先估计深度，再结合 bounding box、SpatialRGPT/GPT-4o 等工具生成空间 rationale，并通过质量评估筛选。*
+
+SSR-CoT 的样本格式可以理解为：
+
+```yaml
+image: RGB image
+depth: estimated depth map
+question: spatial or general VQA question
+rationale: object locations, depth/order/proximity relations, and reasoning steps
+answer: final answer
+```
+
+数据来源包括：
+
+- LLaVA-CoT：通用和科学 VQA 的结构化 reasoning 数据
+- Visual-CoT：以 bounding box 作为中间思考步骤的多模态 CoT 数据
+- VoCoT：包含对象关系和框标注的细粒度 image-text CoT 数据
+- SpatialQA：包含深度相关和机器人空间问答的数据
+
+处理流程大致如下：
+
+```python
+# SSR-CoT 构造伪代码
+def build_ssr_cot(raw_vqa_samples):
+    dataset = []
+    for sample in raw_vqa_samples:
+        depth = depth_pro(sample.image)
+        objects = extract_boxes_or_spatial_entities(sample)
+        spatial_query = rewrite_as_spatial_query(sample.question, objects)
+        rationale = generate_spatial_rationale(
+            image=sample.image,
+            depth=depth,
+            question=spatial_query,
+            tools=["SpatialRGPT", "GPT-4o"],
+        )
+        if quality_check(sample.image, sample.question, rationale, sample.answer):
+            dataset.append((sample.image, depth, sample.question, rationale, sample.answer))
+    return dataset
+```
+
+论文报告，加入 intermediate rationale 后，Qwen2.5-VL-7B-Instruct 的评估准确率从 67.80 提升到 79.42，说明这些 rationale 不只是解释性文本，而是包含了对答案有用的空间信息。
+
+##### 推理效率：显式 CoT 到 latent CoT
+
+显式输出文字 CoT 的问题是推理慢、token 多，还可能引入冗余解释。SSR 把 rationale 蒸馏到少量 latent tokens 后，可以在推理时避免输出长链。论文在 SpatialBench 上对比显示，SFT 文本 CoT 版本每样本需要数百个 token，而 SSR 只需要极少 latent reasoning token，并显著缩短推理时间。
+
+这种设计的直觉是：训练时用文字 rationale 教模型“空间信息应该如何组织”，推理时让 MIDI 在隐藏空间中提供同类信息。VLM 接收到的是压缩后的空间工作记忆，而不是一整段自然语言解释。
+
+##### 与传统空间 VLM 的区别
+
+| 方法 | 深度信息使用方式 | 中间推理 | 推理成本 |
+|---|---|---|---|
+| RGB-only VLM | 无显式深度 | 依赖语言模型猜测空间关系 | 低，但空间错误多 |
+| 直接拼接深度特征 | 深度作为额外视觉输入 | 缺少对象级/关系级 rationale | 中等，深度利用可能浅 |
+| 文本 CoT 空间推理 | 显式生成空间描述 | 可解释但 token 长 | 高 |
+| SSR / SSR-CoT | 深度经 MIDI 转为 latent rationale | 隐式空间 CoT | 低，且可 plug-and-play |
+
+#### 🧪 练习题
+```yaml
+question: "SSR 为什么要把空间 rationale 蒸馏成 latent tokens，而不是推理时直接输出完整文字 CoT？"
+options:
+  - "因为 VLM 不能处理自然语言 rationale"
+  - "因为 latent tokens 可以保留空间推理信息，同时显著降低长文本 CoT 的 token 成本"
+  - "因为深度图只能用 Mamba 编码，不能用 Transformer 编码"
+  - "因为 SSRBench 不允许模型输出解释"
+answer: 1
+explain: "SSR 用文字 rationale 做训练监督，让 MIDI 学到深度相关的空间推理；推理时以压缩 latent tokens 注入 VLM，避免生成冗长 CoT。"
+```
 
 ### MuSLR
 
@@ -1695,16 +3623,146 @@ motivation: 增强鲁棒性与逻辑严密性
 ```
 
 #### 📝 一句话总结
-MuSLR 的核心目标是：增强鲁棒性与逻辑严密性。
+MuSLR 提出首个面向多模态符号逻辑推理的 benchmark，要求模型结合图像和文本前提，按形式逻辑规则推导答案。论文进一步提出 LogiCAM，把推理拆成前提选择、推理类型识别和符号/启发式推理三个模块，使 VLM 在长链和复杂逻辑上比普通 CoT 更稳健。
 
 #### 🎯 核心要点
-- 核心动机：增强鲁棒性与逻辑严密性
-- 演化来源：继承或改进自 genome
-- 代表机构：NUS
+- **新任务定义**：MuSLR 要求 VLM 在图像 \(I\) 和文本 \(T\) 的联合上下文中执行形式逻辑推导，而不是只做常识型视觉问答
+- **两种任务格式**：Truth Evaluation（True/False/Unknown）与 Multiple Choice，均要求模型应用符号规则得到答案
+- **MuSLR-Bench**：包含 1,093 个样本、7 个领域、35 个原子逻辑规则、976 个组合逻辑链，推理深度从 2 到 9
+- **三类符号逻辑**：覆盖 propositional logic (PL)、first-order logic (FOL) 和 non-monotonic logic (NM)
+- **LogiCAM 框架**：由 Premise Selector、Reasoning Type Identifier、Reasoner 三个模块组成，迭代地产生可追踪推理链
+- **关键发现**：当前 VLM 的主要失败来自视觉与文本逻辑前提的 misalignment，约 70% 失败与跨模态逻辑对齐有关
 
 #### 🔬 深入细节
-增强鲁棒性与逻辑严密性
+##### 核心框架
 
+![LogiCAM 工作流](https://arxiv.org/html/2509.25851v2/x4.png)
+*图：LogiCAM 每轮先选择关键多模态前提，再判断使用形式符号推理还是启发式常识推理，最后把新结论加入上下文继续迭代。*
+
+##### 动机与背景
+
+很多视觉推理 benchmark 关注空间关系、属性识别或常识问答，但高风险场景还需要可验证的形式逻辑。例如自动驾驶中，图像显示“前方道路关闭”，文本规则写着“只有道路开放时车辆才能直行”，模型应通过 Modus Tollens 推出“不能直行”。这类问题不能只靠图像描述或语言常识，而需要把视觉事实映射成逻辑前提，再严格应用形式规则。
+
+MuSLR 的挑战在于两点同时成立：图像和文本各自都不够，模型必须融合两种模态；答案不能只看语义相似度，而要符合逻辑推导链。论文因此把样本组织为：
+
+$$
+(I,T,Q) \rightarrow A
+$$
+
+其中 \(I\) 是图像，\(T\) 包含文本上下文和符号规则，\(Q\) 是问题，\(A\) 是 Truth Evaluation 或 Multiple Choice 的答案。每个样本还配有 ground-truth reasoning chain，用于分析模型是否真正按逻辑步骤推导。
+
+##### MuSLR-Bench 构造
+
+![MuSLR 数据构造流程](https://arxiv.org/html/2509.25851v2/x2.png)
+*图：MuSLR 从多模态数据和符号规则出发，组合推理链、映射到真实场景、生成问答，并经过自动和人工质量检查。*
+
+数据构造流程可以概括为：
+
+```python
+# MuSLR-Bench 构造伪代码
+def build_muslr_bench(public_mm_sources, logic_rules):
+    atomic_rules = select_rules(logic_rules, types=["PL", "FOL", "NM"])
+    abstract_chains = compose_meaningful_rule_chains(atomic_rules)
+    instances = []
+    for chain in abstract_chains:
+        context = ground_chain_to_real_world(chain, public_mm_sources)
+        question, answer = generate_question_answer(context, chain)
+        if automatic_logic_filter(chain, context) and manual_quality_check(question, answer):
+            instances.append((context.image, context.text, question, answer, chain))
+    return instances
+```
+
+论文先选择非平凡逻辑规则，例如 Modus Ponens、Hypothetical Syllogism、De Morgan's Law 等，再由专家组合成有意义的抽象推理链。随后将抽象符号映射到真实图文场景中，得到可问可答的多模态逻辑样本。
+
+质量控制强调两点：逻辑链必须形式上可靠，图像和文本必须都对答案必要。这样可以防止模型只靠文本规则或只靠图像常识绕过真正的多模态符号推理。
+
+##### LogiCAM：模块化多模态逻辑推理
+
+LogiCAM 全称是 Logical reasoning with Commonsense Augmentation with Multimodality。它不是外接传统 theorem prover，而是让强 VLM 在明确模块约束下近似形式推理。完整循环包含四步：
+
+```python
+# LogiCAM 推理伪代码
+def logicam(image, text_context, question, vlm):
+    context = text_context
+    reasoning_chain = []
+    while True:
+        # 1. 选择关键多模态前提
+        rule, visual_fact = premise_selector(vlm, image, context, question)
+        critical = combine(rule, visual_fact)
+
+        # 2. 判断推理类型
+        mode = reasoning_type_identifier(vlm, critical)
+
+        # 3. 执行推理
+        if mode == "symbolic":
+            conclusion = apply_formal_rule(vlm, critical)
+        else:
+            conclusion = commonsense_bridge(vlm, critical)
+
+        reasoning_chain.append(conclusion)
+
+        # 4. 检查是否足够回答问题
+        if sufficient_to_answer(conclusion, question):
+            return answer_from(conclusion), reasoning_chain
+        context = context + "\n" + conclusion
+```
+
+**1. Premise Selector**
+
+给定图像 \(I\)、文本 \(T\) 和问题 \(Q\)，该模块先从文本中选出最相关的符号规则 \(R_r\)，再分析规则中哪些元素需要图像证据，并从图像抽取对应视觉事实 \(V_r\)。二者组合成关键前提：
+
+$$
+I_{\text{critical}} = (R_r,V_r)
+$$
+
+这一步解决的是跨模态对齐问题：如果图像事实没有正确映射到规则变量，后续形式推理即使规则正确也会错。
+
+**2. Reasoning Type Identifier**
+
+并非每一步都能只靠形式逻辑推进。该模块判断当前 \(I_{\text{critical}}\) 是否满足某个明确逻辑规则的应用条件。若满足，就优先使用 symbolic reasoning；若符号规则不足以连接真实场景，则允许使用 commonsense heuristics 补充。
+
+**3. Reasoner**
+
+当选择 symbolic reasoning 时，Reasoner 按形式规则推导结论 \(C\)，例如从 \((A\rightarrow B)\) 和 \(A\) 推出 \(B\)，或从 \((A\lor B)\) 和 \(\neg A\) 推出 \(B\)。当选择 heuristic reasoning 时，它只用于补足真实世界上下文中符号系统未覆盖的桥接信息。
+
+**4. Completion Check**
+
+若当前结论 \(C\) 足以回答问题，输出最终答案；否则将 \(C\) 加入上下文：
+
+$$
+T' = T \cup C
+$$
+
+然后继续下一轮。这个迭代机制让 LogiCAM 能处理深度 2 到 9 的长链，而不是一次性生成一大段容易断裂的 CoT。
+
+##### 为什么普通 VLM 容易失败
+
+MuSLR 的错误分析显示，性能会随逻辑复杂度和链长明显下降。FOL 最难，因为它要求变量绑定、量词和实体映射都精确；PL 相对简单但仍高度依赖文本-图像前提对齐；NM 更接近人类常识推理，但也可能被启发式捷径误导。
+
+LogiCAM 的提升来自显式分工：Premise Selector 把图像事实和符号规则先对齐，Reasoning Type Identifier 避免在需要形式推理时滥用常识，Reasoner 再逐步产生可追踪结论。论文报告 LogiCAM 使 GPT-4.1 的 CoT 平均性能提升 14.13%，且在 FOL 等复杂逻辑上提升更明显。
+
+> ⚠️ 注意：MuSLR 的目标不是证明 VLM 可以取代符号求解器，而是指出多模态逻辑任务中，最难的是把视觉证据、文本规则和形式推理步骤可靠地接起来。
+
+##### 与神经符号/普通 CoT 的区别
+
+| 方法 | 视觉输入 | 形式规则 | 推理可追踪性 | 局限 |
+|---|---|---|---|---|
+| 普通 VLM CoT | 直接看图 | 隐式使用 | 弱，容易跳步 | 可能输出合理但不合逻辑的解释 |
+| LLM + theorem prover | 通常依赖文本 formalization | 显式符号求解 | 强 | 需要可靠把图文转成形式表达 |
+| LogiCAM | VLM 直接访问图像和文本 | 模块化近似应用 | 中到强 | 仍受跨模态对齐错误影响 |
+| MuSLR-Bench | 用于评估 | PL/FOL/NM | 提供 ground-truth chains | 是 benchmark，不是单一模型 |
+
+#### 🧪 练习题
+```yaml
+question: "LogiCAM 中 Reasoning Type Identifier 的主要作用是什么？"
+options:
+  - "把图像编码成更高分辨率 token"
+  - "判断当前关键前提应优先使用形式符号推理，还是用启发式常识补充"
+  - "直接计算最终答案的准确率"
+  - "把所有文本前提交给外部 theorem prover"
+answer: 1
+explain: "LogiCAM 每轮先选出关键图文前提，再判断是否满足形式逻辑规则的应用条件；若不满足，才用启发式常识补足真实场景中的缺口。"
+```
 
 ### Med-R1
 
@@ -1723,12 +3781,158 @@ motivation: GRPO医学推理，跨模态跨任务泛化
 ```
 
 #### 📝 一句话总结
-Med-R1 的核心目标是：GRPO医学推理，跨模态跨任务泛化。
+Med-R1 将 GRPO 引入医学 VQA 后训练，用规则化的格式奖励和答案奖励提升小型 VLM 在八类医学影像和五类医学问答任务上的泛化能力。论文还系统比较 Think、No-Think 与 Think-After，指出医学场景中“更长推理”不一定更好，推理质量和领域对齐比推理长度更关键。
 
 #### 🎯 核心要点
-- 核心动机：GRPO医学推理，跨模态跨任务泛化
-- 演化来源：继承或改进自 reason_rft
-- 代表机构：Stanford Med
+- **医学 VLM 的 RL 后训练框架**：以 Qwen2-VL/Qwen2.5-VL 为基础模型，用 GRPO 训练医学视觉问答策略
+- **八类影像模态**：CT、MRI、Ultrasound、Dermoscopy、Fundus Photography、OCT、Microscopy、X-ray
+- **五类任务类型**：modality recognition、anatomy identification、disease diagnosis、lesion grading、biological attribute analysis
+- **规则奖励而非奖励模型**：使用格式奖励检查 `<think>/<answer>` 标签，使用准确率奖励检查多选题答案字母是否匹配
+- **组内相对优势**：GRPO 不训练 critic，而是对同一问题采样多条回答，用组内奖励归一化估计 advantage
+- **Think/No-Think/Think-After 对比**：No-Think 往往提升跨模态泛化，Think-After 在保留可解释性和稳定性之间取得折中
 
 #### 🔬 深入细节
-GRPO医学推理，跨模态跨任务泛化
+##### 核心框架
+
+![Med-R1 奖励与长度曲线](https://arxiv.org/html/2503.13939v4/extracted/6388405/fig_rewards_length.png)
+*图：Med-R1 在不同医学模态和任务上的 GRPO 训练奖励与输出长度变化；奖励通常在 100-200 steps 内收敛，输出长度随训练缩短。*
+
+##### 动机与背景
+
+医学影像 VQA 与自然图像 VQA 不同：问题往往要求识别细粒度病灶、解剖结构或影像模态，且不同模态之间视觉分布差异很大。传统 SFT 容易把模型绑定到训练集中的表面模式，例如某种模态的特定纹理或某类问题的常见答案；高质量医学 CoT 标注又昂贵且难以规模化。
+
+Med-R1 的出发点是用 RL 替代单纯最大似然拟合，让模型在规则奖励下探索更稳健的回答策略。与 PPO 相比，GRPO 不需要额外价值模型，适合资源受限的医学 VLM 后训练。
+
+##### GRPO 目标函数
+
+对训练问题集合 \(P(Q)\)，每次采样问题 \(q\)，旧策略 \(\pi_{\theta_{\text{old}}}\) 对同一问题生成 \(G\) 个回答 \(\{o_i\}_{i=1}^{G}\)。GRPO 目标为：
+
+$$
+J_{\text{GRPO}}(\theta)=
+\mathbb{E}_{q\sim P(Q),\{o_i\}_{i=1}^{G}\sim \pi_{\theta_{\text{old}}}}
+\frac{1}{G}\sum_{i=1}^{G}
+\left[
+\min\left(
+\frac{\pi_{\theta_{\text{new}}}(o_i\mid q)}
+{\pi_{\theta_{\text{old}}}(o_i\mid q)}A_i,
+\text{clip}\left(
+\frac{\pi_{\theta_{\text{new}}}(o_i\mid q)}
+{\pi_{\theta_{\text{old}}}(o_i\mid q)},
+1-\epsilon,1+\epsilon
+\right)A_i
+\right)
+-\beta D_{\text{KL}}(\pi_{\theta_{\text{new}}}\|\pi_{\text{ref}})
+\right]
+$$
+
+其中 \(\pi_{\text{ref}}\) 是冻结的基础 MLLM，KL 项限制新策略不要偏离基础模型太远。与 PPO 不同，GRPO 的 \(A_i\) 不来自 critic，而来自同组样本的奖励归一化：
+
+$$
+A_i = \frac{r_i-\text{mean}(\{r_j\}_{j=1}^{G})}{\text{std}(\{r_j\}_{j=1}^{G})}
+$$
+
+直觉上，同一医学问题下多条候选回答互相比，答对且格式正确的回答获得正优势，答错或格式坏的回答获得负优势。
+
+##### 奖励设计
+
+Med-R1 使用两类规则奖励：
+
+- **格式奖励**：要求模型把思考过程放在 `<think>...</think>`，最终答案放在 `<answer>...</answer>` 中；标签存在且格式正确时给 1 分
+- **准确率奖励**：医学 VQA 多为选项题，若提取出的首个答案字母与 ground truth 匹配，则给 1 分
+
+```python
+# Med-R1 GRPO 奖励伪代码
+def med_r1_reward(response, gold_letter, mode="think"):
+    if mode == "think":
+        format_reward = has_valid_tags(response, ["think", "answer"])
+        pred = extract_answer_letter(response)
+    elif mode == "no_think":
+        format_reward = has_valid_tags(response, ["answer"]) and no_text_outside_answer(response)
+        pred = extract_answer_letter(response)
+    elif mode == "think_after":
+        format_reward = answer_before_rationale(response)
+        pred = extract_answer_letter(response)
+
+    accuracy_reward = int(pred == gold_letter)
+    return format_reward + accuracy_reward
+```
+
+这种奖励很轻量，不依赖医学专家在线判分或训练额外 reward model。代价是它主要适用于有明确答案的 VQA/选择题设置，开放式临床报告生成还需要更复杂的语义和医学事实奖励。
+
+##### Think、No-Think 与 Think-After
+
+Med-R1 的重要贡献不只是“用 GRPO 训练医学 VLM”，还在于比较了推理形式本身。
+
+**Think** 是标准 R1 风格：先输出 `<think>` 中间推理，再在 `<answer>` 中给出答案。它有可解释性，但在医学图像上可能生成领域不对齐的 rationale。例如模型借用自然图像或通用医学常识的语言模式，看似解释充分，实际与影像证据不匹配。
+
+**No-Think** 修改 prompt，只允许输出：
+
+```text
+<answer>A</answer>
+```
+
+如果 `<answer>` 之外出现任何显式思考文本，答案抽取会变成 null，从而准确率奖励为 0。这会强迫模型直接优化答案选择。论文发现 No-Think 在跨模态泛化中经常优于 Think，说明在缺少高质量医学 CoT 监督时，强行生成中间 rationale 可能反而引入幻觉。
+
+**Think-After** 则先输出答案，再输出事后解释。它的设计目标是让答案优化不被冗长前置推理扰动，同时保留给医生审阅的解释文本：
+
+```text
+<answer>B</answer>
+<think>post-hoc rationale explaining the decision</think>
+```
+
+Think-After 不完全解决推理忠实性问题，但比前置 Think 更稳定，也更符合医学应用中“先给可核验结论，再给解释供审阅”的需求。
+
+##### 训练与推理流程
+
+```python
+# Med-R1 训练流程伪代码
+def train_med_r1(policy, ref_policy, medical_vqa_data):
+    for batch in sample_questions(medical_vqa_data):
+        all_responses = []
+        for q in batch:
+            responses = policy.sample(q, G=group_size)
+            rewards = [rule_reward(r, q.gold) for r in responses]
+            advantages = normalize_within_group(rewards)
+            all_responses.append((q, responses, advantages))
+
+        loss = clipped_grpo_loss(
+            policy=policy,
+            old_policy=policy.snapshot(),
+            ref_policy=ref_policy,
+            grouped_samples=all_responses,
+            kl_beta=beta,
+        )
+        policy.update(loss)
+    return policy
+```
+
+评估时，论文从两个维度测试泛化：跨模态泛化和跨任务泛化。跨模态设置中，模型在某一影像模态上后训练，再测试到其他七类模态；跨任务设置中，模型在某一问题类型上训练，再测试到其他问题类型。这比只测同分布准确率更贴近医学部署，因为真实系统经常遇到新设备、新模态和新问题类型。
+
+##### 关键实验结论
+
+Med-R1 的 2B 模型相对 Qwen2-VL-2B 获得约 29.94% 平均准确率提升，并超过更大的 Qwen2-VL-72B；跨任务泛化相对基础模型提升约 32.06%。这些结果说明，规则 RL 后训练能让小模型更有效地适应医学问答，而不是单纯依赖参数规模。
+
+论文也提醒一个反直觉结论：在医学 VQA 中，推理越长不一定越好。训练曲线显示输出长度会下降，而奖励保持或提升，说明 GRPO 学到的是更直接、更符合标签奖励的决策策略。若没有医学领域对齐的 rationale 监督，长 CoT 可能成为噪声源。
+
+> 💡 关键：Med-R1 把医学 VLM 的问题从“如何让模型多说推理”转为“如何让模型在可验证奖励下学到可泛化且足够可解释的回答策略”。
+
+##### 与 SFT 和通用 R1 的区别
+
+| 方法 | 监督信号 | 优势 | 医学场景风险 |
+|---|---|---|---|
+| SFT | 固定答案/标注分布 | 稳定、实现简单 | 容易记忆训练模态和任务捷径 |
+| 通用 Think CoT | 前置自然语言推理 | 可解释、符合 R1 形式 | rationale 可能与医学影像证据不对齐 |
+| No-Think Med-R1 | 只优化答案奖励 | 泛化更稳、训练更直接 | 缺少可审阅解释 |
+| Think-After Med-R1 | 先答案后解释 | 兼顾准确率和解释 | 解释仍需进一步校验忠实性 |
+
+#### 🧪 练习题
+```yaml
+question: "Med-R1 中 No-Think 变体为什么可能比前置 Think 获得更好的跨模态泛化？"
+options:
+  - "因为医学 VQA 不需要视觉输入"
+  - "因为在缺少高质量医学 CoT 监督时，前置自由推理可能产生领域不对齐的幻觉，No-Think 直接优化答案奖励"
+  - "因为 GRPO 无法处理 <think> 标签"
+  - "因为 No-Think 使用了更大的基础模型"
+answer: 1
+explain: "论文发现医学场景中推理质量比推理长度更重要。若前置 rationale 来自通用域模式，可能与医学影像证据错位；No-Think 去掉这一路径，直接优化答案正确性。"
+```

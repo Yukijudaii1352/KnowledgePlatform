@@ -1,180 +1,125 @@
-### Kimi K2：基于 MuonClip 优化器与统一强化学习框架的大规模 MoE 语言模型
+### Kimi K2：开放智能体 MoE 模型 (Kimi K2)
 
 ```yaml
 id: kimi_k2
 name: Kimi K2
-full_name: Kimi K2
-year: "2025"
+full_name: 开放智能体 MoE 模型 (Kimi K2)
+year: "2025.07"
 org: Moonshot AI
 paper_url: https://arxiv.org/abs/2507.20534
-category: llm
-parent: —
-motivation: 用MuonClip优化器首次训练1T MoE，统一可验证奖励与自批判反馈的RL框架
+category: sparse_moe
+parent: deepseek_v3
+motivation: MuonClip稳定万亿MoE
 ```
-
----
 
 #### 📝 一句话总结
 
-Kimi K2 提出了 **MuonClip 优化器（Muon + QK-Clip）** 以解决 Muon 在大模型中训练不稳定的问题，使 1T 参数 MoE 模型的收敛速度比 AdamW 快 30-50%；同时首创 **统一强化学习框架**，将数学/代码的可验证奖励与通用对话的自批判反馈融合为单一 RL 流程，在 SWE-bench Verified 上达到 71.6%（开源 SOTA）。
-
----
+Kimi K2 提出了 1.04T total、约 32B active 的开放 MoE 智能体模型，并用 MuonClip 解决 Muon 在万亿参数训练中的注意力 logit 爆炸问题。它进一步通过大规模工具使用轨迹合成、可验证奖励与 self-critique rubric reward 的联合 RL，把基础模型能力转化为软件工程、工具调用和多步 agentic 行为。
 
 #### 🎯 核心要点
 
-- **MuonClip 优化器**：在 Muon 的 Newton-Schulz 迭代基础上引入 **QK-Clip**（对 Q/K 投影矩阵 L2 范数硬阈值裁剪 1000.0），彻底解决 logit explosion 问题，使 Muon 首次成功训练千亿级 LLM
-- **RMSNorm-only 架构**：去除 LayerNorm 的均值中心化和可学习偏置，仅保留 RMSNorm 缩放因子，保障 Muon 的 NS 迭代数值稳定性
-- **1T 总参 / 32.6B 激活的 MoE**：384 专家（8 激活 + 1 共享），稀疏度 48，基于自研稀疏度 Scaling Law 确定
-- **Table 2 架构对比**：相比 DeepSeek-V3（671B/37B/256 专家），K2 总参 ↑54%、激活 ↓13%、专家 ↑50%、注意力头 ↓50%（128→64）、密集层 ↓67%（3→1）、去除专家分组
-- **15.5T tokens 高质量预训练**：数据去污（13-gram + MinHash + URL 黑名单）+ 低质内容重写
-- **合成数据驱动的 SFT**：三类核心数据——工具调用轨迹、多步 Agent 轨迹（观察-行动-反思循环）、高质量对话
-- **统一 RL 框架**：PPO 训练，每个 batch 混合可验证奖励（数学 sympy 等价性检查 / 代码测试用例通过率 + PRM 过程信号）与 **自批判反馈**（K2 Critic 按 Clarity / Conversational / Objective 三维 Rubrics 打分，禁止 Initial Praise 和 Explicit Justification 偏差）
-- **SWE-bench Verified 71.6%**（多尝试）、AIME 2024 69.6%、Arena-Hard Auto v2.0 54.5% win rate（hard prompts）、LMSYS Arena 第 5（开源第 1）
-- **训练基础设施**：H800 GPU 集群，16-way PP（虚拟 stage）+ 16-way EP + ZeRO-1 DP，EP all-to-all 通信与 interleaved 1F1B 重叠
-- **引擎切换流水线**：预训练框架 → RL/SFT 框架的 H2D 权重转换 + broadcast + reload，全自动化
-
----
+- Kimi K2 是 1.04T 参数 MoE Transformer，每 token 激活约 32B 参数，采用 DeepSeek-V3 风格的 MLA 注意力
+- 架构包含 61 层、384 个总专家、每 token 激活 8 个专家、1 个 shared expert、64 个 attention heads、hidden size 7168
+- MuonClip 将 Muon optimizer、weight decay、consistent RMS matching 与 QK-Clip 组合，支撑 15.5T tokens 预训练且无 loss spike
+- QK-Clip 监控每个 head 的最大 attention logit，超过阈值 \(\tau\) 时按 head 缩放 query/key projection 权重，而不是直接裁剪 logits
+- 稀疏 scaling law 表明在固定 activated parameters 下增加总专家数可以降低训练和验证 loss，因此 K2 采用 sparsity 48
+- 预训练数据强调 token utility，通过知识文本 chunk-wise autoregressive rephrasing 与数学学习笔记风格改写提升高质量 token 利用率
+- Agentic SFT 数据由 3000+ 真实 MCP 工具、20,000+ 合成工具、自动生成 agents/tasks/rubrics 与轨迹过滤组成
+- Post-training 使用 verifiable rewards、self-critique rubric reward、budget control、PTX loss 与统一 Gym-like RL 环境
 
 #### 🔬 深入细节
 
-##### 1. 动机与背景
+![Kimi K2 工具规格、agent 与任务合成流程](https://ar5iv.labs.arxiv.org/html/2507.20534/assets/x10.png)
+*图：Kimi K2 论文 Figure 8(a)，展示从真实 MCP tools 与合成 applications 构造 tool repository、agents 与 rubric tasks 的流程。*
 
-训练千亿级 MoE 语言模型面临两大核心挑战：**优化器的数值稳定性** 与 **后训练阶段的多能力对齐**。
+![Kimi K2 多智能体工具轨迹生成与过滤流程](https://ar5iv.labs.arxiv.org/html/2507.20534/assets/x11.png)
+*图：Kimi K2 论文 Figure 8(b)，展示 user agent、task、rubrics、tool simulator 与 judge agent 如何生成并过滤工具调用轨迹。*
 
-- **AdamW 的局限**：AdamW 凭借对角缩放（低秩更新）天然规避梯度爆炸，但其收敛速度慢——小规模实验中 Muon 收敛所需步数少 30-50%。然而 Muon 的 Newton-Schulz 迭代（将梯度矩阵投影到正交矩阵空间，实现满秩动量更新）在 LLM 训练中会触发 **logit explosion**（注意力 logit 值突然爆炸），导致 loss spike 不可恢复。
-
-  > ⚠️ 关键矛盾：**Muon 收敛快但不稳定，AdamW 稳定但收敛慢**——需要一种机制兼具两者优势。
-
-- **后训练对齐困境**：数学/代码任务有客观答案（可验证奖励），但通用对话、写作等开放任务缺乏 ground-truth 评判标准。传统 RLHF 依赖人类偏好模型（Reward Model），但 RM 训练成本高且与生成模型的评判分布存在偏差。
-
-  > 💡 核心洞察：**能否用模型自身作为评判器（Self-Critic），并设计细粒度 Rubrics 来量化主观质量？**
-
-##### 2. 核心方法详解
-
-###### 2.1 MuonClip：Muon + QK-Clip
-
-**Muon 基础**（Keller Jordan 2024）：
-- 对每一层的权重梯度矩阵 \(\mathbf{G} \in \mathbb{R}^{m \times n}\)，计算动量 \(\mathbf{M}_t = \beta \mathbf{M}_{t-1} + \mathbf{G}_t\)
-- 对 \(\mathbf{M}_t\) 执行 Newton-Schulz 迭代，将其投影到正交矩阵空间：\(\mathbf{U} = \text{NS}(\mathbf{M}_t)\)
-- 参数更新：\(\mathbf{W}_{t+1} = \mathbf{W}_t - \eta \cdot \mathbf{U}\)
-
-**QK-Clip 机制**（论文附录 D）：
-- 在每步更新后，对 attention 层的 Q/K 投影矩阵执行：
-  \[
-  \text{if } \|\mathbf{W}_Q\|_2 > \tau \text{ or } \|\mathbf{W}_K\|_2 > \tau: \quad \mathbf{W} \leftarrow \mathbf{W} \cdot \frac{\tau}{\|\mathbf{W}\|_2}
-  \]
-  其中 \(\tau = 1000.0\)
-
-- **触发统计**：仅在前 ~70K 训练步触发，影响 ~12.7% 的注意力头，之后自动停止。开销 <0.1% 总计算量。
-- **理论保证**：证明 QK-Clip 后的矩阵仍满足注意力投影的正交性条件，不会破坏模型表达能力。
-
-**RMSNorm-only 架构的必要性**：
-- 标准 LayerNorm 包含均值中心化 \(\mathbf{x} \leftarrow \mathbf{x} - \mu(\mathbf{x})\) 和可学习偏置 \(\beta\)，这些操作会改变梯度矩阵的谱分布，使 Newton-Schulz 迭代收敛变慢
-- K2 将所有归一化层替换为纯 RMSNorm：\(\text{RMSNorm}(\mathbf{x}) = \mathbf{x} \cdot \frac{\gamma}{\text{RMS}(\mathbf{x})}\)，仅保留缩放因子 \(\gamma\)
-- 消融实验：使用标准 LayerNorm 时 NS 迭代收敛速度下降 ~20%
-
-###### 2.2 模型架构
-
-| 参数 | Kimi K2 | DeepSeek-V3 | 变化 |
-|------|---------|-------------|------|
-| 总参数量 | **1.04T** | 671B | ↑54% |
-| 激活参数量 | **32.6B** | 37B | ↓13% |
-| 专家总数 | **384** | 256 | ↑50% |
-| 每 token 激活专家 | 8 | 8 | = |
-| 共享专家 | 1 | 1 | = |
-| 注意力头 | **64** | 128 | ↓50% |
-| 隐藏维度 | 7168 | — | — |
-| 专家隐藏维度 | 2048 | — | — |
-| 层数 | 61 | 61 | = |
-| 密集层数 | **1** | 3 | ↓67% |
-| 专家分组 | **无** | 有 | — |
-
-**稀疏度 Scaling Law**（论文 Fig. 5-6）：
-- 固定激活专家数（8）和共享专家（1），变化总专家数进行稀疏度实验
-- 稀疏度 48（384 专家）相比稀疏度 8 减少 **1.69× FLOPs** 即可达到相同验证损失 1.5
-- **注意力头加倍**（64→128）仅在验证损失上带来 0.5-1.2% 的微弱提升，但推理 FLOPs 增加 83%（序列长度 128K），不划算
-
-###### 2.3 统一强化学习框架
-
-这是论文最核心的创新之一，将两类奖励信号融合为单一 PPO 训练流程：
-
-**A. 可验证奖励（Verifiable Rewards）**
-- **数学**：使用 sympy 进行最终答案等价性检查，配合过程奖励模型（PRM）提供中间步骤信号
-- **代码**：测试用例通过率 + 编译成功与否，稀疏奖励（仅最终结果）
-- 奖励函数：\(R_V = \mathbb{1}[\text{答案正确}] + \lambda \cdot R_{\text{PRM}}\)
-
-**B. 自批判反馈（Self-Critic Feedback）**
-- 针对无客观标准的开放任务，使用 K2 自身作为评判器（K2 Critic）
-- **K2 Critic Rubrics**（附录 F）包含三大维度：
-  1. **Clarity（清晰度）**：回答结构清晰、逻辑连贯
-  2. **Conversational（对话性）**：自然、有同理心、符合用户期望
-  3. **Objective（目标达成）**：准确满足用户需求
-- **两个禁止偏差**：
-  - ❌ Initial Praise：禁止因开头礼貌用语给额外加分
-  - ❌ Explicit Justification：禁止模型为自己的回答过度解释
-- 评分：每维度 1-5 分，加权平均作为奖励信号 \(R_S\)
-
-**训练流程伪代码**：
 ```python
-for batch in mixed_data:
-    if batch.type == "verifiable":
-        # 数学/代码：客观答案验证
-        response = policy.generate(prompt)
-        reward = evaluate_answer(response, ground_truth)  # sympy / test cases
-        reward += beta * PRM.score(response, prompt)      # 过程奖励
-    else:
-        # 通用对话/写作：自批判反馈
-        response = policy.generate(prompt)
-        reward = K2_Critic.score(prompt, response, rubrics)  # 三维 Rubrics
+# MuonClip optimizer, simplified from Algorithm 1 in the Kimi K2 paper
+def muonclip_step(weights, grads, momentum, tau=100, lr=eta, wd=lamb):
+    # 1. Muon optimizer step
+    for W in weights:
+        G = grads[W]
+        M[W] = mu * M[W] + G
+        O = newton_schulz(M[W]) * sqrt(max(W.shape)) * 0.2  # match Adam RMS
+        W -= lr * (O + wd * W)
 
-    # PPO 更新（含 KL 约束）
-    ratio = exp(log_prob_new - log_prob_old)
-    clipped = clip(ratio, 1 - eps, 1 + eps)
-    loss = -min(ratio * advantage, clipped * advantage)
-    loss += gamma * KL(policy, reference_model)
-    optimizer.step(loss)
+    # 2. QK-Clip, using max logits already observed in forward
+    for layer in model.attention_layers:
+        for h in layer.heads:
+            S = layer.max_attention_logit[h]
+            if S > tau:
+                gamma = tau / S
+                layer.W_qc[h] *= sqrt(gamma)
+                layer.W_kc[h] *= sqrt(gamma)
+                layer.W_qr[h] *= gamma
+                # shared rotary key component is left untouched in MLA
 ```
 
-**关键设计决策**：
-- 每个 batch 同时包含两类样本，比例动态调整（附录 E 详述）
-- KL 散度约束 \(\beta_{\text{KL}}\) 防止策略偏离 SFT 模型过远，约 2000 步 RL 迭代
-- K2 Critic 的 Rubrics 经过人工校准和一致性检验（附录 F）
+Kimi K2 的预训练问题不是“如何再堆一个 MoE”，而是如何让 Muon 这种 token-efficient optimizer 在 1T 级 MoE 上稳定工作。论文指出，Muon 在同等模型和计算预算下比 AdamW 更有 token efficiency，但扩展时更容易出现 attention logits 爆炸。logit soft-cap 只是在 softmax 输入处截断，无法阻止 \(QK^\top\) 本身继续增大；QK-Norm 又不适合 MLA，因为 MLA 推理时 key 矩阵并不完全物化。
 
-##### 3. 训练基础设施与工程优化
+QK-Clip 的设计是 post-update weight clipping。对第 \(h\) 个 attention head：
 
-**并行策略**：
-- 16-way Pipeline Parallelism（虚拟 stage）+ 16-way Expert Parallelism + ZeRO-1 Data Parallelism
-- 模型参数（BF16）+ 梯度累积缓冲（FP32）约需 6 TB GPU 内存，分布在 256 GPU 的模型并行组
-- 支持任意 32 的倍数节点数灵活扩展
+$$
+\mathbf Q^h=\mathbf X\mathbf W_q^h,\quad
+\mathbf K^h=\mathbf X\mathbf W_k^h,\quad
+\mathbf V^h=\mathbf X\mathbf W_v^h.
+$$
 
-**通信优化**：
-- 增加 warm-up micro-batch 数量，实现 EP all-to-all 通信与 interleaved 1F1B 计算重叠
-- 相比 DualPipe（DeepSeek-V3 方案），K2 方案更简洁且兼容标准 1F1B 调度
+attention 输出是：
 
-**引擎切换流水线**（附录 G）：
-- 预训练使用 Moonshot 自研框架，RL/SFT 使用另一框架
-- **H2D**（Host-to-Device）权重转换 → **broadcast**（分布式广播）→ **reload**（目标框架加载），全程自动化
+$$
+\mathbf O^h=\mathrm{softmax}\left(\frac{1}{\sqrt d}\mathbf Q^h\mathbf K^{h\top}\right)\mathbf V^h.
+$$
 
-##### 4. 消融实验核心发现
+K2 在 forward 中记录每个 head 的最大 logit：
 
-| 消融项 | 影响 |
-|--------|------|
-| 移除 QK-Clip | 训练 ~50K 步出现 logit explosion，loss spike 不可恢复 |
-| LayerNorm 替代 RMSNorm | NS 迭代收敛速度下降 ~20% |
-| 去除自批判反馈 | Arena-Hard win rate 下降 ~3.5% |
-| 仅用人工标注数据（不用合成） | SWE-bench 下降 ~15% |
+$$
+S_{\max}^h=\frac{1}{\sqrt d}\max_{\mathbf X\in B}\max_{i,j}\mathbf Q_i^h\mathbf K_j^{h\top}.
+$$
 
----
+当 \(S_{\max}^h>\tau\) 时，使用
+
+$$
+\gamma_h=\min\left(1,\frac{\tau}{S_{\max}^h}\right)
+$$
+
+缩放权重。对普通 MHA 可以缩放对应 head 的 \(\mathbf W_q^h\) 和 \(\mathbf W_k^h\)；对 MLA，论文只缩放 unshared head components：\(\mathbf q^C\) 与 \(\mathbf k^C\) 各乘 \(\sqrt{\gamma_h}\)，\(\mathbf q^R\) 乘 \(\gamma_h\)，共享的 \(\mathbf k^R\) 不动，避免一个 head 的 clipping 影响其他 head。
+
+> 💡 关键：QK-Clip 不改变当前 step 的 forward/backward，只用已观测到的 \(S_{\max}^h\) 指导更新后的权重缩放。因此它比直接裁剪 logits 更像“训练动力学护栏”，在 early stage 防止注意力分数失控，训练稳定后自然很少触发。
+
+架构上，Kimi K2 延续 DeepSeek-V3 的 MLA 与 MoE 思路，但把稀疏性继续推高。它有 384 个专家，每 token 激活 8 个专家，sparsity 为 48。论文的 scaling law 实验显示，在固定 activated experts 和 shared expert 的情况下，增加总专家数能降低 validation loss；达到同样 validation loss 1.5 时，sparsity 48 相比 sparsity 8、16、32 分别节省 1.69 倍、1.39 倍、1.15 倍 FLOPs。与此同时，K2 把 attention heads 从 DeepSeek-V3 的 128 减到 64，因为在 128K 等长上下文 agentic 场景下，heads 翻倍会显著增加推理 FLOPs，而验证 loss 只改善约 0.5% 到 1.2%。
+
+数据侧的重点是 token utility。K2 的 15.5T 预训练语料覆盖 Web Text、Code、Mathematics、Knowledge。对知识文本，论文使用风格和视角多样的 prompts 做 rephrasing，并用 chunk-wise autoregressive generation 保留长文档全局一致性；对数学文本，则改写为 learning-note style，并引入跨语言翻译扩充多样性。这个设计不是为了简单重复高质量数据，而是让同一知识以不同表述提供更多有效学习信号，降低多 epoch 重复带来的过拟合风险。
+
+Post-training 是 Kimi K2 与普通 chat model 区分最明显的部分。Agentic 数据合成先构建工具库：一部分来自 GitHub 中 3000+ 真实 MCP 工具，一部分来自层级 domain evolution 生成的 20,000+ 合成工具。然后为采样工具集生成 agent system prompts、任务与 rubrics，再通过 user agent、tool simulator 和 judge agent 生成多轮工具调用轨迹。只有满足 rubric 成功条件的轨迹被保留，因此整个流程相当于大规模 rejection sampling，目标是让模型学会“读工具说明、计划、调用、观察反馈、修正动作”。
+
+RL 阶段把可验证任务和主观偏好任务合到同一个框架。对数学、代码、指令遵循、工具调用等任务，奖励可以来自单元测试、解释器、规则检查或 judge；对创意写作、开放问答等不可直接验证任务，K2 使用 self-critique rubric reward，让 K2 critic 根据 core rubrics、prescriptive rubrics 与人工标注 rubrics 对多个响应做 pairwise ranking。其 RL objective 可概括为：
+
+$$
+L_{\mathrm{RL}}(\theta)=\mathbb E_{x\sim\mathcal D}\left[\frac{1}{K}\sum_{i=1}^{K}\left(r(x,y_i)-\bar r(x)-\tau\log\frac{\pi_\theta(y_i|x)}{\pi_{\mathrm{old}}(y_i|x)}\right)^2\right],
+$$
+
+其中
+
+$$
+\bar r(x)=\frac{1}{K}\sum_{i=1}^{K}r(x,y_i).
+$$
+
+奖励中心化项 \(r(x,y_i)-\bar r(x)\) 让同一 prompt 下的候选响应相互比较，KL-like 的 log ratio 正则项约束新旧策略偏移，\(\tau>0\) 控制稳定性。K2 还加入 budget control，超过任务 token budget 的响应会被截断并惩罚，以避免 RL 把所有任务都推向冗长输出；同时通过辅助 PTX loss 混入手选高质量样本，减少 joint RL 对窄任务集合的过拟合和遗忘。
+
+与 DeepSeek-V3 路线相比，Kimi K2 的差异在三处：更高稀疏度的 MoE 设计，更适合 Muon 的 QK-Clip 稳定机制，以及面向 agentic intelligence 的后训练数据与 RL 框架。它不是单纯追求 benchmark 的非交互模型，而是把工具环境、trajectory filtering、verifiable reward 和 self-critique 结合起来，专门强化软件工程、工具调用和多步任务执行。
 
 #### 🧪 练习题
 
 ```yaml
-question: "Kimi K2 的 QK-Clip 机制主要解决什么问题？"
+question: "Kimi K2 中 QK-Clip 相比直接 logit soft-cap 的关键区别是什么？"
 options:
-  - "减少注意力头的数量以降低推理成本"
-  - "在 Muon 优化器训练中防止 logit explosion 导致的 loss spike"
-  - "加速 Newton-Schulz 迭代的收敛速度"
-  - "限制模型的 KL 散度防止策略偏离"
+  - "QK-Clip 直接删除超过阈值的 token"
+  - "QK-Clip 在权重更新后缩放 query/key projection，约束后续 attention logit 增长"
+  - "QK-Clip 只用于推理，不参与训练"
+  - "QK-Clip 把 MoE top-8 routing 改成 dense FFN"
 answer: 1
-explain: "QK-Clip 对 Q/K 投影矩阵的 L2 范数执行硬阈值裁剪（1000.0），直接抑制 logit 值爆炸，是 Muon 能成功训练千亿模型的关键保障。"
+explain: "QK-Clip 使用 forward 中观测到的最大 attention logit 来缩放 Q/K 权重，属于训练稳定性的权重护栏，而不是在 softmax 输入处简单截断。"
 ```

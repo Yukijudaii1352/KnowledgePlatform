@@ -1831,149 +1831,90 @@ motivation: 分层时空自注意力机制
 ```
 
 #### 📝 一句话总结
-TimeSformer 提出了首个纯 Transformer 视频理解架构，通过将自注意力分解为**时间注意力**和**空间注意力**两个独立步骤（Divided Space-Time Attention），在保持高效计算的同时实现了对视频时空特征的有效建模，取代了传统 3D 卷积方法。
+TimeSformer 将 ViT 扩展到视频理解，系统比较多种时空注意力分解方式，并证明先时间后空间的 Divided Space-Time Attention 能以较低计算量实现强视频时序建模。
 
 #### 🎯 核心要点
-- **纯 Transformer 架构**：完全基于自注意力机制进行视频理解，不使用任何卷积操作，将 ViT 从图像扩展到视频领域
-- **5 种时空注意力方案系统对比**：Space-only (S)、Joint Space-Time (ST)、Divided Space-Time (T+S)、Sparse Local-Global (L+G)、Axial (T+W+H)
-- **Divided Space-Time Attention 最优**：先在时间维度（同一空间位置跨帧）做注意力，再在空间维度（同一帧内跨位置）做注意力，使用独立的 Q/K/V 参数
-- **计算复杂度优势**：Divided 方案每个 patch 仅需 \(N + F + 2\) 次比较（\(N\) 为每帧 patch 数，\(F\) 为帧数），远低于 Joint 方案的 \(NF + 1\)
-- **高效训练**：仅需 416 V100 GPU 小时即可在 K400 上达到 75.8% 准确率，而 SlowFast 需要 3840 GPU 小时才达到 75.6%
-- **三种模型变体**：TimeSformer (8×224×224)、TimeSformer-HR (16×448×448 高分辨率)、TimeSformer-L (96×224×224 长视频)
-- **ImageNet 预训练至关重要**：从头训练仅达 64.8%，ImageNet-21K 预训练可达 80.7% (K400)
-- **基准结果**：K400 Top-1 80.7%（TimeSformer-L）、K600 82.2%、SSv2 62.4%、Diving-48 81.0%
+- 纯 Transformer 视频模型：不使用 3D 卷积，直接对视频 patch token 建模
+- 五种注意力方案：Space-only、Joint Space-Time、Divided、Sparse Local-Global、Axial
+- Divided Space-Time 最优：先同一空间位置跨帧注意力，再同一帧内空间注意力
+- 降低复杂度：将全局时空注意力的 \(O((NF)^2)\) 分解为 \(O(NF^2 + FN^2)\)
+- 支持长视频：相比 3D CNN 更容易处理更多帧和长程依赖
+- 依赖图像预训练：通常从 ImageNet 预训练 ViT 初始化，再迁移到视频任务
 
 #### 🔬 深入细节
-![TimeSformer 五种时空注意力方案对比](https://ar5iv.labs.arxiv.org/html/2102.05095/assets/x1.png)
-*图：TimeSformer 提出的五种时空自注意力方案。蓝色 patch 为查询位置，非蓝色彩色 patch 为该查询对应的注意力计算范围。(a) Space-only；(b) Joint Space-Time；(c) Divided Space-Time（最优方案）；(d) Sparse Local-Global；(e) Axial*
+![TimeSformer 时空注意力方案](https://ar5iv.labs.arxiv.org/html/2102.05095/assets/x1.png)
+*图：TimeSformer 比较的五类时空注意力，其中 Divided Space-Time 在效率和精度上表现最好。*
 
-##### 动机与背景
+##### 1. 动机与背景
 
-3D 卷积网络（如 I3D、SlowFast）是视频理解的主流方法，但存在以下问题：
-- **训练成本极高**：SlowFast 需要 3840 V100 GPU 小时，对计算资源要求苛刻
-- **感受野有限**：3D 卷积核通常为 3×3×3，需要堆叠多层才能捕获长程依赖
-- **难以处理长视频**：通常限制在 8-32 帧输入
+在 TimeSformer 之前，视频理解主流是 3D CNN 或 2D CNN + temporal module。卷积有强局部归纳偏置，但长程关系需要堆叠很多层才能覆盖；当视频帧数增加时，3D 卷积的计算和训练成本也迅速上升。
 
-Transformer 的自注意力机制天然具有全局感受野，且 ViT 已在图像分类上证明了纯 Transformer 的可行性。TimeSformer 的核心问题是：**如何将 ViT 的自注意力从 2D 图像高效扩展到 3D 视频？**
+ViT 已经证明图像可以被表示为 patch token 序列并交给 Transformer 处理。TimeSformer 的关键问题是：视频有时间和空间两个维度，如果直接把所有帧的所有 patch 拼成一个长序列做全局 attention，计算和显存会过高；如果只做空间 attention，又会丢失时序信息。
 
-##### 输入表示与 Patch Embedding
+##### 2. 输入表示
 
-给定视频片段 \(X \in \mathbb{R}^{H \times W \times 3 \times F}\)（\(F\) 帧，每帧 \(H \times W \times 3\)），TimeSformer 将每帧分割为 \(N = HW/P^2\) 个不重叠的 patch（\(P = 16\)）。每个 patch 通过线性嵌入映射到 \(D\) 维向量：
+给定 \(F\) 帧视频，每帧大小为 \(H \times W\)，用 patch size \(P\) 划分后每帧有 \(N=HW/P^2\) 个 patch。每个 patch 经线性投影得到 token，并加入时空位置编码：
 
-$$\mathbf{z}^{(0)}_{(p,t)} = E \cdot \mathbf{x}_{(p,t)} + \mathbf{e}^{pos}_{(p,t)}$$
+$$
+z^{(0)}_{p,t} = E x_{p,t} + e^{pos}_{p,t}
+$$
 
-其中 \(E \in \mathbb{R}^{D \times 3P^2}\) 为线性嵌入矩阵，\(\mathbf{e}^{pos}_{(p,t)}\) 为可学习的时空位置编码。额外添加一个分类 token \(\mathbf{z}^{(0)}_{(0,0)}\)，最终输入序列长度为 \(NF + 1\)。
+模型还加入分类 token。经过多层 Transformer block 后，分类 token 用于动作分类。这个表示与 ViT 非常接近，差异在于 token 多了时间索引 \(t\)。
 
-> 💡 **关键**：位置编码同时编码空间位置和时间位置，实验表明时空位置编码比纯空间编码在 SSv2 上高出 7%（59.5% vs 52.5%），因为 SSv2 需要复杂的时序推理。
+##### 3. Divided Space-Time Attention
 
-##### 自注意力计算
+TimeSformer 的核心 block 将注意力拆成两步。第一步是时间注意力：对每个空间位置 \(p\)，只在不同帧的同一位置之间交互：
 
-每个编码块中，对查询 patch \(\mathbf{z}^{(\ell)}_{(p,t)}\) 计算 Query、Key、Value：
+$$
+a^{time}_{p,t} = \sum_{t'=1}^{F}
+\text{Softmax}\left(\frac{q_{p,t}k_{p,t'}^\top}{\sqrt{d}}\right)v_{p,t'}
+$$
 
-$$\mathbf{q}^{(\ell, a)}_{(p,t)} = W_Q^{(\ell, a)} \text{LN}(\mathbf{z}^{(\ell-1)}_{(p,t)}) \quad \in \mathbb{R}^{D_h}$$
-$$\mathbf{k}^{(\ell, a)}_{(p,t)} = W_K^{(\ell, a)} \text{LN}(\mathbf{z}^{(\ell-1)}_{(p,t)}) \quad \in \mathbb{R}^{D_h}$$
-$$\mathbf{v}^{(\ell, a)}_{(p,t)} = W_V^{(\ell, a)} \text{LN}(\mathbf{z}^{(\ell-1)}_{(p,t)}) \quad \in \mathbb{R}^{D_h}$$
+第二步是空间注意力：对每一帧 \(t\)，在该帧所有空间 patch 之间交互：
 
-其中 \(a \in \{1, \dots, A\}\) 为注意力头索引，\(D_h = D/A\)，LN 为 LayerNorm。注意力权重通过缩放点积计算：
-
-$$\alpha^{(\ell, a)}_{(p,t)} = \text{SM}\left(\frac{\mathbf{q}^{(\ell, a)}_{(p,t)} \cdot [\mathbf{k}^{(\ell, a)}_{(p',t')}]_{(p',t') \in \Omega}}{\sqrt{D_h}}\right)$$
-
-##### 五种时空注意力方案
-
-**核心区别在于注意力集合 \(\Omega\) 的定义**，即每个查询 patch 关注哪些其他 patch：
-
-| 方案 | 注意力范围 \(\Omega\) | 每 patch 比较数 | 参数量 |
-|------|----------------------|----------------|--------|
-| Space-only (S) | 同帧所有 patch + CLS | \(N + 1\) | 85.9M |
-| Joint Space-Time (ST) | 所有帧所有 patch + CLS | \(NF + 1\) | 85.9M |
-| **Divided Space-Time (T+S)** | **先：同位置跨帧 + CLS；后：同帧跨位置 + CLS** | **\(N + F + 2\)** | **121.4M** |
-| Sparse Local-Global (L+G) | 相邻帧局部 + 全局稀疏 | \(\sim H/2 \cdot F + N + 2\) | 121.4M |
-| Axial (T+W+H) | 分别沿时间/宽度/高度轴 | \(F + H/P + W/P + 3\) | 156.8M |
-
-##### Divided Space-Time Attention（核心创新）
-
-这是 TimeSformer 的核心设计，每个编码块包含**两步注意力**：
-
-**第一步——时间注意力**：对位置 \((p, t)\) 的 patch，关注**所有帧中相同空间位置**的 patch：
-
-$$\mathbf{a}^{(\ell, a)time}_{(p,t)} = \sum_{t'=1}^{F} \alpha^{(\ell, a)}_{(p,t)(p,t')} \cdot \mathbf{v}^{(\ell, a)}_{(p,t')}$$
-
-**第二步——空间注意力**：对时间注意力的输出，关注**同一帧中所有空间位置**的 patch：
-
-$$\mathbf{a}^{(\ell, a)space}_{(p,t)} = \sum_{p'=1}^{N} \alpha^{(\ell, a)}_{(p,t)(p',t)} \cdot \mathbf{v}^{(\ell, a)}_{(p',t)}$$
-
-> 💡 **关键设计选择**：时间注意力和空间注意力使用**独立的 Q/K/V 权重矩阵**，这赋予了模型更大的学习容量。虽然参数量从 85.9M 增加到 121.4M，但计算复杂度从 \(O(NF)\) 降低到 \(O(N + F)\)，在高分辨率或长视频场景下优势显著。
+$$
+a^{space}_{p,t} = \sum_{p'=1}^{N}
+\text{Softmax}\left(\frac{q_{p,t}k_{p',t}^\top}{\sqrt{d}}\right)v_{p',t}
+$$
 
 ```python
-# Divided Space-Time Attention 伪代码
-def divided_spacetime_attention(x, temporal_qkv, spatial_qkv):
-    """
-    x: (B, F, N, D) — B:batch, F:frames, N:patches/frame, D:dim
-    """
-    # Step 1: Temporal Attention — 同一空间位置，跨帧交互
+# TimeSformer Divided Space-Time Attention 伪代码
+def timesformer_block(x):
+    # x: [B, F, N, D]
     for p in range(N):
-        x_temporal = x[:, :, p, :]          # (B, F, D) — 所有帧的第p个patch
-        q, k, v = temporal_qkv(LN(x_temporal))
-        attn = softmax(q @ k.T / sqrt(D_h))
-        x[:, :, p, :] += attn @ v           # 残差连接
+        x[:, :, p] = x[:, :, p] + temporal_attention(norm(x[:, :, p]))
 
-    # Step 2: Spatial Attention — 同一帧内，跨空间位置交互
     for t in range(F):
-        x_spatial = x[:, t, :, :]            # (B, N, D) — 第t帧所有patch
-        q, k, v = spatial_qkv(LN(x_spatial))
-        attn = softmax(q @ k.T / sqrt(D_h))
-        x[:, t, :, :] += attn @ v           # 残差连接
+        x[:, t, :] = x[:, t, :] + spatial_attention(norm(x[:, t, :]))
 
-    # MLP
-    x = x + MLP(LN(x))
+    x = x + mlp(norm(x))
     return x
 ```
 
-##### 计算效率分析
+这种分解让每个 token 不必一次性关注 \(NF\) 个 token，而是先关注 \(F\) 个时间邻居，再关注 \(N\) 个空间邻居。它保留了跨帧建模和帧内空间理解，同时避免全局 joint attention 的二次爆炸。
 
-Divided 方案的核心优势在于**将二次复杂度分解为两个较小的二次项**：
+##### 4. 为什么先时间后空间有效
 
-- **Joint**: 注意力矩阵大小 \((NF+1) \times (NF+1)\)，计算量 \(O(N^2F^2)\)
-- **Divided**: 时间注意力 \(O(NF^2)\) + 空间注意力 \(O(FN^2)\)，总计 \(O(NF(N+F))\)
+视频动作往往表现为同一局部区域随时间变化，例如手的位置、物体移动、姿态变化。先做时间注意力，相当于为每个空间位置提取运动线索；随后空间注意力再把这些局部时序线索组合成整帧语义。
 
-当 \(N = 196\)（224×224/16²）、\(F = 8\) 时：
-- Joint: \(196 \times 8 + 1 = 1569\) 个 token 的全注意力
-- Divided: 时间 \(8+1=9\) + 空间 \(196+1=197\) = 每 patch 仅 206 次比较
+TimeSformer 还显示，数据集对时间建模的需求不同：Kinetics 中很多类别可由场景和对象识别完成，Space-only 已有不错结果；Something-Something V2 更依赖动作方向和物体交互，Divided 注意力的优势更明显。
 
-> ⚠️ **注意**：Joint 方案在分辨率达到 448 像素或帧数增至 32 时会导致 GPU 内存溢出，而 Divided 方案可以处理 96 帧 224×224 或 16 帧 448×448 的输入。
+##### 5. 与传统方法的区别
 
-##### 训练细节与预训练策略
+与 3D CNN 相比，TimeSformer 没有固定卷积核大小限制，每层 attention 可以建立更长距离依赖；与全局时空 Transformer 相比，它通过结构化分解降低计算；与后续 Video Swin 相比，它仍偏全局空间注意力，而 Video Swin 引入局部窗口和层级结构进一步提升效率。
 
-- **骨干网络**：ViT-Base（12 层，768 维，12 头）
-- **预训练**：ImageNet-1K 或 ImageNet-21K 上的 ViT 权重初始化
-- **时间注意力权重初始化**：从预训练的空间注意力权重复制，确保训练初期模型行为与 ViT 一致
-- **推理**：1 个时间 clip × 3 个空间 crop（左上、中心、右下），取平均分数
-- **帧采样**：默认 1/32 采样率（即每 32 帧取 1 帧）
-
-##### 与传统方法的对比
-
-| 维度 | 3D CNN (SlowFast/I3D) | TimeSformer |
-|------|----------------------|-------------|
-| 基本操作 | 3D 卷积 | 自注意力 |
-| 感受野 | 局部（需堆叠扩大） | 全局（每层即全局） |
-| 时空建模 | 隐式耦合 | 显式分解（T+S） |
-| 训练成本 | 3840 GPU·h (SlowFast) | 416 GPU·h |
-| 长视频能力 | 8-32 帧 | 最多 96 帧 |
-| 预训练依赖 | 可从头训练 | 强依赖 ImageNet 预训练 |
-| K400 准确率 | 79.8% (SlowFast 16×8 R101) | 80.7% (TimeSformer-L) |
-
-> 💡 **关键洞察**：在 K400 上，Space-only 注意力（无时间建模）即可达到 76.9%，说明该数据集偏重空间场景信息。而在 SSv2 上，Space-only 仅 36.6%，Divided 达 59.5%，凸显了时间建模对时序推理任务的必要性。
+> 💡 关键：TimeSformer 的贡献不只是“把 ViT 用到视频”，而是系统证明时空注意力的分解方式决定了视频 Transformer 的可训练性和效率。
 
 #### 🧪 练习题
 ```yaml
-question: "TimeSformer 中 Divided Space-Time Attention 相比 Joint Space-Time Attention 的主要优势是什么？"
+question: "TimeSformer 中 Divided Space-Time Attention 的核心设计是什么？"
 options:
-  - "参数量更少，模型更轻量"
-  - "通过分解时空注意力降低计算复杂度，同时使用独立参数提升学习容量"
-  - "不需要位置编码，简化了模型设计"
-  - "仅在空间维度计算注意力，忽略时间信息以提高效率"
+  - "只做空间注意力，完全忽略时间维度"
+  - "先在同一空间位置跨帧做时间注意力，再在同一帧内做空间注意力"
+  - "把视频先压缩成单张图片再分类"
+  - "用 NMS 删除重复视频片段"
 answer: 1
-explain: "Divided 方案将注意力分解为时间和空间两步，复杂度从 O(N²F²) 降至 O(NF(N+F))，且使用独立的 Q/K/V 参数增加学习容量。虽然参数量从 85.9M 增至 121.4M，但计算量大幅降低，尤其在高分辨率和长视频场景下优势显著。"
+explain: "Divided 方案把时空注意力拆成时间和空间两步，在保留时序建模的同时降低全局 joint attention 的计算量。"
 ```
 
 ### ViViT
@@ -2126,15 +2067,213 @@ motivation: CLIP迁移至视频文本检索
 ```
 
 #### 📝 一句话总结
-CLIP4Clip 的核心目标是：CLIP迁移至视频文本检索。
+CLIP4Clip将图像-文本预训练模型CLIP迁移到视频-文本检索任务，通过三种时序建模策略（均值池化/序列编码/跨模态交互）进行端到端微调，在五个基准数据集上取得SOTA性能。
+
+---
 
 #### 🎯 核心要点
 - 核心动机：CLIP迁移至视频文本检索
 - 代表机构：Alibaba
 
 #### 🔬 深入细节
-CLIP迁移至视频文本检索
+##### 1. 整体架构
 
+```
+┌─────────────────────────────────────────────────────────┐
+│                    CLIP4Clip Framework                    │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  Video: v_i ──→ [Frame Sampling] ──→ {f_1,...,f_N}      │
+│                        │                                 │
+│                        ▼                                 │
+│              ┌──────────────────┐                        │
+│              │  Video Encoder   │ (CLIP ViT-B/32)        │
+│              │  2D/3D Linear +  │                        │
+│              │  Transformer×12  │                        │
+│              └────────┬─────────┘                        │
+│                       │                                  │
+│                       ▼                                  │
+│              Z_i = {z_1,...,z_N}  (frame embeddings)     │
+│                       │                                  │
+│                       ▼                                  │
+│         ┌─────────────────────────────┐                  │
+│         │   Similarity Calculator     │                  │
+│         │  ┌─────┐ ┌─────┐ ┌─────┐   │                  │
+│         │  │meanP│ │ seq │ │tight│   │                  │
+│         │  └─────┘ └─────┘ └─────┘   │                  │
+│         └─────────────┬───────────────┘                  │
+│                       │                                  │
+│  Text: t_j ──→ ┌─────────────────┐                      │
+│                │  Text Encoder   │ (CLIP Text Transf.)   │
+│                │  Transformer×12 │                       │
+│                └────────┬────────┘                       │
+│                         │                                │
+│                         ▼                                │
+│                    w_j (text embedding)                   │
+│                         │                                │
+│                         ▼                                │
+│                   s(v_i, t_j) → Similarity Score         │
+└─────────────────────────────────────────────────────────┘
+```
+
+##### 2. 视频编码器
+
+视频编码器复用CLIP的ViT-B/32图像编码器，核心修改在于patch embedding层：
+
+- **2D Linear（默认）**：直接对每帧独立做2D patch embedding（32×32 patch → 768维），与原始CLIP一致
+- **3D Linear**：将patch embedding扩展为3D卷积（时间维度kernel=3, stride=1, padding=1），捕获相邻帧的时序信息
+
+3D Linear初始化策略（来自ViViT）：
+$$E_{3D} = [0, E_{2D}, 0]$$
+即将CLIP预训练的2D权重放在中心帧位置，两侧补零。
+
+##### 3. 三种相似度计算器
+
+**核心设计哲学**：由于CLIP已在大规模数据上预训练，新引入的参数越多，越难训练且可能破坏预训练表示。
+
+**(a) Parameter-free Type（均值池化）**
+
+$$\hat{z}_i = \text{mean-pooling}(z_1_i, z_2_i, \ldots, z_N_i)$$
+
+$$s(v_i, t_j) = \frac{w_j^\top \hat{z}_i}{\|w_j\| \|\hat{z}_i\|}$$
+
+- 无新参数，直接在CLIP的多模态嵌入空间中计算余弦相似度
+- 假设：CLIP已将帧和文本映射到同一空间，简单平均即可表示视频
+
+**(b) Sequential Type（序列编码）**
+
+$$\tilde{Z}_i = \text{LSTM}(Z_i) \quad \text{或} \quad \tilde{Z}_i = \text{Transformer-Enc}(Z_i + P)$$
+
+$$\hat{z}_i = \text{mean-pooling}(\tilde{Z}_i)$$
+
+$$s(v_i, t_j) = \frac{w_j^\top \hat{z}_i}{\|w_j\| \|\hat{z}_i\|}$$
+
+- 引入少量新参数建模帧间时序关系
+- Transformer初始化：复用CLIP图像编码器对应层的权重
+- 位置编码：重复CLIP文本编码器的位置编码
+
+**(c) Tight Type（跨模态交互）**
+
+$$U_i = [w_j, z_1_i, z_2_i, \ldots, z_N_i]$$
+
+$$\tilde{U}_i = \text{Transformer-Enc}(U_i + P + T)$$
+
+$$s(v_i, t_j) = \text{FC}(\text{ReLU}(\text{FC}(\tilde{U}_i[0,:])))$$
+
+- 引入最多新参数：Transformer + 类型嵌入 + 线性投影
+- 类型嵌入T区分文本token和视频帧token（类似BERT的segment embedding）
+- 取第一个token（[CLS]对应位置）的输出做相似度预测
+
+##### 4. 训练策略
+
+**损失函数**：对称的对比学习损失（InfoNCE）
+
+对于batch中B对(video, text)：
+$$\mathcal{L}_{v2t} = -\frac{1}{B}\sum_{i=1}^{B}\log\frac{\exp(s(v_i,t_i)/\tau)}{\sum_{k=1}^{B}\exp(s(v_i,t_k)/\tau)}$$
+
+$$\mathcal{L}_{t2v} = -\frac{1}{B}\sum_{j=1}^{B}\log\frac{\exp(s(v_j,t_j)/\tau)}{\sum_{k=1}^{B}\exp(s(v_k,t_j)/\tau)}$$
+
+$$\mathcal{L} = \mathcal{L}_{v2t} + \mathcal{L}_{t2v}$$
+
+其中τ为可学习温度参数（初始化自CLIP）。
+
+**后预训练（Post-pretraining）**：在HowTo100M（136M视频-文本对）上继续训练CLIP，弥合图像-文本与视频-文本的域差距。
+
+##### 5. 关键超参数与消融实验发现
+
+```
+┌────────────────────┬────────────────────────────────────┐
+│ 超参数              │ 设置                                │
+├────────────────────┼────────────────────────────────────┤
+│ 预训练模型          │ CLIP ViT-B/32                      │
+│ 学习率(编码器)      │ 1e-7                               │
+│ 学习率(新模块)      │ 1e-4                               │
+│ 优化器              │ Adam + Cosine Schedule             │
+│ Batch Size         │ 128                                │
+│ 帧数               │ 12                                 │
+│ 文本长度            │ 32 tokens                          │
+│ 训练轮数            │ 5 epochs                           │
+│ Seq/Tight层数      │ 4层 Transformer                    │
+│ LSTM层数            │ 1层                                │
+│ 冻结策略            │ 冻结前6层                           │
+│ 硬件               │ 4× NVIDIA V100 32GB                │
+└────────────────────┴────────────────────────────────────┘
+```
+
+**关键发现**：
+1. **学习率极其敏感**：1e-7最优，偏大（>1e-6）会严重损害性能
+2. **冻结底层有效**：冻结前6层效果最好，全部微调反而下降
+3. **帧数影响**：12帧通常最优，更多帧在短视频数据集上收益递减
+4. **Batch Size**：越大越好（对比学习特性），128为实际最优
+5. **Tight type在长视频上失效**：ActivityNet/DiDeMo上远差于meanP/seq
+
+##### 6. 主要实验结果
+
+| 数据集 | 方法 | R@1 | R@5 | R@10 | MdR |
+|--------|------|-----|-----|------|-----|
+| MSR-VTT (9K) | seqTransf | **44.5** | 71.4 | 81.6 | 2 |
+| MSR-VTT (7K) | meanP | **42.1** | 71.9 | 81.4 | 2 |
+| MSVD | meanP | **46.2** | 76.1 | 84.6 | 2 |
+| LSMDC | seqTransf | **22.6** | 41.0 | 49.1 | 11 |
+| ActivityNet | meanP/seqTransf | **40.5** | 72.4 | 98.1/98.2 | 2 |
+| DiDeMo | meanP | **43.4** | 70.2 | 80.6 | 2 |
+
+对比此前SOTA提升：MSR-VTT 9K上R@1从38.9(MDMMT)→44.5(+14.4%)
+
+##### 7. 伪代码
+
+```python
+# CLIP4Clip Forward Pass (simplified)
+def clip4clip_forward(video_frames, text, sim_type='meanP'):
+    # 1. Encode video frames independently
+    frame_features = []
+    for frame in video_frames:  # N frames
+        patch_embed = linear_projection(frame)  # 2D or 3D
+        z = clip_visual_transformer(patch_embed)  # [CLS] token
+        frame_features.append(z)
+    Z = stack(frame_features)  # (N, d)
+    
+    # 2. Encode text
+    w = clip_text_transformer(text)  # (d,)
+    
+    # 3. Similarity calculation
+    if sim_type == 'meanP':
+        z_hat = mean(Z, dim=0)  # (d,)
+        sim = cosine_similarity(w, z_hat)
+    elif sim_type == 'seqTransf':
+        Z_tilde = temporal_transformer(Z + pos_embed)  # (N, d)
+        z_hat = mean(Z_tilde, dim=0)  # (d,)
+        sim = cosine_similarity(w, z_hat)
+    elif sim_type == 'tightTransf':
+        U = concat([w.unsqueeze(0), Z], dim=0)  # (N+1, d)
+        U_tilde = cross_transformer(U + pos_embed + type_embed)
+        sim = fc2(relu(fc1(U_tilde[0])))  # scalar
+    
+    return sim
+
+# Training: symmetric contrastive loss
+def clip4clip_loss(videos, texts, temperature):
+    sims = compute_similarity_matrix(videos, texts)  # (B, B)
+    loss_v2t = cross_entropy(sims / temperature, labels=arange(B))
+    loss_t2v = cross_entropy(sims.T / temperature, labels=arange(B))
+    return (loss_v2t + loss_t2v) / 2
+```
+
+---
+
+#### 🧪 练习题
+```yaml
+**基础题：**
+1. CLIP4Clip中parameter-free type相似度计算器的核心操作是什么？为什么这种简单方法也能取得好效果？
+2. 解释为什么CLIP4Clip需要使用极小的学习率（1e-7）来微调编码器？
+
+**进阶题：**
+3. 对比三种相似度计算器，分析tight type在长视频数据集（ActivityNet/DiDeMo）上效果远差于meanP的原因。
+4. 如果要将CLIP4Clip扩展到视频问答（VideoQA）任务，你会选择哪种相似度计算器？需要做哪些架构修改？
+
+**开放题：**
+5. CLIP4Clip证明了"简单迁移+端到端微调"的有效性。讨论这种范式相比"设计复杂的视频专用预训练"（如VideoBERT、ActBERT）的优劣势，以及在什么条件下后者可能更优。
+```
 
 ### Video Swin
 
@@ -2153,16 +2292,89 @@ motivation: 3D偏移窗口注意力
 ```
 
 #### 📝 一句话总结
-Video Swin 的核心目标是：3D偏移窗口注意力。
+Video Swin Transformer 将 Swin 的层级窗口注意力扩展到视频，用 3D window / shifted window 在局部时空块内高效建模，并通过跨窗口移位逐层扩大感受野。
 
 #### 🎯 核心要点
-- 核心动机：3D偏移窗口注意力
-- 演化来源：继承或改进自 vivit
-- 代表机构：MSRA
+- 3D Window MSA：在 \(P \times M \times M\) 时空窗口内计算注意力，复杂度近似线性于 token 数
+- 3D Shifted Window：相邻层窗口沿时间、高度、宽度移位，建立跨窗口信息流
+- 层级结构：继承 Swin 的 patch merging，逐 stage 降低空间分辨率并增加通道
+- 3D 相对位置偏置：把 2D Swin 的相对位置偏置扩展到时间维度
+- 复用图像预训练：可从 ImageNet 预训练 Swin 初始化，降低视频训练成本
+- 多任务适用：在动作分类、时序相关数据集和视频检测/分割下作为通用 backbone
 
 #### 🔬 深入细节
-3D偏移窗口注意力
+![Video Swin 总体结构](https://ar5iv.labs.arxiv.org/html/2106.13230/assets/x1.png)
+*图：Video Swin 使用 3D patch partition、四阶段层级 backbone 和交替窗口注意力。*
 
+##### 1. 动机与背景
+
+TimeSformer、ViViT 等早期视频 Transformer 证明了 attention 适合视频，但全局或分解 attention 在高分辨率、多帧输入下仍然昂贵。视频还有强局部性：相邻帧、相邻空间区域通常相关，没必要在每一层都让所有 token 全局交互。
+
+Swin Transformer 在图像中用局部窗口注意力和 shifted window 取得了很好的效率-精度平衡。Video Swin 的工作就是把这种归纳偏置扩展到视频：窗口不再是 2D 的 \(M \times M\)，而是 3D 的 \(P \times M \times M\)。
+
+##### 2. 3D 窗口注意力
+
+给定视频 token 特征 \(x \in \mathbb{R}^{T \times H \times W \times C}\)，模型将其划分为多个不重叠 3D 窗口。每个窗口内部执行多头自注意力：
+
+$$
+\text{Attention}(Q,K,V)=\text{Softmax}\left(\frac{QK^\top}{\sqrt{d}} + B\right)V
+$$
+
+其中 \(B\) 是 3D 相对位置偏置，覆盖时间和空间相对偏移。若窗口大小为 \(P \times M \times M\)，全局 3D attention 的二次项从 \((THW)^2\) 变为每个 token 只与 \(PM^2\) 个局部 token 交互：
+
+$$
+\Omega(\text{3D-W-MSA}) = 4THWC^2 + 2PM^2 \cdot THW \cdot C
+$$
+
+##### 3. 3D Shifted Window
+
+![3D shifted window 机制](https://ar5iv.labs.arxiv.org/html/2106.13230/assets/figs/3d-shift-window.png)
+*图：连续 block 交替使用常规 3D 窗口和移位 3D 窗口，实现跨窗口通信。*
+
+单纯窗口注意力会让不同窗口之间没有直接通信。Video Swin 在相邻 block 中把窗口沿时间、高度、宽度移动 \((P/2, M/2, M/2)\)，使前一层分属不同窗口的 token 在后一层进入同一个窗口。
+
+```python
+# Video Swin block 伪代码
+def video_swin_stage(tokens):
+    for i, block in enumerate(blocks):
+        if i % 2 == 0:
+            windows = partition_3d(tokens, size=(P, M, M))
+            out = window_attention(windows, rel_pos_bias_3d)
+            tokens = merge_3d(out)
+        else:
+            shifted = cyclic_shift(tokens, shift=(P//2, M//2, M//2))
+            windows = partition_3d(shifted, size=(P, M, M))
+            out = window_attention(windows, rel_pos_bias_3d, attn_mask)
+            tokens = reverse_shift(merge_3d(out))
+        tokens = tokens + mlp(norm(tokens))
+    return tokens
+```
+
+循环移位会在边界产生跨越原图边界的窗口片段，因此实现中需要 attention mask，确保不该互相看到的 token 不被错误连接。这与 2D Swin 的高效批处理策略一致。
+
+##### 4. 层级视频 backbone
+
+Video Swin 先用 3D patch partition 把输入划成 tubelet，再经过四个 stage。除最后 stage 外，每个 stage 后通过 patch merging 进行空间下采样，通道数提升。时间维度通常保持较高分辨率，以保留动作信息。
+
+3D 相对位置偏置可由图像 Swin 的 2D 偏置初始化：时间相对位移为 0 的切片复制 2D 偏置，其他时间位置初始化或插值学习。这样模型一开始接近逐帧图像 Swin，再通过视频微调学习时序交互。
+
+##### 5. 与 TimeSformer / ViViT 的区别
+
+TimeSformer 通过分解时间和空间注意力降复杂度，但空间 attention 仍偏全局；ViViT 使用多种时空 factorization，但常需要较高预训练成本。Video Swin 通过局部 3D 窗口把计算限制在相邻时空块内，再靠 shifted window 逐层传播信息，更像一个层级视觉 backbone。
+
+> 💡 关键：Video Swin 的效率来自“局部窗口”，表达力来自“移位窗口 + 层级堆叠”；它不是忽略全局，而是逐层构造更大感受野。
+
+#### 🧪 练习题
+```yaml
+question: "Video Swin 中 3D Shifted Window 的主要作用是什么？"
+options:
+  - "在相邻窗口之间建立信息交互，扩大时空感受野"
+  - "删除时间维度，只做图像分类"
+  - "把所有窗口合并成全局注意力以增加计算量"
+  - "替代相对位置偏置"
+answer: 0
+explain: "常规窗口注意力只在窗口内通信，shifted window 让不同窗口的 token 在下一层进入同一窗口，从而实现跨窗口信息流。"
+```
 
 ### VideoMAE
 
@@ -2483,16 +2695,94 @@ motivation: 线性注意力解决长视频瓶颈
 ```
 
 #### 📝 一句话总结
-Mamba-3 的核心目标是：线性注意力解决长视频瓶颈。
+Mamba-3 从推理优先的角度重设计 Mamba 系列状态空间层，用更强的离散化递推、复值状态更新和 MIMO 状态空间模块提升线性序列模型质量，为长文本或长视频 token 序列提供比全局注意力更低的长度扩展成本。
 
 #### 🎯 核心要点
-- 核心动机：线性注意力解决长视频瓶颈
-- 演化来源：继承或改进自 video_swin
-- 代表机构：Princeton
+- 推理优先 SSM：目标是在固定状态大小下提高每步更新的表达力和硬件利用率
+- Exponential-trapezoidal discretization：用更强离散化形式替代 Mamba-2 过度简化的递推
+- Complex-valued SSM：用复值转移增强状态追踪能力，并通过 RoPE 形式高效实现
+- MIMO formulation：从 SISO 标量状态更新扩展到多输入多输出，提高性能且尽量不增加 decode latency
+- 架构现代化：引入 QK/BC Norm、SwiGLU 交替块、可选 MIMO projection，并移除短 causal conv
+- 长序列意义：固定状态使推理内存不随上下文线性增长，适合作为长视频/VLM backbone 或混合层组件
 
 #### 🔬 深入细节
-线性注意力解决长视频瓶颈
+> 注：给定 `paper_url` 是简写入口；本文依据 Princeton PLI 官方博客和可检索论文 `arXiv:2603.15569` 解读。
 
+![Mamba-3 架构对比](https://arxiv.org/html/2603.15569v1/x2.png)
+*图：Mamba-3 相比 Mamba-2 增加指数-梯形离散化、数据依赖 RoPE、MIMO projection、QK/BC Norm 和可学习偏置。*
+
+##### 1. 动机与背景
+
+Transformer 的自注意力在长序列上有两个典型成本：prefill 近似二次计算，decode 需要不断读取增长的 KV cache。长视频理解会把帧、patch、轨迹或视觉摘要转成很长 token 序列，因此这类成本会成为瓶颈。
+
+Mamba 系列用状态空间模型把历史压缩到固定大小状态中，推理时每来一个 token 只更新状态，而不是保存所有历史 token。Mamba-2 为了训练效率将状态转移进一步简化，但也让单步推理过于轻量、表达力不足且偏 memory-bound。Mamba-3 的目标是让固定状态“做更多有用计算”。
+
+##### 2. SSM 基础形式
+
+离散状态空间层可写为：
+
+$$
+h_t = A_t h_{t-1} + B_t x_t,\quad
+y_t = C_t^\top h_t
+$$
+
+其中 \(h_t\) 是固定大小状态，\(x_t\) 是当前 token 表示，\(y_t\) 是输出。与 attention 保存所有 \(K,V\) 不同，SSM 只保存 \(h_t\)，因此 decode 内存与序列长度解耦。
+
+##### 3. Mamba-3 的三项方法升级
+
+第一，Mamba-3 使用更具表达力的 exponential-trapezoidal 离散化。直觉上，它不再把连续动态粗糙地简化为过窄的递推形式，而是在数值离散化时保留更多动态结构，使状态更新既稳定又能表达复杂变化。
+
+第二，Mamba-3 引入复值 SSM。复数转移可表示旋转和振荡模式，这对括号、奇偶、状态追踪、周期性事件等序列结构有帮助。实现上，论文用 RoPE 风格把复值旋转融入实值 kernel，避免重写昂贵复数计算。
+
+第三，MIMO 将单输入单输出的独立标量 SSM 扩展到向量输入/输出。相比每个通道独立更新，MIMO 让一组通道共享更丰富的状态交互，提升质量；在 decode 阶段，由于 GPU 仍有空闲算力，增加部分 FLOPs 不一定线性增加墙钟延迟。
+
+##### 4. 前向流程伪代码
+
+```python
+# Mamba-3 block 简化伪代码
+def mamba3_block(x, state):
+    residual = x
+    x = rms_norm(x)
+
+    # 生成 SSM 参数与门控分支
+    a, b, c, gate = linear_projections(x)
+    b, c = bc_norm(b), bc_norm(c)
+
+    # 复值动态可用 RoPE/rotation 参数化
+    theta = rope_projection(x)
+    a_complex = compose_transition(a, theta)
+
+    # exponential-trapezoidal discretized recurrence
+    state = exp_trapezoid_update(state, a_complex, b, x)
+    y = readout(state, c)
+
+    # 可选 MIMO projection 增强通道交互
+    y = mimo_projection(y)
+    y = output_projection(y * silu(gate))
+    return residual + y, state
+```
+
+在语言或视频模型中，Mamba-3 block 通常与 MLP/SwiGLU block 交替，并可与少量全局 attention 层混合。对于长视频，常见用法不是直接替代视觉 patch tokenizer，而是在已经压缩后的帧级、轨迹级或多模态 token 序列上建模长程依赖。
+
+##### 5. 与 Transformer / Video Swin 的区别
+
+Video Swin 用局部窗口注意力降低视频 token 的局部建模成本，但跨长时间上下文仍需要堆叠或额外机制。Transformer 全局注意力能精确检索历史 token，但上下文越长 KV cache 越大。Mamba-3 则把历史压缩进固定状态，牺牲一部分精确随机访问能力，换取线性长度扩展和低 decode 内存。
+
+因此 Mamba-3 更适合被理解为长序列 backbone 或混合架构组件，而不是一个专门的视频识别算法。若用于长视频语言模型，它解决的主要是“大量视频 token 进入语言模型后的长上下文建模成本”，而不是前端视觉感知本身。
+
+> ⚠️ 注意：Mamba-3 不是线性注意力的简单变体，而是状态空间递推模型；它与 attention 的核心差异在于是否保存所有历史 token。
+
+#### 🧪 练习题
+```yaml
+question: "Mamba-3 相比 Transformer 在长序列推理中的核心优势是什么？"
+options:
+  - "保存完整 KV cache 以便精确访问所有历史 token"
+  - "使用固定大小状态递推，推理内存不随序列长度按 KV cache 方式增长"
+  - "只适用于短图像分类输入"
+  - "完全不需要参数训练"
+answer: 1
+explain: "Mamba-3 属于状态空间模型，历史信息被压缩到固定状态中；这降低了长上下文 decode 时的内存压力。"
+```
 
 ### Cosmos
 
@@ -2724,117 +3014,102 @@ motivation: 超长上下文视频语言对齐
 ```
 
 #### 📝 一句话总结
-Kangaroo 提出了一套系统化的数据策划流程与渐进式课程训练策略，构建了支持超长视频输入（160帧/22K tokens）的 8B 参数视频语言大模型，在多个视频理解基准上超越同等规模开源模型并在长视频任务上媲美商用模型。
+Kangaroo 通过高质量视频-文本数据策划、时序位置编码、空间-时间 patchify 压缩和渐进式课程训练，构建了支持长上下文视频输入的 8B 级视频语言模型。
 
 #### 🎯 核心要点
-- **模型架构**：EVA-CLIP-L 视觉编码器 + 轻量线性投影器 + 时空 Patchify 模块 + Llama-3-8B-Instruct LLM
-- **时序位置编码（TPE）**：使用正弦编码注入帧的实际浮点时间戳（而非帧索引），保留视频元信息
-- **数据策划系统**：构建 300M 图像 + 60M 视频的大规模预训练数据集，并精炼出 15M 高质量子集用于预训练精炼阶段
-- **五阶段课程训练**：图像预训练 → 视频预训练 → 预训练精炼 → 指令微调 → 长视频微调，逐步解锁组件
-- **长视频支持**：高分辨率输入（448×448）+ 最多 160 帧 + 22K 上下文长度 + 动态帧采样 + 序列打包策略
-- **SOTA 性能**：在 MVBench、MLVU、MMBench-Video、VideoMME、EgoSchema 等基准上达到 8B 级开源模型最优，部分指标超越 GPT-4V
+- 长视频 VLM 架构：视觉编码器 + spatial-temporal patchify + multimodal projector + LLM
+- 时间戳位置编码：用真实浮点时间戳增强帧特征，而不是只用离散帧序号
+- 数据策划系统：围绕图像/视频预训练和指令微调构建高质量多模态数据
+- 课程训练：从图像对齐、短视频预训练逐步过渡到高分辨率和长视频微调
+- 上下文扩展：通过 token 压缩、动态帧采样和序列打包支持更多帧输入
+- 长视频基准收益：在 MLVU、LVBench、VideoMME、EgoSchema 等长视频理解任务上强调竞争力
 
 #### 🔬 深入细节
-![Kangaroo 模型架构图](https://arxiv.org/html/2408.15542v1/x2.png)
-*图：Kangaroo 整体架构。视频帧经视觉编码器提取特征后注入时序位置编码，通过 Patchify 模块压缩并经投影器映射到 LLM 嵌入空间。*
+> 注：给定 `paper_url` 是占位式短链；可检索正式版本为 IJCV 2026 DOI `10.1007/s11263-025-02620-2`，预印本为 `arXiv:2408.15542`。
 
-##### 算法伪代码：课程训练流程
+![Kangaroo 架构图](https://arxiv.org/html/2408.15542v1/x2.png)
+*图：Kangaroo 由 vision encoder、spatial-temporal patchify、multi-modal projector 和 LLM 组成。*
+
+##### 1. 动机与背景
+
+视频语言模型面临两个互相牵制的问题。第一，长视频需要更多帧才能覆盖关键事件，但帧数增加会让视觉 token 爆炸，迅速耗尽 LLM 上下文。第二，公开视频-文本数据噪声高，字幕常只描述局部片段或缺少细粒度事件，模型很难学到可靠的视频语言对齐。
+
+Kangaroo 的策略是同时处理数据和架构：用数据策划系统提升监督质量，用课程训练逐步扩大分辨率、帧数和上下文长度，并用 patchify 压缩把高分辨率多帧视觉特征变成 LLM 可承受的 token 序列。
+
+##### 2. 模型结构与时间编码
+
+每帧先经过视觉编码器得到 patch 特征 \(Z_f^t\)。Kangaroo 给每帧加入基于真实时间戳 \(t\) 的 temporal position embedding：
+
+$$
+\hat{Z}_f^t = Z_f^t + \text{TPE}(t)
+$$
+
+其中 \(t\) 是浮点秒级时间，而不是第几帧的整数索引。这样模型能区分均匀采样、稀疏采样和不同视频时长下的同一帧序号。随后 spatial-temporal patchify 对视觉 token 进行压缩，projector 将其映射到 LLM embedding 空间，与文本 token 拼接后送入语言模型。
+
+##### 3. 课程训练流程
+
+![Kangaroo 课程训练](https://arxiv.org/html/2408.15542v1/x5.png)
+*图：Kangaroo 通过逐步增加任务难度、分辨率和帧数来训练长视频能力。*
 
 ```python
-# Kangaroo 五阶段课程训练
-# Stage I: 图像预训练 - 对齐视觉与语言特征空间
-train(data=300M_images, resolution=224, trainable=[projector], frozen=[ViT, LLM])
+# Kangaroo 课程训练伪代码
+stage1_image_pretrain(
+    data=image_text_pairs,
+    trainable=["projector"],
+    frozen=["vision_encoder", "llm"],
+)
 
-# Stage II: 视频预训练 - 引入时序建模能力  
-train(data=60M_videos, frames=8, resolution=224, trainable=[projector, ViT], frozen=[LLM])
+stage2_video_pretrain(
+    data=short_video_text_pairs,
+    frames=8,
+    resolution=224,
+    trainable=["vision_encoder", "projector"],
+)
 
-# Stage III: 预训练精炼 - 高分辨率 + Patchify 压缩
-train(data=15M_refined, frames=16, resolution=448, trainable=[all], frozen=[])
+stage3_refine(
+    data=curated_high_quality_data,
+    frames=16,
+    resolution=448,
+    trainable=["vision_encoder", "patchify", "projector", "llm"],
+)
 
-# Stage IV: 指令微调 - 多任务对话能力
-train(data=instruction_data, frames=64_max, resolution=448, context=10K,
-      trainable=[projector, patchify, LLM], frozen=[ViT])
+stage4_instruction_tune(
+    data=video_instruction_data,
+    frames="up_to_64",
+    context="10K",
+)
 
-# Stage V: 长视频微调 - 扩展上下文处理能力
-train(data=long_videos_subset, frames=160_max, resolution=448, context=22K,
-      trainable=[projector, patchify, LLM], frozen=[ViT])
+stage5_long_video_tune(
+    data=long_video_subset,
+    frames="up_to_160",
+    context="22K",
+)
 ```
 
-##### 动机与背景
+这种安排避免了一开始就把 LLM 暴露在超长、超噪声、多帧高分辨率输入下。先学图文对齐，再学短视频时序，最后扩展到长视频指令任务，训练稳定性更好。
 
-现有视频语言大模型面临两大核心挑战：（1）**高质量视频-文本数据稀缺**——网络视频字幕噪声大、描述粗糙，难以支撑精细的视频语言对齐学习；（2）**长视频处理能力受限**——受限于 LLM 上下文窗口和视觉 token 数量爆炸，多数模型仅能处理 8-16 帧的短片段，无法捕获长视频的全局语义。
+##### 4. 长视频处理机制
 
-Kangaroo 针对这两个问题分别提出了数据策划系统和课程训练策略。
+Spatial-temporal patchify 是 Kangaroo 控制视觉 token 数的关键。分辨率从 224 到 448 会使每帧 patch 数显著增加，如果直接把所有 token 输入 LLM，长视频不可行。Patchify 模块在空间和时间维度上做结构化压缩，保留关键视觉语义，同时减少 token 数。
 
-##### 核心机制一：时序位置编码（TPE）
+动态帧采样负责覆盖不同长度视频：短视频不必采太多冗余帧，长视频则增加采样以覆盖事件跨度。序列打包和注意力 mask 减少 padding 浪费，使不同长度样本可以更高效地训练。
 
-传统视频模型使用帧索引作为位置信息，丢失了帧间的实际时间间隔。Kangaroo 设计了基于正弦函数的时序位置编码：
+##### 5. 与 InternVideo 等视频基础模型的关系
 
-$$TPE(t) = \begin{pmatrix} \sin(t/\theta^{0/d}) \\ \cos(t/\theta^{1/d}) \\ \vdots \\ \sin(t/\theta^{(d-2)/d}) \\ \cos(t/\theta^{(d-1)/d}) \end{pmatrix}$$
+InternVideo 更偏视频表示/编码预训练，强调视觉 backbone 的通用视频表征；Kangaroo 则聚焦把长视频接入 LLM，解决视觉 token 压缩、长上下文对齐和指令问答。它的关键不只是视觉编码器强，而是数据质量、时间元信息和逐步扩展训练共同支撑长视频语言推理。
 
-$$\hat{Z_f^t} = Z_f^t + TPE(t)$$
-
-其中 \(t\) 是帧的**实际浮点时间戳**（秒），而非帧序号。这使得模型能感知视频的真实时间结构——例如区分匀速采样和变速采样的帧序列。增强后的视觉特征沿时间维度拼接并经投影器映射：
-
-$$Z_V = \text{Projector}(\hat{Z_f^0} \oplus \hat{Z_f^1} \oplus \ldots \oplus \hat{Z_f^n})$$
-
-> 💡 **关键**：使用实际时间戳而非帧索引，使模型能够编码视频的时间元信息（如总时长、采样密度），这对长视频理解尤为重要。
-
-##### 核心机制二：数据策划系统
-
-Kangaroo 构建了一套多阶段数据处理流水线：
-
-1. **预训练数据**：收集 300M 图像-文本对（含 LLaVA-558K、ALLaVA 等）和 60M 视频-文本对（Panda-70M、InternVid 等），用于初始的视觉-语言对齐
-2. **预训练精炼数据**（15M）：从预训练数据中精选高质量子集，采用多维度过滤：
-   - 视频质量过滤：分辨率 > 224、时长 > 5s、美学评分筛选
-   - 文本质量过滤：CLIP 相似度阈值、文本长度和信息密度
-   - 去重：基于 CLIP 特征的语义去重
-3. **指令微调数据**：整合多任务数据集覆盖 caption、QA、对话、推理等任务，并使用 GPT-4 对低质量标注进行重写增强
-
-##### 核心机制三：课程训练策略
-
-五阶段渐进式训练的设计逻辑：
-
-| 阶段 | 目标 | 分辨率 | 帧数 | 上下文 | 可训练组件 |
-|------|------|--------|------|--------|-----------|
-| I. 图像预训练 | 视觉-语言对齐 | 224 | 1 | 512 | Projector |
-| II. 视频预训练 | 时序建模 | 224 | 8 | 2560 | ViT + Projector |
-| III. 预训练精炼 | 高分辨率适应 | 448 | 16 | 2560 | All |
-| IV. 指令微调 | 多任务能力 | 448 | ≤64 | 10K | Proj + Patchify + LLM |
-| V. 长视频微调 | 长上下文泛化 | 448 | ≤160 | 22K | Proj + Patchify + LLM |
-
-> ⚠️ **注意**：分辨率从 224 提升到 448 时，ViT 序列长度从 256 增至 1024（4倍），因此引入 Spatial-Temporal Patchify 模块进行 token 压缩，避免 LLM 输入过长。
-
-##### 核心机制四：长视频处理技术
-
-为支持长视频输入，Kangaroo 采用三项关键技术：
-
-1. **动态帧采样**：根据视频时长自适应调整采样帧数（16~160），长视频多采样以覆盖全局内容，短视频少采样避免冗余
-2. **序列打包（Sequence Packing）**：将不同长度的多模态序列聚合为一个复合实例（配合注意力掩码），消除 padding 带来的无效计算
-3. **渐进式上下文扩展**：从 512 → 2560 → 10K → 22K 逐步扩展 LLM 上下文窗口，避免一步到位导致的训练不稳定
-
-##### 与传统方法的区别
-
-| 对比维度 | 传统视频 LMM | Kangaroo |
-|---------|-------------|----------|
-| 输入帧数 | 8-16 帧固定 | 16-160 帧动态 |
-| 位置编码 | 帧索引 | 实际时间戳 |
-| 训练策略 | 1-2 阶段 | 5 阶段课程学习 |
-| 数据处理 | 直接使用公开数据 | 系统化策划+质量精炼 |
-| 上下文长度 | 2-4K | 22K |
-
-Kangaroo 在 8B 参数规模下，于 MLVU（61.0）、LVBench（39.4）等长视频基准上超越 20B+ 参数模型和 GPT-4V，验证了数据质量与训练策略的重要性。
+> 💡 关键：Kangaroo 的长视频能力主要来自“少丢信息地压缩视觉 token”与“课程式扩大上下文”的配合，而不是简单增加输入帧数。
 
 #### 🧪 练习题
 ```yaml
-question: "Kangaroo 的时序位置编码（TPE）使用什么作为输入，而非传统的帧索引？"
+question: "Kangaroo 使用真实浮点时间戳做 TPE 的主要意义是什么？"
 options:
-  - "帧的像素均值"
-  - "帧的实际浮点时间戳（秒）"
-  - "帧在视频中的相对位置百分比"
-  - "帧的 CLIP 特征向量"
-answer: 1
-explain: "Kangaroo 使用帧的实际浮点时间戳（float-type timestamp）作为 TPE 输入，而非帧索引，从而将视频的时间元信息（如总时长、采样间隔）编码到视觉特征中。"
+  - "让模型感知帧的真实时间间隔和采样密度"
+  - "替代视觉编码器，使模型不再需要图像特征"
+  - "只用于计算视频文件大小"
+  - "强制所有视频采样相同帧数"
+answer: 0
+explain: "真实时间戳能保留视频时长和采样间隔等元信息，比单纯帧序号更适合长视频理解。"
 ```
 
 ### TrajTok
@@ -2854,12 +3129,93 @@ motivation: 端到端轨迹Token解耦时长
 ```
 
 #### 📝 一句话总结
-TrajTok 的核心目标是：端到端轨迹Token解耦时长。
+TrajTok 提出端到端可训练的视频轨迹 tokenizer，用统一 segmenter 隐式聚合跨时空像素并生成轨迹 token，使视频 token 数更多取决于语义复杂度而不是视频时长。
 
 #### 🎯 核心要点
-- 核心动机：端到端轨迹Token解耦时长
-- 演化来源：继承或改进自 videomae
-- 代表机构：Tsinghua/CAS
+- 端到端轨迹 tokenizer：与下游视频模型联合训练，不依赖外部分割和跟踪流水线
+- Universal segmenter：用 learnable queries 对像素/特征做隐式时空聚类，单次前向产生轨迹 mask
+- Trajectory encoder：按轨迹 mask 聚合视觉特征，输出紧凑语义 token
+- 可调 token 粒度：每条轨迹可输出不同数量子 token，适配算力预算
+- 三种使用方式：TrajViT2 预训练、TrajAdapter 特征探针、TrajVLM 多模态连接器
+- 长视频收益：轨迹表示减少冗余 patch token，尤其利于长视频推理和视频语言模型
 
 #### 🔬 深入细节
-端到端轨迹Token解耦时长
+> 注：给定 `paper_url` 为不可访问占位符；可检索论文为 `arXiv:2602.22779`，CVPR 2026 open access 版本题名为 *TrajTok: Learning Trajectory Tokens Enhances Video Understanding*。
+
+![TrajTok 架构概览](https://arxiv.org/html/2602.22779v3/x2.png)
+*图：TrajTok 由 trajectory segmenter 和 trajectory encoder 组成，先产生轨迹 mask，再聚合为轨迹 token。*
+
+##### 1. 动机与背景
+
+VideoMAE、TimeSformer、Video Swin 等方法通常把视频切成固定时空 patch。这样做简单稳定，但 token 数与帧数线性增长；长视频中大量背景、静止区域或重复帧会产生冗余 token，限制模型规模和上下文长度。
+
+轨迹 token 的想法是：视频理解更关心“对象或部件随时间如何变化”，而不是每一帧每个网格都单独成 token。此前 TrajViT 等方法已证明轨迹式 tokenization 可以减少冗余，但依赖 SAM/跟踪器等外部流水线，慢、不可微、也无法根据下游目标调整 token 粒度。
+
+##### 2. Universal Segmenter
+
+TrajTok 的 segmenter 用一组 learnable queries 对视频像素或中间视觉特征做隐式聚类。它不追求像 SAM 那样像素级完美分割，而是追求对下游理解任务有用的语义分组。
+
+可以将 segmenter 看成一个 mask proposal 网络：
+
+$$
+M = \text{Segmenter}(X; Q_s), \quad M \in \mathbb{R}^{K \times T \times H \times W}
+$$
+
+其中 \(K\) 是轨迹数，\(M_k\) 表示第 \(k\) 条轨迹在各帧上的软 mask。由于整个模块在模型内部，梯度可以从分类、检索或 VLM 目标回传到分组策略，使 tokenization 随任务自适应。
+
+##### 3. Trajectory Encoder
+
+Trajectory encoder 根据 mask 聚合原始视频特征或预训练视觉特征：
+
+$$
+u_k = \frac{\sum_{t,h,w} M_{k,t,h,w} \cdot f_{t,h,w}}
+{\sum_{t,h,w} M_{k,t,h,w} + \epsilon}
+$$
+
+随后通过 perceiver/attention 模块细化轨迹 token。论文还允许每条轨迹展开为 \(n \in \{1,2,4\}\) 个子 token，训练时随机采样粒度，推理时可按算力预算选择。
+
+```python
+# TrajTok 前向伪代码
+def trajtok(video_or_features):
+    feats = patch_encoder(video_or_features)
+
+    # 统一 segmenter 产生 K 条软轨迹
+    masks = trajectory_segmenter(feats, learnable_queries)
+
+    # 按轨迹聚合时空特征
+    traj_tokens = []
+    for k in range(K):
+        token = masked_pool(feats, masks[k])
+        traj_tokens.append(token)
+
+    # 轨迹 token 细化和可选子 token 展开
+    traj_tokens = trajectory_encoder(traj_tokens, masks)
+    return traj_tokens
+```
+
+##### 4. 三种接入方式
+
+![TrajTok 应用方式](https://arxiv.org/html/2602.22779v3/x4.png)
+*图：TrajTok 可用于从头训练视频编码器、适配预训练特征，也可作为 VLM 的视觉连接器。*
+
+TrajViT2 从头训练视频 CLIP 式模型，用 TrajTok 替代固定 patch token，直接学习适合检索和分类的轨迹表示。TrajAdapter 则把 TrajTok 插到冻结视觉 backbone 后面，作为下游分类/检索的轻量探针头。TrajVLM 把轨迹 token 作为 LLaVA 风格 VLM 的视觉输入，让长视频问答不必吞下海量 patch token。
+
+这三种设置说明 TrajTok 不是单一模型，而是一个可插拔 tokenization 模块。它可以处在预训练阶段，也可以处在微调或多模态对齐阶段。
+
+##### 5. 与 VideoMAE/patch token 的区别
+
+VideoMAE 的 mask reconstruction 仍基于规则网格 patch，适合学习局部时空表征；TrajTok 则把 token 单位改成对象/部件轨迹，目标是减少冗余并突出长期语义一致性。前者的 token 数主要由 \(T \times H \times W\) 决定，后者更接近由场景中对象和运动复杂度决定。
+
+> 💡 关键：TrajTok 的“解耦时长”不是说完全不受帧数影响，而是通过轨迹聚合让长视频中重复背景和持续对象不再按每帧网格重复计费。
+
+#### 🧪 练习题
+```yaml
+question: "TrajTok 相比依赖外部 SAM+Tracker 的轨迹 tokenization 最大优势是什么？"
+options:
+  - "完全不使用视觉特征"
+  - "端到端可训练，token 分组能根据下游任务目标自适应"
+  - "把所有帧压缩成一个固定类别标签"
+  - "只能用于 GPS 轨迹数据，不能用于视频"
+answer: 1
+explain: "TrajTok 将 segmenter 和 trajectory encoder 集成进模型内部，梯度可回传到 tokenization 过程，因此比外部不可微流水线更灵活。"
+```

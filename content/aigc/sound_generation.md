@@ -281,15 +281,73 @@ motivation: 空洞因果卷积自回归生成原始波形
 ```
 
 #### 📝 一句话总结
-WaveNet 的核心目标是：空洞因果卷积自回归生成原始波形。
+WaveNet 提出了直接在原始音频采样点上建模的自回归生成网络，用空洞因果卷积扩大感受野，解决了传统 TTS 声码器和统计参数模型难以生成自然波形细节的问题。
 
 #### 🎯 核心要点
-- 核心动机：空洞因果卷积自回归生成原始波形
-- 代表机构：DeepMind
+- 将音频联合分布分解为逐采样点条件概率，直接生成 raw waveform。
+- 使用因果卷积保证预测 \(x_t\) 时不泄漏未来采样点。
+- 使用指数增长的 dilated causal convolution，在较少层数下覆盖长时间上下文。
+- 每个残差块采用 gated activation、residual connection 和 skip connection。
+- 输出端可使用 \(\mu\)-law 量化后的 softmax，也可扩展为 mixture density 输出。
+- 条件生成支持全局说话人条件和局部语言学特征条件，可用于多说话人 TTS。
 
 #### 🔬 深入细节
-空洞因果卷积自回归生成原始波形
+![WaveNet 残差块与整体架构](https://ar5iv.labs.arxiv.org/html/1609.03499/assets/x3.png)
+*图：WaveNet 的残差块、跳连聚合与整体自回归波形生成结构。*
 
+```python
+# WaveNet 训练与采样核心流程
+for waveform in training_set:
+    x = mu_law_quantize(waveform)
+    h = causal_conv(x[:, :-1])
+    skip_sum = 0
+    for dilation in [1, 2, 4, ..., 512] * num_stacks:
+        z = dilated_causal_conv(h, dilation)
+        gated = tanh(z.filter) * sigmoid(z.gate)
+        h = h + conv1x1(gated)          # residual path
+        skip_sum += conv1x1(gated)      # skip path
+    logits = post_net(relu(skip_sum))
+    loss = cross_entropy(logits, x[:, 1:])
+
+samples = []
+for t in range(num_samples):
+    logits = wavenet(samples, conditioning)
+    samples.append(sample_softmax(logits[-1]))
+```
+
+WaveNet 的核心建模假设是把波形 \(x = \{x_1,\dots,x_T\}\) 写成自回归分解：
+$$
+p(x)=\prod_{t=1}^{T}p(x_t \mid x_1,\dots,x_{t-1})
+$$
+这使模型不再依赖手工声学参数或传统声码器，而是学习每一个采样点在历史波形条件下的离散分布。代价是采样天然串行，因此 WaveNet 的训练很并行，推理却较慢。
+
+因果卷积解决了时间顺序约束：卷积核只看当前位置之前的输入。仅用普通因果卷积会让感受野线性增长，覆盖 16 kHz 或 24 kHz 音频中的长程韵律需要极深网络。WaveNet 因此引入空洞卷积，若 dilation 按 \(1,2,4,\dots\) 增长，感受野可指数扩展：
+$$
+y_t = \sum_{k=0}^{K-1} w_k x_{t-dk}
+$$
+其中 \(d\) 是 dilation。直觉上，低层捕获局部波形周期，高层以稀疏间隔观察更长上下文。
+
+每个残差块使用门控激活：
+$$
+z = \tanh(W_{f,k} * x) \odot \sigma(W_{g,k} * x)
+$$
+\(\tanh\) 分支生成候选特征，\(\sigma\) 分支控制通过多少信息。残差连接让深层空洞卷积可训练，skip connection 将每层不同尺度的证据汇聚到输出端。
+
+在 TTS 条件生成中，WaveNet 可以接收全局条件 \(h\)，如 speaker id；也可以接收局部条件 \(h_t\)，如 linguistic features 或 mel-spectrogram。条件项进入门控卷积后，相当于让每个采样点的分布同时受历史波形和文本派生声学信息控制。
+
+> 💡 关键：WaveNet 的突破不只是“卷积生成音频”，而是把 PixelCNN 式自回归密度估计搬到一维高采样率波形上，并用空洞因果卷积让长上下文建模变得可训练。
+
+#### 🧪 练习题
+```yaml
+question: "WaveNet 使用空洞因果卷积的主要目的是什么？"
+options:
+  - "减少输出采样率"
+  - "在不泄漏未来信息的前提下扩大感受野"
+  - "把波形转换为 mel 频谱"
+  - "让采样过程完全并行"
+answer: 1
+explain: "因果卷积保证只依赖过去采样点，空洞卷积让感受野随层数快速增大；WaveNet 的原始采样过程仍是自回归串行的。"
+```
 
 ### Tacotron
 
@@ -487,16 +545,71 @@ motivation: Mel谱预测+WaveNet声码器
 ```
 
 #### 📝 一句话总结
-Tacotron 2 的核心目标是：Mel谱预测+WaveNet声码器。
+Tacotron 2 提出了“文本到 mel 频谱，再由 WaveNet 声码器生成波形”的两阶段神经 TTS 系统，用紧凑 mel 表示替代复杂语言学声学特征，显著提升合成自然度。
 
 #### 🎯 核心要点
-- 核心动机：Mel谱预测+WaveNet声码器
-- 演化来源：继承或改进自 tacotron
-- 代表机构：Google
+- 使用 seq2seq acoustic model 从字符序列预测 mel-spectrogram。
+- 编码器由字符嵌入、卷积层和双向 LSTM 组成。
+- 解码器采用 attention RNN、decoder RNN、自回归 mel frame 预测和 stop token。
+- post-net 对初始 mel 预测做卷积残差修正，训练时同时监督修正前后 mel。
+- 使用改造后的 WaveNet 以 mel-spectrogram 为局部条件生成时域波形。
+- 证明 mel 条件足以驱动高质量神经声码器，简化传统 TTS 特征工程。
 
 #### 🔬 深入细节
-Mel谱预测+WaveNet声码器
+![Tacotron 2 系统结构](https://ar5iv.labs.arxiv.org/html/1712.05884/assets/x1.png)
+*图：Tacotron 2 从文本到 mel 频谱，再到 WaveNet 波形合成的整体架构。*
 
+```python
+# Tacotron 2 核心流程
+chars = normalize_and_tokenize(text)
+enc = bidirectional_lstm(conv_stack(embed(chars)))
+
+mel_frames = []
+state = init_decoder_state()
+prev = go_frame
+while True:
+    query = prenet(prev)
+    context, align = attention(query, enc)
+    state = decoder_rnn(concat(query, context), state)
+    mel, stop_logit = linear_projection(state, context)
+    mel_frames.append(mel)
+    if sigmoid(stop_logit) > threshold:
+        break
+    prev = mel
+
+mel_refined = mel_frames + postnet(mel_frames)
+waveform = wavenet_vocoder(mel_refined)
+```
+
+Tacotron 2 的设计动机是拆开 TTS 中最难的两个问题：先让一个注意力 seq2seq 模型学习文本到声学中间表示的对齐，再让声码器根据该表示生成波形。mel-spectrogram 比线性频谱低维，也比 phoneme duration、\(F_0\)、能量等手工特征更容易从数据中学习。
+
+声学模型的训练目标是最小化预测 mel 与真实 mel 的均方误差，并加入 stop token 的二分类损失：
+$$
+\mathcal{L}=\|Y-\hat{Y}\|_2^2+\|Y-\hat{Y}_{post}\|_2^2+\mathcal{L}_{stop}
+$$
+其中 \(\hat{Y}\) 是解码器初始输出，\(\hat{Y}_{post}\) 是 post-net 修正后的输出。post-net 的作用不是重新生成频谱，而是补充局部频谱细节，使输出更接近真实分布。
+
+attention 模块承担隐式对齐功能：每一步 mel 解码都会在文本编码状态上产生权重。相比显式 duration 模型，这种方式更灵活，但也带来漏词、重复、长句失稳等问题，后来 FastSpeech 等方法正是针对这些缺陷改进。
+
+WaveNet 声码器接收 mel 作为局部条件 \(c_t\)，建模：
+$$
+p(x)=\prod_t p(x_t \mid x_{<t}, c_t)
+$$
+论文的重要结论是，仅使用 mel 条件就能训练出自然度很高的 WaveNet，说明前端声学模型不必输出复杂的传统声码器参数。
+
+> 💡 关键：Tacotron 2 的影响在于确立了现代 TTS 的经典分工：文本前端负责预测 mel，神经声码器负责从 mel 还原高保真波形。
+
+#### 🧪 练习题
+```yaml
+question: "Tacotron 2 中 post-net 的主要作用是什么？"
+options:
+  - "把文本转换成字符嵌入"
+  - "预测 stop token"
+  - "对解码器生成的 mel 频谱做残差修正"
+  - "替代 WaveNet 直接输出波形"
+answer: 2
+explain: "post-net 是卷积网络，输出加到初始 mel 预测上，用于补充局部频谱细节并改善收敛。"
+```
 
 ### FastSpeech
 
@@ -515,16 +628,66 @@ motivation: 非自回归并行合成+长度预测器
 ```
 
 #### 📝 一句话总结
-FastSpeech 的核心目标是：非自回归并行合成+长度预测器。
+FastSpeech 提出了基于 Feed-Forward Transformer 的非自回归 TTS，用 duration predictor 和 length regulator 显式展开音素长度，解决 Tacotron 类自回归解码慢、易漏读或重复的问题。
 
 #### 🎯 核心要点
-- 核心动机：非自回归并行合成+长度预测器
-- 演化来源：继承或改进自 tacotron2
-- 代表机构：Microsoft
+- 将 mel-spectrogram 生成从自回归改为并行非自回归。
+- 使用教师模型提取 phoneme-to-mel attention alignment 作为 duration 监督。
+- Length Regulator 按音素时长复制 hidden states，使文本侧序列长度匹配 mel 侧。
+- Duration Predictor 训练后可在推理时预测每个音素持续帧数。
+- 基础块为 Feed-Forward Transformer block，包含 self-attention 与 1D convolution。
+- 可通过调节 duration 长度控制语速，也可插入停顿改善韵律。
 
 #### 🔬 深入细节
-非自回归并行合成+长度预测器
+![FastSpeech 前馈 Transformer](https://ar5iv.labs.arxiv.org/html/1905.09263/assets/x1.png)
+![FastSpeech Length Regulator](https://ar5iv.labs.arxiv.org/html/1905.09263/assets/x3.png)
+*图：FastSpeech 的非自回归前馈结构与长度调节器。论文 Figure 1 还包含 FFT block 与 duration predictor 子图。*
 
+```python
+# FastSpeech 训练和推理流程
+teacher = train_or_load_autoregressive_tts()
+durations = extract_durations_from_teacher_attention(text, mel_target)
+
+h_phoneme = phoneme_side_fft(phoneme_embeddings)
+h_mel = length_regulator(h_phoneme, durations)  # repeat each phoneme state
+mel_pred = mel_side_fft(h_mel)
+duration_pred = duration_predictor(h_phoneme)
+
+loss = mse(mel_pred, mel_target) + mse(log(duration_pred + 1), log(durations + 1))
+
+# inference
+h_phoneme = phoneme_side_fft(phoneme_embeddings)
+dur_hat = round(exp(duration_predictor(h_phoneme)) - 1) * speed_control
+h_mel = length_regulator(h_phoneme, dur_hat)
+mel = mel_side_fft(h_mel)
+waveform = vocoder(mel)
+```
+
+Tacotron 2 的瓶颈在于 mel 帧逐步生成，每一步依赖上一帧，还要依赖 attention 自动对齐。若 attention 在长句中偏移，就会出现重复、跳词或提前结束。FastSpeech 把对齐从隐变量变成显式 duration，使 mel 生成可以一次性并行完成。
+
+Length Regulator 是方法的关键。给定音素隐状态序列 \(H=[h_1,\dots,h_n]\) 和时长 \(D=[d_1,\dots,d_n]\)，它将每个 \(h_i\) 复制 \(d_i\) 次：
+$$
+\mathrm{LR}(H,D)=[\underbrace{h_1,\dots,h_1}_{d_1},\underbrace{h_2,\dots,h_2}_{d_2},\dots,\underbrace{h_n,\dots,h_n}_{d_n}]
+$$
+这样输出长度直接对齐 mel 帧数，后续 FFT block 只需并行建模帧间依赖。
+
+Duration Predictor 的监督来自教师模型 attention 的硬对齐统计，而不是人工标注。训练后推理时无需教师，模型先预测 \(d_i\)，再展开隐状态。语速控制可通过 \(d_i'=\alpha d_i\) 实现，\(\alpha<1\) 加快语速，\(\alpha>1\) 放慢语速。
+
+FFT block 不是完整 Transformer decoder，而是前馈结构：self-attention 捕获全局上下文，1D convolution 捕获局部连续性。没有 autoregressive feedback 后，训练和推理都更稳定，但也更依赖 duration 质量和教师对齐质量。
+
+> ⚠️ 注意：FastSpeech 仍不是端到端波形模型，它输出 mel-spectrogram，最终音频质量仍依赖外部声码器。
+
+#### 🧪 练习题
+```yaml
+question: "FastSpeech 中 Length Regulator 的作用是什么？"
+options:
+  - "把 mel 频谱压缩成离散 token"
+  - "按预测或提取的 duration 复制音素隐状态，使其匹配 mel 帧长度"
+  - "对 WaveNet 输出做后处理"
+  - "计算 CLAP 文本音频相似度"
+answer: 1
+explain: "Length Regulator 将音素级序列显式展开到帧级序列，这是 FastSpeech 能并行生成 mel 的核心。"
+```
 
 ### FastSpeech 2
 
@@ -964,16 +1127,72 @@ motivation: VAE+Flow+GAN端到端合成
 ```
 
 #### 📝 一句话总结
-VITS 的核心目标是：VAE+Flow+GAN端到端合成。
+VITS 将文本编码器、随机时长预测、normalizing flow、HiFi-GAN 式解码器统一到条件 VAE 框架中，实现从文本到波形的并行端到端 TTS。
 
 #### 🎯 核心要点
-- 核心动机：VAE+Flow+GAN端到端合成
-- 演化来源：继承或改进自 fastspeech2
-- 代表机构：Kakao
+- 用条件 VAE 连接文本先验、语音后验和 waveform decoder。
+- Posterior encoder 从线性谱提取潜变量 \(z\)，prior encoder 从文本生成先验分布。
+- Normalizing flow 提升文本条件先验的表达能力，使其更贴近后验。
+- 使用 Monotonic Alignment Search 在文本 token 和语音帧之间寻找单调对齐。
+- Stochastic Duration Predictor 建模一段文本可有多种节奏的 one-to-many 关系。
+- Decoder 采用对抗学习和重建损失，直接生成波形而非 mel 中间结果。
 
 #### 🔬 深入细节
-VAE+Flow+GAN端到端合成
+![VITS 训练流程](https://ar5iv.labs.arxiv.org/html/2106.06103/assets/x1.png)
+![VITS 推理流程](https://ar5iv.labs.arxiv.org/html/2106.06103/assets/x2.png)
+*图：VITS 的训练与推理流程，包含 posterior encoder、flow、text prior、duration predictor 和 waveform decoder。*
 
+```python
+# VITS 核心训练流程
+x = text_to_phonemes(text)
+y = waveform
+spec = linear_spectrogram(y)
+
+z_post, q_params = posterior_encoder(spec)
+prior_params = text_encoder(x)
+alignment = monotonic_alignment_search(z_post, prior_params)
+z_flow = flow(z_post, condition=x, alignment=alignment)
+
+duration_loss = stochastic_duration_predictor.loss(x, alignment)
+kl_loss = kl_divergence(z_flow, prior_params, alignment)
+wave_hat = decoder(z_post)
+recon_loss = l1_mel_loss(wave_hat, y)
+adv_loss = gan_generator_loss(discriminator(wave_hat))
+loss = recon_loss + kl_loss + duration_loss + adv_loss
+
+# inference
+prior_params = text_encoder(x)
+dur = stochastic_duration_predictor.sample(x)
+alignment = length_regulate(dur)
+z = inverse_flow(sample(prior_params, alignment))
+wave = decoder(z)
+```
+
+VITS 的动机是打破两阶段 TTS 的误差传递：mel 预测器和声码器分开训练时，声码器训练看到真实 mel，推理看到预测 mel，二者分布不一致。VITS 用潜变量 \(z\) 把文本和波形放进同一个生成模型，训练目标直接约束最终波形。
+
+条件 VAE 的核心可以写成最大化证据下界：
+$$
+\log p_\theta(y \mid x) \ge \mathbb{E}_{q_\phi(z \mid y)}[\log p_\theta(y \mid z)] - D_{KL}(q_\phi(z \mid y)\|p_\theta(z \mid x))
+$$
+其中 \(q_\phi\) 是 posterior encoder，\(p_\theta(z \mid x)\) 是文本条件先验。flow 的作用是把简单先验变换成更灵活的分布，从而减小先验和后验之间的差距。
+
+对齐问题由 Monotonic Alignment Search 处理。它在文本 token 与语音帧之间寻找单调路径，使每帧潜变量都能对应到一个文本 token。由于语音天然按文本顺序发音，单调约束既合理又能避免 attention 漂移。
+
+随机时长预测器不是只回归一个确定 duration，而是学习时长分布。推理时可以采样不同 duration，从而得到不同节奏和停顿。这对应 TTS 的 one-to-many 本质：同一句文本可以用多种自然韵律朗读。
+
+Decoder 类似 HiFi-GAN 生成器，通过 mel 重建损失保证内容和频谱结构，通过判别器损失补足高频自然度。与 FastSpeech 系列相比，VITS 不需要单独训练声码器，也不把 mel 作为必须输出的接口。
+
+#### 🧪 练习题
+```yaml
+question: "VITS 中 normalizing flow 的主要作用是什么？"
+options:
+  - "把文本 token 转成字符"
+  - "增强文本条件先验分布，使其更贴近后验潜变量分布"
+  - "替代判别器计算 GAN loss"
+  - "将波形下采样为 mel 频谱"
+answer: 1
+explain: "Flow 对先验或后验潜变量做可逆变换，提升分布表达能力，从而减小 KL 项中的先验后验差距。"
+```
 
 ### SoundStream
 
@@ -992,15 +1211,64 @@ motivation: RVQ神经音频编码框架
 ```
 
 #### 📝 一句话总结
-SoundStream 的核心目标是：RVQ神经音频编码框架。
+SoundStream 提出了端到端神经音频 codec，用卷积编码器、残差向量量化和神经解码器在低码率下重建高质量音频，并支持一个模型覆盖多种码率。
 
 #### 🎯 核心要点
-- 核心动机：RVQ神经音频编码框架
-- 代表机构：Google
+- 编码器将波形压缩为低帧率连续 latent，解码器从量化 latent 重建波形。
+- 使用 Residual Vector Quantization (RVQ) 逐级量化残差，提高低码率表达能力。
+- 训练目标组合重建损失、感知损失和对抗损失。
+- 引入 quantizer dropout，让同一模型可在不同数量量化器下工作。
+- 支持联合压缩和增强，例如在 codec 中同时完成降噪。
+- 为后续 EnCodec、SoundStorm、MusicGen 等离散音频 token 系统奠定基础。
 
 #### 🔬 深入细节
-RVQ神经音频编码框架
+![SoundStream 模型结构](https://ar5iv.labs.arxiv.org/html/2107.03312/assets/x2.png)
+*图：SoundStream 的编码器、RVQ 量化器、解码器和训练损失结构。*
 
+```python
+# SoundStream/RVQ 核心流程
+audio = load_waveform()
+z = encoder(audio)              # continuous latent
+residual = z
+codes = []
+quantized_sum = 0
+
+for codebook in rvq_codebooks[:num_quantizers]:
+    code = nearest_code(codebook, residual)
+    q = codebook[code]
+    codes.append(code)
+    quantized_sum += q
+    residual = residual - q
+
+recon = decoder(quantized_sum)
+loss = stft_loss(recon, audio) + adversarial_loss(recon, audio) + commit_loss(codes)
+```
+
+传统语音 codec 多依赖人工设计的信号模型，音乐和环境声上的泛化有限。SoundStream 的思路是直接训练一个端到端自编码器，把编码、量化、解码都交给神经网络学习，只保留码率约束。
+
+RVQ 是关键压缩机制。第一本码书近似 latent \(z\)，第二本码书只编码剩余误差，依此类推：
+$$
+r_0=z,\quad q_i=\mathrm{VQ}_i(r_{i-1}),\quad r_i=r_{i-1}-q_i,\quad \hat{z}=\sum_i q_i
+$$
+这种逐级残差量化比单码书更灵活：低码率时只传前几级，高码率时传更多级。
+
+Quantizer dropout 在训练时随机丢弃后面的量化器，迫使前几级也能独立承载主要信息。推理部署时只需选择使用的量化器数量 \(n_q\)，即可在同一个模型上切换码率。
+
+解码端通过多尺度频谱损失保真，通过判别器补足听感细节。相比只优化波形 L1/L2，STFT 和 adversarial loss 更贴近人耳对音色、瞬态和高频噪声的敏感性。
+
+> 💡 关键：SoundStream 的贡献不只是压缩音频，而是把“音频离散 token”变成可训练、可变码率、可被后续生成模型使用的通用表示。
+
+#### 🧪 练习题
+```yaml
+question: "SoundStream 中 RVQ 的核心思想是什么？"
+options:
+  - "用多个码书逐级量化剩余误差"
+  - "把所有音频转换成文字 token"
+  - "只使用一个超大码书量化波形"
+  - "用扩散模型反复去噪 latent"
+answer: 0
+explain: "RVQ 每一级码书编码上一轮未解释的残差，多级求和后得到更精确的量化 latent。"
+```
 
 ### BigVGAN
 
@@ -1019,16 +1287,63 @@ motivation: Snake激活大规模通用声码器
 ```
 
 #### 📝 一句话总结
-BigVGAN 的核心目标是：Snake激活大规模通用声码器。
+BigVGAN 在 HiFi-GAN 式声码器上引入周期归纳偏置和抗混叠设计，并通过大规模训练提升跨说话人、跨语言、歌声和乐器等分布外音频的通用性。
 
 #### 🎯 核心要点
-- 核心动机：Snake激活大规模通用声码器
-- 演化来源：继承或改进自 hifigan
-- 代表机构：NVIDIA
+- 继承 GAN vocoder 的 mel-to-waveform 生成范式。
+- 提出 Anti-aliased Multi-Periodicity Composition (AMP) 模块。
+- 使用 Snake 激活函数显式提供周期性建模能力。
+- 在周期性非线性后加入低通滤波，缓解上采样和非线性带来的 aliasing。
+- 扩大模型规模与训练数据，提升通用声码器能力。
+- 结合多周期判别器和多分辨率判别器强化高频谐波质量。
 
 #### 🔬 深入细节
-Snake激活大规模通用声码器
+![BigVGAN 生成器结构](https://ar5iv.labs.arxiv.org/html/2206.04658/assets/x1.png)
+*图：BigVGAN 生成器由转置卷积上采样块和 AMP 模块组成。*
 
+```python
+# BigVGAN mel-to-waveform 生成器流程
+h = pre_conv(mel)
+for upsample in upsampling_blocks:
+    h = transposed_conv1d(h)
+    periodic_features = []
+    for residual_block in amp_resblocks:
+        u = snake_activation(h)          # periodic inductive bias
+        u = low_pass_filter(u)           # anti-aliasing
+        periodic_features.append(residual_block(u))
+    h = sum(periodic_features) / len(periodic_features)
+
+wave = tanh(post_conv(h))
+loss_g = mel_loss(wave, target) + feature_matching_loss(wave) + gan_loss(wave)
+```
+
+普通 GAN 声码器在训练域内很强，但遇到歌声、乐器、未见语言或高频谐波密集的信号时容易产生失真。BigVGAN 的判断是：声音波形本质上包含丰富周期结构，生成器需要显式周期归纳偏置，而不只是依赖普通 LeakyReLU 和卷积自行学习。
+
+Snake 激活函数可写成：
+$$
+\mathrm{Snake}(x)=x+\frac{1}{\alpha}\sin^2(\alpha x)
+$$
+其中 \(\sin^2\) 项提供周期响应，\(\alpha\) 控制周期尺度。它让网络更容易表达谐波、基频和高频周期纹理。
+
+但周期性非线性和上采样会引入 aliasing。AMP 模块因此在激活附近加入低通滤波，使模型保留周期建模能力，同时减少不自然的镜像频率成分。直觉上，BigVGAN 不只是“更大”，而是把声音周期结构和信号处理约束写进了模块。
+
+训练目标仍遵循神经声码器常见组合：mel 重建保证内容一致，feature matching 让生成器匹配判别器中间表示，GAN loss 提升真实感：
+$$
+\mathcal{L}_G=\mathcal{L}_{mel}+\lambda_{fm}\mathcal{L}_{fm}+\lambda_{adv}\mathcal{L}_{adv}
+$$
+多周期判别器关注周期采样结构，多分辨率判别器关注不同 STFT 尺度下的频谱真实性。
+
+#### 🧪 练习题
+```yaml
+question: "BigVGAN 引入 Snake 激活函数的主要原因是什么？"
+options:
+  - "显式提供周期性归纳偏置，帮助建模谐波结构"
+  - "把 mel 频谱离散化为 token"
+  - "降低采样率以减少计算"
+  - "替代所有判别器"
+answer: 0
+explain: "Snake 激活包含周期项，适合表达语音、歌声和乐器中的周期波形；BigVGAN 再用抗混叠设计减少副作用。"
+```
 
 ### EnCodec
 
@@ -1245,16 +1560,59 @@ motivation: 多语言零样本VITS克隆
 ```
 
 #### 📝 一句话总结
-YourTTS 的核心目标是：多语言零样本VITS克隆。
+YourTTS 在 VITS 基础上加入跨语言多说话人建模和说话人嵌入条件，使模型能用少量参考语音进行零样本语音克隆和跨语言 TTS。
 
 #### 🎯 核心要点
-- 核心动机：多语言零样本VITS克隆
-- 演化来源：继承或改进自 vits
-- 代表机构：Coqui
+- 以 VITS 为骨干，保留条件 VAE、flow、随机时长预测和 GAN decoder。
+- 使用外部 speaker encoder 提取参考语音的说话人嵌入。
+- 训练覆盖多说话人、多语言数据，增强零样本泛化。
+- 在文本编码、duration、decoder 等模块注入 speaker embedding。
+- 支持 zero-shot voice cloning、cross-lingual TTS 和 voice conversion。
+- 通过 speaker consistency 指标和 MOS/Sim-MOS 评估相似度与自然度。
 
 #### 🔬 深入细节
-多语言零样本VITS克隆
+![YourTTS 训练流程](https://ar5iv.labs.arxiv.org/html/2112.02418/assets/x1.png)
+![YourTTS 推理流程](https://ar5iv.labs.arxiv.org/html/2112.02418/assets/x2.png)
+*图：YourTTS 在 VITS 训练和推理流程中加入参考说话人嵌入。*
 
+```python
+# YourTTS 零样本克隆流程
+ref_audio = load_reference_speech()
+speaker_emb = speaker_encoder(ref_audio)
+
+phonemes = text_frontend(text, language_id)
+prior = text_encoder(phonemes, speaker_emb, language_id)
+duration = stochastic_duration_predictor.sample(prior, speaker_emb)
+alignment = length_regulate(duration)
+z = inverse_flow(sample(prior, alignment), speaker_emb)
+wave = decoder(z, speaker_emb)
+```
+
+VITS 已经能端到端生成自然语音，但普通多说话人 VITS 通常依赖训练集中固定 speaker id。YourTTS 的关键改造是把 speaker id 换成由参考音频提取的连续 speaker embedding，使未见说话人也能作为条件输入。
+
+说话人嵌入可以看作 timbre 条件 \(s\)，模型学习：
+$$
+p(y \mid x, s, l)
+$$
+其中 \(x\) 是文本或音素，\(s\) 是参考音频的说话人向量，\(l\) 是语言条件。这样，文本内容、语言发音模式和说话人音色被显式分开输入。
+
+训练阶段，posterior encoder 仍从真实语音中得到潜变量，text encoder 产生条件先验，flow 对齐两者分布；不同的是 speaker embedding 会调制多个模块，让音色信息贯穿 duration、prior 和 waveform decoder。
+
+跨语言场景更难，因为参考音频可能是语言 A，而目标文本是语言 B。YourTTS 通过多语言训练让说话人嵌入更偏向音色而非语义内容，同时用语言 id 或语言相关前端帮助模型生成正确发音。
+
+> ⚠️ 资料限制：manifest 给出的 PMLR 页面是正式论文入口；此处方法图采用公开 ar5iv 转换页中的同论文图像路径。若图片服务不可用，正文方法解读仍可独立理解算法流程。
+
+#### 🧪 练习题
+```yaml
+question: "YourTTS 实现零样本语音克隆的关键条件信息是什么？"
+options:
+  - "从参考语音提取的 speaker embedding"
+  - "随机初始化的 speaker id"
+  - "CLAP 文本嵌入"
+  - "只包含音量的标量条件"
+answer: 0
+explain: "YourTTS 使用 speaker encoder 从参考音频提取连续说话人向量，并将其注入 VITS 模块以控制目标音色。"
+```
 
 ### AudioLDM
 
@@ -1273,15 +1631,71 @@ motivation: 潜在扩散+CLAP对齐音效生成
 ```
 
 #### 📝 一句话总结
-AudioLDM 的核心目标是：潜在扩散+CLAP对齐音效生成。
+AudioLDM 将 latent diffusion 引入文本到音频生成，通过 CLAP 对齐文本和音频语义，在 VAE latent 空间中生成音频，从而降低计算成本并支持多种零样本音频编辑。
 
 #### 🎯 核心要点
-- 核心动机：潜在扩散+CLAP对齐音效生成
-- 代表机构：Surrey
+- 用 VAE 将 mel-spectrogram 压缩到连续 latent 空间。
+- 在 latent 空间训练条件扩散模型，而非直接在波形或频谱上扩散。
+- 使用 CLAP audio embedding 训练条件生成，推理时替换为 CLAP text embedding。
+- 采用 classifier-free guidance 控制文本条件强度。
+- 支持 text-to-audio、audio inpainting、style transfer 和 super-resolution 等任务。
+- 利用 AudioCaps、AudioSet 等音频文本或音频数据进行训练和评估。
 
 #### 🔬 深入细节
-潜在扩散+CLAP对齐音效生成
+![AudioLDM 系统总览](https://ar5iv.labs.arxiv.org/html/2301.12503/assets/x1.png)
+*图：AudioLDM 的训练、文本采样、音频补全和风格迁移流程。*
 
+```python
+# AudioLDM 潜在扩散训练与采样
+mel = wav_to_mel(audio)
+z0 = vae_encoder(mel)
+condition = clap_audio_encoder(audio)   # training condition
+
+t = sample_timestep()
+noise = normal_like(z0)
+zt = sqrt(alpha_bar[t]) * z0 + sqrt(1 - alpha_bar[t]) * noise
+noise_pred = unet(zt, t, condition)
+loss = mse(noise_pred, noise)
+
+# inference
+condition = clap_text_encoder(prompt)
+z = normal(shape)
+for t in reversed(range(T)):
+    eps_cond = unet(z, t, condition)
+    eps_uncond = unet(z, t, null_condition)
+    eps = eps_uncond + guidance_scale * (eps_cond - eps_uncond)
+    z = ddim_or_ddpm_step(z, eps, t)
+mel_hat = vae_decoder(z)
+audio_hat = vocoder(mel_hat)
+```
+
+AudioLDM 的核心问题是：音频波形长、频谱二维结构复杂，直接扩散成本很高。它借鉴图像 LDM，将 mel-spectrogram 先压缩为 latent \(z\)，扩散模型只在低维 latent 中学习生成，最后由 VAE decoder 和 vocoder 还原音频。
+
+扩散训练目标是预测加到 latent 上的噪声：
+$$
+\mathcal{L}_{LDM}=\mathbb{E}_{z_0,\epsilon,t}\left[\|\epsilon-\epsilon_\theta(z_t,t,c)\|_2^2\right]
+$$
+其中 \(c\) 是条件嵌入。训练时使用 CLAP audio encoder 得到音频条件，推理时使用 CLAP text encoder 得到文本条件。因为 CLAP 把文本和音频放到同一语义空间，模型可以在没有逐条文本标注的音频上学习。
+
+Classifier-free guidance 在采样时混合有条件和无条件预测：
+$$
+\hat{\epsilon}=\epsilon_\theta(z_t,t,\varnothing)+s(\epsilon_\theta(z_t,t,c)-\epsilon_\theta(z_t,t,\varnothing))
+$$
+\(s\) 越大，生成结果越贴近文本，但过大可能牺牲自然度和多样性。
+
+AudioLDM 的另一个价值是统一编辑任务。inpainting 可以固定未遮挡 latent，只对遮挡区域反向扩散；style transfer 可以从源音频的中间噪声状态开始，用新文本条件引导反向过程。这些能力来自扩散模型的迭代生成形式。
+
+#### 🧪 练习题
+```yaml
+question: "AudioLDM 为什么可以在训练时用音频嵌入、推理时用文本嵌入作为条件？"
+options:
+  - "CLAP 将文本和音频映射到对齐的共享语义空间"
+  - "VAE 会自动翻译文本"
+  - "DDPM 不需要任何条件"
+  - "vocoder 直接读取自然语言"
+answer: 0
+explain: "CLAP 的文本编码器和音频编码器输出处于对齐空间，因此训练的音频条件可在推理时替换为文本条件。"
+```
 
 ### VALL-E
 

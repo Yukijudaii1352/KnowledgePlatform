@@ -1,5 +1,5 @@
 /**
- * object_detection-data.js — 由 pipeline/build.py 于 2026-06-15 18:08:21 自动生成。
+ * object_detection-data.js — 由 pipeline/build.py 于 2026-06-16 17:00:11 自动生成。
  * 源文件：content/cv/object_detection.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "object_detection",
     "topic_name": "目标检测",
     "page_title": "目标检测算法技术演进",
-    "page_subtitle": "2026-06-15 版",
+    "page_subtitle": "2026-06-16 版",
     "page_desc": "从R-CNN到YOLO、从Anchor-based到Anchor-free、从CNN到Transformer的技术演进脉络，涵盖两阶段检测、单阶段检测、无锚点检测及Transformer检测四大范式的核心算法与最新进展",
     "page_icon": "🎯",
     "hero_pills": [
@@ -398,12 +398,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "one_stage",
       "motivation": "单网络直接回归边界框",
-      "summary": "YOLOv1 的核心目标是：单网络直接回归边界框。",
+      "summary": "YOLOv1 把目标检测统一成单次前向传播的回归问题，直接从整图预测网格级边界框、置信度和类别概率。它牺牲了一部分定位精度和小目标召回，换来了端到端训练、全局上下文建模和实时推理速度。",
       "keyPoints": [
-        "核心动机：单网络直接回归边界框",
-        "代表机构：华盛顿大学"
+        "<strong>统一检测框架</strong>：单个 CNN 同时输出 bounding boxes、objectness confidence 和 class probabilities。",
+        "<strong>网格责任分配</strong>：输入图像划分为 <span class=\"kb-math kb-math-inline\">S\\times S</span> 网格，目标中心落在哪个 cell，就由该 cell 负责预测目标。",
+        "<strong>固定输出张量</strong>：每个 cell 预测 <span class=\"kb-math kb-math-inline\">B</span> 个框和 <span class=\"kb-math kb-math-inline\">C</span> 类概率，总输出为 <span class=\"kb-math kb-math-inline\">S\\times S\\times(B\\cdot5+C)</span>。",
+        "<strong>置信度定义</strong>：confidence 同时表达“是否有目标”和“框定位质量”，即 <span class=\"kb-math kb-math-inline\">\\Pr(\\text{Object})\\times\\text{IoU}</span>。",
+        "<strong>多项损失函数</strong>：坐标、尺寸、置信度、无目标置信度、类别概率共同优化，并对坐标项加大权重。",
+        "<strong>实时速度</strong>：基础 YOLO 约 45 FPS，Fast YOLO 约 155 FPS，是早期实时检测的重要里程碑。",
+        "<strong>主要局限</strong>：每个 cell 类别预测共享，密集小目标和相邻目标容易漏检，定位误差多于两阶段检测器。"
       ],
-      "detail": "<p>单网络直接回归边界框</p>"
+      "detail": "<h5>4.1 核心示意图</h5>\n<p><img alt=\"YOLOv1 网格检测模型\" src=\"https://ar5iv.labs.arxiv.org/html/1506.02640/assets/x2.png\" />\n<em>图：YOLOv1 将图像划分为 <span class=\"kb-math kb-math-inline\">S\\times S</span> 网格，每个 cell 预测 <span class=\"kb-math kb-math-inline\">B</span> 个边界框、置信度和 <span class=\"kb-math kb-math-inline\">C</span> 类概率。</em></p>\n<h5>4.2 算法伪代码</h5>\n<pre><code class=\"language-python\"># YOLOv1 推理伪代码\ndef yolov1_detect(image):\n    x = resize(image, 448, 448)\n    pred = cnn(x)  # [S, S, B * 5 + C]\n\n    boxes = []\n    for i in range(S):\n        for j in range(S):\n            class_prob = softmax(pred[i, j].classes)\n            for b in range(B):\n                tx, ty, tw, th, conf = pred[i, j].box[b]\n                box = decode_relative_to_cell(i, j, tx, ty, tw, th)\n                score = conf * class_prob\n                boxes.append((box, score))\n\n    return non_max_suppression(boxes)\n</code></pre>\n<h5>4.3 方法解读</h5>\n<p>YOLOv1 之前的主流检测器通常把分类器“改装”成检测器：先生成候选区域，再对每个区域分类和回归。这种 pipeline 精度高，但步骤多、速度慢。YOLOv1 的核心改变是把检测看成整图回归：图像只经过一次 CNN，网络直接输出所有候选框和类别概率。</p>\n<p>其输出结构由三个超参数控制：<span class=\"kb-math kb-math-inline\">S</span> 是网格数，<span class=\"kb-math kb-math-inline\">B</span> 是每个网格预测框数，<span class=\"kb-math kb-math-inline\">C</span> 是类别数。对 PASCAL VOC，论文使用 <span class=\"kb-math kb-math-inline\">S=7, B=2, C=20</span>，最终输出为：</p>\n<div class=\"kb-math kb-math-display\">7\\times 7\\times(2\\cdot5+20)=7\\times 7\\times 30</div>\n<p>每个 bounding box 包含 <span class=\"kb-math kb-math-inline\">(x,y,w,h,\\text{confidence})</span>。其中 <span class=\"kb-math kb-math-inline\">(x,y)</span> 是相对 cell 的中心坐标，<span class=\"kb-math kb-math-inline\">(w,h)</span> 相对整图归一化。confidence 的训练目标是：</p>\n<div class=\"kb-math kb-math-display\">\\text{confidence}=\\Pr(\\text{Object})\\cdot \\text{IoU}_{\\text{pred}}^{\\text{truth}}</div>\n<p>如果 cell 内没有目标，<span class=\"kb-math kb-math-inline\">\\Pr(\\text{Object})=0</span>；如果有目标，confidence 应接近预测框与真值框的 IoU。</p>\n<p>训练时，一个目标只分配给其中心所在 cell；该 cell 中与真值 IoU 最大的 predictor 负责框回归。YOLOv1 的损失函数对坐标误差使用较大权重 <span class=\"kb-math kb-math-inline\">\\lambda_{\\text{coord}}</span>，对无目标框置信度使用较小权重 <span class=\"kb-math kb-math-inline\">\\lambda_{\\text{noobj}}</span>，避免大量背景 cell 主导训练：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}=\\lambda_{\\text{coord}}\\mathcal{L}_{xywh}+\\mathcal{L}_{obj}+\\lambda_{\\text{noobj}}\\mathcal{L}_{noobj}+\\mathcal{L}_{cls}</div>\n<p>尺寸项使用 <span class=\"kb-math kb-math-inline\">\\sqrt{w},\\sqrt{h}</span> 而不是直接回归 <span class=\"kb-math kb-math-inline\">w,h</span>，是为了让小框的尺寸误差更重要。比如宽度从 0.1 误到 0.2，比从 0.7 误到 0.8 对检测质量影响更大。</p>\n<div class=\"key-point\">💡 关键：YOLOv1 的速度来自完全取消候选框生成和逐 proposal 分类，将所有预测压进一个固定形状张量中。</div>\n<h5>4.4 与两阶段检测器的区别</h5>\n<p>R-CNN/Fast R-CNN 系列依赖 region proposal，局部区域分类更精细；YOLOv1 直接看整图，因此能利用全局上下文，背景误检较少。但固定网格和每 cell 有限框数限制了密集目标检测，特别是小目标、相邻目标和需要高 IoU 的精确定位任务。这些问题后来通过 anchor、多尺度预测、特征金字塔、anchor-free dense prediction 等方向逐步改进。</p>",
+      "quiz": {
+        "q": "YOLOv1 中某个目标由哪个网格单元负责预测？",
+        "options": [
+          "与目标面积重叠最大的所有网格单元共同负责",
+          "目标中心点所在的网格单元负责",
+          "置信度最低的网格单元负责",
+          "随机选择一个没有目标的网格单元负责"
+        ],
+        "answer": 1,
+        "explain": "YOLOv1 将图像划分为 S×S 网格，目标中心落入哪个 cell，该 cell 就负责预测该目标。"
+      }
     },
     {
       "id": "ssd",
@@ -522,13 +538,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "one_stage",
       "motivation": "Anchor-free与解耦检测头",
-      "summary": "YOLOv8 的核心目标是：Anchor-free与解耦检测头。",
+      "summary": "YOLOv8 是 Ultralytics 发布的工程化实时检测系列，用 anchor-free split head、改进 backbone/neck 和多任务模型族替代早期 YOLO 的 anchor-based 设计。它没有正式论文，核心价值在于把现代 YOLO 的 C2f/PAN 特征融合、解耦检测头和易用训练部署生态整合成稳定基线。",
       "keyPoints": [
-        "核心动机：Anchor-free与解耦检测头",
-        "演化来源：继承或改进自 yolov3",
-        "代表机构：Ultralytics"
+        "<strong>Anchor-free 检测头</strong>：不再为每个位置配置预定义 anchor box，直接预测目标中心/距离分布。",
+        "<strong>Split / decoupled head</strong>：分类分支和框回归分支分离，减少任务冲突。",
+        "<strong>C2f 模块</strong>：继承 CSP 思想，用更丰富的梯度流和轻量连接增强 backbone/neck 表征。",
+        "<strong>PAN-FPN 融合</strong>：多尺度特征在自顶向下和自底向上路径中融合，服务小中大目标。",
+        "<strong>DFL + IoU 类回归</strong>：边界框通常通过分布式回归和 IoU 损失优化，提高定位精度。",
+        "<strong>统一任务族</strong>：同一系列支持 detection、segmentation、pose、OBB、classification。",
+        "<strong>工程生态</strong>：官方提供训练、验证、推理、导出和预训练权重，COCO 检测模型从 n/s/m/l/x 多尺度覆盖速度-精度取舍。"
       ],
-      "detail": "<p>Anchor-free与解耦检测头</p>"
+      "detail": "<h5>4.1 核心示意图</h5>\n<p><img alt=\"YOLOv8 性能对比图\" src=\"https://cdn.jsdelivr.net/gh/ultralytics/assets@main/docs/yolov8-comparison-plots.avif\" />\n<em>图：Ultralytics 官方 YOLOv8 文档中的性能对比图。官方文档同时说明 YOLOv8 采用 anchor-free split Ultralytics head。</em></p>\n<h5>4.2 算法伪代码</h5>\n<pre><code class=\"language-python\"># YOLOv8 检测流程伪代码\ndef yolov8_forward(image):\n    feats = backbone_c2f_sppf(image)\n    pyramid = pan_fpn_neck(feats)  # P3, P4, P5\n\n    predictions = []\n    for level in pyramid:\n        cls_logits = cls_head(level)          # classification branch\n        box_dist = box_head(level)            # regression branch, anchor-free distances\n        boxes = decode_distance_distribution(box_dist, grid_points(level))\n        predictions.append((boxes, cls_logits))\n\n    return nms(concat(predictions))\n</code></pre>\n<h5>4.3 方法解读</h5>\n<p>YOLOv8 的一个重要背景是：从 YOLOv3 到 YOLOv5，anchor box 一直是单阶段 YOLO 的核心配置之一，但 anchor 需要根据数据集统计调整，且每个位置会产生多个候选框，训练和后处理都更复杂。YOLOv8 转向 anchor-free head，让每个特征位置直接预测到目标边界的距离或距离分布，从而减少 anchor 超参数。</p>\n<p>其检测头通常拆成分类和回归两路。分类分支预测每个位置属于各类别的概率，回归分支预测框的几何信息。解耦的直觉是：分类需要关注语义判别，回归需要关注边界和几何，两者共享最后几层会产生梯度冲突。YOLOv8 的 split head 将这两个目标分开优化。</p>\n<p>Anchor-free 距离回归可以抽象为：</p>\n<div class=\"kb-math kb-math-display\">\\mathbf{b}=(x-l,\\ y-t,\\ x+r,\\ y+b)</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">(x,y)</span> 是特征图位置映射回原图的点，<span class=\"kb-math kb-math-inline\">(l,t,r,b)</span> 是到四条边的距离。若使用 Distribution Focal Loss，模型不是直接输出一个距离标量，而是输出离散 bins 上的概率分布，再取期望得到距离：</p>\n<div class=\"kb-math kb-math-display\">\\hat{d}=\\sum_{i=0}^{n} i\\cdot p_i</div>\n<p>这让边界位置能以更细粒度表达不确定性，比单点回归更平滑。</p>\n<p>Backbone/neck 上，YOLOv8 使用 C2f 模块替代更早的 C3/CSP 变体。C2f 保留跨阶段部分连接的低成本优势，同时让更多中间特征参与融合，改善梯度流。SPPF 提供大感受野聚合，PAN-FPN 则把高层语义和低层空间细节结合起来。</p>\n<div class=\"warn-box\">⚠️ 注意：YOLOv8 官方明确说明没有 formal research paper，因此精读应以官方文档、代码结构和模型配置为主，而不是把第三方文章当作论文主源。</div>\n<h5>4.4 与 YOLOv3 的区别</h5>\n<p>YOLOv3 仍是 anchor-based、多尺度 logistic head，并使用 Darknet-53；YOLOv8 则采用更现代的 CSP/C2f 系列结构、anchor-free split head 和更完整的训练部署工具链。YOLOv8 仍然需要 NMS 后处理，因此在“端到端无 NMS”方面不如 YOLOv10；但它作为工程基线稳定、易训、易部署，是后续 YOLOv10/YOLOv12 继续改造的常用参照。</p>",
+      "quiz": {
+        "q": "YOLOv8 从 anchor-based 转向 anchor-free head 的主要收益是什么？",
+        "options": [
+          "不再需要任何后处理",
+          "减少预定义 anchor 的超参数和候选框冗余，简化训练与泛化",
+          "只能检测单个类别",
+          "把检测任务改成纯图像分类任务"
+        ],
+        "answer": 1,
+        "explain": "Anchor-free head 直接从位置预测框几何信息，避免为不同数据集手动配置 anchor，并减少每个位置多个 anchor 带来的冗余。"
+      }
     },
     {
       "id": "yolov10",
@@ -542,13 +573,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "one_stage",
       "motivation": "NMS-Free一致性双重分配",
-      "summary": "YOLOv10 的核心目标是：NMS-Free一致性双重分配。",
+      "summary": "YOLOv10 提出一致性双重标签分配，让 YOLO 在训练时保留 one-to-many 的丰富监督、推理时只使用 one-to-one 分支实现 NMS-free 检测。它还系统重设计分类头、下采样、基础块、卷积核和部分自注意力，把 YOLOv8 类基线推向端到端实时检测。",
       "keyPoints": [
-        "核心动机：NMS-Free一致性双重分配",
-        "演化来源：继承或改进自 yolov8",
-        "代表机构：清华大学"
+        "<strong>NMS-free 训练</strong>：推理只保留 one-to-one 分支，每个目标输出一个高质量预测，避免 NMS 后处理延迟。",
+        "<strong>Dual assignments</strong>：one-to-many 分支提供密集监督，one-to-one 分支学习唯一匹配，二者联合训练。",
+        "<strong>Consistent matching metric</strong>：两分支使用一致的匹配度量，减少监督目标不一致。",
+        "<strong>轻量分类头</strong>：分类 head 计算冗余大，YOLOv10 用 depthwise separable 设计降低延迟。",
+        "<strong>空间-通道解耦下采样</strong>：将空间降采样和通道变换拆开，降低信息损失和计算冗余。",
+        "<strong>Rank-guided block design</strong>：根据 intrinsic rank 判断各 stage 冗余，选择性替换为 CIB compact inverted block。",
+        "<strong>精度增强模块</strong>：小模型使用 large-kernel depthwise conv，低分辨率 stage 使用 PSA partial self-attention。"
       ],
-      "detail": "<p>NMS-Free一致性双重分配</p>"
+      "detail": "<h5>4.1 核心示意图</h5>\n<p><img alt=\"YOLOv10 一致性双重分配\" src=\"https://arxiv.org/html/2405.14458v1/x3.png\" />\n<em>图：YOLOv10 的 consistent dual assignments。训练时 one-to-many 和 one-to-one 双分支共同学习，推理时只保留 one-to-one 分支以消除 NMS。</em></p>\n<h5>4.2 算法伪代码</h5>\n<pre><code class=\"language-python\"># YOLOv10 训练/推理伪代码\ndef train_yolov10(images, targets):\n    feats = model.backbone_neck(images)\n    pred_o2m = model.head_one_to_many(feats)\n    pred_o2o = model.head_one_to_one(feats)\n\n    match_o2m = assign_many(pred_o2m, targets, metric=&quot;consistent&quot;)\n    match_o2o = assign_one(pred_o2o, targets, metric=&quot;consistent&quot;)\n\n    loss = det_loss(pred_o2m, match_o2m) + det_loss(pred_o2o, match_o2o)\n    loss.backward()\n\ndef infer_yolov10(image):\n    feats = model.backbone_neck(image)\n    pred = model.head_one_to_one(feats)\n    return topk_decode(pred)  # no NMS\n</code></pre>\n<h5>4.3 方法解读</h5>\n<p>传统 YOLO 会产生大量重叠候选框，最后依靠 NMS 删除重复框。NMS 不是端到端可学习组件，并且在部署时引入额外延迟和硬件不友好的后处理。直接用 DETR 式 one-to-one matching 可以避免重复预测，但 YOLO 训练会失去 one-to-many 密集监督，收敛和精度受损。YOLOv10 的折中是训练用双分支，推理用单分支。</p>\n<p>匹配度量一般由分类置信度和定位质量共同决定，可抽象为：</p>\n<div class=\"kb-math kb-math-display\">m=\\hat{p}^{\\alpha}\\cdot \\text{IoU}(\\hat{b},b)^{\\beta}</div>\n<p>YOLOv10 的“consistent”在于 one-to-many 和 one-to-one 分支采用一致的 <span class=\"kb-math kb-math-inline\">\\alpha,\\beta</span> 匹配度量，使 one-to-one 学到的正样本与 one-to-many 的高质量候选保持一致。否则，两个分支会对“哪个候选最应该负责目标”产生冲突，降低 NMS-free 分支质量。</p>\n<p>双分支训练可以理解为教师-辅助式监督：one-to-many 分支像传统 YOLO 一样给多个正样本梯度，帮助 backbone/neck 学到充分表征；one-to-one 分支学习每个目标唯一预测，最后用于推理。推理阶段删除 one-to-many 分支，也不需要 NMS：</p>\n<div class=\"kb-math kb-math-display\">\\text{Output}=\\text{Decode}(\\text{Head}_{1\\to1}(\\mathbf{F}))</div>\n<p>架构上，YOLOv10 不只改 label assignment。论文指出 YOLOv8 类模型在分类头、下采样和深层 stage 存在冗余，因此提出轻量分类头、spatial-channel decoupled downsampling、rank-guided CIB。对精度侧，小模型在深层使用 large-kernel depthwise conv 扩大感受野；PSA 只对部分通道做自注意力，并放在低分辨率 stage，降低二次复杂度开销。</p>\n<div class=\"key-point\">💡 关键：YOLOv10 的 NMS-free 不是简单删掉 NMS，而是让训练目标提前学会“一目标一预测”，同时保留传统 YOLO 密集监督带来的收敛优势。</div>\n<h5>4.4 与 YOLOv8 的区别</h5>\n<p>YOLOv8 的 anchor-free split head 仍输出多候选框并依赖 NMS；YOLOv10 在 YOLOv8 类基线上加入 one-to-one 推理分支，解决部署端 NMS 延迟。YOLOv10 还通过模型结构审计去掉冗余组件，因此不仅端到端，也更强调真实 latency，而不是只看 FLOPs。</p>",
+      "quiz": {
+        "q": "YOLOv10 为什么同时使用 one-to-many 和 one-to-one 分支训练？",
+        "options": [
+          "one-to-many 用于提供丰富监督，one-to-one 用于推理时避免重复预测和 NMS",
+          "one-to-many 只用于图像分类，one-to-one 只用于语义分割",
+          "两者用于生成 anchor box 的不同长宽比",
+          "为了在推理时同时执行两次 NMS"
+        ],
+        "answer": 0,
+        "explain": "YOLOv10 用 one-to-many 保持 YOLO 的密集训练信号，用 one-to-one 学习每个目标唯一预测，推理只保留 one-to-one 分支实现 NMS-free。"
+      }
     },
     {
       "id": "yolov12",
@@ -562,13 +608,28 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "one_stage",
       "motivation": "Area Attention与R-ELAN模块",
-      "summary": "YOLOv12 的核心目标是：Area Attention与R-ELAN模块。",
+      "summary": "YOLOv12 提出 attention-centric YOLO，在保持实时速度的同时把注意力机制引入 YOLO 主干。它用 Area Attention 降低全局注意力复杂度，用 R-ELAN 稳定大模型优化，再结合 FlashAttention 和轻量 FFN 设计提升精度-速度平衡。",
       "keyPoints": [
-        "核心动机：Area Attention与R-ELAN模块",
-        "演化来源：继承或改进自 yolov10",
-        "代表机构：sunsmarterjie"
+        "<strong>Attention-centric YOLO</strong>：从以 CNN 改造为主的 YOLO 演进，转向以高效注意力为核心的实时检测器。",
+        "<strong>Area Attention (A2)</strong>：把特征图按水平或垂直方向均分为若干区域，在区域内做 attention，降低复杂度并保留大感受野。",
+        "<strong>R-ELAN</strong>：Residual Efficient Layer Aggregation Networks，为 ELAN 引入 block-level residual、缩放因子和重新设计的特征聚合。",
+        "<strong>FlashAttention</strong>：用 I/O aware attention 减少 HBM 访问开销，解决注意力在 GPU 上的真实延迟问题。",
+        "<strong>YOLO 化注意力细节</strong>：去掉位置编码，降低 MLP ratio，从 4 调到约 1.2，尽量保留卷积算子。",
+        "<strong>训练与部署约束</strong>：官方仓库要求合适 GPU 支持 FlashAttention，并提供 n/s/m/l/x 与 turbo 系列权重。",
+        "<strong>性能定位</strong>：论文报告 YOLOv12-N 在 T4 上以约 1.64 ms latency 达到 40.6% mAP，优于 YOLOv10-N/YOLOv11-N 的同级精度。"
       ],
-      "detail": "<p>Area Attention与R-ELAN模块</p>"
+      "detail": "<h5>4.1 核心示意图</h5>\n<p><img alt=\"YOLOv12 Area Attention\" src=\"https://arxiv.org/html/2502.12524v1/x2.png\" />\n<em>图：YOLOv12 的 Area Attention 将特征图按区域划分，在保持较大感受野的同时降低注意力计算复杂度。</em></p>\n<h5>4.2 算法伪代码</h5>\n<pre><code class=\"language-python\"># YOLOv12 Area Attention + R-ELAN 伪代码\ndef area_attention(x, num_areas=4, direction=&quot;horizontal&quot;):\n    areas = split_feature_map(x, num_areas, direction)\n    outs = []\n    for a in areas:\n        q, k, v = qkv_projection(a)\n        outs.append(flash_attention(q, k, v))\n    return concat_areas(outs, direction)\n\ndef r_elan_block(x):\n    y = feature_aggregation_layers(x)\n    y = area_attention(y)\n    return x + 0.01 * re_aggregate(y)  # residual scaling for stable optimization\n</code></pre>\n<h5>4.3 方法解读</h5>\n<p>YOLOv12 的动机是：注意力机制有更强的全局建模能力，但标准 self-attention 复杂度为 <span class=\"kb-math kb-math-inline\">O(L^2)</span>，其中 <span class=\"kb-math kb-math-inline\">L=H\\cdot W</span>。实时检测器不能在高分辨率特征上直接使用全局注意力，否则 latency 会失控。YOLOv12 因此设计 Area Attention，把特征图划成 <span class=\"kb-math kb-math-inline\">n</span> 个区域，每个区域内部做 attention。</p>\n<p>如果每个区域大约有 <span class=\"kb-math kb-math-inline\">L/n</span> 个 token，总复杂度近似为：</p>\n<div class=\"kb-math kb-math-display\">n\\cdot O\\left((L/n)^2\\right)=O(L^2/n)</div>\n<p>相比全局注意力降低约 <span class=\"kb-math kb-math-inline\">n</span> 倍。论文默认区域数可取 4，并采用简单的水平或垂直均分，避免窗口移动、复杂索引或额外重排带来的工程开销。与局部窗口注意力相比，条带状区域仍能覆盖较长空间范围，对目标整体形状更友好。</p>\n<p>R-ELAN 解决的是注意力引入后的优化问题。ELAN/GELAN 类结构擅长特征聚合，但大模型叠加注意力后更容易出现训练不稳定。YOLOv12 在 block 级加入 residual shortcut 和缩放因子，例如：</p>\n<div class=\"kb-math kb-math-display\">\\mathbf{Y}=\\mathbf{X}+\\gamma F(\\mathbf{X}),\\qquad \\gamma=0.01</div>\n<p>小初始残差让新模块在训练早期不会破坏已有特征流，随后逐步学习有效增量。R-ELAN 还重新设计聚合方式，减少纯 ELAN 在注意力块中带来的冗余。</p>\n<p>模型工程上，YOLOv12 不是把 ViT 原封不动塞进 YOLO。它去掉位置编码，降低 MLP ratio，减少堆叠深度，并尽可能使用卷积操作处理局部混合；注意力计算则使用 FlashAttention 降低显存读写开销。这样才能让 attention-centric 架构接近 CNN YOLO 的速度。</p>\n<div class=\"key-point\">💡 关键：YOLOv12 的创新不是“用了注意力”本身，而是把注意力裁剪成适合 YOLO 延迟预算的 Area Attention，并用 R-ELAN 解决训练和聚合稳定性。</div>\n<h5>4.4 与 YOLOv10 的区别</h5>\n<p>YOLOv10 的重点是 NMS-free label assignment 和效率-精度导向的 CNN/PSA 架构设计；YOLOv12 的重点是把注意力提升为主干核心能力。YOLOv12 不以完全端到端 NMS-free 作为主要叙事，而是更关注注意力模块在实时检测中的可用性。它适合需要更强全局感知的场景，但对 FlashAttention/GPU 支持更敏感。</p>",
+      "quiz": {
+        "q": "YOLOv12 的 Area Attention 为什么比全局 self-attention 更适合实时检测？",
+        "options": [
+          "它完全取消了 QKV 投影",
+          "它把特征图划分为区域，在区域内做注意力，使复杂度约从 O(L^2) 降到 O(L^2/n)",
+          "它只在 CPU 上运行，不使用 GPU",
+          "它把目标检测改成文本生成任务"
+        ],
+        "answer": 1,
+        "explain": "Area Attention 将 L 个 token 分成 n 个区域，每个区域内计算 attention，总复杂度约为 n*(L/n)^2，从而降低实时推理成本。"
+      }
     },
     {
       "id": "yolo26",
@@ -618,10 +679,13 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "anchor_free",
       "motivation": "利用角点对检测目标",
-      "summary": "CornerNet 的核心目标是：利用角点对检测目标。",
+      "summary": "CornerNet 把目标框检测改写为左上角与右下角两个关键点的预测和配对问题，去掉了 anchor 设计，用热力图、偏移量与 associative embedding 在单阶段框架中生成检测框。\n\n![CornerNet 检测示意](https://ar5iv.labs.arxiv.org/html/1808.01244/assets/x1.png)",
       "keyPoints": [
-        "核心动机：利用角点对检测目标",
-        "代表机构：UT Austin"
+        "<strong>核心动机</strong>：传统 anchor-based 检测器需要大量尺度、长宽比和 IoU 阈值超参数，且 anchor 与真实框的匹配会引入复杂训练规则；CornerNet 直接预测框角点，绕开 anchor 生成和匹配。",
+        "<strong>检测表示</strong>：每个目标由左上角和右下角两个角点表示，网络分别输出两类角点热力图、角点亚像素偏移，以及用于判断两个角点是否属于同一目标的 embedding。",
+        "<strong>关键模块</strong>：Corner pooling 沿水平与垂直方向聚合边界线索，使角点位置也能看到目标内部或边缘之外的长程上下文。",
+        "<strong>训练目标</strong>：热力图采用类似关键点检测的 focal loss；embedding 使用 pull loss 拉近同一目标的角点表示、push loss 推开不同目标的角点表示；偏移量使用回归损失修正下采样误差。",
+        "<strong>历史意义</strong>：CornerNet 是 anchor-free 检测路线的重要节点，推动后续 CenterNet、FCOS 等方法从关键点或像素级预测角度重新设计目标检测。"
       ],
       "detail": "<p>CornerNet 的基础观察是：目标框本身可以由两个对角点唯一确定，因此检测器不一定要先枚举候选框。给定输入图像，主干网络生成低分辨率特征图，在该特征图上分别预测 top-left corner heatmap 和 bottom-right corner heatmap。每个类别都有独立热力图通道，热力图局部峰值表示对应类别角点可能出现的位置。</p>\n<p>由于特征图通常相对原图有下采样，角点坐标会发生量化误差。CornerNet 为每个预测角点额外回归 offset，用来把网格点坐标修正回更精确的连续坐标。这个设计使模型可以保留高效的密集预测形式，同时避免低分辨率特征图直接带来的定位偏差。</p>\n<p>最困难的问题是角点配对：一张图里可能有多个同类目标，仅凭左上角和右下角热力图无法知道哪两个角点属于同一个目标。CornerNet 为每个角点预测一个 embedding，同一目标的两个角点 embedding 被 pull loss 拉近，不同目标的 embedding 被 push loss 分开。推理时取高分角点，两两组合并依据类别一致性、几何合法性和 embedding 距离过滤候选框。</p>\n<p>Corner pooling 是论文的结构性贡献。左上角角点需要看到右侧边界和下方边界的信息，右下角角点需要看到左侧和上方的信息。普通卷积的局部感受野不一定能有效聚合这种边界证据，因此 CornerNet 沿特定方向做最大池化，把长条方向上的强响应传递到角点位置，帮助模型在没有 anchor 的情况下判断角点是否真实存在。</p>\n<p>CornerNet 的代表性主干是 Hourglass-104，这让它在精度上有竞争力，但计算成本也偏高。它证明了 anchor-free 的可行性，不过角点组合天然存在候选对爆炸和错误配对风险；后续 CenterNet 引入中心点，FCOS 引入 center-ness，本质上都在缓解 CornerNet 的配对歧义或框质量判断问题。</p>\n<pre><code class=\"language-text\">CornerNet 推理流程\nInput: image I\nOutput: detection boxes D\n\n1. F = HourglassBackbone(I)\n2. Predict:\n   - top-left heatmaps H_tl\n   - bottom-right heatmaps H_br\n   - offsets O_tl, O_br\n   - embeddings E_tl, E_br\n3. Select top-K peaks from H_tl and H_br for each class\n4. For every valid same-class pair (tl, br):\n   - require tl.x &lt; br.x and tl.y &lt; br.y\n   - compute score = average(score_tl, score_br)\n   - reject if |E_tl - E_br| is too large\n   - refine coordinates with offsets\n5. Apply score thresholding and NMS to obtain D\n</code></pre>"
     },
@@ -637,11 +701,13 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "anchor_free",
       "motivation": "将目标建模为中心点",
-      "summary": "CenterNet 的核心目标是：将目标建模为中心点。",
+      "summary": "CenterNet 将每个目标表示为一个中心点，并在中心点处回归目标宽高和坐标偏移，从而用关键点检测范式完成 anchor-free、无需角点配对的目标检测。\n\n![CenterNet 检测框架](https://ar5iv.labs.arxiv.org/html/1904.07850/assets/x2.png)",
       "keyPoints": [
-        "核心动机：将目标建模为中心点",
-        "演化来源：继承或改进自 cornernet",
-        "代表机构：UT Austin"
+        "<strong>核心动机</strong>：CornerNet 依赖角点成对组合，容易产生错误配对；CenterNet 直接检测目标中心点，用一个点代表一个目标，显著简化后处理。",
+        "<strong>检测表示</strong>：网络输出类别热力图、中心点 offset 和目标 size，中心点峰值给出类别与位置，size 给出框宽高。",
+        "<strong>训练方式</strong>：真实中心点被绘制为二维 Gaussian 热力图，中心附近的位置也获得较软的正样本响应，减少精确单点监督的不稳定性。",
+        "<strong>推理方式</strong>：从热力图中取局部极大值作为目标中心，结合 offset 和 width/height 直接恢复边界框，通常不需要复杂 anchor 匹配。",
+        "<strong>扩展能力</strong>：同一中心点表示可以扩展到 3D 检测、人体姿态和实例分割等任务，只需在中心点处增加对应属性回归头。"
       ],
       "detail": "<p>CenterNet 的核心设计是 objects as points：目标不再由 anchor、候选区域或角点对表示，而是由边界框中心点表示。对于每个类别，模型预测一张热力图，热力图上的峰值表示该类别目标中心。相比 CornerNet 的两个角点，中心点没有配对歧义，一个峰值就对应一个候选目标。</p>\n<p>训练时，CenterNet 会把真实框中心映射到输出特征图坐标，并围绕该位置绘制 Gaussian bump。目标越大，允许的中心偏差通常可以更大，因此 Gaussian 半径会依据目标尺寸确定。这样模型不是只在一个像素上获得正反馈，而是在中心邻域形成平滑监督，有利于训练稳定。</p>\n<p>中心点位置只解决了目标在哪里的问题，边界框大小由 size 分支预测。具体来说，模型在中心点位置回归目标宽度和高度；同时通过 offset 分支补偿下采样造成的中心点量化误差。推理时，若中心点坐标为 <code>(x, y)</code>，预测宽高为 <code>(w, h)</code>，则框可直接写成 <code>(x - w/2, y - h/2, x + w/2, y + h/2)</code>，再加上 offset 做精确修正。</p>\n<p>CenterNet 的后处理比 CornerNet 更简单。模型先对热力图做局部极大值筛选，再取 top-K 中心点生成检测框。因为每个中心点已经携带类别、位置和尺寸信息，推理不需要枚举角点组合，也不需要 anchor-based 检测器中的大规模候选框匹配。</p>\n<p>不过，中心点建模也有自身限制。当多个目标中心非常接近，尤其是拥挤场景或小目标密集区域，热力图峰值可能互相干扰；目标尺寸回归也高度依赖中心点特征是否包含完整目标上下文。因此 CenterNet 的效果很大程度上取决于高分辨率特征、主干网络和热力图峰值质量。</p>\n<pre><code class=\"language-text\">CenterNet 训练与推理\nTraining:\n1. Map each ground-truth box b = (x1, y1, x2, y2) to center c = ((x1+x2)/2, (y1+y2)/2)\n2. Draw class-specific Gaussian heatmap around c\n3. Train network heads:\n   - heatmap: focal-style keypoint loss\n   - size: L1 loss on (width, height)\n   - offset: L1 loss for downsampling quantization\n\nInference:\n1. Predict heatmap, size and offset\n2. Extract top-K local maxima from heatmap\n3. For each center peak:\n   - refine center with offset\n   - decode box using predicted width and height\n4. Return high-score detections\n</code></pre>"
     },
@@ -657,11 +723,13 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "anchor_free",
       "motivation": "逐像素预测与Center-ness分支",
-      "summary": "FCOS 的核心目标是：逐像素预测与Center-ness分支。",
+      "summary": "FCOS 将目标检测建模为特征图每个位置到目标框四条边距离的回归问题，并通过 FPN、尺度分配和 center-ness 分支构建了无需 anchor 的单阶段全卷积检测器。\n\n![FCOS 网络结构](https://ar5iv.labs.arxiv.org/html/1904.01355/assets/x2.png)",
       "keyPoints": [
-        "核心动机：逐像素预测与Center-ness分支",
-        "演化来源：继承或改进自 centernet",
-        "代表机构：阿德莱德大学"
+        "<strong>核心动机</strong>：anchor-based 检测器依赖预设 anchor 尺度和长宽比，带来大量超参数和正负样本匹配规则；FCOS 直接在像素位置预测框，消除 anchor 设计。",
+        "<strong>检测表示</strong>：若某个特征图位置落在真实框内部，则该位置可回归到四条边的距离 <code>(l, t, r, b)</code>，并预测对应类别。",
+        "<strong>多尺度处理</strong>：利用 FPN 的 P3 到 P7 层负责不同尺寸目标，每层设置回归距离范围，缓解同一位置同时落入多个目标框的歧义。",
+        "<strong>Center-ness 分支</strong>：额外预测位置离目标中心的程度，降低远离中心位置产生的低质量框分数，改善排序与 NMS 结果。",
+        "<strong>方法地位</strong>：FCOS 证明了 anchor-free 检测可以在 RetinaNet 式 dense detector 框架中直接落地，成为后续一阶段检测头设计的重要参考。"
       ],
       "detail": "<p>FCOS 的基本单位不是 anchor，而是特征图上的空间位置。把一个位置映射回原图后，如果它位于某个真实框内部，则该位置可以作为正样本，并学习到框四条边的距离：左边距 <code>l</code>、上边距 <code>t</code>、右边距 <code>r</code>、下边距 <code>b</code>。这样，检测头只需输出类别概率和四个非负距离值，就能恢复完整边界框。</p>\n<p>这个表示让检测器保持全卷积结构。分类分支预测每个位置属于各类别的概率，回归分支预测 <code>(l,t,r,b)</code>。训练时分类通常使用 focal loss 来处理前景背景不平衡，回归使用 IoU loss 等框质量相关损失。与 anchor-based 方法相比，FCOS 不再需要设置 anchor 数量、尺度、长宽比，也不需要计算每个 anchor 与真实框的匹配。</p>\n<p>密集位置预测会遇到两个主要歧义。第一，同一个位置可能落在多个真实框内部；第二，离目标边缘很近的位置也能回归出一个框，但这类框往往定位质量较差。FCOS 用 FPN 的多层尺度范围处理第一个问题：小目标分配给高分辨率层，大目标分配给低分辨率层，若仍冲突则通常选择面积更小的目标。</p>\n<p>第二个问题由 center-ness 分支缓解。center-ness 根据回归距离的左右、上下平衡程度定义，位置越接近框中心，左右距离和上下距离越均衡，center-ness 越接近 1；越靠近边缘则越接近 0。推理时分类分数会乘以 center-ness，因此远离中心的低质量框即使类别分数较高，也会在排序中被压低。</p>\n<p>FCOS 与 CenterNet 都是 anchor-free，但建模粒度不同。CenterNet 只让目标中心点承担主要预测责任，而 FCOS 允许目标框内部的许多位置参与训练，再用 center-ness 调节质量。这使 FCOS 更贴近 RetinaNet 这类 dense detector 的工程形态，易于复用 FPN、卷积检测头和 NMS 流程。</p>\n<pre><code class=\"language-text\">FCOS 前向与解码\nInput: image I\nOutput: detections D\n\n1. Extract FPN features P3 ... P7\n2. For every location p on each FPN level:\n   - predict class scores cls[p]\n   - predict box distances d[p] = (l, t, r, b)\n   - predict center-ness ctr[p]\n3. During training:\n   - mark p positive if it lies inside a ground-truth box\n   - constrain positives by FPN level regression range\n   - optimize focal loss, IoU loss and center-ness loss\n4. During inference:\n   - score[p] = cls[p] * ctr[p]\n   - decode box = (x-l, y-t, x+r, y+b)\n   - threshold and apply NMS\n</code></pre>"
     },
@@ -677,12 +745,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "transformer_based",
       "motivation": "Transformer实现端到端检测",
-      "summary": "DETR 的核心目标是：Transformer实现端到端检测。",
+      "summary": "DETR 将目标检测改写为集合预测问题，用 Transformer 编码器-解码器、固定数量 object queries 和匈牙利二分匹配损失直接输出一组无重复检测框，解决了传统检测器依赖 anchor、proposal 和 NMS 后处理的问题。",
       "keyPoints": [
-        "核心动机：Transformer实现端到端检测",
-        "代表机构：FAIR"
+        "端到端集合预测：固定 <span class=\"kb-math kb-math-inline\">N</span> 个预测槽位一次性输出所有目标和 “no object” 类别",
+        "CNN + Transformer 架构：CNN 提取 2D 特征，Transformer 建模全局图像上下文和目标关系",
+        "Object queries：使用可学习查询向量作为解码器输入，每个查询学习负责一个潜在目标",
+        "匈牙利匹配损失：训练时对预测集合和真值集合做一对一匹配，天然抑制重复框",
+        "无 anchor / proposal / NMS：推理阶段直接保留非空类别预测，不需要手工设计后处理",
+        "COCO 基准验证：与强 Faster R-CNN 基线精度相当，大目标表现突出，但小目标和收敛速度是早期短板"
       ],
-      "detail": "<p><img alt=\"DETR 端到端检测流程\" src=\"https://ar5iv.labs.arxiv.org/html/2005.12872/assets/x1.png\" />\n<em>图：DETR 将 CNN 特征送入 Transformer，并通过二分匹配把预测槽位唯一分配给真值目标。</em></p>\n<h5>1. 动机与背景</h5>\n<p>传统检测器通常把检测拆成多阶段工程流水线：预设 anchor 或 proposal、密集分类与回归、再用 NMS 去掉重复框。这个设计有效但包含大量先验和超参数，例如 anchor 尺寸、IoU 阈值、NMS 阈值等；同一个图像中的多个候选框还会竞争同一个目标，训练目标和最终输出并不完全一致。</p>\n<p>DETR 的核心转变是把检测看成“集合到集合”的预测：图像中真实目标是一个无序集合，模型输出也应是一个无序集合。只要训练时能建立预测和真值之间的一对一分配，重复预测就可以直接作为损失惩罚，而不需要在推理后再用 NMS 清理。</p>\n<h5>2. 模型结构</h5>\n<p><img alt=\"DETR 架构图\" src=\"https://ar5iv.labs.arxiv.org/html/2005.12872/assets/x2.png\" />\n<em>图：CNN backbone、位置编码、Transformer encoder-decoder、共享 FFN 检测头构成 DETR。</em></p>\n<p>输入图像先经过 ResNet 等 CNN backbone 得到特征图 <span class=\"kb-math kb-math-inline\">f \\in \\mathbb{R}^{C \\times H \\times W}</span>，再通过 <span class=\"kb-math kb-math-inline\">1 \\times 1</span> 卷积映射到 Transformer 隐空间维度。特征图被展平为 <span class=\"kb-math kb-math-inline\">HW</span> 个 token，并加入二维位置编码：</p>\n<div class=\"kb-math kb-math-display\">z_0 = \\text{flatten}(\\text{Conv}_{1\\times1}(f)) + p</div>\n<p>Transformer encoder 在所有空间位置之间做全局自注意力，使每个位置都能感知整幅图像中的其他区域。Decoder 接收 <span class=\"kb-math kb-math-inline\">N</span> 个可学习 object queries，每个 query 通过 cross-attention 从 encoder memory 中读取与自身相关的图像证据，最后由共享 FFN 输出类别分布和归一化边界框：</p>\n<div class=\"kb-math kb-math-display\">\\hat{y}_i = (\\hat{p}_i, \\hat{b}_i), \\quad i=1,\\dots,N</div>\n<h5>3. 集合损失与匈牙利匹配</h5>\n<p>DETR 最关键的训练机制是先找一个最优排列 <span class=\"kb-math kb-math-inline\">\\hat{\\sigma}</span>，将真值目标 <span class=\"kb-math kb-math-inline\">y_i</span> 唯一匹配到预测 <span class=\"kb-math kb-math-inline\">\\hat{y}_{\\sigma(i)}</span>：</p>\n<div class=\"kb-math kb-math-display\">\\hat{\\sigma} = \\arg\\min_{\\sigma \\in \\mathfrak{S}_N} \\sum_i \\mathcal{L}_{match}(y_i, \\hat{y}_{\\sigma(i)})</div>\n<p>匹配代价由分类代价和框代价组成，框代价通常结合 <span class=\"kb-math kb-math-inline\">L_1</span> 和 GIoU：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{box}(b_i, \\hat{b}_{\\sigma(i)}) =\n\\lambda_{L1}\\|b_i-\\hat{b}_{\\sigma(i)}\\|_1 +\n\\lambda_{giou}\\mathcal{L}_{giou}(b_i,\\hat{b}_{\\sigma(i)})</div>\n<p>完成匹配后，只有被匹配到的预测负责对应目标；未匹配预测都被监督为 <span class=\"kb-math kb-math-inline\">\\varnothing</span> 类。这样一来，如果两个 query 预测同一个物体，只有其中一个能被匹配，另一个会受到“非目标”或错误定位惩罚，这就是 DETR 不需要 NMS 的根本原因。</p>\n<h5>4. 训练与推理流程</h5>\n<p>```python</p>"
+      "detail": "<p><img alt=\"DETR 端到端检测流程\" src=\"https://ar5iv.labs.arxiv.org/html/2005.12872/assets/x1.png\" />\n<em>图：DETR 将 CNN 特征送入 Transformer，并通过二分匹配把预测槽位唯一分配给真值目标。</em></p>\n<h5>1. 动机与背景</h5>\n<p>传统检测器通常把检测拆成多阶段工程流水线：预设 anchor 或 proposal、密集分类与回归、再用 NMS 去掉重复框。这个设计有效但包含大量先验和超参数，例如 anchor 尺寸、IoU 阈值、NMS 阈值等；同一个图像中的多个候选框还会竞争同一个目标，训练目标和最终输出并不完全一致。</p>\n<p>DETR 的核心转变是把检测看成“集合到集合”的预测：图像中真实目标是一个无序集合，模型输出也应是一个无序集合。只要训练时能建立预测和真值之间的一对一分配，重复预测就可以直接作为损失惩罚，而不需要在推理后再用 NMS 清理。</p>\n<h5>2. 模型结构</h5>\n<p><img alt=\"DETR 架构图\" src=\"https://ar5iv.labs.arxiv.org/html/2005.12872/assets/x2.png\" />\n<em>图：CNN backbone、位置编码、Transformer encoder-decoder、共享 FFN 检测头构成 DETR。</em></p>\n<p>输入图像先经过 ResNet 等 CNN backbone 得到特征图 <span class=\"kb-math kb-math-inline\">f \\in \\mathbb{R}^{C \\times H \\times W}</span>，再通过 <span class=\"kb-math kb-math-inline\">1 \\times 1</span> 卷积映射到 Transformer 隐空间维度。特征图被展平为 <span class=\"kb-math kb-math-inline\">HW</span> 个 token，并加入二维位置编码：</p>\n<div class=\"kb-math kb-math-display\">z_0 = \\text{flatten}(\\text{Conv}_{1\\times1}(f)) + p</div>\n<p>Transformer encoder 在所有空间位置之间做全局自注意力，使每个位置都能感知整幅图像中的其他区域。Decoder 接收 <span class=\"kb-math kb-math-inline\">N</span> 个可学习 object queries，每个 query 通过 cross-attention 从 encoder memory 中读取与自身相关的图像证据，最后由共享 FFN 输出类别分布和归一化边界框：</p>\n<div class=\"kb-math kb-math-display\">\\hat{y}_i = (\\hat{p}_i, \\hat{b}_i), \\quad i=1,\\dots,N</div>\n<h5>3. 集合损失与匈牙利匹配</h5>\n<p>DETR 最关键的训练机制是先找一个最优排列 <span class=\"kb-math kb-math-inline\">\\hat{\\sigma}</span>，将真值目标 <span class=\"kb-math kb-math-inline\">y_i</span> 唯一匹配到预测 <span class=\"kb-math kb-math-inline\">\\hat{y}_{\\sigma(i)}</span>：</p>\n<div class=\"kb-math kb-math-display\">\\hat{\\sigma} = \\arg\\min_{\\sigma \\in \\mathfrak{S}_N} \\sum_i \\mathcal{L}_{match}(y_i, \\hat{y}_{\\sigma(i)})</div>\n<p>匹配代价由分类代价和框代价组成，框代价通常结合 <span class=\"kb-math kb-math-inline\">L_1</span> 和 GIoU：</p>\n<div class=\"kb-math kb-math-display\">\\mathcal{L}_{box}(b_i, \\hat{b}_{\\sigma(i)}) =\n\\lambda_{L1}\\|b_i-\\hat{b}_{\\sigma(i)}\\|_1 +\n\\lambda_{giou}\\mathcal{L}_{giou}(b_i,\\hat{b}_{\\sigma(i)})</div>\n<p>完成匹配后，只有被匹配到的预测负责对应目标；未匹配预测都被监督为 <span class=\"kb-math kb-math-inline\">\\varnothing</span> 类。这样一来，如果两个 query 预测同一个物体，只有其中一个能被匹配，另一个会受到“非目标”或错误定位惩罚，这就是 DETR 不需要 NMS 的根本原因。</p>\n<h5>4. 训练与推理流程</h5>\n<pre><code class=\"language-python\"># DETR 训练/推理核心逻辑\nfeatures = backbone(image)\ntokens = flatten(project(features)) + pos_encoding\nmemory = transformer_encoder(tokens)\n\nqueries = learned_object_queries  # [N, D]\ndecoded = transformer_decoder(queries, memory)\nclass_logits, boxes = detection_head(decoded)\n\nif training:\n    matching = hungarian_match(class_logits, boxes, gt_labels, gt_boxes)\n    loss = class_loss(matching) + l1_box_loss(matching) + giou_loss(matching)\n    loss.backward()\nelse:\n    keep = softmax(class_logits).argmax(-1) != &quot;no_object&quot;\n    detections = boxes[keep], class_logits[keep]\n</code></pre>\n<p>推理阶段非常直接：对每个 query 的类别分布取最大非空类别，过滤掉 <span class=\"kb-math kb-math-inline\">\\varnothing</span> 即可得到检测结果。传统检测器通常需要产生上千个候选，再根据类别分数和 IoU 做 NMS；DETR 只产生固定数量预测槽位，例如 100 个，输出集合已经被训练成尽量无重复。</p>\n<h5>5. 与传统检测器的区别</h5>\n<p>DETR 的优点是概念统一：分类、定位、去重都在同一个端到端目标下优化；Transformer 自注意力还让模型天然适合捕获远距离目标关系和全局上下文。因此它在大目标和拥挤目标关系建模上很有吸引力。</p>\n<p>它的代价也很明确：全局注意力对高分辨率特征开销大，早期 DETR 只用较低分辨率特征，小目标性能受限；同时二分匹配训练早期不稳定，需要很长训练周期。后续 Deformable DETR、DINO、RT-DETR/RF-DETR 等工作基本都围绕“多尺度、小目标、收敛速度、实时部署”继续改进。</p>\n<div class=\"key-point\">💡 关键：DETR 的创新不只是用了 Transformer，而是把检测输出从“密集候选 + 后处理”改成了“直接预测无序集合”。</div>",
+      "quiz": {
+        "q": "DETR 能够在推理阶段去掉 NMS 的关键原因是什么？",
+        "options": [
+          "Transformer 编码器自动删除低分框",
+          "匈牙利匹配训练让预测与真值一对一分配，重复预测会被损失惩罚",
+          "CNN backbone 只输出一个尺度的特征",
+          "Object queries 的数量等于图像中的真实目标数"
+        ],
+        "answer": 1,
+        "explain": "DETR 的集合损失通过匈牙利匹配建立一对一监督，未匹配预测被训练为 no object，因此模型学习直接输出少重复的检测集合。"
+      }
     },
     {
       "id": "deformable_detr",
@@ -696,13 +779,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "transformer_based",
       "motivation": "多尺度可变形注意力加速收敛",
-      "summary": "Deformable DETR 的核心目标是：多尺度可变形注意力加速收敛。",
+      "summary": "Deformable DETR 用多尺度可变形注意力替代 DETR 中对整张特征图的全局注意力，让每个 query 只关注参考点附近少量采样位置，从而同时解决 DETR 收敛慢、计算重和小目标弱的问题。",
       "keyPoints": [
-        "核心动机：多尺度可变形注意力加速收敛",
-        "演化来源：继承或改进自 detr",
-        "代表机构：商汤科技"
+        "稀疏采样注意力：每个 query 只在少量可学习偏移点上取特征，而不是遍历全部空间位置",
+        "多尺度特征输入：直接融合多个 FPN-like 特征层，提升小目标和尺度变化处理能力",
+        "可变形自注意力与交叉注意力：encoder 和 decoder 都使用同一类采样式注意力模块",
+        "参考点机制：query 根据参考点预测采样偏移和注意力权重，形成局部但可学习的感受野",
+        "快速收敛：相比原始 DETR 可用约 1/10 训练轮数达到更好精度",
+        "两阶段变体：encoder 先产生候选框，再初始化 decoder queries，进一步提升性能"
       ],
-      "detail": "<p><img alt=\"Deformable DETR 整体架构\" src=\"https://ar5iv.labs.arxiv.org/html/2010.04159/assets/x1.png\" />\n<em>图：Deformable DETR 使用多尺度特征和可变形注意力构建端到端检测器。</em></p>\n<h5>1. 动机与背景</h5>\n<p>原始 DETR 的瓶颈来自 Transformer 注意力直接作用在图像特征图上。图像 token 数量远大于自然语言序列，而且目标通常只与局部区域强相关；如果让每个 query 都和所有空间位置交互，计算量大、优化难，并且低分辨率特征会损害小目标定位。</p>\n<p>Deformable DETR 的核心观察是：检测 query 不需要在每一层都看完整幅图，它更需要围绕一个参考位置，从多个尺度中采样少量关键点。这个思想继承了 deformable convolution 的局部自适应采样，但被放进 Transformer 注意力框架中。</p>\n<h5>2. 可变形注意力模块</h5>\n<p><img alt=\"Deformable Attention 模块\" src=\"https://ar5iv.labs.arxiv.org/html/2010.04159/assets/x2.png\" />\n<em>图：每个 query 围绕参考点预测多个采样偏移，并对采样特征加权求和。</em></p>\n<p>标准 cross-attention 对所有 key 做加权：</p>\n<div class=\"kb-math kb-math-display\">\\text{Attn}(q) = \\sum_k A_{qk} W_v x_k</div>\n<p>Deformable attention 将这个全局求和改为少量采样点求和。对 query <span class=\"kb-math kb-math-inline\">q</span>，第 <span class=\"kb-math kb-math-inline\">m</span> 个注意力头、第 <span class=\"kb-math kb-math-inline\">k</span> 个采样点会预测偏移 <span class=\"kb-math kb-math-inline\">\\Delta p_{mqk}</span> 和权重 <span class=\"kb-math kb-math-inline\">A_{mqk}</span>，输出为：</p>\n<div class=\"kb-math kb-math-display\">\\text{DeformAttn}(z_q, p_q, x) =\n\\sum_{m=1}^{M} W_m\n\\left[\n\\sum_{k=1}^{K} A_{mqk} \\cdot W&#x27;_m x(p_q + \\Delta p_{mqk})\n\\right]</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">p_q</span> 是参考点，<span class=\"kb-math kb-math-inline\">K</span> 通常很小，例如 4。由于 <span class=\"kb-math kb-math-inline\">p_q+\\Delta p</span> 不一定落在整数像素位置，特征读取使用双线性插值。这样每个 query 的复杂度从与 <span class=\"kb-math kb-math-inline\">HW</span> 成正比，降为与 <span class=\"kb-math kb-math-inline\">K</span> 成正比。</p>\n<h5>3. 多尺度扩展</h5>\n<p>检测天然需要多尺度特征：高层语义强但分辨率低，低层定位细但语义弱。Deformable DETR 在 <span class=\"kb-math kb-math-inline\">L</span> 个尺度上采样：</p>\n<div class=\"kb-math kb-math-display\">\\text{MSDeformAttn}(z_q, \\hat{p}_q, \\{x^l\\}_{l=1}^{L}) =\n\\sum_{m=1}^{M} W_m\n\\left[\n\\sum_{l=1}^{L}\\sum_{k=1}^{K}\nA_{mlqk} \\cdot W&#x27;_m x^l(\\phi_l(\\hat{p}_q)+\\Delta p_{mlqk})\n\\right]</div>\n<p><span class=\"kb-math kb-math-inline\">\\hat{p}_q</span> 是归一化参考点，<span class=\"kb-math kb-math-inline\">\\phi_l</span> 将它映射到第 <span class=\"kb-math kb-math-inline\">l</span> 个特征层坐标。注意力权重在所有尺度和采样点上归一化，因此模型可以自动决定当前 query 应该从高分辨率小目标特征还是低分辨率语义特征中读取信息。</p>\n<h5>4. 训练与推理流程</h5>\n<p>```python</p>"
+      "detail": "<p><img alt=\"Deformable DETR 整体架构\" src=\"https://ar5iv.labs.arxiv.org/html/2010.04159/assets/x1.png\" />\n<em>图：Deformable DETR 使用多尺度特征和可变形注意力构建端到端检测器。</em></p>\n<h5>1. 动机与背景</h5>\n<p>原始 DETR 的瓶颈来自 Transformer 注意力直接作用在图像特征图上。图像 token 数量远大于自然语言序列，而且目标通常只与局部区域强相关；如果让每个 query 都和所有空间位置交互，计算量大、优化难，并且低分辨率特征会损害小目标定位。</p>\n<p>Deformable DETR 的核心观察是：检测 query 不需要在每一层都看完整幅图，它更需要围绕一个参考位置，从多个尺度中采样少量关键点。这个思想继承了 deformable convolution 的局部自适应采样，但被放进 Transformer 注意力框架中。</p>\n<h5>2. 可变形注意力模块</h5>\n<p><img alt=\"Deformable Attention 模块\" src=\"https://ar5iv.labs.arxiv.org/html/2010.04159/assets/x2.png\" />\n<em>图：每个 query 围绕参考点预测多个采样偏移，并对采样特征加权求和。</em></p>\n<p>标准 cross-attention 对所有 key 做加权：</p>\n<div class=\"kb-math kb-math-display\">\\text{Attn}(q) = \\sum_k A_{qk} W_v x_k</div>\n<p>Deformable attention 将这个全局求和改为少量采样点求和。对 query <span class=\"kb-math kb-math-inline\">q</span>，第 <span class=\"kb-math kb-math-inline\">m</span> 个注意力头、第 <span class=\"kb-math kb-math-inline\">k</span> 个采样点会预测偏移 <span class=\"kb-math kb-math-inline\">\\Delta p_{mqk}</span> 和权重 <span class=\"kb-math kb-math-inline\">A_{mqk}</span>，输出为：</p>\n<div class=\"kb-math kb-math-display\">\\text{DeformAttn}(z_q, p_q, x) =\n\\sum_{m=1}^{M} W_m\n\\left[\n\\sum_{k=1}^{K} A_{mqk} \\cdot W&#x27;_m x(p_q + \\Delta p_{mqk})\n\\right]</div>\n<p>其中 <span class=\"kb-math kb-math-inline\">p_q</span> 是参考点，<span class=\"kb-math kb-math-inline\">K</span> 通常很小，例如 4。由于 <span class=\"kb-math kb-math-inline\">p_q+\\Delta p</span> 不一定落在整数像素位置，特征读取使用双线性插值。这样每个 query 的复杂度从与 <span class=\"kb-math kb-math-inline\">HW</span> 成正比，降为与 <span class=\"kb-math kb-math-inline\">K</span> 成正比。</p>\n<h5>3. 多尺度扩展</h5>\n<p>检测天然需要多尺度特征：高层语义强但分辨率低，低层定位细但语义弱。Deformable DETR 在 <span class=\"kb-math kb-math-inline\">L</span> 个尺度上采样：</p>\n<div class=\"kb-math kb-math-display\">\\text{MSDeformAttn}(z_q, \\hat{p}_q, \\{x^l\\}_{l=1}^{L}) =\n\\sum_{m=1}^{M} W_m\n\\left[\n\\sum_{l=1}^{L}\\sum_{k=1}^{K}\nA_{mlqk} \\cdot W&#x27;_m x^l(\\phi_l(\\hat{p}_q)+\\Delta p_{mlqk})\n\\right]</div>\n<p><span class=\"kb-math kb-math-inline\">\\hat{p}_q</span> 是归一化参考点，<span class=\"kb-math kb-math-inline\">\\phi_l</span> 将它映射到第 <span class=\"kb-math kb-math-inline\">l</span> 个特征层坐标。注意力权重在所有尺度和采样点上归一化，因此模型可以自动决定当前 query 应该从高分辨率小目标特征还是低分辨率语义特征中读取信息。</p>\n<h5>4. 训练与推理流程</h5>\n<pre><code class=\"language-python\"># Deformable DETR 核心前向伪代码\nmulti_scale_feats = backbone(image)  # C3, C4, C5, optional C6\nsrcs = [project(feat) + pos_embed(feat) for feat in multi_scale_feats]\n\n# Encoder: 多尺度可变形自注意力\nmemory = srcs\nfor layer in encoder_layers:\n    ref_points = grid_reference_points(memory)\n    memory = ms_deform_self_attention(memory, ref_points)\n    memory = ffn(memory)\n\n# Decoder: object queries 围绕参考点读取 encoder memory\nqueries, ref_boxes = init_queries()\nfor layer in decoder_layers:\n    queries = self_attention(queries)\n    queries = ms_deform_cross_attention(queries, ref_boxes, memory)\n    class_logits, box_delta = heads[layer](queries)\n    ref_boxes = refine(ref_boxes, box_delta)\n\nloss = hungarian_set_loss(class_logits, ref_boxes, gt)\n</code></pre>\n<p>训练目标仍然沿用 DETR 的集合预测和匈牙利匹配，因此模型仍是端到端检测器，不需要 NMS。变化主要在特征交互方式：encoder 不再做昂贵的全局 dense attention，decoder 也不再让每个 query 扫描所有位置，而是围绕参考点逐层细化。</p>\n<h5>5. 两阶段变体与优势</h5>\n<p>两阶段 Deformable DETR 让 encoder 先对多尺度特征上的每个位置预测一个候选框和类别分数，再选 top-K 候选初始化 decoder queries。这与 Faster R-CNN 的 proposal 有相似直觉，但仍在 Transformer 集合预测框架内联合训练。</p>\n<p>相对 DETR，它的优势非常明确：多尺度特征补齐小目标信息，稀疏可变形采样降低计算和优化难度，参考点迭代细化提升定位稳定性。后续 DAB-DETR、DN-DETR、DINO 等工作大多继承了“参考点/锚框 query + 可变形注意力 + 多尺度”的基础设计。</p>\n<div class=\"warn-box\">⚠️ 注意：Deformable DETR 不是回到传统 anchor detector；它的采样参考点是注意力读特征的位置机制，最终监督仍是集合匹配。</div>",
+      "quiz": {
+        "q": "Deformable DETR 相比原始 DETR 收敛更快的主要机制是什么？",
+        "options": [
+          "完全移除了 Transformer decoder",
+          "让每个 query 只关注参考点附近少量多尺度采样点，降低注意力搜索空间",
+          "使用 NMS 删除重复预测",
+          "只检测大目标，忽略小目标"
+        ],
+        "answer": 1,
+        "explain": "可变形注意力把全局 dense attention 改为围绕参考点的稀疏多尺度采样，减少计算并让优化更聚焦。"
+      }
     },
     {
       "id": "dino",
@@ -716,13 +813,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "transformer_based",
       "motivation": "对比去噪训练提升性能",
-      "summary": "DINO 的核心目标是：对比去噪训练提升性能。",
+      "summary": "DINO 在 Deformable DETR 系列上系统整合对比去噪训练、混合 query 选择和 look forward twice 框更新，使 DETR-like 检测器在收敛速度、定位质量和大规模性能上显著提升。",
       "keyPoints": [
-        "核心动机：对比去噪训练提升性能",
-        "演化来源：继承或改进自 deformable_detr",
-        "代表机构：IDEA"
+        "Contrastive DeNoising (CDN)：同时构造正负噪声锚框，训练模型区分接近目标和偏离目标的 queries",
+        "Mixed Query Selection：用 encoder top-K 特征初始化位置 query / anchor box，内容 query 仍保持可学习",
+        "Look Forward Twice：让当前层框回归同时受当前层和下一层预测监督，改善逐层框细化",
+        "继承多尺度 Deformable Attention：保留 Deformable DETR 的高效多尺度特征读取",
+        "快速高精度：R50 多尺度设置下 12/24 epoch 即显著优于 DN-DETR",
+        "可扩展性强：结合 Objects365 预训练和 Swin-L backbone 后达到当时 COCO 领先结果"
       ],
-      "detail": "<p><img alt=\"DINO 框架图\" src=\"https://ar5iv.labs.arxiv.org/html/2203.03605/assets/x2.png\" />\n<em>图：DINO 在 Transformer encoder-decoder 中加入 contrastive denoising、mixed query selection 和改进的框更新。</em></p>\n<h5>1. 动机与背景</h5>\n<p>DETR 的慢收敛很大程度上来自二分匹配不稳定：训练早期预测框和类别都很差，一个真值目标在不同 epoch 可能匹配到不同 query，监督信号抖动。DN-DETR 通过把带噪声的真值框和标签送入 decoder，并要求模型重建原始真值，缓解了匹配不稳定。</p>\n<p>DINO 进一步指出，单纯重建带噪声正样本还不够。检测器不仅要把接近目标的 query 拉回目标，还要学会拒绝那些“看起来也接近但不该匹配”的负 query，尤其是在多个 anchor 靠近同一个物体时避免重复预测。</p>\n<h5>2. 对比去噪训练</h5>\n<p>CDN 为每个真值框构造两类 denoising queries：正样本是轻微扰动后的 GT label/box，负样本是更大扰动或类别干扰后的样本。模型需要把正样本恢复为对应目标，同时把负样本分类为背景或远离该目标。</p>\n<p>```python</p>"
+      "detail": "<p><img alt=\"DINO 框架图\" src=\"https://ar5iv.labs.arxiv.org/html/2203.03605/assets/x2.png\" />\n<em>图：DINO 在 Transformer encoder-decoder 中加入 contrastive denoising、mixed query selection 和改进的框更新。</em></p>\n<h5>1. 动机与背景</h5>\n<p>DETR 的慢收敛很大程度上来自二分匹配不稳定：训练早期预测框和类别都很差，一个真值目标在不同 epoch 可能匹配到不同 query，监督信号抖动。DN-DETR 通过把带噪声的真值框和标签送入 decoder，并要求模型重建原始真值，缓解了匹配不稳定。</p>\n<p>DINO 进一步指出，单纯重建带噪声正样本还不够。检测器不仅要把接近目标的 query 拉回目标，还要学会拒绝那些“看起来也接近但不该匹配”的负 query，尤其是在多个 anchor 靠近同一个物体时避免重复预测。</p>\n<h5>2. 对比去噪训练</h5>\n<p>CDN 为每个真值框构造两类 denoising queries：正样本是轻微扰动后的 GT label/box，负样本是更大扰动或类别干扰后的样本。模型需要把正样本恢复为对应目标，同时把负样本分类为背景或远离该目标。</p>\n<pre><code class=\"language-python\"># DINO Contrastive DeNoising 伪代码\ndn_queries = []\nfor gt_label, gt_box in targets:\n    pos_box = add_small_noise(gt_box)\n    pos_label = maybe_keep_label(gt_label)\n    dn_queries.append((pos_label, pos_box, &quot;reconstruct_gt&quot;))\n\n    neg_box = add_larger_noise(gt_box)\n    neg_label = corrupt_or_keep_label(gt_label)\n    dn_queries.append((neg_label, neg_box, &quot;reject_as_background&quot;))\n\ndecoder_inputs = concat(dn_queries, matching_queries)\noutputs = transformer_decoder(decoder_inputs, encoder_memory)\n\nloss = set_prediction_loss(outputs.matching_part, targets)\nloss += denoising_reconstruction_loss(outputs.dn_part, targets)\n</code></pre>\n<p>直觉上，CDN 把训练任务从“看到模糊 query 后回归目标”变成“判断这个 query 是否真的属于目标，并只把合格 query 拉向目标”。这直接减少相邻 anchor 对同一目标的混淆，是 DINO 名称中 Improved DeNoising Anchor Boxes 的核心。</p>\n<h5>3. Mixed Query Selection</h5>\n<p><img alt=\"DINO query 初始化对比\" src=\"https://ar5iv.labs.arxiv.org/html/2203.03605/assets/x7.png\" />\n<em>图：DINO 只用 encoder top-K 特征增强位置 query，内容 query 仍保持静态可学习。</em></p>\n<p>两阶段 Deformable DETR 会从 encoder 输出中选择 top-K 特征，同时初始化 decoder 的位置 query 和内容 query。DINO 认为 encoder top-K 特征虽然位置先验强，但内容语义仍可能混杂，例如一个特征覆盖多个物体或只覆盖物体局部；如果直接把它作为内容 query，可能误导 decoder。</p>\n<p>因此 DINO 采用混合 query 选择：位置部分来自 encoder top-K 候选框，内容部分仍是可学习参数。这样 decoder 既获得图像自适应的位置锚点，又保留稳定、可训练的内容查询容量：</p>\n<div class=\"kb-math kb-math-display\">q^{pos}_i = \\text{TopKAnchor}(\\text{Encoder}(x)), \\quad\nq^{content}_i = e_i</div>\n<h5>4. Look Forward Twice 框更新</h5>\n<p><img alt=\"DINO 框更新机制\" src=\"https://ar5iv.labs.arxiv.org/html/2203.03605/assets/x8.png\" />\n<em>图：DINO 让相邻层的框预测参与当前层参数更新，增强迭代细化监督。</em></p>\n<p>Deformable DETR 的 iterative box refinement 会逐层更新参考框，但为了稳定训练，更新后的参考框常被 detach，导致早期层只能从自身辅助损失得到监督。DINO 提出 look forward twice：当前层预测的 offset 不仅形成当前层输出，也会影响下一层用于预测的参考框，因此当前层参数同时受到当前层和下一层 box loss 影响。</p>\n<p>可以把它理解为更密集的框细化监督。若第 <span class=\"kb-math kb-math-inline\">i</span> 层预测偏移 <span class=\"kb-math kb-math-inline\">\\Delta b_i</span>，它既用于得到 <span class=\"kb-math kb-math-inline\">b&#x27;_i</span>，也参与形成 <span class=\"kb-math kb-math-inline\">b^{pred}_{i+1}</span>。这让早期层学会产生对后续层真正有帮助的参考框，而不是只优化本层辅助输出。</p>\n<h5>5. 与 Deformable DETR 的关系</h5>\n<p>DINO 并不是替换 Deformable DETR 的底层注意力，而是在其强多尺度检测骨架上补齐 query 训练和框细化策略。Deformable DETR 解决“看哪里”和“如何高效看”的问题；DINO 主要解决“query 如何初始化、如何稳定训练、如何避免混淆”的问题。</p>\n<div class=\"key-point\">💡 关键：DINO 的贡献是组合式但不简单堆料，三项机制都围绕 DETR 的 query-匹配不稳定展开：CDN 稳定监督，mixed query selection 提供更好锚点，look forward twice 改善逐层定位。</div>",
+      "quiz": {
+        "q": "DINO 的 Contrastive DeNoising 相比 DN-DETR 去噪训练多解决了什么问题？",
+        "options": [
+          "把所有 query 都改成 CNN anchor",
+          "引入负噪声样本，训练模型拒绝不合格锚框并减少相近 query 混淆",
+          "去掉匈牙利匹配",
+          "只对分类头做蒸馏"
+        ],
+        "answer": 1,
+        "explain": "CDN 同时构造正负 denoising queries，让模型学会恢复正样本并排斥负样本，从而减少重复预测和错误 anchor 选择。"
+      }
     },
     {
       "id": "rt_detr",
@@ -773,13 +884,27 @@ window.PAGE_CONFIG = {
       "projectUrl": "",
       "category": "transformer_based",
       "motivation": "NAS优化首破60mAP大关",
-      "summary": "RF-DETR 的核心目标是：NAS优化首破60mAP大关。",
+      "summary": "RF-DETR 将 DINOv2 预训练 ViT、轻量多尺度投影、Deformable DETR decoder 与权重共享 NAS 结合起来，为不同数据集和延迟预算搜索实时检测 Transformer 的 Pareto 最优结构，并报告首个实时检测器突破 COCO 60 AP。",
       "keyPoints": [
-        "核心动机：NAS优化首破60mAP大关",
-        "演化来源：继承或改进自 rt_detr",
-        "代表机构：Roboflow"
+        "Foundation backbone：用 DINOv2 ViT 取代传统 CNN/CAEv2 backbone，增强跨域迁移能力",
+        "实时 DETR 架构：多尺度 projector + deformable cross-attention decoder，保持端到端无 NMS 检测",
+        "权重共享 NAS：一次训练中随机采样子网，覆盖分辨率、patch size、窗口数、decoder 层数和 query 数",
+        "数据集/硬件自适应：搜索目标可以绑定具体延迟预算和目标数据集，而不是只给单一手工模型",
+        "Decoder dropout：所有 decoder 层施加检测/分割损失，推理时可丢弃部分层换取更低延迟",
+        "检测与分割统一：在检测架构上加入轻量实例分割头，保持实时部署特性"
       ],
-      "detail": "<p><img alt=\"RF-DETR 架构图\" src=\"https://arxiv.org/html/2511.09554v2/x5.png\" />\n<em>图：RF-DETR 使用预训练 ViT backbone、多尺度 projector、deformable decoder 和轻量分割头。</em></p>\n<h5>1. 动机与背景</h5>\n<p>开词汇检测器和大型 VLM 在通用语义上很强，但微调到具体工业或长尾数据集时往往太重、延迟高。另一方面，YOLO、RT-DETR、LW-DETR 等专用检测器速度快，但固定手工结构未必适合每个目标数据集、类别规模、目标尺寸分布和硬件延迟约束。</p>\n<p>RF-DETR 的问题定义更偏部署：给定一个目标数据集和一个延迟范围，能否用一次训练得到大量不同结构的候选模型，并从中选择精度-延迟 Pareto 最优点？这就是它引入权重共享 NAS 的原因。</p>\n<h5>2. 基础架构</h5>\n<p>RF-DETR 以预训练 DINOv2 ViT 作为 backbone。相比从头训练或只用 CNN，DINOv2 提供更强的互联网规模视觉先验，尤其有助于小数据集和跨域检测。由于 ViT token 原生不是 FPN 格式，模型通过多尺度 projector 组织出 decoder 可用的空间特征。</p>\n<p>Decoder 继承 DETR 系列的端到端集合预测思想，使用 deformable cross-attention 在多尺度特征上读少量采样点。输出仍通过匈牙利匹配训练，因此检测分支不依赖 anchor 后处理或 NMS。</p>\n<h5>3. 权重共享 NAS 搜索空间</h5>\n<p><img alt=\"RF-DETR NAS 搜索空间\" src=\"https://arxiv.org/html/2511.09554v2/x6.png\" />\n<em>图：RF-DETR 同时搜索 patch size、decoder 层数、query 数、输入分辨率和窗口注意力配置。</em></p>\n<p>RF-DETR 的 NAS 不是为每个候选结构单独训练模型，而是训练一个 supernet。每次迭代随机采样一组结构旋钮，并只激活对应子网完成前向和反向：</p>\n<p>```python</p>"
+      "detail": "<p><img alt=\"RF-DETR 架构图\" src=\"https://arxiv.org/html/2511.09554v2/x5.png\" />\n<em>图：RF-DETR 使用预训练 ViT backbone、多尺度 projector、deformable decoder 和轻量分割头。</em></p>\n<h5>1. 动机与背景</h5>\n<p>开词汇检测器和大型 VLM 在通用语义上很强，但微调到具体工业或长尾数据集时往往太重、延迟高。另一方面，YOLO、RT-DETR、LW-DETR 等专用检测器速度快，但固定手工结构未必适合每个目标数据集、类别规模、目标尺寸分布和硬件延迟约束。</p>\n<p>RF-DETR 的问题定义更偏部署：给定一个目标数据集和一个延迟范围，能否用一次训练得到大量不同结构的候选模型，并从中选择精度-延迟 Pareto 最优点？这就是它引入权重共享 NAS 的原因。</p>\n<h5>2. 基础架构</h5>\n<p>RF-DETR 以预训练 DINOv2 ViT 作为 backbone。相比从头训练或只用 CNN，DINOv2 提供更强的互联网规模视觉先验，尤其有助于小数据集和跨域检测。由于 ViT token 原生不是 FPN 格式，模型通过多尺度 projector 组织出 decoder 可用的空间特征。</p>\n<p>Decoder 继承 DETR 系列的端到端集合预测思想，使用 deformable cross-attention 在多尺度特征上读少量采样点。输出仍通过匈牙利匹配训练，因此检测分支不依赖 anchor 后处理或 NMS。</p>\n<h5>3. 权重共享 NAS 搜索空间</h5>\n<p><img alt=\"RF-DETR NAS 搜索空间\" src=\"https://arxiv.org/html/2511.09554v2/x6.png\" />\n<em>图：RF-DETR 同时搜索 patch size、decoder 层数、query 数、输入分辨率和窗口注意力配置。</em></p>\n<p>RF-DETR 的 NAS 不是为每个候选结构单独训练模型，而是训练一个 supernet。每次迭代随机采样一组结构旋钮，并只激活对应子网完成前向和反向：</p>\n<pre><code class=\"language-python\"># RF-DETR 权重共享 NAS 训练伪代码\nsupernet = RFDETRSuperNet(dinov2_backbone, projector, detr_decoder)\n\nfor images, targets in dataloader:\n    cfg = sample({\n        &quot;resolution&quot;: [small, medium, large],\n        &quot;patch_size&quot;: [small_patch, large_patch],\n        &quot;window_blocks&quot;: [few, many],\n        &quot;decoder_layers&quot;: [2, 3, 4, 5, 6],\n        &quot;num_queries&quot;: [100, 200, 300],\n    })\n\n    outputs = supernet(images, cfg)\n    loss = hungarian_detection_loss(outputs, targets)\n    loss += optional_segmentation_loss(outputs, targets)\n    loss.backward()\n    optimizer.step()\n\npareto = evaluate_many_subnets(supernet, target_dataset, latency_meter)\ndeploy_cfg = select_best(pareto, latency_budget)\n</code></pre>\n<p>这种训练方式有两个效果。第一，它把上千个候选结构压缩到一次训练中评估，避免 NAS 的重复训练成本。第二，随机结构采样类似 architecture augmentation，让模型在不同分辨率、query 数和 decoder 深度下都保持可用，提升结构迁移性。</p>\n<h5>4. 关键结构设计</h5>\n<p>RF-DETR 在 backbone 中交替使用窗口注意力和非窗口注意力，以平衡局部效率和全局建模。窗口注意力降低 ViT 高分辨率 token 的计算量；少量非窗口或更大感受野交互保留全局上下文，避免纯局部窗口损害检测关系建模。</p>\n<p>多尺度 projector 使用 layer norm 而不是 batch norm，使梯度累积和小 batch 训练更稳定，也更适合消费级 GPU 微调。分割头则复用 encoder/projector 输出，通过 query embedding 与像素 embedding 点积生成 mask，类似轻量 prototype mask 思路，避免引入重型 mask decoder。</p>\n<p>Decoder dropout 是另一个部署友好设计。由于每层 decoder 都有检测/分割辅助损失，较浅层也能输出可用预测；推理时可以减少 decoder 层数来换延迟，而不必重新训练完整模型。</p>\n<h5>5. 与 RT-DETR 的关系</h5>\n<p>RT-DETR 证明了 DETR 可以通过高效 hybrid encoder 和 query selection 进入实时检测区间；RF-DETR 则进一步把“实时结构如何选”交给 NAS，并引入 DINOv2 预训练 ViT 作为更强先验。它关注的不只是 COCO 单点成绩，而是 COCO、RF100-VL 等多域数据上的精度-延迟曲线。</p>\n<div class=\"key-point\">💡 关键：RF-DETR 的“首破 60 mAP”来自强预训练、实时 DETR 解码器和可部署结构搜索的组合；NAS 的价值在于为不同延迟预算产出一组可选模型，而不是单一最大模型。</div>",
+      "quiz": {
+        "q": "RF-DETR 中权重共享 NAS 的主要作用是什么？",
+        "options": [
+          "替代匈牙利匹配，使模型重新依赖 NMS",
+          "在一次训练中覆盖多种结构旋钮，并为目标数据集/延迟预算选择 Pareto 最优子网",
+          "只搜索数据增强策略，不改变网络结构",
+          "把检测任务转换为纯图像分类任务"
+        ],
+        "answer": 1,
+        "explain": "RF-DETR 的 NAS 采样并训练共享权重子网，搜索分辨率、patch、窗口、decoder 层数和 query 数等旋钮，从而适配不同部署约束。"
+      }
     }
   ],
   "categories": {

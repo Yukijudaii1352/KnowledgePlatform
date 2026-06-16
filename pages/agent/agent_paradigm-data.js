@@ -1,5 +1,5 @@
 /**
- * agent_paradigm-data.js — 由 pipeline/build.py 于 2026-06-15 18:08:17 自动生成。
+ * agent_paradigm-data.js — 由 pipeline/build.py 于 2026-06-16 17:00:04 自动生成。
  * 源文件：content/agent/agent_paradigm.md
  * ⚠️  请勿手动修改；如需更新，修改源文档后重新编译。
  */
@@ -9,7 +9,7 @@ window.PAGE_CONFIG = {
     "topic_id": "agent_paradigm",
     "topic_name": "Agent范式",
     "page_title": "Agent范式技术演进",
-    "page_subtitle": "2026-06-15 版",
+    "page_subtitle": "2026-06-16 版",
     "page_desc": "围绕单体 LLM Agent 的控制与规划主线，梳理从零样本规划、ReAct 循环，到搜索式规划、世界模型、分层 plan-execute，再到前瞻反思与约束执行闭环的核心范式。",
     "page_icon": "🧭",
     "hero_pills": [
